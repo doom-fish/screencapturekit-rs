@@ -1,17 +1,18 @@
-use std::{
-    sync::atomic::{AtomicI64, Ordering},
-    thread,
-    time::Duration,
-};
-
+use objc_id::Id;
 use once_cell::sync::Lazy;
 use screencapturekit_sys::{
+    cm_sample_buffer_ref::{CMSampleBufferRef, SCFrameStatus},
     content_filter::{UnsafeContentFilter, UnsafeInitParams::Display},
     shareable_content::UnsafeSCShareableContent,
     stream::UnsafeSCStream,
     stream_configuration::UnsafeStreamConfiguration,
     stream_error_handler::UnsafeSCStreamError,
-    stream_output_handler::{CMSampleBuffer, UnsafeSCStreamOutput},
+    stream_output_handler::UnsafeSCStreamOutput,
+};
+use std::{
+    sync::atomic::{AtomicI64, Ordering},
+    thread,
+    time::Duration,
 };
 
 #[repr(C)]
@@ -24,17 +25,15 @@ impl UnsafeSCStreamError for TestHandler {
 static PREV_TIMESTAMP: Lazy<AtomicI64> = Lazy::new(|| AtomicI64::new(0));
 
 impl UnsafeSCStreamOutput for TestHandler {
-    fn got_sample(&self, sample: CMSampleBuffer) {
-        let timescale_ms = 1000000;
-        let prev_timestamp = PREV_TIMESTAMP.load(Ordering::Relaxed);
-        let new_timestamp = sample.presentation_timestamp.value / timescale_ms;
-        println!(
-            "{} FPS with sample: {:?}",
-            new_timestamp - prev_timestamp,
-            sample
-        );
-
-        PREV_TIMESTAMP.store(new_timestamp, Ordering::Relaxed);
+    fn did_output_sample_buffer(&self, sample: Id<CMSampleBufferRef>, _of_type: u8) {
+        if let SCFrameStatus::Complete = sample.get_attachments().status() {
+            let timescale_ms = 1000000;
+            let prev_timestamp = PREV_TIMESTAMP.load(Ordering::Relaxed);
+            let new_timestamp = sample.get_presentation_timestamp().value / timescale_ms;
+            let frame_ms = new_timestamp - prev_timestamp;
+            println!("{} MS for frame", frame_ms);
+            PREV_TIMESTAMP.store(new_timestamp, Ordering::Relaxed);
+        }
     }
 }
 fn main() {
