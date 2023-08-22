@@ -69,7 +69,7 @@ impl UnsafeSCStream {
         }
     }
     pub fn add_stream_output(&self, handle: impl UnsafeSCStreamOutput) {
-        let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Serial);
+        let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
 
         let a = UnsafeSCStreamOutputHandler::init(handle);
         unsafe {
@@ -88,17 +88,19 @@ impl Drop for UnsafeSCStream {
 mod stream_test {
     use std::sync::mpsc::{sync_channel, SyncSender};
 
+    use objc_id::Id;
+
     use super::{UnsafeSCStream, UnsafeSCStreamError};
     use crate::{
         content_filter::{UnsafeContentFilter, UnsafeInitParams::Display},
         shareable_content::UnsafeSCShareableContent,
         stream_configuration::UnsafeStreamConfiguration,
-        stream_output_handler::{CMSampleBuffer, UnsafeSCStreamOutput},
+        stream_output_handler::UnsafeSCStreamOutput, cm_sample_buffer_ref::CMSampleBufferRef,
     };
     struct ErrorHandler {}
     #[repr(C)]
     struct OutputHandler {
-        tx: SyncSender<CMSampleBuffer>,
+        tx: SyncSender<Id<CMSampleBufferRef>>,
     }
     impl Drop for OutputHandler {
         fn drop(&mut self) {
@@ -111,7 +113,7 @@ mod stream_test {
         }
     }
     impl UnsafeSCStreamOutput for OutputHandler {
-        fn got_sample(&self, sample: CMSampleBuffer) {
+        fn did_output_sample_buffer(&self, sample: Id<CMSampleBufferRef>, _of_type: u8) {
             self.tx.send(sample).unwrap();
         }
     }
@@ -129,7 +131,7 @@ mod stream_test {
         let config = UnsafeStreamConfiguration {
             width: 100,
             height: 100,
-           ..Default::default()
+            ..Default::default()
         };
         let (tx, rx) = sync_channel(1);
         let stream = UnsafeSCStream::init(filter, config.into(), ErrorHandler {});

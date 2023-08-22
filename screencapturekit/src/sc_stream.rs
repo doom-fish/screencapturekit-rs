@@ -4,7 +4,6 @@ use crate::{
     sc_output_handler::{StreamOutput, StreamOutputWrapper},
     sc_stream_configuration::SCStreamConfiguration,
 };
-pub use screencapturekit_sys::stream_output_handler::CMSampleBuffer;
 use screencapturekit_sys::{os_types::rc::Id, stream::UnsafeSCStream};
 
 pub struct SCStream {
@@ -42,11 +41,10 @@ mod tests {
 
     use std::sync::mpsc::{sync_channel, SyncSender};
 
-    use screencapturekit_sys::stream_output_handler::CMSampleBuffer;
 
     use crate::{
         sc_content_filter::InitParams::Display, sc_content_filter::SCContentFilter,
-        sc_error_handler::StreamErrorHandler, sc_output_handler::StreamOutput,
+        sc_error_handler::StreamErrorHandler, sc_output_handler::{StreamOutput, SCStreamOutputType, CMSampleBuffer},
         sc_shareable_content::SCShareableContent, sc_stream_configuration::SCStreamConfiguration,
     };
 
@@ -56,7 +54,7 @@ mod tests {
         pub tx: SyncSender<CMSampleBuffer>,
     }
     impl StreamOutput for SomeOutputWrapper {
-        fn stream_output(&self, sample: CMSampleBuffer) {
+        fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
             self.tx.send(sample).unwrap();
         }
     }

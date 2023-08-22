@@ -16,6 +16,7 @@ unsafe impl Message for UnsafeStreamConfigurationRef {}
 impl From<UnsafeStreamConfiguration> for Id<UnsafeStreamConfigurationRef> {
     fn from(value: UnsafeStreamConfiguration) -> Self {
         let unsafe_ref = UnsafeStreamConfigurationRef::new();
+        // TODO: Add other settings
         unsafe {
             let _: () = msg_send![unsafe_ref, setWidth: value.width];
             let _: () = msg_send![unsafe_ref, setHeight: value.height];
@@ -56,7 +57,6 @@ pub struct UnsafeStreamConfiguration {
     pub color_space_name: String,
     // A background color for the output.
     // Controlling Visibility
-    // Todo: Implement Color struct
     pub background_color: CGColor,
 
     // A boolean value that determines whether the cursor is visible in the stream.
