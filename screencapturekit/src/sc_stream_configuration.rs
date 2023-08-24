@@ -23,6 +23,18 @@ pub enum PixelFormat {
     YCbCr420f,
 }
 
+impl From<FourCharCode> for PixelFormat {
+    fn from(val: FourCharCode) -> Self {
+        let code_str = val.to_string();
+        match code_str.as_str() {
+            "BGRA" => PixelFormat::ARGB8888,
+            "l10r" => PixelFormat::ARGB2101010,
+            "420v" => PixelFormat::YCbCr420v,
+            "420f" => PixelFormat::YCbCr420f,
+            _ => unreachable!(),
+        }
+    }
+}
 impl From<PixelFormat> for FourCharCode {
     fn from(val: PixelFormat) -> Self {
         match val {
