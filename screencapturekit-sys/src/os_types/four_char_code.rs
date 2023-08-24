@@ -1,31 +1,39 @@
 use std::{
     ascii,
-    fmt::{self, Write},
+    fmt::{self},
 };
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Default, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct FourCharCode(u32);
 
+impl fmt::Display for FourCharCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.format())
+    }
+}
+
 impl fmt::Debug for FourCharCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Format as escaped ASCII string.
-
         write!(f, "\"")?;
-
-        for ch in self
-            .into_chars()
-            .iter()
-            .flat_map(|&b| ascii::escape_default(b))
-        {
-            f.write_char(ch as char)?;
-        }
-
+        f.write_str(&self.format())?;
         write!(f, "\"")
     }
 }
 
 impl FourCharCode {
+    #[inline]
+     fn format(&self) -> String {
+        // Format as escaped ASCII string.
+
+        let raw = self
+            .into_chars()
+            .into_iter()
+            .flat_map(ascii::escape_default)
+            .collect::<Vec<u8>>();
+
+        String::from_utf8(raw).unwrap()
+    }
     /// Returns an instance from the integer value.
     #[inline]
     pub const fn from_int(int: u32) -> Self {
