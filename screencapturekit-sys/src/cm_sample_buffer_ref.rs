@@ -19,6 +19,7 @@ unsafe impl Send for CMSampleBufferRef {}
 pub struct SCStreamFrameInfo {
     _priv: [u8; 0],
 }
+
 // TODO: Documnent using comment docs matching apple
 #[derive(Debug)]
 #[repr(i32)]
