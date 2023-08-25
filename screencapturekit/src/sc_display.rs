@@ -1,8 +1,11 @@
-use screencapturekit_sys::{shareable_content::UnsafeSCDisplay, os_types::{rc::ShareId, geometry::CGRect}};
+use screencapturekit_sys::{
+    os_types::{geometry::CGRect, rc::ShareId},
+    shareable_content::UnsafeSCDisplay,
+};
 
 #[derive(Debug, Clone)]
 pub struct SCDisplay {
-    pub (crate) _unsafe_ref: ShareId<UnsafeSCDisplay>,
+    pub(crate) _unsafe_ref: ShareId<UnsafeSCDisplay>,
     pub display_id: u32,
     pub frame: CGRect,
     pub width: u32,
@@ -20,4 +23,3 @@ impl From<ShareId<UnsafeSCDisplay>> for SCDisplay {
         }
     }
 }
-
