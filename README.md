@@ -20,7 +20,7 @@ TBD
 ### Dependencies
 The ScreenCaptureKit Safe Rust Wrapper depends on the following:
 - **macOS 12.3 or later**: ScreenCaptureKit is available in macOS 12.3 and later versions [SDK Docs](https://developer.apple.com/documentation/screencapturekit?language=objc).
-- The objc family of crates (Authored by: @SSheldon):
+- **`objc` family of crates**:
    [objc](https://docs.rs/objc/), [objc_id](https://docs.rs/objc_id), [objc-foundation](https://docs.rs/objc_foundation), [objc-encode](https://docs.rs/objc_encode), [block](https://docs.rs/block) and [dispatch](https://docs.rs/block).
 
 # License(s)
