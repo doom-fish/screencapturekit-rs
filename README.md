@@ -11,7 +11,7 @@ ScreenCaptureKit is a high-performance screen capture framework for macOS applic
 
 - **Privacy**: ScreenCaptureKit is built with privacy in mind, providing global privacy safeguards for all applications using the framework. The framework will require consent before capturing video and audio content, and the choice will be stored in the Screen Recording privacy setting in system preferences.
 
-More information: [SDK Docs](https://developer.apple.com/videos/play/wwdc2022/10156/).
+[More information](https://developer.apple.com/videos/play/wwdc2022/10156/).
 
 ### Usage
 To use this wrapper, you need to follow a few steps:
