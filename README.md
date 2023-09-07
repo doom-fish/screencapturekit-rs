@@ -15,7 +15,11 @@ ScreenCaptureKit is a high-performance screen capture framework for macOS applic
 
 ### Usage
 To use this wrapper, you need to follow a few steps:
-TBD
+
+```rust
+use screencapturekit_rs::ScreenCaptureKit;
+let sc
+```
 
 ### Dependencies
 The ScreenCaptureKit Safe Rust Wrapper depends on the following:
