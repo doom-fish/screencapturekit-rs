@@ -59,7 +59,7 @@ impl UnsafeSCWindow {
         unsafe { msg_send![self, windowID] }
     }
     pub fn get_frame(&self) -> CGRect {
-        unsafe { msg_send![self, windowID] }
+        unsafe { msg_send![self, frame] }
     }
     pub fn get_title(&self) -> Option<String> {
         unsafe { get_string!(self, title) }
