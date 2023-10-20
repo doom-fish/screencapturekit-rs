@@ -5,6 +5,7 @@ use objc_foundation::{INSString, INSValue, NSString, NSValue};
 use objc_id::{Id, ShareId};
 
 use crate::os_types::base::CMTime;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct CMSampleBufferRef {
