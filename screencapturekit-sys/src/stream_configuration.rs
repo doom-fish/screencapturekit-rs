@@ -21,7 +21,7 @@ impl From<UnsafeStreamConfiguration> for Id<UnsafeStreamConfigurationRef> {
             let _: () = msg_send![unsafe_ref, setWidth: value.width];
             let _: () = msg_send![unsafe_ref, setHeight: value.height];
 
-            let _: () = msg_send![unsafe_ref, setMinimumFrameInterval: CMTime {value: 1, timescale: 60, flags: 1, epoch: 0}];
+            // let _: () = msg_send![unsafe_ref, setMinimumFrameInterval: CMTime {value: 1, timescale: 60, flags: 1, epoch: 0}];
         }
 
         unsafe_ref
@@ -85,7 +85,7 @@ impl Default for UnsafeStreamConfiguration {
             scales_to_fit: 0,
             source_rect: Default::default(),
             destination_rect: Default::default(),
-            pixel_format: FourCharCode::from_chars(*b"bgra"),
+            pixel_format: FourCharCode::from_chars(*b"BGRA"),
             color_matrix: Default::default(),
             color_space_name: Default::default(),
             background_color: Default::default(),

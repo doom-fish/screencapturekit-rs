@@ -12,7 +12,7 @@ use objc::{
 use objc_foundation::INSObject;
 use objc_id::Id;
 use once_cell::sync::Lazy;
-
+use crate::as_ptr::*;
 use crate::cm_sample_buffer_ref::CMSampleBufferRef;
 
 static OUTPUT_HANDLERS: Lazy<RwLock<HashMap<usize, Box<dyn UnsafeSCStreamOutput + Send + Sync>>>> =
@@ -36,19 +36,18 @@ impl INSObject for UnsafeSCStreamOutputHandler {
             let mut decl = ClassDecl::new("SCStreamOutputHandler", class!(NSObject)).unwrap();
             decl.add_ivar::<usize>("_output_handler");
 
-            extern "C" fn stream_output(
+            extern "C" fn stream_output<'a>(
                 this: &mut Object,
                 _cmd: Sel,
                 _stream: *mut Object,
-                sample_ref: *mut Object,
+                sample_ref: &'a CMSampleBufferRef,
                 of_type: u8,
             ) {
-                if sample_ref.is_null() {
-                    return;
-                }
                 unsafe {
-                    let sample: Id<CMSampleBufferRef> =
-                        Id::from_ptr(sample_ref as *mut _ as *mut CMSampleBufferRef);
+                    if sample_ref.as_ptr().is_null() {
+                        return;
+                    }
+                    let sample: Id<CMSampleBufferRef> = Id::from_ptr(sample_ref.as_mut_ptr());
                     let handler_trait_ptr_address = this.get_ivar::<usize>("_output_handler");
                     let lookup = OUTPUT_HANDLERS.read().unwrap();
                     let output_handler_trait = lookup.get(handler_trait_ptr_address).unwrap();
@@ -56,11 +55,11 @@ impl INSObject for UnsafeSCStreamOutputHandler {
                 };
             }
             unsafe {
-                let stream_output_method: extern "C" fn(
+                let stream_output_method: for<'a> extern "C" fn(
                     &mut Object,
                     Sel,
                     *mut Object,
-                    *mut Object,
+                    &'static CMSampleBufferRef,
                     u8,
                 ) = stream_output;
 

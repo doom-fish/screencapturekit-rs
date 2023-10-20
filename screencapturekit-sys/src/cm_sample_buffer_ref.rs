@@ -1,10 +1,10 @@
 use std::mem;
 
-use objc::{runtime::Object, Message, *};
+use objc::{runtime::Object, Encode, Message, *};
 use objc_foundation::{INSString, INSValue, NSString, NSValue};
 use objc_id::{Id, ShareId};
 
-use crate::os_types::base::CMTime;
+use crate::{cv_image_buffer::CVImageBufferRef, os_types::base::CMTime};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -50,37 +50,34 @@ impl SCStreamFrameInfo {
 }
 unsafe impl Message for SCStreamFrameInfo {}
 
+unsafe impl Encode for &CMSampleBufferRef {
+    fn encode() -> Encoding {
+        unsafe { Encoding::from_str("^v") }
+    }
+}
+
 impl CMSampleBufferRef {
     pub fn get_attachments(&self) -> Id<SCStreamFrameInfo> {
         unsafe {
-            let raw_ptr = self as *const Self;
-            let raw_attachments_array = CMSampleBufferGetSampleAttachmentsArray(raw_ptr, 0);
+            let raw_attachments_array = CMSampleBufferGetSampleAttachmentsArray(self, 0);
             let first = msg_send![raw_attachments_array, firstObject];
             Id::from_ptr(first)
         }
     }
     pub fn get_presentation_timestamp(&self) -> CMTime {
-        unsafe {
-            let raw_ptr = self as *const Self;
-            CMSampleBufferGetPresentationTimeStamp(raw_ptr)
-        }
+        unsafe { CMSampleBufferGetPresentationTimeStamp(self) }
+    }
+
+    pub fn get_image_buffer(&self) -> Id<CVImageBufferRef> {
+        unsafe { Id::from_ptr(CMSampleBufferGetImageBuffer(self)) }
     }
 }
 
 extern "C" {
     pub fn CMSampleBufferGetSampleAttachmentsArray(
-        sample: *const CMSampleBufferRef,
+        sample: &CMSampleBufferRef,
         create: u8,
     ) -> *mut Object;
-    pub fn CFShow(d: *const SCStreamFrameInfo);
-    pub fn CMSampleBufferDataIsReady(sample: *mut Object) -> bool;
-    pub fn CMSampleBufferGetDuration(sample: *mut Object) -> CMTime;
-    pub fn CMSampleBufferGetOutputDuration(sample: *mut Object) -> CMTime;
-    pub fn CMSampleBufferGetNumSamples(sample: *mut Object) -> u32;
-    pub fn CMSampleBufferGetDataBuffer(sample: *mut Object) -> *mut Object;
-    pub fn CMSampleBufferGetImageBuffer(sample: CMSampleBufferRef) -> *mut Object;
-    pub fn CMSampleBufferGetFormatDescription(sample: *mut Object) -> *mut Object;
-    pub fn CMSampleBufferGetPresentationTimeStamp(sample: *const CMSampleBufferRef) -> CMTime;
-    pub fn CMFormatDescriptionGetMediaType(fd: *mut Object) -> u32;
-    pub fn CMFormatDescriptionGetMediaSubType(fd: *mut Object) -> u32;
+    pub fn CMSampleBufferGetImageBuffer(sample: &CMSampleBufferRef) -> *mut CVImageBufferRef;
+    pub fn CMSampleBufferGetPresentationTimeStamp(sample: &CMSampleBufferRef) -> CMTime;
 }
