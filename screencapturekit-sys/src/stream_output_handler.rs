@@ -47,7 +47,8 @@ impl INSObject for UnsafeSCStreamOutputHandler {
                     return;
                 }
                 unsafe {
-                    let sample: Id<CMSampleBufferRef> = Id::from_ptr(sample_ref as *mut _ as *mut CMSampleBufferRef);
+                    let sample: Id<CMSampleBufferRef> =
+                        Id::from_ptr(sample_ref as *mut _ as *mut CMSampleBufferRef);
                     let handler_trait_ptr_address = this.get_ivar::<usize>("_output_handler");
                     let lookup = OUTPUT_HANDLERS.read().unwrap();
                     let output_handler_trait = lookup.get(handler_trait_ptr_address).unwrap();
@@ -113,10 +114,10 @@ mod tests {
         let handle = TestHandler {};
         let handle = UnsafeSCStreamOutputHandler::init(handle);
         let _: () = unsafe {
-            msg_send![handle, stream: ptr::null_mut() as *mut Object didOutputSampleBuffer: ptr::null_mut() as *mut Object ofType: 0]
+            msg_send![handle, stream: ptr::null_mut::<Object>() didOutputSampleBuffer: ptr::null_mut::<Object>() ofType: 0]
         };
         let _: () = unsafe {
-            msg_send![handle, stream: ptr::null_mut() as *mut Object didOutputSampleBuffer: ptr::null_mut() as *mut Object ofType: 1]
+            msg_send![handle, stream: ptr::null_mut::<Object>() didOutputSampleBuffer: ptr::null_mut::<Object>() ofType: 1]
         };
     }
 }

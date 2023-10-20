@@ -83,7 +83,7 @@ mod tests {
     fn test_sc_stream_error_handler() {
         let handle = UnsafeSCStreamErrorHandler::init(TestHandler {});
         unsafe {
-            msg_send![handle, stream: ptr::null_mut() as *mut Object didStopWithError: ptr::null_mut() as *mut Object]
+            msg_send![handle, stream: ptr::null_mut::<Object>() didStopWithError: ptr::null_mut::<Object>()]
         }
     }
 }
