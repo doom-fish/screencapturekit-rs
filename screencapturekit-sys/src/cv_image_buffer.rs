@@ -1,11 +1,9 @@
-use objc::{runtime::Object, Encode, Encoding, Message};
-use objc_foundation::{NSData, INSObject};
-use objc_id::{ShareId, Id};
+use objc::{class, runtime::Object, Message, *};
+use objc_foundation::{NSData, NSValue, NSDictionary, INSValue, INSDictionary, NSString};
+use objc_id::ShareId;
 
-use crate::{
-    as_ptr::{AsMutPtr, AsPtr},
-    ci_image::{CIFormat, CIImage},
-};
+use crate::{as_ptr::AsMutPtr, os_types::geometry::CGSize};
+
 
 #[repr(C)]
 #[derive(Debug)]
@@ -16,16 +14,31 @@ pub struct CVImageBufferRef {
 unsafe impl Message for CVImageBufferRef {}
 unsafe impl Send for CVImageBufferRef {}
 
-
-
 impl CVImageBufferRef {
-    pub fn get_data(&self) -> ShareId<NSData> {
+    pub fn get_jpeg_data(&self) -> ShareId<NSData> {
         unsafe {
-            let ci_image = CIImage::init(self.as_mut_ptr());
-             println!("AAA: {:p}", ci_image);
-            let a = ci_image.png_representation_of_image(CIFormat::BGRA8);
-            a
+            let ci_image_class = class!(CIImage);
+            let ci_context_class = class!(CIContext);
+            let ci_context: *mut Self = msg_send![ci_context_class, alloc];
+            let ci_context: *mut Self = msg_send![ci_context, init];
+            let ci_image: *mut Self = msg_send![ci_image_class, alloc];
+            let ci_image: *mut Self = msg_send![ci_image, initWithCVImageBuffer: self.as_mut_ptr()];
+            let pixel_buffer: *mut Object = msg_send![ci_image, pixelBuffer];
+            let color_space = CVImageBufferGetColorSpace(pixel_buffer);
+            let options = NSDictionary::from_keys_and_objects(
+                &[&*kCGImageDestinationLossyCompressionQuality],
+                vec![NSValue::from_value(1000.0f32)],
+            );
+            let jpeg_data: *mut NSData =
+                msg_send![ci_context, JPEGRepresentationOfImage: ci_image colorSpace: color_space options: options];
+            ShareId::from_ptr(jpeg_data)
         }
     }
 }
 
+
+extern "C" {
+    static kCGImageDestinationLossyCompressionQuality: *const NSString;
+
+    fn CVImageBufferGetColorSpace(image: *mut Object) -> *mut Object;
+}
