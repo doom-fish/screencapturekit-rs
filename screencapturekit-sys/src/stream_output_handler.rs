@@ -36,11 +36,11 @@ impl INSObject for UnsafeSCStreamOutputHandler {
             let mut decl = ClassDecl::new("SCStreamOutputHandler", class!(NSObject)).unwrap();
             decl.add_ivar::<usize>("_output_handler");
 
-            extern "C" fn stream_output<'a>(
+            extern "C" fn stream_output(
                 this: &mut Object,
                 _cmd: Sel,
                 _stream: *mut Object,
-                sample_ref: &'a CMSampleBufferRef,
+                sample_ref: &CMSampleBufferRef,
                 of_type: u8,
             ) {
                 unsafe {

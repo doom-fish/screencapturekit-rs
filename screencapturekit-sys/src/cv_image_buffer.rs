@@ -1,9 +1,8 @@
 use objc::{class, runtime::Object, Message, *};
-use objc_foundation::{NSData, NSValue, NSDictionary, INSValue, INSDictionary, NSString};
+use objc_foundation::{INSDictionary, INSValue, NSData, NSDictionary, NSString, NSValue};
 use objc_id::ShareId;
 
-use crate::{as_ptr::AsMutPtr, os_types::geometry::CGSize};
-
+use crate::as_ptr::AsMutPtr;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -29,15 +28,14 @@ impl CVImageBufferRef {
                 &[&*kCGImageDestinationLossyCompressionQuality],
                 vec![NSValue::from_value(1000.0f32)],
             );
-            let jpeg_data: *mut NSData =
-                msg_send![ci_context, JPEGRepresentationOfImage: ci_image colorSpace: color_space options: options];
+            let jpeg_data: *mut NSData = msg_send![ci_context, JPEGRepresentationOfImage: ci_image colorSpace: color_space options: options];
             ShareId::from_ptr(jpeg_data)
         }
     }
 }
 
-
 extern "C" {
+    #[allow(improper_ctypes)]
     static kCGImageDestinationLossyCompressionQuality: *const NSString;
 
     fn CVImageBufferGetColorSpace(image: *mut Object) -> *mut Object;
