@@ -2,17 +2,10 @@ use std::{
     fs::File,
     io::Write,
     process::Command,
-    rc::Rc,
-    sync::mpsc::{channel, sync_channel, Receiver, SyncSender},
-    thread,
-    time::Duration,
+    sync::mpsc::{sync_channel, SyncSender},
 };
 
-use objc::{
-    declare::ClassDecl,
-    runtime::{class_getName, objc_copyClassList, objc_getClassList, Class, Object},
-};
-use objc_foundation::{INSData, INSObject, NSArray};
+use objc_foundation::INSData;
 use objc_id::Id;
 use screencapturekit_sys::{
     cm_sample_buffer_ref::{CMSampleBufferRef, SCFrameStatus},
