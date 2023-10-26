@@ -68,11 +68,11 @@ fn main() {
 
     let sample_buf = rx.recv().unwrap();
     stream.stop_capture();
-    let png = sample_buf.get_image_buffer().get_data();
+    let jpeg = sample_buf.get_image_buffer().get_jpeg_data();
 
     let mut buffer = File::create("picture.jpg").unwrap();
 
-    buffer.write_all(png.bytes()).unwrap();
+    buffer.write_all(jpeg.bytes()).unwrap();
     Command::new("open")
         .args(["picture.jpg"])
         .output()

@@ -8,5 +8,4 @@ pub mod stream_configuration;
 pub mod stream_error_handler;
 pub mod stream_output_handler;
 pub mod cv_image_buffer;
-pub mod ci_image;
 pub mod as_ptr;
