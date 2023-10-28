@@ -1,26 +1,11 @@
 use screencapturekit_sys::{
-    cm_sample_buffer_ref::{self, CMSampleBufferRef},
+    cm_sample_buffer_ref::CMSampleBufferRef,
     os_types::rc::Id,
     stream_output_handler::UnsafeSCStreamOutput,
 };
 
-#[derive(Debug)]
-pub struct CMSampleBuffer {
-    pub ptr: Id<CMSampleBufferRef>,
-    pub frame_status: cm_sample_buffer_ref::SCFrameStatus,
-}
+use crate::cm_sample_buffer::CMSampleBuffer;
 
-impl CMSampleBuffer {}
-
-impl CMSampleBuffer {
-    pub fn new(unsafe_ref: Id<CMSampleBufferRef>) -> Self {
-        let attachments = unsafe_ref.get_attachments();
-        Self {
-            ptr: unsafe_ref,
-            frame_status: attachments.status(),
-        }
-    }
-}
 
 #[repr(u8)]
 pub enum SCStreamOutputType {
