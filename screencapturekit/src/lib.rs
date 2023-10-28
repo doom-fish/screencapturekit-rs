@@ -8,3 +8,4 @@ pub mod sc_stream;
 pub mod sc_stream_configuration;
 pub mod sc_sys;
 pub mod sc_window;
+pub mod cm_sample_buffer;
