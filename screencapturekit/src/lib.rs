@@ -9,3 +9,4 @@ pub mod sc_stream_configuration;
 pub mod sc_types;
 pub mod sc_window;
 pub mod cm_sample_buffer;
+mod cv_pixel_buffer;

@@ -12,9 +12,9 @@ macro_rules! get_string {
 
 pub(crate) use get_string;
 
-macro_rules! declare_object {
+macro_rules! declare_ref_type {
     ($name:ident) => {
-        declare_object!($name,);
+        declare_ref_type!($name,);
     };
     ($name:ident, $($t:ident),*) => {
         #[derive(Debug)]
@@ -26,4 +26,4 @@ macro_rules! declare_object {
     };
 }
 
-pub(crate) use declare_object;
+pub(crate) use declare_ref_type;
