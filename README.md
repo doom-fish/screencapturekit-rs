@@ -48,7 +48,6 @@ The ScreenCaptureKit Safe Rust Wrapper depends on the following:
   [objc](https://docs.rs/objc/),
   [objc_id](https://docs.rs/objc_id),
   [objc-foundation](https://docs.rs/objc_foundation),
-  [objc-encode](https://docs.rs/objc_encode),
   [block](https://docs.rs/block),
   [dispatch](https://docs.rs/block).
 
