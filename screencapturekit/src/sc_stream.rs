@@ -41,11 +41,10 @@ mod tests {
 
     use std::sync::mpsc::{sync_channel, SyncSender};
 
-
     use crate::{
         sc_content_filter::InitParams::Display, sc_content_filter::SCContentFilter,
-        sc_error_handler::StreamErrorHandler, sc_output_handler::{StreamOutput, SCStreamOutputType, CMSampleBuffer},
-        sc_shareable_content::SCShareableContent, sc_stream_configuration::SCStreamConfiguration,
+        sc_error_handler::StreamErrorHandler, sc_shareable_content::SCShareableContent,
+        sc_stream_configuration::SCStreamConfiguration, cm_sample_buffer::CMSampleBuffer, sc_output_handler::{StreamOutput, SCStreamOutputType},
     };
 
     use super::SCStream;

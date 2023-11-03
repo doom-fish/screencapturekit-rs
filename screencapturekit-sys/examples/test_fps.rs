@@ -1,13 +1,13 @@
 use objc_id::Id;
 use once_cell::sync::Lazy;
 use screencapturekit_sys::{
-    cm_sample_buffer_ref::{CMSampleBufferRef, SCFrameStatus},
+    cm_sample_buffer_ref::CMSampleBufferRef,
     content_filter::{UnsafeContentFilter, UnsafeInitParams::Display},
     shareable_content::UnsafeSCShareableContent,
     stream::UnsafeSCStream,
     stream_configuration::UnsafeStreamConfiguration,
     stream_error_handler::UnsafeSCStreamError,
-    stream_output_handler::UnsafeSCStreamOutput,
+    stream_output_handler::UnsafeSCStreamOutput, sc_stream_frame_info::SCFrameStatus,
 };
 use std::{
     sync::atomic::{AtomicI64, Ordering},
@@ -26,7 +26,7 @@ static PREV_TIMESTAMP: Lazy<AtomicI64> = Lazy::new(|| AtomicI64::new(0));
 
 impl UnsafeSCStreamOutput for TestHandler {
     fn did_output_sample_buffer(&self, sample: Id<CMSampleBufferRef>, _of_type: u8) {
-        if let SCFrameStatus::Complete = sample.get_attachments().status() {
+        if let SCFrameStatus::Complete = sample.get_frame_info().status() {
             let timescale_ms = 1000000;
             let prev_timestamp = PREV_TIMESTAMP.load(Ordering::Relaxed);
             let new_timestamp = sample.get_presentation_timestamp().value / timescale_ms;

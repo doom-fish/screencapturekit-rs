@@ -5,10 +5,10 @@ pub trait AsPtr {
 }
 pub trait AsMutPtr {
     fn as_mut_ptr(&self) -> *mut Self {
-        self as *const Self as *mut Self
+        self as *const _ as *mut Self
     }
 }
 
+impl<T> AsPtr for T {}
+impl<T> AsMutPtr for T {}
 
-impl <T> AsPtr for T {}
-impl <T> AsMutPtr for T {}

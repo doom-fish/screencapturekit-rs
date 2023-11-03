@@ -8,14 +8,14 @@ use std::{
 use objc_foundation::INSData;
 use objc_id::Id;
 use screencapturekit_sys::{
-    cm_sample_buffer_ref::{CMSampleBufferRef, SCFrameStatus},
+    cm_sample_buffer_ref::CMSampleBufferRef,
     content_filter::UnsafeContentFilter,
     content_filter::UnsafeInitParams,
     shareable_content::UnsafeSCShareableContent,
     stream::UnsafeSCStream,
     stream_configuration::UnsafeStreamConfiguration,
     stream_error_handler::UnsafeSCStreamError,
-    stream_output_handler::UnsafeSCStreamOutput,
+    stream_output_handler::UnsafeSCStreamOutput, sc_stream_frame_info::SCFrameStatus,
 };
 
 struct StoreImageHandler {
@@ -32,7 +32,8 @@ impl UnsafeSCStreamError for ErrorHandler {
 
 impl UnsafeSCStreamOutput for StoreImageHandler {
     fn did_output_sample_buffer(&self, sample: Id<CMSampleBufferRef>, _of_type: u8) {
-        if let SCFrameStatus::Complete = sample.get_attachments().status() {
+        sample.get_frame_info();
+        if let SCFrameStatus::Complete = sample.get_frame_info().status() {
             self.tx.send(sample).ok();
         }
     }

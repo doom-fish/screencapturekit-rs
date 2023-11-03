@@ -1,17 +1,10 @@
-use objc::{class, runtime::Object, Message, *};
+use objc::{class, runtime::Object, *};
 use objc_foundation::{INSDictionary, INSValue, NSData, NSDictionary, NSString, NSValue};
 use objc_id::ShareId;
 
-use crate::as_ptr::AsMutPtr;
+use crate::{macros::declare_object, as_ptr::AsMutPtr};
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct CVImageBufferRef {
-    _priv: [u8; 0],
-}
-
-unsafe impl Message for CVImageBufferRef {}
-unsafe impl Send for CVImageBufferRef {}
+declare_object!(CVImageBufferRef);
 
 impl CVImageBufferRef {
     pub fn get_jpeg_data(&self) -> ShareId<NSData> {

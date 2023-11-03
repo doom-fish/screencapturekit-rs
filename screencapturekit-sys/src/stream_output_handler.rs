@@ -3,6 +3,7 @@ use std::{
     sync::{Once, RwLock},
 };
 
+use crate::cm_sample_buffer_ref::CMSampleBufferRef;
 use objc::{
     class,
     declare::ClassDecl,
@@ -12,8 +13,6 @@ use objc::{
 use objc_foundation::INSObject;
 use objc_id::Id;
 use once_cell::sync::Lazy;
-use crate::as_ptr::*;
-use crate::cm_sample_buffer_ref::CMSampleBufferRef;
 
 static OUTPUT_HANDLERS: Lazy<RwLock<HashMap<usize, Box<dyn UnsafeSCStreamOutput + Send + Sync>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
@@ -40,14 +39,14 @@ impl INSObject for UnsafeSCStreamOutputHandler {
                 this: &mut Object,
                 _cmd: Sel,
                 _stream: *mut Object,
-                sample_ref: &CMSampleBufferRef,
+                sample_ref: *mut Object,
                 of_type: u8,
             ) {
                 unsafe {
-                    if sample_ref.as_ptr().is_null() {
+                    if sample_ref.is_null() {
                         return;
                     }
-                    let sample: Id<CMSampleBufferRef> = Id::from_ptr(sample_ref.as_mut_ptr());
+                    let sample: Id<CMSampleBufferRef> = Id::from_ptr(sample_ref.cast());
                     let handler_trait_ptr_address = this.get_ivar::<usize>("_output_handler");
                     let lookup = OUTPUT_HANDLERS.read().unwrap();
                     let output_handler_trait = lookup.get(handler_trait_ptr_address).unwrap();
@@ -59,7 +58,7 @@ impl INSObject for UnsafeSCStreamOutputHandler {
                     &mut Object,
                     Sel,
                     *mut Object,
-                    &'static CMSampleBufferRef,
+                    *mut Object,
                     u8,
                 ) = stream_output;
 

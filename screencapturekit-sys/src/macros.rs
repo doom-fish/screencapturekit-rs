@@ -1,4 +1,3 @@
-#[macro_export]
 macro_rules! get_string {
     // The `expr` designator is used for expressions.
     ($obj:ident, $name: ident) => {{
@@ -11,6 +10,20 @@ macro_rules! get_string {
     }};
 }
 
-pub use get_string;
+pub(crate) use get_string;
 
+macro_rules! declare_object {
+    ($name:ident) => {
+        declare_object!($name,);
+    };
+    ($name:ident, $($t:ident),*) => {
+        #[derive(Debug)]
+        #[repr(C)]
+        pub struct $name {
+            _priv: [u8; 0],
+        }
+        unsafe impl objc::Message for $name {}
+    };
+}
 
+pub(crate) use declare_object;
