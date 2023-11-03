@@ -1,11 +1,13 @@
+pub mod as_ptr;
 pub mod cm_sample_buffer_ref;
 pub mod content_filter;
+pub mod cv_image_buffer;
+pub mod cv_pixel_buffer_ref;
 pub mod macros;
 pub mod os_types;
+pub mod sc_stream_frame_info;
 pub mod shareable_content;
 pub mod stream;
 pub mod stream_configuration;
 pub mod stream_error_handler;
 pub mod stream_output_handler;
-pub mod cv_image_buffer;
-pub mod as_ptr;

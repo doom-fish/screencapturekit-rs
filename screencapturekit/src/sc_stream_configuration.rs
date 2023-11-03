@@ -1,7 +1,7 @@
-use crate::sc_sys::base::CMTime;
-use crate::sc_sys::four_char_code::FourCharCode;
-use crate::sc_sys::geometry::CGRect;
-use crate::sc_sys::graphics::CGColor;
+use crate::sc_types::base::CMTime;
+use crate::sc_types::four_char_code::FourCharCode;
+use crate::sc_types::geometry::CGRect;
+use crate::sc_types::graphics::CGColor;
 use screencapturekit_sys::{
     os_types::rc::Id,
     stream_configuration::{UnsafeStreamConfiguration, UnsafeStreamConfigurationRef},
