@@ -2,11 +2,14 @@ use objc::{class, runtime::Object, *};
 use objc_foundation::{INSDictionary, INSValue, NSData, NSDictionary, NSString, NSValue};
 use objc_id::ShareId;
 
-use crate::{macros::declare_object, as_ptr::AsMutPtr};
+use crate::{as_ptr::AsMutPtr, cv_pixel_buffer_ref::CVPixelBufferRef, macros::declare_ref_type};
 
-declare_object!(CVImageBufferRef);
+declare_ref_type!(CVImageBufferRef);
 
 impl CVImageBufferRef {
+    pub fn as_pixel_buffer(&self) -> ShareId<CVPixelBufferRef> {
+        unsafe { ShareId::from_retained_ptr(self.as_mut_ptr().cast()) }
+    }
     pub fn get_jpeg_data(&self) -> ShareId<NSData> {
         unsafe {
             let ci_image_class = class!(CIImage);

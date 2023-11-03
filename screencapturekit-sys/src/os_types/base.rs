@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use super::four_char_code::FourCharCode;
-
+pub type VoidPtr = *mut ::std::ffi::c_void;
 pub type UInt8 = ::std::ffi::c_uchar;
 pub type UInt16 = ::std::ffi::c_ushort;
 pub type SInt8 = ::std::ffi::c_schar;
@@ -25,6 +25,8 @@ pub type PidT = ::std::ffi::c_int;
 pub type CMTimeValue = SInt64;
 pub type CMTimeScale = SInt32;
 pub type CMTimeEpoch = SInt64;
+pub type CVPixelBufferLockFlags = UInt64;
+pub type CVReturn = SInt32;
 pub const CMTIME_FLAGS_VALID: CMTimeFlags = 1;
 pub const CMTIME_FLAGS_HAS_BEEN_ROUNDED: CMTimeFlags = 2;
 pub const CMTIME_FLAGS_POSITIVE_INFINITY: CMTimeFlags = 4;
