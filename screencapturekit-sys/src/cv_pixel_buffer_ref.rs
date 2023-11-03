@@ -9,6 +9,9 @@ impl CVPixelBufferRef {
     pub fn is_planar(&self) -> bool {
         unsafe { CVPixelBufferIsPlanar(self) == 1 }
     }
+    pub fn plane_count(&self) -> SizeT {
+        unsafe { CVPixelBufferGetPlaneCount(self) }
+    }
     pub fn get_base_address(&self) -> VoidPtr {
         unsafe { CVPixelBufferGetBaseAddress(self) }
     }
@@ -30,6 +33,8 @@ extern "C" {
         pixel_buf: *const CVPixelBufferRef,
         plane_index: SizeT,
     ) -> VoidPtr;
+    fn CVPixelBufferGetPlaneCount(pixel_buf: *const CVPixelBufferRef) -> SizeT;
+
     fn CVPixelBufferIsPlanar(pixel_buf: *const CVPixelBufferRef) -> Boolean;
     fn CVPixelBufferLockBaseAddress(
         pixel_buf: *const CVPixelBufferRef,
