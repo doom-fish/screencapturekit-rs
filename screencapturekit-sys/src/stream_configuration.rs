@@ -20,7 +20,7 @@ impl From<UnsafeStreamConfiguration> for Id<UnsafeStreamConfigurationRef> {
         unsafe {
             let _: () = msg_send![unsafe_ref, setWidth: value.width];
             let _: () = msg_send![unsafe_ref, setHeight: value.height];
-            let _: () = msg_send![unsafe_ref, setCapturesAudio: value.captures_audio];
+           // let _: () = msg_send![unsafe_ref, setCapturesAudio: value.captures_audio];
             // let _: () = msg_send![unsafe_ref, setMinimumFrameInterval: CMTime {value: 1, timescale: 60, flags: 1, epoch: 0}];
         }
 
