@@ -42,36 +42,53 @@ mod tests {
     use std::sync::mpsc::{sync_channel, SyncSender};
 
     use crate::{
-        sc_content_filter::InitParams::Display, sc_content_filter::SCContentFilter,
-        sc_error_handler::StreamErrorHandler, sc_shareable_content::SCShareableContent,
-        sc_stream_configuration::SCStreamConfiguration, cm_sample_buffer::CMSampleBuffer, sc_output_handler::{StreamOutput, SCStreamOutputType},
+        cm_sample_buffer::CMSampleBuffer,
+        sc_content_filter::InitParams::Display,
+        sc_content_filter::SCContentFilter,
+        sc_error_handler::StreamErrorHandler,
+        sc_output_handler::{SCStreamOutputType, StreamOutput},
+        sc_shareable_content::SCShareableContent,
+        sc_stream_configuration::SCStreamConfiguration,
     };
 
     use super::SCStream;
     struct SomeErrorHandler {}
     struct SomeOutputWrapper {
-        pub tx: SyncSender<CMSampleBuffer>,
-    }
-    impl StreamOutput for SomeOutputWrapper {
-        fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
-            self.tx.send(sample).unwrap();
-        }
+        pub audio_tx: SyncSender<CMSampleBuffer>,
+        pub video_tx: SyncSender<CMSampleBuffer>,
     }
     impl StreamErrorHandler for SomeErrorHandler {
         fn on_error(&self) {}
+    }
+    impl StreamOutput for SomeOutputWrapper {
+        fn did_output_sample_buffer(&self, sample: CMSampleBuffer, of_type: SCStreamOutputType) {
+            match of_type {
+                SCStreamOutputType::Screen => self.video_tx.send(sample),
+                SCStreamOutputType::Audio => self.audio_tx.send(sample),
+            }
+            .unwrap()
+        }
     }
     #[ignore]
     #[test]
     fn test_output_wrapper() {
         let mut content = SCShareableContent::current();
         let display = content.displays.pop().unwrap();
+        let width = display.width;
+        let height = display.height;
         let filter = SCContentFilter::new(Display(display));
-        let config = SCStreamConfiguration::from_size(100, 100, false);
-        let (tx, rx) = sync_channel(1);
+        let config = SCStreamConfiguration {
+            width,
+            height,
+            captures_audio: true,
+            ..Default::default()
+        };
+        let (audio_tx, audio_rx) = sync_channel(1);
+        let (video_tx, video_rx) = sync_channel(1);
         let mut stream = SCStream::new(filter, config, SomeErrorHandler {});
-        let w = SomeOutputWrapper { tx };
+        let w = SomeOutputWrapper { video_tx, audio_tx };
         stream.add_output(w);
         stream.start_capture();
-        println!("{:?}", rx.recv().unwrap());
+        println!("{:?}", audio_rx.recv().unwrap());
     }
 }
