@@ -1,7 +1,10 @@
 use screencapturekit_sys::{
     cm_sample_buffer_ref::CMSampleBufferRef,
     cv_image_buffer_ref::CVImageBufferRef,
-    os_types::{base::CMTime, rc::{ShareId, Id}},
+    os_types::{
+        base::CMTime,
+        rc::{Id, ShareId},
+    },
     sc_stream_frame_info::SCFrameStatus,
 };
 
@@ -15,13 +18,14 @@ pub struct CMSampleBuffer {
 }
 
 impl Clone for CMSampleBuffer {
-    fn clone(&self) -> Self {
+     fn clone(&self) -> Self {
         Self::new(self.sys_ref.clone())
     }
 }
 
 impl CMSampleBuffer {
     pub fn new(sys_ref: ShareId<CMSampleBufferRef>) -> Self {
+        // println!("{:?}", CoreMediaMeta::add(buf_ref, sample));
         let frame_status = sys_ref.get_frame_info().status();
         let presentation_timestamp = sys_ref.get_presentation_timestamp();
         Self {

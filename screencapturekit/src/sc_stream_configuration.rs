@@ -49,41 +49,41 @@ impl From<PixelFormat> for FourCharCode {
 #[derive(Debug, Default)]
 pub struct SCStreamConfiguration {
     //   The width of the output.
-    width: Option<u32>,
+    pub width: Option<u32>,
     //   The height of the output.
-    height: Option<u32>,
+    pub height: Option<u32>,
     // A boolean value that indicates whether to scale the output to fit the configured width and height.
-    scales_to_fit: Option<bool>,
+    pub scales_to_fit: Option<bool>,
     // A rectangle that specifies the source area to capture.
-    source_rect: Option<CGRect>,
+    pub source_rect: Option<CGRect>,
     // A rectangle that specifies a destination into which to write the output.
-    destination_rect: Option<CGRect>,
+    pub destination_rect: Option<CGRect>,
     // A boolean value that determines whether the cursor is visible in the stream.
-    shows_cursor: Option<bool>,
+    pub shows_cursor: Option<bool>,
     // Optimizing Performance
     // The maximum number of frames for the queue to store.
-    queue_depth: Option<u32>,
+    pub queue_depth: Option<u32>,
     // The desired minimum time between frame updates, in seconds.
-    minimum_frame_interval: Option<CMTime>,
+    pub minimum_frame_interval: Option<CMTime>,
     // Configuring Audi
     // A boolean value that indicates whether to capture audio.
-    captures_audio: Option<bool>,
+    pub captures_audio: Option<bool>,
     // The sample rate for audio capture.
-    sample_rate: Option<u32>,
+    pub sample_rate: Option<u32>,
     // The number of audio channels to capture.
-    channel_count: Option<u32>,
+    pub channel_count: Option<u32>,
     // A boolean value that indicates whether to exclude a
-    excludes_current_process_audio: Option<bool>,
+    pub excludes_current_process_audio: Option<bool>,
     // Configuring Colors
     // A pixel format for sample buffers that a stream outputs.
-    pixel_format: Option<PixelFormat>,
+    pub pixel_format: Option<PixelFormat>,
     // A color matrix to apply to the output surface.
-    color_matrix: Option<String>,
+    pub color_matrix: Option<String>,
     // A color space to use for the output buffer.
-    color_space_name: Option<String>,
+    pub color_space_name: Option<String>,
     // A background color for the output.
     // Controlling Visibility
-    background_color: Option<CGColor>,
+    pub background_color: Option<CGColor>,
 }
 
 impl SCStreamConfiguration {
