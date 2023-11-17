@@ -117,7 +117,6 @@ mod stream_test {
             self.tx.send(sample).unwrap();
         }
     }
-    #[ignore]
     #[test]
     fn test_sc_stream() {
         println!("ADDING OUTPUT");
@@ -129,8 +128,8 @@ mod stream_test {
 
         let filter = UnsafeContentFilter::init(Display(display));
         let config = UnsafeStreamConfiguration {
-            width: 100,
-            height: 100,
+            width: Some(100),
+            height: Some(100),
             ..Default::default()
         };
         let (tx, rx) = sync_channel(1);

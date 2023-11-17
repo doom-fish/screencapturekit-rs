@@ -46,8 +46,8 @@ fn main() {
     let width = display.get_width();
     let height = display.get_height();
     println!("{width}, {height}");
-    let width = display.get_width();
-    let height = display.get_height();
+    let width = Some(display.get_width());
+    let height = Some(display.get_height());
     let filter = UnsafeContentFilter::init(Display(display));
 
     let config = UnsafeStreamConfiguration {

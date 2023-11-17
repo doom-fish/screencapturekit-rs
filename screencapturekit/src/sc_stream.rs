@@ -39,7 +39,10 @@ impl SCStream {
 #[cfg(test)]
 mod tests {
 
-    use std::sync::mpsc::{sync_channel, SyncSender};
+    use std::{
+        sync::mpsc::{sync_channel, SyncSender},
+        time::Duration,
+    };
 
     use crate::{
         cm_sample_buffer::CMSampleBuffer,
@@ -69,26 +72,36 @@ mod tests {
             .unwrap()
         }
     }
-    #[ignore]
-    #[test]
-    fn test_output_wrapper() {
+    fn new_stream(configuration: SCStreamConfiguration) -> SCStream {
         let mut content = SCShareableContent::current();
         let display = content.displays.pop().unwrap();
-        let width = display.width;
-        let height = display.height;
         let filter = SCContentFilter::new(Display(display));
-        let config = SCStreamConfiguration {
-            width,
-            height,
-            captures_audio: true,
-            ..Default::default()
-        };
-        let (audio_tx, audio_rx) = sync_channel(1);
+        SCStream::new(filter, configuration, SomeErrorHandler {})
+    }
+    #[test]
+    fn test_video_capture() {
+        let mut stream = new_stream(SCStreamConfiguration::empty());
+
         let (video_tx, video_rx) = sync_channel(1);
-        let mut stream = SCStream::new(filter, config, SomeErrorHandler {});
+        let (audio_tx, _audio_rx) = sync_channel(1);
         let w = SomeOutputWrapper { video_tx, audio_tx };
         stream.add_output(w);
         stream.start_capture();
-        println!("{:?}", audio_rx.recv().unwrap());
+        video_rx
+            .recv_timeout(Duration::from_millis(1000))
+            .expect("Got video sample");
+    }
+    #[test]
+    #[ignore]
+    fn test_audio_capture() {
+        let mut stream = new_stream(SCStreamConfiguration::empty().captures_audio(true));
+        let (audio_tx, audio_rx) = sync_channel(1);
+        let (video_tx, _video_rx) = sync_channel(1);
+        let w = SomeOutputWrapper { video_tx, audio_tx };
+        stream.add_output(w);
+        stream.start_capture();
+        audio_rx
+            .recv_timeout(Duration::from_millis(10000))
+            .expect("Should return audio sample");
     }
 }

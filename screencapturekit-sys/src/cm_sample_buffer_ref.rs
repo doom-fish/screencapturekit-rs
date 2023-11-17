@@ -2,8 +2,8 @@ use objc::{runtime::Object, *};
 use objc_id::Id;
 
 use crate::{
-    cv_image_buffer_ref::CVImageBufferRef,
-    macros::declare_ref_type, os_types::base::CMTime, sc_stream_frame_info::SCStreamFrameInfo,
+    cv_image_buffer_ref::CVImageBufferRef, macros::declare_ref_type, os_types::base::CMTime,
+    sc_stream_frame_info::SCStreamFrameInfo,
 };
 
 declare_ref_type!(CMSampleBufferRef);
@@ -21,8 +21,15 @@ impl CMSampleBufferRef {
         unsafe { CMSampleBufferGetPresentationTimeStamp(self) }
     }
 
-    pub fn get_image_buffer(&self) -> Id<CVImageBufferRef> {
-        unsafe { Id::from_ptr(CMSampleBufferGetImageBuffer(self)) }
+    pub fn get_image_buffer(&self) -> Option<Id<CVImageBufferRef>> {
+        unsafe {
+            let image_buf = CMSampleBufferGetImageBuffer(self);
+            if image_buf.is_null() {
+                None
+            } else {
+                Some(Id::from_ptr(image_buf))
+            }
+        }
     }
 }
 

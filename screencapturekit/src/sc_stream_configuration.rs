@@ -46,63 +46,121 @@ impl From<PixelFormat> for FourCharCode {
     }
 }
 
-pub struct Size {
-    //   The width of the output.
-    pub width: u32,
-    //   The height of the output.
-    pub height: u32,
-    // A boolean value that indicates whether to scale the output to fit the configured width and height.
-    pub scales_to_fit: bool,
-}
-
 #[derive(Debug, Default)]
 pub struct SCStreamConfiguration {
     //   The width of the output.
-    pub width: u32,
+    width: Option<u32>,
     //   The height of the output.
-    pub height: u32,
+    height: Option<u32>,
     // A boolean value that indicates whether to scale the output to fit the configured width and height.
-    pub scales_to_fit: bool,
+    scales_to_fit: Option<bool>,
     // A rectangle that specifies the source area to capture.
-    pub source_rect: CGRect,
+    source_rect: Option<CGRect>,
     // A rectangle that specifies a destination into which to write the output.
-    pub destination_rect: CGRect,
+    destination_rect: Option<CGRect>,
     // A boolean value that determines whether the cursor is visible in the stream.
-    pub shows_cursor: bool,
+    shows_cursor: Option<bool>,
     // Optimizing Performance
     // The maximum number of frames for the queue to store.
-    pub queue_depth: u32,
+    queue_depth: Option<u32>,
     // The desired minimum time between frame updates, in seconds.
-    pub minimum_frame_interval: CMTime,
+    minimum_frame_interval: Option<CMTime>,
     // Configuring Audi
     // A boolean value that indicates whether to capture audio.
-    pub captures_audio: bool,
+    captures_audio: Option<bool>,
     // The sample rate for audio capture.
-    pub sample_rate: u32,
+    sample_rate: Option<u32>,
     // The number of audio channels to capture.
-    pub channel_count: u32,
+    channel_count: Option<u32>,
     // A boolean value that indicates whether to exclude a
-    pub excludes_current_process_audio: bool,
+    excludes_current_process_audio: Option<bool>,
     // Configuring Colors
     // A pixel format for sample buffers that a stream outputs.
-    pub pixel_format: PixelFormat,
+    pixel_format: Option<PixelFormat>,
     // A color matrix to apply to the output surface.
-    pub color_matrix: &'static str,
+    color_matrix: Option<String>,
     // A color space to use for the output buffer.
-    pub color_space_name: &'static str,
+    color_space_name: Option<String>,
     // A background color for the output.
     // Controlling Visibility
-    pub background_color: CGColor,
+    background_color: Option<CGColor>,
 }
 
 impl SCStreamConfiguration {
-    pub fn from_size(width: u32, height: u32, scales_to_fit: bool) -> Self {
-        Self {
-            width,
-            height,
-            scales_to_fit,
-            ..Default::default()
-        }
+    pub fn empty() -> Self {
+        Default::default()
+    }
+    pub fn size(mut self, width: u32, height: u32) -> Self {
+        self.width = Some(width);
+        self.height = Some(height);
+        self
+    }
+    pub fn width(mut self, width: u32) -> Self {
+        self.width = Some(width);
+        self
+    }
+    pub fn height(mut self, height: u32) -> Self {
+        self.height = Some(height);
+        self
+    }
+    pub fn scales_to_fit(mut self, scales_to_fit: bool) -> Self {
+        self.scales_to_fit = Some(scales_to_fit);
+        self
+    }
+    pub fn source_rect(mut self, source_rect: CGRect) -> Self {
+        self.source_rect = Some(source_rect);
+        self
+    }
+    pub fn destination_rect(mut self, destination_rect: CGRect) -> Self {
+        self.destination_rect = Some(destination_rect);
+        self
+    }
+    pub fn pixel_format(mut self, pixel_format: PixelFormat) -> Self {
+        self.pixel_format = Some(pixel_format);
+        self
+    }
+    pub fn color_matrix(mut self, color_matrix: String) -> Self {
+        self.color_matrix = Some(color_matrix);
+        self
+    }
+    pub fn color_space_name(mut self, color_space_name: String) -> Self {
+        self.color_space_name = Some(color_space_name);
+        self
+    }
+    pub fn background_color(mut self, background_color: CGColor) -> Self {
+        self.background_color = Some(background_color);
+        self
+    }
+
+    pub fn shows_cursor(mut self, shows_cursor: bool) -> Self {
+        self.shows_cursor = Some(shows_cursor);
+        self
+    }
+
+    pub fn queue_depth(mut self, queue_depth: u32) -> Self {
+        self.queue_depth = Some(queue_depth);
+        self
+    }
+    pub fn minimum_frame_interval(mut self, minimum_frame_interval: CMTime) -> Self {
+        self.minimum_frame_interval = Some(minimum_frame_interval);
+        self
+    }
+
+    pub fn captures_audio(mut self, captures_audio: bool) -> Self {
+        self.captures_audio = Some(captures_audio);
+        self
+    }
+    pub fn sample_rate(mut self, sample_rate: u32) -> Self {
+        self.sample_rate = Some(sample_rate);
+        self
+    }
+    pub fn channel_count(mut self, channel_count: u32) -> Self {
+        self.channel_count = Some(channel_count);
+        self
+    }
+    pub fn excludes_current_process_audio(mut self, excludes_current_process_audio: bool) -> Self {
+        self.excludes_current_process_audio = Some(excludes_current_process_audio);
+        self
     }
 }
 
@@ -111,20 +169,20 @@ impl From<SCStreamConfiguration> for UnsafeStreamConfiguration {
         UnsafeStreamConfiguration {
             width: value.width,
             height: value.height,
-            scales_to_fit: value.scales_to_fit as i8,
+            scales_to_fit: value.scales_to_fit.map(|x| x as _),
             source_rect: value.source_rect,
             destination_rect: value.destination_rect,
-            pixel_format: value.pixel_format.into(),
-            color_matrix: value.color_matrix.into(),
-            color_space_name: value.color_space_name.into(),
+            pixel_format: value.pixel_format.map(|x| x.into()),
+            color_matrix: value.color_matrix,
+            color_space_name: value.color_space_name,
             background_color: value.background_color,
-            shows_cursor: value.shows_cursor as i8,
+            shows_cursor: value.shows_cursor.map(|x| x as _),
             queue_depth: value.queue_depth,
             minimum_frame_interval: value.minimum_frame_interval,
-            captures_audio: value.captures_audio as i8,
+            captures_audio: value.captures_audio.map(|x| x as _),
             sample_rate: value.sample_rate,
             channel_count: value.channel_count,
-            excludes_current_process_audio: value.excludes_current_process_audio as i8,
+            excludes_current_process_audio: value.excludes_current_process_audio.map(|x| x as _),
         }
     }
 }
@@ -142,6 +200,6 @@ mod get_configuration {
     use super::*;
     #[test]
     fn test_configuration() {
-        SCStreamConfiguration::from_size(100, 100, false);
+        SCStreamConfiguration::empty().size(100, 100);
     }
 }

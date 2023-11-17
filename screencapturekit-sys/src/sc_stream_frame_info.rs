@@ -13,7 +13,7 @@ pub struct SCStreamFrameInfo {
 }
 
 // TODO: Documnent using comment docs matching apple
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[repr(i32)]
 pub enum SCFrameStatus {
     // A status that indicates the system successfully generated a new frame.

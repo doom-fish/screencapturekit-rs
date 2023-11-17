@@ -46,7 +46,6 @@ impl SCShareableContent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[ignore]
     #[test]
     fn test_sc_shareable_content() {
         SCShareableContent::current();

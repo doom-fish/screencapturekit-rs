@@ -79,7 +79,6 @@ mod test_content_filter {
 
     use super::*;
 
-    #[ignore]
     #[test]
     fn test_init() {
         let sc = UnsafeSCShareableContent::get().expect("should get shareable content");

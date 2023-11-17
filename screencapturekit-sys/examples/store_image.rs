@@ -45,8 +45,8 @@ fn main() {
         .into_iter()
         .next()
         .unwrap();
-    let width = display.get_width();
-    let height = display.get_height();
+    let width = Some(display.get_width());
+    let height = Some(display.get_height());
     let filter = UnsafeContentFilter::init(UnsafeInitParams::Display(display));
     let (tx, rx) = sync_channel(2);
 
@@ -62,7 +62,7 @@ fn main() {
 
     let sample_buf = rx.recv().unwrap();
     stream.stop_capture();
-    let jpeg = sample_buf.get_image_buffer().get_jpeg_data();
+    let jpeg = sample_buf.get_image_buffer().unwrap().get_jpeg_data();
 
     let mut buffer = File::create("picture.jpg").unwrap();
 
