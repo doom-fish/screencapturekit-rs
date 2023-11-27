@@ -51,9 +51,14 @@ The ScreenCaptureKit Safe Rust Wrapper depends on the following:
   [block](https://docs.rs/block),
   [dispatch](https://docs.rs/block).
 
-## License(s)
+## License
 
-This project is licensed under the [GNU Lesser General Public License v3.0 or later](LICENSE).
+Licensed under either of
+
+- Apache License, Version 2.0 [LICENSE-APACHE](LICENSE-APACHE)
+- MIT license [LICENSE-MIT](LICENSE-MIT)
+
+at your option.
 
 ## Contributing
 
