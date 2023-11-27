@@ -6,4 +6,4 @@ authors = ["Per Johansson <mail@perjohansson.net>"]
 homepage = "https://doom.fish"
 version = "0.1.0"
 keywords = ["screencapture", "screencapturekit", "macos"]
-license = "LGPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
