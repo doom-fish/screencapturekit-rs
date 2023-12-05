@@ -17,6 +17,9 @@ license.workspace = true
 keywords.workspace = true
 homepage.workspace = true
 
+[features]
+ci = []
+
 [lib]
 path = "./src/lib.rs"
 
