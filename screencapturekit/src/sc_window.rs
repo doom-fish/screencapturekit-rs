@@ -24,7 +24,7 @@ impl From<ShareId<UnsafeSCWindow>> for SCWindow {
             height: frame.size.height as u32,
             window_id: unsafe_ref.get_window_id(),
             window_layer: unsafe_ref.get_window_layer(),
-            is_active: unsafe_ref.get_is_active() == 1,
+            is_active: false,//unsafe_ref.get_is_active() == 1,
             is_on_screen: unsafe_ref.get_is_on_screen() == 1,
             owning_application: unsafe_ref
                 .get_owning_application()
