@@ -67,9 +67,9 @@ impl UnsafeSCWindow {
     pub fn get_is_on_screen(&self) -> BOOL {
         unsafe { msg_send![self, isOnScreen] }
     }
-    // pub fn get_is_active(&self) -> BOOL {
-    //     unsafe { msg_send![self, isActive] }
-    // }
+    pub fn get_is_active(&self) -> BOOL {
+        unsafe { msg_send![self, isActive] }
+    }
 }
 
 impl INSObject for UnsafeSCWindow {
