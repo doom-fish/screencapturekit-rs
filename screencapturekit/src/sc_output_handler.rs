@@ -7,7 +7,7 @@ use screencapturekit_sys::{
 use crate::cm_sample_buffer::CMSampleBuffer;
 
 
-#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum SCStreamOutputType {
     Screen,
     Audio,
