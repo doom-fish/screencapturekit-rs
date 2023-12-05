@@ -1,7 +1,7 @@
 use crate::{
     sc_content_filter::SCContentFilter,
     sc_error_handler::{StreamErrorHandler, StreamErrorHandlerWrapper},
-    sc_output_handler::{StreamOutput, StreamOutputWrapper},
+    sc_output_handler::{SCStreamOutputType, StreamOutput, StreamOutputWrapper},
     sc_stream_configuration::SCStreamConfiguration,
 };
 use screencapturekit_sys::{os_types::rc::Id, stream::UnsafeSCStream};
@@ -24,9 +24,14 @@ impl SCStream {
             ),
         }
     }
-    pub fn add_output(&mut self, output: impl StreamOutput) {
-        self._unsafe_ref
-            .add_stream_output(StreamOutputWrapper::new(output));
+    pub fn add_output(&mut self, output: impl StreamOutput, output_type: SCStreamOutputType) {
+        self._unsafe_ref.add_stream_output(
+            StreamOutputWrapper::new(output),
+            match output_type {
+                SCStreamOutputType::Screen => 0,
+                SCStreamOutputType::Audio => 1,
+            },
+        );
     }
     pub fn start_capture(&self) {
         self._unsafe_ref.start_capture();
@@ -53,42 +58,69 @@ mod tests {
 
     use super::SCStream;
     struct SomeErrorHandler {}
-    struct SomeOutputWrapper {
-        pub audio_tx: SyncSender<CMSampleBuffer>,
+    struct ScreenOutput {
         pub video_tx: SyncSender<CMSampleBuffer>,
     }
+    struct AudioOutput {
+        pub audio_tx: SyncSender<CMSampleBuffer>,
+    }
+
     impl StreamErrorHandler for SomeErrorHandler {
         fn on_error(&self) {}
     }
-    impl StreamOutput for SomeOutputWrapper {
+    impl StreamOutput for AudioOutput {
         fn did_output_sample_buffer(&self, sample: CMSampleBuffer, of_type: SCStreamOutputType) {
             match of_type {
-                SCStreamOutputType::Screen => self.video_tx.send(sample),
-                SCStreamOutputType::Audio => self.audio_tx.send(sample),
-            }
-            .unwrap()
+                SCStreamOutputType::Screen => {}
+                SCStreamOutputType::Audio => {
+                    self.audio_tx.send(sample).ok();
+                }
+            };
         }
     }
-    #[ignore]
+    impl StreamOutput for ScreenOutput {
+        fn did_output_sample_buffer(&self, sample: CMSampleBuffer, of_type: SCStreamOutputType) {
+            match of_type {
+                SCStreamOutputType::Screen => {self.video_tx.send(sample).ok();},
+                SCStreamOutputType::Audio => {}
+            }
+            
+        }
+    }
     #[test]
-    fn test_output_wrapper() {
+    fn test_screen_output() {
         let mut content = SCShareableContent::current();
         let display = content.displays.pop().unwrap();
-        let width = display.width;
-        let height = display.height;
         let filter = SCContentFilter::new(Display(display));
         let config = SCStreamConfiguration {
-            width,
-            height,
+            width: 100,
+            height: 100,
+            ..Default::default()
+        };
+        let (video_tx, video_rx) = sync_channel(1);
+        let mut stream = SCStream::new(filter, config, SomeErrorHandler {});
+        let w = ScreenOutput { video_tx };
+        stream.add_output(w, SCStreamOutputType::Screen);
+        stream.start_capture();
+        println!("{:?}", std::mem::forget(video_rx.recv()));
+    }
+
+    #[test]
+    fn test_audio_output() {
+        let mut content = SCShareableContent::current();
+        let display = content.displays.pop().unwrap();
+        let filter = SCContentFilter::new(Display(display));
+        let config = SCStreamConfiguration {
+            width: 100,
+            height: 100,
             captures_audio: true,
             ..Default::default()
         };
         let (audio_tx, audio_rx) = sync_channel(1);
-        let (video_tx, video_rx) = sync_channel(1);
         let mut stream = SCStream::new(filter, config, SomeErrorHandler {});
-        let w = SomeOutputWrapper { video_tx, audio_tx };
-        stream.add_output(w);
+        let w = AudioOutput { audio_tx };
+        stream.add_output(w, SCStreamOutputType::Audio);
         stream.start_capture();
-        println!("{:?}", audio_rx.recv().unwrap());
+        audio_rx.recv().unwrap();
     }
 }
