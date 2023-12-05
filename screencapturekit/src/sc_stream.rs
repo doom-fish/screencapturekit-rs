@@ -1,10 +1,11 @@
 use crate::{
     sc_content_filter::SCContentFilter,
     sc_error_handler::{StreamErrorHandler, StreamErrorHandlerWrapper},
-    sc_output_handler::{StreamOutput, StreamOutputWrapper},
+    sc_output_handler::{StreamOutput, StreamOutputWrapper, SCStreamOutputType},
     sc_stream_configuration::SCStreamConfiguration,
 };
 use screencapturekit_sys::{os_types::rc::Id, stream::UnsafeSCStream};
+
 
 pub struct SCStream {
     pub(crate) _unsafe_ref: Id<UnsafeSCStream>,
@@ -24,9 +25,14 @@ impl SCStream {
             ),
         }
     }
-    pub fn add_output(&mut self, output: impl StreamOutput) {
-        self._unsafe_ref
-            .add_stream_output(StreamOutputWrapper::new(output));
+    pub fn add_output(&mut self, output: impl StreamOutput, output_type: SCStreamOutputType) {
+        self._unsafe_ref.add_stream_output(
+            StreamOutputWrapper::new(output),
+            match output_type {
+                SCStreamOutputType::Screen => 0,
+                SCStreamOutputType::Audio => 1,
+            },
+        );
     }
     pub fn start_capture(&self) {
         self._unsafe_ref.start_capture();
@@ -87,7 +93,7 @@ mod tests {
         let (video_tx, video_rx) = sync_channel(1);
         let mut stream = SCStream::new(filter, config, SomeErrorHandler {});
         let w = SomeOutputWrapper { video_tx, audio_tx };
-        stream.add_output(w);
+        stream.add_output(w, SCStreamOutputType::Screen);
         stream.start_capture();
         println!("{:?}", audio_rx.recv().unwrap());
     }

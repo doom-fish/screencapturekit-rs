@@ -57,7 +57,7 @@ fn main() {
     };
 
     let stream = UnsafeSCStream::init(filter, config.into(), ErrorHandler);
-    stream.add_stream_output(StoreImageHandler { tx });
+    stream.add_stream_output(StoreImageHandler { tx }, 0);
     stream.start_capture();
 
     let sample_buf = rx.recv().unwrap();

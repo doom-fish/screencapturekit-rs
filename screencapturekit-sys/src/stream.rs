@@ -18,7 +18,10 @@ use dispatch::{Queue, QueueAttribute};
 use objc_foundation::{INSObject, INSString, NSObject, NSString};
 use objc_id::Id;
 
-pub struct UnsafeSCStream;
+pub struct UnsafeSCStream {
+    _priv: [u8; 0],
+}
+
 unsafe impl Message for UnsafeSCStream {}
 impl INSObject for UnsafeSCStream {
     fn class() -> &'static Class {
@@ -68,12 +71,16 @@ impl UnsafeSCStream {
             rx.recv().expect("LALAL");
         }
     }
-    pub fn add_stream_output(&self, handle: impl UnsafeSCStreamOutput) {
+    pub fn add_stream_output(
+        &self,
+        handle: impl UnsafeSCStreamOutput,
+        output_type: u8,
+    ) {
         let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
 
         let a = UnsafeSCStreamOutputHandler::init(handle);
         unsafe {
-            let _: () = msg_send!(self, addStreamOutput: a type: 0 sampleHandlerQueue: queue error: NSObject::new());
+            let _: () = msg_send!(self, addStreamOutput: a type: output_type sampleHandlerQueue: queue error: NSObject::new());
         }
     }
 }
@@ -92,10 +99,11 @@ mod stream_test {
 
     use super::{UnsafeSCStream, UnsafeSCStreamError};
     use crate::{
+        cm_sample_buffer_ref::CMSampleBufferRef,
         content_filter::{UnsafeContentFilter, UnsafeInitParams::Display},
         shareable_content::UnsafeSCShareableContent,
         stream_configuration::UnsafeStreamConfiguration,
-        stream_output_handler::UnsafeSCStreamOutput, cm_sample_buffer_ref::CMSampleBufferRef,
+        stream_output_handler::UnsafeSCStreamOutput,
     };
     struct ErrorHandler {}
     #[repr(C)]
@@ -138,7 +146,7 @@ mod stream_test {
         let a = OutputHandler { tx };
 
         println!("ADDING OUTPUT");
-        stream.add_stream_output(a);
+        stream.add_stream_output(a, 0);
         println!("start capture");
         stream.start_capture();
         println!("{:?}", rx.recv().unwrap());
