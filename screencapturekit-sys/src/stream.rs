@@ -128,7 +128,6 @@ mod stream_test {
     #[ignore]
     #[test]
     fn test_sc_stream() {
-        println!("ADDING OUTPUT");
         let display = UnsafeSCShareableContent::get()
             .unwrap()
             .displays()
