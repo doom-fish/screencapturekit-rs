@@ -53,7 +53,7 @@ fn main() {
 
     let sample_buf = rx.recv().unwrap();
     stream.stop_capture();
-    let jpeg = sample_buf.image_buf_ref.get_jpeg_data();
+    let jpeg = sample_buf.image_buf_ref.unwrap().get_jpeg_data();
 
     let mut buffer = File::create("picture.jpg").unwrap();
 
