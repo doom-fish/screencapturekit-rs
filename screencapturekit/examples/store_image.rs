@@ -46,9 +46,9 @@ fn main() {
         ..Default::default()
     };
 
-    let mut stream = SCStream::new(filter, config.into(), ErrorHandler);
+    let mut stream = SCStream::new(filter, config, ErrorHandler);
 
-    stream.add_output(StoreImageHandler { tx });
+    stream.add_output(StoreImageHandler { tx }, SCStreamOutputType::Screen);
     stream.start_capture();
 
     let sample_buf = rx.recv().unwrap();
