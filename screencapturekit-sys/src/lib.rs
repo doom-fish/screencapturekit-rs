@@ -11,3 +11,6 @@ pub mod stream;
 pub mod stream_configuration;
 pub mod stream_error_handler;
 pub mod stream_output_handler;
+pub mod cm_block_buffer_ref;
+pub mod cm_format_description_ref;
+pub mod audio_buffer;
