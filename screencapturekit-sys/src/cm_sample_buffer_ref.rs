@@ -51,7 +51,6 @@ impl CMSampleBufferRef {
                 0,
                 &mut null_mut(),
             );
-            println!("buffer size: {}", buffer_size);
 
             let mut block_buffer_ref = CMSampleBufferGetDataBuffer(self);
             let layout = alloc::Layout::from_size_align(buffer_size, 16).unwrap();
