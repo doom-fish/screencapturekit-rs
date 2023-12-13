@@ -33,11 +33,11 @@ impl SCStream {
             },
         );
     }
-    pub fn start_capture(&self) {
-        self._unsafe_ref.start_capture();
+    pub fn start_capture(&self) -> Result<(), String> {
+        self._unsafe_ref.start_capture()
     }
-    pub fn stop_capture(&self) {
-        self._unsafe_ref.stop_capture();
+    pub fn stop_capture(&self) -> Result<(), String> {
+        self._unsafe_ref.stop_capture()
     }
 }
 
