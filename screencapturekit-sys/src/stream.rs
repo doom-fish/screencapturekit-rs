@@ -31,16 +31,17 @@ impl INSObject for UnsafeSCStream {
 }
 type CompletionHandlerBlock = RcBlock<(*mut Object,), ()>;
 impl UnsafeSCStream {
-    unsafe fn new_completion_handler() -> (CompletionHandlerBlock, Receiver<()>) {
+    unsafe fn new_completion_handler() -> (CompletionHandlerBlock, Receiver<Result<(), String>>) {
         let (tx, rx) = channel();
         let handler = ConcreteBlock::new(move |error: *mut Object| {
             if !error.is_null() {
                 let code: *mut NSString = msg_send![error, localizedDescription];
-                eprintln!("{:?}", (*code).as_str());
-                panic!("start fail");
+                let err_msg = (*code).as_str();
+                tx.send(Err(err_msg.to_string()))
+                    .expect("Cannot send error message");
             }
 
-            tx.send(()).expect("LL");
+            tx.send(Ok(())).expect("Cannot send message");
         });
         (handler.copy(), rx)
     }
@@ -57,18 +58,18 @@ impl UnsafeSCStream {
         }
         instance
     }
-    pub fn start_capture(&self) {
+    pub fn start_capture(&self) -> Result<(), String> {
         unsafe {
             let (handler, rx) = Self::new_completion_handler();
             let _: () = msg_send!(self, startCaptureWithCompletionHandler: handler);
-            rx.recv().expect("LALAL");
+            return rx.recv().expect("LALAL");
         }
     }
-    pub fn stop_capture(&self) {
+    pub fn stop_capture(&self) -> Result<(), String> {
         unsafe {
             let (handler, rx) = Self::new_completion_handler();
             let _: () = msg_send!(self, stopCaptureWithCompletionHandler: handler);
-            rx.recv().expect("LALAL");
+            return rx.recv().expect("LALAL");
         }
     }
     pub fn add_stream_output(
@@ -87,7 +88,9 @@ impl UnsafeSCStream {
 
 impl Drop for UnsafeSCStream {
     fn drop(&mut self) {
-        self.stop_capture();
+        if let Err(err) = self.stop_capture() {
+            eprintln!("Cannot stop capture: {:?}", err)
+        }
     }
 }
 
@@ -147,8 +150,31 @@ mod stream_test {
         println!("ADDING OUTPUT");
         stream.add_stream_output(a, 0);
         println!("start capture");
-        stream.start_capture();
+        stream.start_capture().expect("start");
         println!("{:?}", rx.recv().unwrap());
-        stream.stop_capture();
+        stream.stop_capture().expect("stop");
+    }
+
+    #[test]
+    fn test_sc_stream_error_handling() {
+        let display = UnsafeSCShareableContent::get()
+            .unwrap()
+            .displays()
+            .pop()
+            .expect("could not get display");
+
+        let filter = UnsafeContentFilter::init(Display(display));
+        let config = UnsafeStreamConfiguration {
+            width: 100,
+            height: 100,
+            ..Default::default()
+        };
+        let stream = UnsafeSCStream::init(filter, config.into(), ErrorHandler {});
+
+        println!("start capture");
+        assert!(stream.start_capture().is_ok());
+        assert!(stream.start_capture().is_err()); // already started error
+        assert!(stream.stop_capture().is_ok());
+        assert!(stream.stop_capture().is_err()); // already stopped error
     }
 }
