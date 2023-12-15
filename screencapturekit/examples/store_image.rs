@@ -49,10 +49,10 @@ fn main() {
     let mut stream = SCStream::new(filter, config, ErrorHandler);
 
     stream.add_output(StoreImageHandler { tx }, SCStreamOutputType::Screen);
-    stream.start_capture();
+    stream.start_capture().ok();
 
     let sample_buf = rx.recv().unwrap();
-    stream.stop_capture();
+    stream.stop_capture().ok();
     let jpeg = sample_buf.image_buf_ref.unwrap().get_jpeg_data();
 
     let mut buffer = File::create("picture.jpg").unwrap();

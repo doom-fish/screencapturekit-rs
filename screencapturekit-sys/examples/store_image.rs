@@ -8,14 +8,11 @@ use std::{
 use objc_foundation::INSData;
 use objc_id::Id;
 use screencapturekit_sys::{
-    cm_sample_buffer_ref::CMSampleBufferRef,
-    content_filter::UnsafeContentFilter,
-    content_filter::UnsafeInitParams,
-    shareable_content::UnsafeSCShareableContent,
-    stream::UnsafeSCStream,
-    stream_configuration::UnsafeStreamConfiguration,
-    stream_error_handler::UnsafeSCStreamError,
-    stream_output_handler::UnsafeSCStreamOutput, sc_stream_frame_info::SCFrameStatus,
+    cm_sample_buffer_ref::CMSampleBufferRef, content_filter::UnsafeContentFilter,
+    content_filter::UnsafeInitParams, sc_stream_frame_info::SCFrameStatus,
+    shareable_content::UnsafeSCShareableContent, stream::UnsafeSCStream,
+    stream_configuration::UnsafeStreamConfiguration, stream_error_handler::UnsafeSCStreamError,
+    stream_output_handler::UnsafeSCStreamOutput,
 };
 
 struct StoreImageHandler {
@@ -58,10 +55,10 @@ fn main() {
 
     let stream = UnsafeSCStream::init(filter, config.into(), ErrorHandler);
     stream.add_stream_output(StoreImageHandler { tx }, 0);
-    stream.start_capture();
+    stream.start_capture().ok();
 
     let sample_buf = rx.recv().unwrap();
-    stream.stop_capture();
+    stream.stop_capture().ok();
     let jpeg = sample_buf.get_image_buffer().unwrap().get_jpeg_data();
 
     let mut buffer = File::create("picture.jpg").unwrap();
