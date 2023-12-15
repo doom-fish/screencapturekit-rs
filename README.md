@@ -65,8 +65,6 @@ at your option.
 
 ## Contributing
 
-TBD
-
 We appreciate contributions in the form of bug reports,
 fixes, feature requests etc, and will review them as time permits.
 Please keep in mind that this project is experimental and the
