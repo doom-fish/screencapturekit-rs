@@ -14,11 +14,8 @@ jobs:
     runs-on: macos-13
     steps:
       # TCCDB has the wrong screencapture values, see: https://github.com/actions/runner-images/issues/8782
-      - name: Reset tcc screencapture
-        run: tccutil reset ScreenCapture
-      - name: FIX ISSUE WITH MAC-OS 13 runner
-        uses: guidepup/setup-action@0.20.0
-      - uses: actions/checkout@v3
+      - name: labels
+        run: sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "INSERT OR IGNORE INTO access VALUES('kTCCServicePostEvent','/usr/sbin/sshd',1,2,3,1,NULL,NULL,NULL,'UNUSED',NULL,0, 1702632013076);" 
       - name: Build
         run: cargo build --verbose --features ci
       - name: Run tests
