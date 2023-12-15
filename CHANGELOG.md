@@ -12,16 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2023-12-15
 
 ### Added
-  - [#13][13]: Support audio stream
-  - [#10][10]: Allow for audio output
-  - [#9][9]: High level example
+  - [#13](https://github.com/svtlabs/screencapturekit-rs/pull/13): Support audio stream
+  - [#10](https://github.com/svtlabs/screencapturekit-rs/pull/10): Allow for audio output
+  - [#9](https://github.com/svtlabs/screencapturekit-rs/pull/9): High level example
   - Additional examples
   - Expand CMSampleBuffer API
 
 ### Fixed
-  - Fix CI build to work with MacOS 13 runner
-  - [#14][14]: Don't panic on new_completion_handler
-  - [#7][7]: Fix typo in UnsafeSCWindow
+  - [#14](https://github.com/svtlabs/screencapturekit-rs/pull/14): Don't panic on new_completion_handler
+  - [#7](https://github.com/svtlabs/screencapturekit-rs/pull/7): Fix typo in UnsafeSCWindow
   
 ## [0.1.0] - 2023-08-21
 
