@@ -3,11 +3,12 @@ use once_cell::sync::Lazy;
 use screencapturekit_sys::{
     cm_sample_buffer_ref::CMSampleBufferRef,
     content_filter::{UnsafeContentFilter, UnsafeInitParams::Display},
+    sc_stream_frame_info::SCFrameStatus,
     shareable_content::UnsafeSCShareableContent,
     stream::UnsafeSCStream,
     stream_configuration::UnsafeStreamConfiguration,
     stream_error_handler::UnsafeSCStreamError,
-    stream_output_handler::UnsafeSCStreamOutput, sc_stream_frame_info::SCFrameStatus,
+    stream_output_handler::UnsafeSCStreamOutput,
 };
 use std::{
     sync::atomic::{AtomicI64, Ordering},
@@ -58,7 +59,7 @@ fn main() {
 
     let stream = UnsafeSCStream::init(filter, config.into(), TestHandler {});
     stream.add_stream_output(TestHandler {}, 0);
-    stream.start_capture();
+    stream.start_capture().ok();
 
     thread::sleep(Duration::from_millis(10_000));
 }
