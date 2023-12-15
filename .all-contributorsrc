@@ -1,0 +1,26 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "commitType": "docs",
+  "commitConvention": "angular",
+  "contributors": [
+    {
+      "login": "tokuhirom",
+      "name": "Tokuhiro Matsuno",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21084?v=4",
+      "profile": "http://64p.org/",
+      "contributions": [
+        "code"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "skipCi": true,
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "projectName": "screencapturekit-rs",
+  "projectOwner": "svtlabs"
+}
