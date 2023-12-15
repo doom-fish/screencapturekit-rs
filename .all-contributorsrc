@@ -15,6 +15,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "bigduu",
+      "name": "bigduu",
+      "avatar_url": "https://avatars.githubusercontent.com/u/18681616?v=4",
+      "profile": "https://github.com/bigduu",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
@@ -22,5 +31,5 @@
   "repoType": "github",
   "repoHost": "https://github.com",
   "projectName": "screencapturekit-rs",
-  "projectOwner": "1313"
+  "projectOwner": "svtlabs"
 }
