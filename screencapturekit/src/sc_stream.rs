@@ -81,10 +81,11 @@ mod tests {
     impl StreamOutput for ScreenOutput {
         fn did_output_sample_buffer(&self, sample: CMSampleBuffer, of_type: SCStreamOutputType) {
             match of_type {
-                SCStreamOutputType::Screen => {self.video_tx.send(sample).ok();},
+                SCStreamOutputType::Screen => {
+                    self.video_tx.send(sample).ok();
+                }
                 SCStreamOutputType::Audio => {}
             }
-            
         }
     }
     #[test]
