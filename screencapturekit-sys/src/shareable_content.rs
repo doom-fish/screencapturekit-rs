@@ -207,7 +207,6 @@ impl UnsafeSCShareableContent {
 #[cfg(test)]
 mod get_shareable_content_with_config {
     use super::*;
-    #[ignore]
     #[test]
     fn get_exclude_desktop_windows() {
         let mut config = ExcludingDesktopWindowsConfig::default();
@@ -226,7 +225,6 @@ mod get_shareable_content_with_config {
 mod get_shareable_content {
 
     use super::*;
-    #[ignore]
     #[test]
     fn test_get_windows() {
         let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");
@@ -238,7 +236,6 @@ mod get_shareable_content {
         }
     }
 
-    #[ignore]
     #[test]
     fn test_get_displays() {
         let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");
@@ -247,7 +244,6 @@ mod get_shareable_content {
             assert!(d.get_frame().size.width > 0f64, "Can get application_name");
         }
     }
-    #[ignore]
     #[test]
     fn test_get_applications() {
         let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");

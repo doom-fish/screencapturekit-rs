@@ -72,11 +72,7 @@ impl UnsafeSCStream {
             return rx.recv().expect("LALAL");
         }
     }
-    pub fn add_stream_output(
-        &self,
-        handle: impl UnsafeSCStreamOutput,
-        output_type: u8,
-    ) {
+    pub fn add_stream_output(&self, handle: impl UnsafeSCStreamOutput, output_type: u8) {
         let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
 
         let a = UnsafeSCStreamOutputHandler::init(handle);
@@ -128,7 +124,6 @@ mod stream_test {
             self.tx.send(sample).unwrap();
         }
     }
-    #[ignore]
     #[test]
     fn test_sc_stream() {
         let display = UnsafeSCShareableContent::get()
