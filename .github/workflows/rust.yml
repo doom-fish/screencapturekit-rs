@@ -13,13 +13,13 @@ jobs:
   build:
     runs-on: macos-13
     steps:
-    - name: Setup Environment
-      uses: guidepup/setup-action
-    - uses: actions/checkout@v3
+      - name: Guidepup Setup
+        uses: guidepup/setup-action@0.13.0
+      - uses: actions/checkout@v3
 #    - name: Grant write permission to TCC
 #      run:  sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "INSERT OR IGNORE INTO access VALUES('kTCCServicePostEvent','/usr/sbin/sshd',1,2,3,1,NULL,NULL,NULL,'UNUSED',NULL,0, 170263201);"
-    - name: Build
-      run: cargo build --verbose --features ci
-    - name: Run tests
-      run: cargo test --verbose --features ci
+      - name: Build
+        run: cargo build --verbose --features ci
+      - name: Run tests
+        run: cargo test --verbose --features ci
     
