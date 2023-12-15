@@ -13,11 +13,10 @@ jobs:
   build:
     runs-on: macos-13
     steps:
-      - name: Guidepup Setup
+      # TCCDB has the wrong screencapture values, see: https://github.com/actions/runner-images/issues/8782
+      - name: FIX ISSUE WITH MAC-OS 13 runner
         uses: guidepup/setup-action@0.13.0
       - uses: actions/checkout@v3
-#    - name: Grant write permission to TCC
-#      run:  sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "INSERT OR IGNORE INTO access VALUES('kTCCServicePostEvent','/usr/sbin/sshd',1,2,3,1,NULL,NULL,NULL,'UNUSED',NULL,0, 170263201);"
       - name: Build
         run: cargo build --verbose --features ci
       - name: Run tests
