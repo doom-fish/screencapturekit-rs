@@ -4,7 +4,6 @@ resolver = "2"
 [workspace.package]
 authors = ["Per Johansson <mail@perjohansson.net>"]
 homepage = "https://doom.fish"
-version = "0.1.0"
+version = "0.2.1"
 keywords = ["screencapture", "screencapturekit", "macos"]
 license = "MIT OR Apache-2.0"
-
