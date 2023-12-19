@@ -1,11 +1,9 @@
 use screencapturekit_sys::{
-    cm_sample_buffer_ref::CMSampleBufferRef,
-    os_types::rc::Id,
+    cm_sample_buffer_ref::CMSampleBufferRef, os_types::rc::Id,
     stream_output_handler::UnsafeSCStreamOutput,
 };
 
 use crate::cm_sample_buffer::CMSampleBuffer;
-
 
 #[derive(Clone, Copy, Debug)]
 pub enum SCStreamOutputType {
