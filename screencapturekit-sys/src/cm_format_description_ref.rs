@@ -4,9 +4,7 @@ use crate::macros::declare_ref_type;
 declare_ref_type!(CMFormatDescriptionRef);
 
 impl CMFormatDescriptionRef {
-    pub fn audio_format_description_get_stream_basic_description(
-        &self,
-    ) -> Option<&AudioStreamBasicDescription> {
+    pub fn audio_format_description_get_stream_basic_description(&self) -> Option<&AudioStreamBasicDescription> {
         unsafe {
             let ptr = CMAudioFormatDescriptionGetStreamBasicDescription(self);
             if ptr.is_null() {
@@ -178,7 +176,5 @@ pub const kAudioFormatFLAC: ::std::os::raw::c_uint = 1718378851;
 pub const kAudioFormatOpus: ::std::os::raw::c_uint = 1869641075;
 
 extern "C" {
-    pub fn CMAudioFormatDescriptionGetStreamBasicDescription(
-        desc: *const CMFormatDescriptionRef,
-    ) -> *const AudioStreamBasicDescription;
+    pub fn CMAudioFormatDescriptionGetStreamBasicDescription(desc: *const CMFormatDescriptionRef) -> *const AudioStreamBasicDescription;
 }
