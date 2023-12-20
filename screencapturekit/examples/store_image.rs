@@ -1,3 +1,4 @@
+use std::{fs::File, io::Write, process::Command, sync::mpsc::{sync_channel, SyncSender}};
 use objc_foundation::INSData;
 use screencapturekit::cm_sample_buffer::CMSampleBuffer;
 use screencapturekit::sc_content_filter::{InitParams, SCContentFilter};
@@ -6,12 +7,6 @@ use screencapturekit::sc_output_handler::{SCStreamOutputType, StreamOutput};
 use screencapturekit::sc_shareable_content::SCShareableContent;
 use screencapturekit::sc_stream::SCStream;
 use screencapturekit::sc_stream_configuration::SCStreamConfiguration;
-use std::{
-    fs::File,
-    io::Write,
-    process::Command,
-    sync::mpsc::{sync_channel, SyncSender},
-};
 
 use screencapturekit_sys::sc_stream_frame_info::SCFrameStatus;
 
@@ -36,7 +31,10 @@ impl StreamOutput for StoreImageHandler {
 }
 fn main() {
     let content = SCShareableContent::current();
-    let display = content.displays.first().unwrap();
+    let display = content
+        .displays
+        .first()
+        .unwrap();
     let width = display.width;
     let height = display.height;
     let filter = SCContentFilter::new(InitParams::Display(display.clone()));

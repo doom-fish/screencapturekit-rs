@@ -23,7 +23,7 @@ impl fmt::Debug for FourCharCode {
 
 impl FourCharCode {
     #[inline]
-    fn format(&self) -> String {
+     fn format(&self) -> String {
         // Format as escaped ASCII string.
 
         let raw = self
