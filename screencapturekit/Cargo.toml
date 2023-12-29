@@ -26,6 +26,3 @@ path = "./src/lib.rs"
 
 [dependencies]
 screencapturekit-sys = { version = "0.2.1", path = "../screencapturekit-sys" }
-
-[[example]]
-name = "store_image"
