@@ -62,14 +62,16 @@ impl UnsafeSCStream {
         unsafe {
             let (handler, rx) = Self::new_completion_handler();
             let _: () = msg_send!(self, startCaptureWithCompletionHandler: handler);
-            return rx.recv().expect("LALAL");
+            rx.recv()
+                .expect("Should receive a return from completion handler")
         }
     }
     pub fn stop_capture(&self) -> Result<(), String> {
         unsafe {
             let (handler, rx) = Self::new_completion_handler();
             let _: () = msg_send!(self, stopCaptureWithCompletionHandler: handler);
-            return rx.recv().expect("LALAL");
+            rx.recv()
+                .expect("Should receive a return from completion handler")
         }
     }
     pub fn add_stream_output(&self, handle: impl UnsafeSCStreamOutput, output_type: u8) {
