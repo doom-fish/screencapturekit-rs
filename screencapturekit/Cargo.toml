@@ -1,6 +1,5 @@
 [package]
 name = "screencapturekit"
-edition = "2021"
 description = "Safe wrapper for Apple's ScreenCaptureKit"
 categories = [
   "api-bindings",
@@ -11,11 +10,13 @@ categories = [
 readme = "README.md"
 repository = "https://github.com/svtlabs/screencapturekit-rs/tree/main/screencapturekit"
 
+edition.workspace = true
 version.workspace = true
 authors.workspace = true
 license.workspace = true
 keywords.workspace = true
 homepage.workspace = true
+rust-version.workspace = true
 
 [features]
 ci = []
@@ -25,9 +26,3 @@ path = "./src/lib.rs"
 
 [dependencies]
 screencapturekit-sys = { version = "0.2.1", path = "../screencapturekit-sys" }
-
-[dev-dependencies]
-objc-foundation = "0.1"
-
-[[example]]
-name = "store_image"
