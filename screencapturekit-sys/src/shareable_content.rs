@@ -208,6 +208,7 @@ impl UnsafeSCShareableContent {
 mod get_shareable_content_with_config {
     use super::*;
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn get_exclude_desktop_windows() {
         let mut config = ExcludingDesktopWindowsConfig::default();
 
