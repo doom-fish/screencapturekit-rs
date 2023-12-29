@@ -20,6 +20,9 @@ rust-version.workspace = true
 [lib]
 path = "./src/lib.rs"
 
+[features]
+ci = []
+
 [dependencies]
 objc = { version = "0.2", features = ["exception"] }
 objc_id = "0.1"
