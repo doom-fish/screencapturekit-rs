@@ -83,6 +83,7 @@ mod tests {
 
     use super::InitParams::Display;
     use super::*;
+    #[cfg_attr(feature = "ci", ignore)]
     #[test]
     fn test_sc_filter() {
         let display = SCShareableContent::current().displays.pop().unwrap();

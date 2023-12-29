@@ -80,6 +80,7 @@ mod test_content_filter {
     use super::*;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_init() {
         let sc = UnsafeSCShareableContent::get().expect("should get shareable content");
         let applications = sc.applications();
