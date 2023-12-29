@@ -1,8 +1,7 @@
 # screencapturekit-rs
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-) [![Build](https://github.com/svtlabs/screencapturekit-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/svtlabs/screencapturekit-rs/actions/workflows/rust.yml)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
-
 ## Introduction
 
 ScreenCaptureKit is a high-performance screen capture framework for macOS applications.
