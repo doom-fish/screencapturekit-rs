@@ -127,6 +127,7 @@ mod stream_test {
         }
     }
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sc_stream() {
         let display = UnsafeSCShareableContent::get()
             .unwrap()
