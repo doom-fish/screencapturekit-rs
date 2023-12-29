@@ -103,7 +103,7 @@ mod tests {
         let mut stream = SCStream::new(filter, config, SomeErrorHandler {});
         let w = ScreenOutput { video_tx };
         stream.add_output(w, SCStreamOutputType::Screen);
-        stream.start_capture();
+        stream.start_capture().ok();
         println!("{:?}", std::mem::forget(video_rx.recv()));
     }
 
@@ -123,7 +123,7 @@ mod tests {
         let mut stream = SCStream::new(filter, config, SomeErrorHandler {});
         let w = AudioOutput { audio_tx };
         stream.add_output(w, SCStreamOutputType::Audio);
-        stream.start_capture();
+        stream.start_capture().ok();
         audio_rx.recv().unwrap();
     }
 }

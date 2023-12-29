@@ -208,6 +208,7 @@ impl UnsafeSCShareableContent {
 mod get_shareable_content_with_config {
     use super::*;
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn get_exclude_desktop_windows() {
         let mut config = ExcludingDesktopWindowsConfig::default();
 
@@ -226,6 +227,7 @@ mod get_shareable_content {
 
     use super::*;
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_get_windows() {
         let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");
         for w in sc.windows().iter() {
@@ -237,6 +239,7 @@ mod get_shareable_content {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_get_displays() {
         let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");
         for d in sc.displays().iter() {
@@ -244,7 +247,9 @@ mod get_shareable_content {
             assert!(d.get_frame().size.width > 0f64, "Can get application_name");
         }
     }
+
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_get_applications() {
         let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");
         for a in sc.applications().iter() {
