@@ -1,11 +1,6 @@
 use core_foundation::{array::CFArray, base::TCFType, base::*, error::CFError};
 use objc::{msg_send, *};
 
-use crate::{
-    block_utils::{new_completion_handler, CompletionHandler},
-    sc_window::{SCWindow, SCWindowRef},
-};
-
 mod internal {
     #![allow(non_snake_case)]
     use std::os::raw::c_void;
@@ -92,7 +87,17 @@ impl SCShareableContentOptions {
         rx.recv().expect("should work")
     }
 }
-use crate::objc_utils::SendableObjc;
+
+use crate::utils::{
+    block::{new_completion_handler, CompletionHandler},
+    objc::SendableObjc,
+};
+
+use super::{
+    sc_display::{SCDisplay, SCDisplayRef},
+    sc_running_application::{SCRunningApplication, SCRunningApplicationRef},
+    sc_window::{SCWindow, SCWindowRef},
+};
 
 impl SCShareableContent {
     pub fn with_options() -> SCShareableContentOptions {
@@ -102,6 +107,31 @@ impl SCShareableContent {
         Self::with_options().get()
     }
 
+    pub fn displays(&self) -> Vec<SCDisplay> {
+        unsafe {
+            CFArray::<SCDisplayRef>::wrap_under_get_rule(msg_send![self.to_sendable(), displays])
+                .into_untyped()
+                .iter()
+                .map(|ptr| SCDisplay::wrap_under_get_rule(SCDisplayRef::from_void_ptr(*ptr)))
+                .collect()
+        }
+    }
+    pub fn applications(&self) -> Vec<SCRunningApplication> {
+        unsafe {
+            CFArray::<SCRunningApplicationRef>::wrap_under_get_rule(msg_send![
+                self.to_sendable(),
+                applications
+            ])
+            .into_untyped()
+            .iter()
+            .map(|ptr| {
+                SCRunningApplication::wrap_under_get_rule(SCRunningApplicationRef::from_void_ptr(
+                    *ptr,
+                ))
+            })
+            .collect()
+        }
+    }
     pub fn windows(&self) -> Vec<SCWindow> {
         unsafe {
             CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![self.to_sendable(), windows])
@@ -120,7 +150,10 @@ mod sc_shareable_content_test {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn get_default() {
-        SCShareableContent::get().expect("Should work");
+        let content = SCShareableContent::get().expect("Should work");
+        assert!(!content.displays().is_empty());
+        assert!(!content.windows().is_empty());
+        assert!(!content.applications().is_empty());
     }
     #[test]
     #[cfg_attr(feature = "ci", ignore)]

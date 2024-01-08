@@ -1,7 +1,14 @@
-[workspace]
-members = ["screencapturekit-sys", "screencapturekit"]
-resolver = "2"
-[workspace.package]
+[package]
+name = "screencapturekit"
+
+description = "Rust wrapper for apple's ScreenCaptureKit"
+categories = [
+  "external-ffi-bindings",
+  "multimedia",
+  "multimedia::video",
+  "os::macos-apis",
+]
+repository = "https://github.com/svtlabs/screencapturekit-rs/tree/main/screencapturekit-sys"
 authors = ["Per Johansson <mail@perjohansson.net>"]
 homepage = "https://doom.fish"
 edition = "2021"
@@ -9,3 +16,19 @@ rust-version = "1.75"
 version = "0.2.1"
 keywords = ["screencapture", "screencapturekit", "macos"]
 license = "MIT OR Apache-2.0"
+[lib]
+path = "./src/lib.rs"
+
+[features]
+ci = []
+
+[dependencies]
+objc = { version = "0.2", features = ["exception"] }
+objc-foundation = "0.1"
+block = "0.1"
+dispatch = "0.2"
+once_cell = "1"
+core-foundation = { version = "0.9.4", features = ["mac_os_10_8_features"] }
+
+[[example]]
+name = "test_fps"
