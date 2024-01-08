@@ -1,4 +1,15 @@
+use core::fmt;
+
+use core_foundation::base::UInt32;
+use core_graphics::geometry::CGRect;
+pub use internal::{SCDisplay, SCDisplayRef};
+
+use objc::{msg_send, *};
+
+use crate::utils::objc::SendableObjc;
+
 mod internal {
+
     #![allow(non_snake_case)]
     use std::os::raw::c_void;
 
@@ -13,4 +24,45 @@ mod internal {
     declare_TCFType! {SCDisplay, SCDisplayRef}
     impl_TCFType!(SCDisplay, SCDisplayRef, SCDisplayGetTypeID);
 }
-pub use internal::{SCDisplay, SCDisplayRef};
+
+impl fmt::Debug for SCDisplay {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("SCDisplay")
+            .field(&self.display_id())
+            .field(&self.get_frame())
+            .field(&self.get_width())
+            .field(&self.get_height())
+            .finish()
+    }
+}
+
+impl SCDisplay {
+    pub fn display_id(&self) -> UInt32 {
+        unsafe { msg_send![self.to_sendable(), displayID] }
+    }
+    pub fn get_frame(&self) -> CGRect {
+        unsafe { msg_send![self.to_sendable(), frame] }
+    }
+    pub fn get_height(&self) -> UInt32 {
+        unsafe { msg_send![self.to_sendable(), height] }
+    }
+    pub fn get_width(&self) -> UInt32 {
+        unsafe { msg_send![self.to_sendable(), width] }
+    }
+}
+#[cfg(test)]
+mod sc_display_test {
+
+    use crate::shareable_content::sc_shareable_content::SCShareableContent;
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_properties() {
+        let content = SCShareableContent::get().expect("Should work");
+        let displays = content.displays();
+        assert!(!displays.is_empty());
+        for d in displays {
+            println!("Display: {:?}", d);
+        }
+    }
+}
