@@ -1,262 +1,167 @@
-use std::sync::mpsc::{channel, Receiver, RecvError};
+use core_foundation::{array::CFArray, base::TCFType, base::*, error::CFError};
+use objc::{msg_send, *};
 
 use crate::{
-    macros::get_string,
-    os_types::{
-        base::{PidT, UInt32, BOOL},
-        geometry::CGRect,
-    },
+    block_utils::{new_completion_handler, CompletionHandler},
+    sc_window::{SCWindow, SCWindowRef},
 };
-use block::{ConcreteBlock, RcBlock};
-use objc::{
-    msg_send,
-    runtime::{Class, Object},
-    Message, *,
-};
-use objc_foundation::{INSArray, INSObject, INSString, NSArray, NSString};
-use objc_id::*;
 
-#[derive(Debug)]
-pub struct UnsafeSCRunningApplication;
-unsafe impl Message for UnsafeSCRunningApplication {}
-impl UnsafeSCRunningApplication {
-    pub fn get_process_id(&self) -> PidT {
-        unsafe { msg_send![self, processID] }
+mod internal {
+    #![allow(non_snake_case)]
+    use std::os::raw::c_void;
+
+    use core_foundation::{base::*, *};
+    #[repr(C)]
+    pub struct __SCShareableContentRef(c_void);
+    extern "C" {
+        pub fn SCShareableContentGetTypeID() -> CFTypeID;
     }
-    pub fn get_application_name(&self) -> Option<String> {
-        unsafe { get_string!(self, applicationName) }
-    }
-    pub fn get_bundle_identifier(&self) -> Option<String> {
-        unsafe { get_string!(self, bundleIdentifier) }
-    }
+    pub type SCShareableContentRef = *mut __SCShareableContentRef;
+
+    declare_TCFType! {SCShareableContent, SCShareableContentRef}
+    impl_TCFType!(
+        SCShareableContent,
+        SCShareableContentRef,
+        SCShareableContentGetTypeID
+    );
 }
-
-impl INSObject for UnsafeSCRunningApplication {
-    fn class() -> &'static Class {
-        Class::get("SCRunningApplication")
-                .expect("Missing SCRunningApplication class, check that the binary is linked with ScreenCaptureKit")
-    }
-}
-#[derive(Debug, Clone, Copy)]
-pub struct UnsafeSCWindow;
-unsafe impl Message for UnsafeSCWindow {}
-
-impl UnsafeSCWindow {
-    pub fn get_owning_application(&self) -> Option<ShareId<UnsafeSCRunningApplication>> {
-        unsafe {
-            let ptr: *mut UnsafeSCRunningApplication = msg_send![self, owningApplication];
-            if ptr.is_null() {
-                None
-            } else {
-                Some(Id::from_ptr(ptr))
-            }
-        }
-    }
-    pub fn get_window_layer(&self) -> UInt32 {
-        unsafe { msg_send![self, windowLayer] }
-    }
-    pub fn get_window_id(&self) -> UInt32 {
-        unsafe { msg_send![self, windowID] }
-    }
-    pub fn get_frame(&self) -> CGRect {
-        unsafe { msg_send![self, frame] }
-    }
-    pub fn get_title(&self) -> Option<String> {
-        unsafe { get_string!(self, title) }
-    }
-    pub fn get_is_on_screen(&self) -> BOOL {
-        unsafe { msg_send![self, isOnScreen] }
-    }
-    pub fn get_is_active(&self) -> BOOL {
-        unsafe { msg_send![self, isActive] }
-    }
-}
-
-impl INSObject for UnsafeSCWindow {
-    fn class() -> &'static runtime::Class {
-        Class::get("SCWindow")
-            .expect("Missing SCWindow class, check that the binary is linked with ScreenCaptureKit")
-    }
-}
-
-#[derive(Debug)]
-pub struct UnsafeSCDisplay;
-unsafe impl Message for UnsafeSCDisplay {}
-
-impl UnsafeSCDisplay {
-    pub fn get_display_id(&self) -> UInt32 {
-        unsafe { msg_send![self, displayID] }
-    }
-    pub fn get_frame(&self) -> CGRect {
-        unsafe { msg_send![self, frame] }
-    }
-    pub fn get_height(&self) -> UInt32 {
-        unsafe { msg_send![self, height] }
-    }
-    pub fn get_width(&self) -> UInt32 {
-        unsafe { msg_send![self, width] }
-    }
-}
-
-impl INSObject for UnsafeSCDisplay {
-    fn class() -> &'static runtime::Class {
-        Class::get("SCDisplay")
-            .expect("Missing SCWindow class, check that the binary is linked with ScreenCaptureKit")
-    }
-}
+pub use internal::SCShareableContent;
 
 #[derive(Default)]
-pub enum OnScreenOnlySettings<'a> {
-    EveryWindow,
+enum CaptureOption {
     #[default]
+    Default,
     OnlyOnScreen,
-    AboveWindow(&'a UnsafeSCWindow),
-    BelowWindow(&'a UnsafeSCWindow),
+    OnlyOnScreenAbove(SCWindow),
+    OnlyOnScreenBelow(SCWindow),
 }
+
 #[derive(Default)]
-pub struct ExcludingDesktopWindowsConfig<'a> {
-    exclude_desktop_windows: bool,
-    on_screen_windows_only: OnScreenOnlySettings<'a>,
+pub struct SCShareableContentOptions {
+    capture_option: CaptureOption,
+    exclude_desktop: bool,
 }
 
-#[derive(Debug)]
-pub struct UnsafeSCShareableContent;
-unsafe impl Message for UnsafeSCShareableContent {}
-
-type CompletionHandlerBlock = RcBlock<(*mut UnsafeSCShareableContent, *mut Object), ()>;
-impl UnsafeSCShareableContent {
-    unsafe fn new_completion_handler() -> (CompletionHandlerBlock, Receiver<Id<Self>>) {
-        let (tx, rx) = channel();
-        let handler = ConcreteBlock::new(move |sc: *mut Self, error: *mut Object| {
-            if error.is_null() {
-                tx.send(Id::from_ptr(sc))
-                    .expect("could create owned pointer for UnsafeSCShareableContent");
-            } else {
-                let code: *mut NSString = msg_send![error, localizedDescription];
-                eprintln!("ERR: {:?}", (*code).as_str());
-            }
-        });
-        (handler.copy(), rx)
+impl SCShareableContentOptions {
+    pub fn exclude_desktop(mut self) -> Self {
+        self.exclude_desktop = true;
+        self
     }
+    pub fn on_screen_windows_only(mut self) -> Self {
+        self.capture_option = CaptureOption::OnlyOnScreen;
+        self
+    }
+    pub fn on_screen_windows_only_above(mut self, window: SCWindow) -> Self {
+        self.capture_option = CaptureOption::OnlyOnScreenAbove(window);
+        self
+    }
+    pub fn on_screen_windows_only_below(mut self, window: SCWindow) -> Self {
+        self.capture_option = CaptureOption::OnlyOnScreenBelow(window);
+        self
+    }
+    pub fn get(self) -> Result<SCShareableContent, CFError> {
+        let CompletionHandler(completion_handler, rx) = new_completion_handler();
 
-    pub fn get_with_config(config: &ExcludingDesktopWindowsConfig) -> Result<Id<Self>, RecvError> {
         unsafe {
-            let (handler, rx) = Self::new_completion_handler();
-            match config.on_screen_windows_only {
-                OnScreenOnlySettings::EveryWindow => msg_send![
+            let _: () = match self.capture_option {
+                CaptureOption::Default => msg_send![
                     class!(SCShareableContent),
-                    getShareableContentExcludingDesktopWindows: config.exclude_desktop_windows as u8
-                    onScreenWindowsOnly: 0
-                    completionHandler: handler
+                    getShareableContentWithCompletionHandler: completion_handler
                 ],
-
-                OnScreenOnlySettings::AboveWindow(ref w) => msg_send![
+                CaptureOption::OnlyOnScreen => msg_send![
                     class!(SCShareableContent),
-                    getShareableContentExcludingDesktopWindows: config.exclude_desktop_windows as u8
-                    onScreenWindowsOnlyAboveWindow: &w
-                    completionHandler: handler
-                ],
-                OnScreenOnlySettings::BelowWindow(ref w) => msg_send![
-                    class!(SCShareableContent),
-                    getShareableContentExcludingDesktopWindows: config.exclude_desktop_windows as u8
-                    onScreenWindowsOnlyBelowWindow: &w
-                    completionHandler: handler
-                ],
-                OnScreenOnlySettings::OnlyOnScreen => msg_send![
-                    class!(SCShareableContent),
-                    getShareableContentExcludingDesktopWindows: config.exclude_desktop_windows as u8
+                    getShareableContentExcludingDesktopWindows: self.exclude_desktop as u8
                     onScreenWindowsOnly: 1
-                    completionHandler: handler
+                    completionHandler: completion_handler
                 ],
-            }
-            rx.recv()
-        }
+                CaptureOption::OnlyOnScreenAbove(w) => msg_send![
+                    class!(SCShareableContent),
+                    getShareableContentExcludingDesktopWindows: self.exclude_desktop as u8
+                    onScreenWindowsOnlyAboveWindow: w.as_CFTypeRef()
+                    completionHandler: completion_handler
+                ],
+                CaptureOption::OnlyOnScreenBelow(w) => msg_send![
+                    class!(SCShareableContent),
+                    getShareableContentExcludingDesktopWindows: self.exclude_desktop as u8
+                    onScreenWindowsOnlyBelowWindow: w.as_CFTypeRef()
+                    completionHandler: completion_handler
+                ],
+            };
+        };
+
+        rx.recv().expect("should work")
     }
-    pub fn get() -> Result<Id<Self>, RecvError> {
+}
+use crate::objc_utils::SendableObjc;
+
+impl SCShareableContent {
+    pub fn with_options() -> SCShareableContentOptions {
+        SCShareableContentOptions::default()
+    }
+    pub fn get() -> Result<Self, CFError> {
+        Self::with_options().get()
+    }
+
+    pub fn windows(&self) -> Vec<SCWindow> {
         unsafe {
-            let (handler, rx) = Self::new_completion_handler();
-            let _: () = msg_send![
-                class!(SCShareableContent),
-                getShareableContentWithCompletionHandler: handler
-            ];
-
-            rx.recv()
+            CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![self.to_sendable(), windows])
+                .into_untyped()
+                .iter()
+                .map(|ptr| SCWindow::wrap_under_get_rule(SCWindowRef::from_void_ptr(*ptr)))
+                .collect()
         }
-    }
-
-    pub fn displays(&self) -> Vec<ShareId<UnsafeSCDisplay>> {
-        let display_ptr: ShareId<NSArray<UnsafeSCDisplay, Shared>> =
-            unsafe { Id::from_ptr(msg_send![self, displays]) };
-
-        display_ptr.to_shared_vec()
-    }
-    pub fn applications(&self) -> Vec<ShareId<UnsafeSCRunningApplication>> {
-        let applications_ptr: ShareId<NSArray<UnsafeSCRunningApplication, Shared>> =
-            unsafe { Id::from_ptr(msg_send![self, applications]) };
-
-        applications_ptr.to_shared_vec()
-    }
-    pub fn windows(&self) -> Vec<ShareId<UnsafeSCWindow>> {
-        let windows_ptr: ShareId<NSArray<UnsafeSCWindow, Shared>> =
-            unsafe { Id::from_ptr(msg_send![self, windows]) };
-
-        windows_ptr.to_shared_vec()
     }
 }
 
 #[cfg(test)]
-mod get_shareable_content_with_config {
-    use super::*;
+mod sc_shareable_content_test {
+    use super::SCShareableContent;
+
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn get_exclude_desktop_windows() {
-        let mut config = ExcludingDesktopWindowsConfig::default();
-
-        let _ = UnsafeSCShareableContent::get_with_config(&config);
-
-        config.exclude_desktop_windows = true;
-        let _ = UnsafeSCShareableContent::get_with_config(&config);
-
-        config.exclude_desktop_windows = true;
-        config.on_screen_windows_only = OnScreenOnlySettings::EveryWindow;
-        let _ = UnsafeSCShareableContent::get_with_config(&config);
+    fn get_default() {
+        SCShareableContent::get().expect("Should work");
     }
-}
-#[cfg(test)]
-mod get_shareable_content {
-
-    use super::*;
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_windows() {
-        let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");
-        for w in sc.windows().iter() {
-            assert!(
-                w.get_title().is_some() || w.get_title().is_none(),
-                "Can get title"
-            );
-        }
+    fn get_on_screen() {
+        SCShareableContent::with_options()
+            .exclude_desktop()
+            .on_screen_windows_only()
+            .get()
+            .expect("should work");
+        SCShareableContent::with_options()
+            .on_screen_windows_only()
+            .get()
+            .expect("should work");
     }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_displays() {
-        let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");
-        for d in sc.displays().iter() {
-            println!("frame: {:?}", d.get_frame());
-            assert!(d.get_frame().size.width > 0f64, "Can get application_name");
-        }
+    fn get_on_screen_above() {
+        let windows = SCShareableContent::get().expect("should work").windows();
+        SCShareableContent::with_options()
+            .exclude_desktop()
+            .on_screen_windows_only_above(windows.first().unwrap().clone())
+            .get()
+            .expect("should work");
+        SCShareableContent::with_options()
+            .on_screen_windows_only_above(windows.first().unwrap().clone())
+            .get()
+            .expect("should work");
     }
-
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_applications() {
-        let sc = UnsafeSCShareableContent::get().expect("Should be able to get sharable content");
-        for a in sc.applications().iter() {
-            assert!(
-                a.get_application_name().is_some() || a.get_application_name().is_none(),
-                "Can get application_name"
-            );
-        }
+    fn get_on_screen_below() {
+        let windows = SCShareableContent::get().expect("should work").windows();
+        SCShareableContent::with_options()
+            .exclude_desktop()
+            .on_screen_windows_only_below(windows.first().unwrap().clone())
+            .get()
+            .expect("should work");
+        SCShareableContent::with_options()
+            .on_screen_windows_only_below(windows.first().unwrap().clone())
+            .get()
+            .expect("should work");
     }
 }

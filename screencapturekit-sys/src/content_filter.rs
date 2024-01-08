@@ -1,6 +1,5 @@
 use objc::{runtime::Class, *};
 use objc_foundation::{INSArray, INSObject, NSArray};
-use objc_id::{Id, ShareId, Shared};
 
 use super::shareable_content::{UnsafeSCDisplay, UnsafeSCRunningApplication, UnsafeSCWindow};
 
@@ -8,41 +7,31 @@ use super::shareable_content::{UnsafeSCDisplay, UnsafeSCRunningApplication, Unsa
 pub struct UnsafeContentFilter {
     __priv: u8,
 }
-unsafe impl Message for UnsafeContentFilter {}
-impl UnsafeContentFilter {}
-
-impl INSObject for UnsafeContentFilter {
-    fn class() -> &'static Class {
-        Class::get("SCContentFilter").expect(
-            "Missing SCContentFilter class, check that the binary is linked with ScreenCaptureKit",
-        )
-    }
-}
 
 pub enum UnsafeInitParams {
-    DesktopIndependentWindow(ShareId<UnsafeSCWindow>),
-    Display(ShareId<UnsafeSCDisplay>),
-    DisplayIncludingWindows(ShareId<UnsafeSCDisplay>, Vec<ShareId<UnsafeSCWindow>>),
-    DisplayExcludingWindows(ShareId<UnsafeSCDisplay>, Vec<ShareId<UnsafeSCWindow>>),
+    DesktopIndependentWindow(UnsafeSCWindow),
+    Display(UnsafeSCDisplay),
+    DisplayIncludingWindows(UnsafeSCDisplay, Vec<UnsafeSCWindow>),
+    DisplayExcludingWindows(UnsafeSCDisplay, Vec<UnsafeSCWindow>),
     DisplayIncludingApplicationsExceptingWindows(
-        ShareId<UnsafeSCDisplay>,
-        Vec<ShareId<UnsafeSCRunningApplication>>,
-        Vec<ShareId<UnsafeSCWindow>>,
+        UnsafeSCDisplay,
+        Vec<UnsafeSCRunningApplication>,
+        Vec<UnsafeSCWindow>,
     ),
     DisplayExcludingApplicationsExceptingWindows(
-        ShareId<UnsafeSCDisplay>,
-        Vec<ShareId<UnsafeSCRunningApplication>>,
-        Vec<ShareId<UnsafeSCWindow>>,
+        UnsafeSCDisplay,
+        Vec<UnsafeSCRunningApplication>,
+        Vec<UnsafeSCWindow>,
     ),
 }
 
 impl UnsafeContentFilter {
-    pub fn init(params: UnsafeInitParams) -> Id<Self> {
+    pub fn init(params: UnsafeInitParams) -> Self {
         let content_filter = UnsafeContentFilter::new();
         unsafe {
             match params {
                 UnsafeInitParams::Display(display) => {
-                    let _: () = msg_send![content_filter, initWithDisplay: display excludingWindows: NSArray::from_slice(&[] as &[Id<UnsafeSCWindow, Shared>])];
+                    let _: () = msg_send![content_filter, initWithDisplay: display excludingWindows: NSArray::from_slice(&[] as &[UnsafeSCWindow, Shared>])];
                 }
                 UnsafeInitParams::DesktopIndependentWindow(window) => {
                     let _: () = msg_send![content_filter, initWithDesktopIndependentWindow: window];
