@@ -13,12 +13,14 @@ mod internal {
     declare_TCFType! {SCWindow, SCWindowRef}
     impl_TCFType!(SCWindow, SCWindowRef, SCWindowGetTypeID);
 }
+pub use internal::{SCWindow, SCWindowRef};
+use std::fmt::{self};
+
 use core_foundation::{
     base::{TCFType, UInt32},
     string::{CFString, CFStringRef},
 };
 use core_graphics::geometry::CGRect;
-pub use internal::{SCWindow, SCWindowRef};
 
 use objc::{msg_send, *};
 
@@ -27,26 +29,22 @@ use crate::utils::objc::SendableObjc;
 use super::sc_running_application::{SCRunningApplication, SCRunningApplicationRef};
 
 impl SCWindow {
-    pub fn get_owning_application(&self) -> Option<SCRunningApplication> {
+    pub fn owning_application(&self) -> SCRunningApplication {
         unsafe {
             let ptr: SCRunningApplicationRef = msg_send![self.to_sendable(), owningApplication];
-            if ptr.is_null() {
-                None
-            } else {
-                Some(SCRunningApplication::wrap_under_get_rule(ptr))
-            }
+            SCRunningApplication::wrap_under_get_rule(ptr)
         }
     }
-    pub fn get_window_layer(&self) -> UInt32 {
+    pub fn window_layer(&self) -> UInt32 {
         unsafe { msg_send![self.to_sendable(), windowLayer] }
     }
-    pub fn get_window_id(&self) -> UInt32 {
+    pub fn window_id(&self) -> UInt32 {
         unsafe { msg_send![self.to_sendable(), windowID] }
     }
     pub fn get_frame(&self) -> CGRect {
         unsafe { msg_send![self.to_sendable(), frame] }
     }
-    pub fn get_title(&self) -> String {
+    pub fn title(&self) -> String {
         unsafe {
             let ptr: CFStringRef = msg_send![self.to_sendable(), title];
             if ptr.is_null() {
@@ -56,10 +54,40 @@ impl SCWindow {
             }
         }
     }
-    pub fn get_is_on_screen(&self) -> bool {
+    pub fn is_on_screen(&self) -> bool {
         unsafe { msg_send![self.to_sendable(), isOnScreen] }
     }
-    pub fn get_is_active(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         unsafe { msg_send![self.to_sendable(), isActive] }
+    }
+}
+
+impl fmt::Debug for SCWindow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SCWindow")
+            .field("title", &self.title())
+            .field("window_id", &self.window_id())
+            .field("window_layer", &self.window_layer())
+            .field("is_on_screen", &self.is_on_screen())
+            .field("is_active", &self.is_active())
+            .field("owning_application", &self.owning_application())
+            .finish()
+    }
+}
+
+#[cfg(test)]
+mod sc_window_test {
+
+    use crate::shareable_content::{sc_shareable_content::SCShareableContent, sc_window::SCWindow};
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_properties() {
+        let content = SCShareableContent::get().expect("Should work");
+        let windows: Vec<SCWindow> = content.windows();
+        assert!(!windows.is_empty());
+        for window in windows {
+            println!("Window: {:#?}", window);
+        }
     }
 }

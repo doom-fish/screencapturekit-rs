@@ -27,11 +27,11 @@ mod internal {
 
 impl fmt::Debug for SCDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("SCDisplay")
-            .field(&self.display_id())
-            .field(&self.get_frame())
-            .field(&self.get_width())
-            .field(&self.get_height())
+        f.debug_struct("SCDisplay")
+            .field("display_id", &self.display_id())
+            .field("frame", &self.frame())
+            .field("width", &self.width())
+            .field("height", &self.height())
             .finish()
     }
 }
@@ -40,13 +40,13 @@ impl SCDisplay {
     pub fn display_id(&self) -> UInt32 {
         unsafe { msg_send![self.to_sendable(), displayID] }
     }
-    pub fn get_frame(&self) -> CGRect {
+    pub fn frame(&self) -> CGRect {
         unsafe { msg_send![self.to_sendable(), frame] }
     }
-    pub fn get_height(&self) -> UInt32 {
+    pub fn height(&self) -> UInt32 {
         unsafe { msg_send![self.to_sendable(), height] }
     }
-    pub fn get_width(&self) -> UInt32 {
+    pub fn width(&self) -> UInt32 {
         unsafe { msg_send![self.to_sendable(), width] }
     }
 }
@@ -62,7 +62,7 @@ mod sc_display_test {
         let displays = content.displays();
         assert!(!displays.is_empty());
         for d in displays {
-            println!("Display: {:?}", d);
+            println!("Display: {:#?}", d);
         }
     }
 }
