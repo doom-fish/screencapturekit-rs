@@ -1,16 +1,18 @@
+use objc::{runtime::Object, *};
+use objc_id::{Id, ShareId};
 use std::alloc;
 use std::ffi::c_void;
 use std::ptr::null_mut;
-use objc::{runtime::Object, *};
-use objc_id::Id;
 
+use crate::cm_format_description_ref::CMFormatDescriptionRef;
 use crate::{
     cv_image_buffer_ref::CVImageBufferRef, macros::declare_ref_type, os_types::base::CMTime,
     sc_stream_frame_info::SCStreamFrameInfo,
 };
-use crate::cm_format_description_ref::CMFormatDescriptionRef;
 
-use crate::audio_buffer::{AudioBufferList, CopiedAudioBuffer, kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment};
+use crate::audio_buffer::{
+    kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment, AudioBufferList, CopiedAudioBuffer,
+};
 use crate::cm_block_buffer_ref::CMBlockBufferRef;
 
 declare_ref_type!(CMSampleBufferRef);
@@ -32,14 +34,14 @@ impl CMSampleBufferRef {
         unsafe {
             let ptr = CMSampleBufferGetFormatDescription(self);
             if ptr.is_null() {
-                return None
+                return None;
             }
             Some(Id::from_ptr(ptr))
         }
     }
 
     pub fn get_av_audio_buffer_list(&self) -> Vec<CopiedAudioBuffer> {
-        unsafe  {
+        unsafe {
             let mut buffer_size = 0;
             CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
                 self,
@@ -81,7 +83,10 @@ impl CMSampleBufferRef {
         }
     }
 
-    fn copy_audio_buffers(&self, audio_buffer_list_ptr: *mut AudioBufferList) -> Vec<CopiedAudioBuffer> {
+    fn copy_audio_buffers(
+        &self,
+        audio_buffer_list_ptr: *mut AudioBufferList,
+    ) -> Vec<CopiedAudioBuffer> {
         let audio_buffer_list = unsafe { *audio_buffer_list_ptr };
         let number_buffers = audio_buffer_list.number_buffers;
         let mut buffers = Vec::new();
@@ -90,20 +95,24 @@ impl CMSampleBufferRef {
             buffers.push(CopiedAudioBuffer {
                 number_channels: number_buffers,
                 data: unsafe {
-                    std::slice::from_raw_parts(audio_buffer.data, audio_buffer.data_bytes_size as usize)
-                }.to_vec(),
+                    std::slice::from_raw_parts(
+                        audio_buffer.data,
+                        audio_buffer.data_bytes_size as usize,
+                    )
+                }
+                .to_vec(),
             });
         }
         buffers
     }
 
-    pub fn get_image_buffer(&self) -> Option<Id<CVImageBufferRef>> {
+    pub fn get_image_buffer(&self) -> Option<ShareId<CVImageBufferRef>> {
         unsafe {
             let img_buf_ptr = CMSampleBufferGetImageBuffer(self);
             if img_buf_ptr.is_null() {
-                return None
+                return None;
             }
-            Some(Id::from_ptr(img_buf_ptr))
+            Some(Id::from_ptr(img_buf_ptr).share())
         }
     }
 }
@@ -116,7 +125,9 @@ extern "C" {
     pub fn CMSampleBufferGetImageBuffer(sample: *const CMSampleBufferRef) -> *mut CVImageBufferRef;
     pub fn CMSampleBufferGetPresentationTimeStamp(sample: *const CMSampleBufferRef) -> CMTime;
     pub fn CMSampleBufferGetDataBuffer(sample: *const CMSampleBufferRef) -> *mut CMBlockBufferRef;
-    pub fn CMSampleBufferGetFormatDescription(sample: *const CMSampleBufferRef) -> *mut CMFormatDescriptionRef;
+    pub fn CMSampleBufferGetFormatDescription(
+        sample: *const CMSampleBufferRef,
+    ) -> *mut CMFormatDescriptionRef;
 
     fn CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
         sbuf: *const CMSampleBufferRef,
@@ -126,7 +137,8 @@ extern "C" {
         block_buffer_structure_allocator: *mut c_void,
         block_buffer_block_allocator: *mut c_void,
         flags: u32,
-        block_buffer_out: &mut *mut CMBlockBufferRef) -> i32;
+        block_buffer_out: &mut *mut CMBlockBufferRef,
+    ) -> i32;
 
-    fn CFRelease(cf : *mut c_void);
+    fn CFRelease(cf: *mut c_void);
 }
