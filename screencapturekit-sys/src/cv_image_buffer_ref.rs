@@ -8,7 +8,7 @@ declare_ref_type!(CVImageBufferRef);
 
 impl CVImageBufferRef {
     pub fn as_pixel_buffer(&self) -> ShareId<CVPixelBufferRef> {
-        unsafe { ShareId::from_retained_ptr(self.as_mut_ptr().cast()) }
+        unsafe { ShareId::from_ptr(self.as_mut_ptr().cast()) }
     }
     pub fn get_jpeg_data(&self) -> ShareId<NSData> {
         unsafe {
