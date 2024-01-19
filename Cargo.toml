@@ -6,6 +6,6 @@ authors = ["Per Johansson <mail@perjohansson.net>"]
 homepage = "https://doom.fish"
 edition = "2021"
 rust-version = "1.75"
-version = "0.2.2"
+version = "0.2.3"
 keywords = ["screencapture", "screencapturekit", "macos"]
 license = "MIT OR Apache-2.0"
