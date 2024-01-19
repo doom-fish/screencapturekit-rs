@@ -14,6 +14,7 @@ use objc_foundation::INSObject;
 use objc_id::Id;
 use once_cell::sync::Lazy;
 
+use core_foundation::{base::*, *};
 static OUTPUT_HANDLERS: Lazy<RwLock<HashMap<usize, Box<dyn UnsafeSCStreamOutput + Send + Sync>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 

@@ -15,12 +15,8 @@ mod internal {
     }
     pub type SCContentFilterRef = *mut __SCContentFilterRef;
 
-    fn clone_elements<'a, T: Clone>(elements: &'a [&T]) -> Vec<T> {
-        elements
-            .to_vec()
-            .into_iter()
-            .map(|e| e.clone().to_owned())
-            .collect()
+    fn clone_elements<T: Clone>(elements: &[&T]) -> Vec<T> {
+        elements.iter().map(|e| e.to_owned().clone()).collect()
     }
 
     pub(crate) fn init_with_desktop_independent_window(filter: &SCContentFilter, window: SCWindow) {
