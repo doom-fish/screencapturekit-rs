@@ -83,9 +83,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <table>
   <tbody>
     <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://doom.fish"><img src="https://avatars.githubusercontent.com/u/1427038?v=4?s=100" width="100px;" alt="Per Johansson"/><br /><sub><b>Per Johansson</b></sub></a><br /><a href="https://github.com/svtlabs/screencapturekit-rs/commits?author=1313" title="Code">💻</a> <a href="#ideas-1313" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-1313" title="Maintenance">🚧</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://64p.org/"><img src="https://avatars.githubusercontent.com/u/21084?v=4?s=100" width="100px;" alt="Tokuhiro Matsuno"/><br /><sub><b>Tokuhiro Matsuno</b></sub></a><br /><a href="https://github.com/svtlabs/screencapturekit-rs/commits?author=tokuhirom" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/bigduu"><img src="https://avatars.githubusercontent.com/u/18681616?v=4?s=100" width="100px;" alt="bigduu"/><br /><sub><b>bigduu</b></sub></a><br /><a href="https://github.com/svtlabs/screencapturekit-rs/commits?author=bigduu" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://doom.fish"><img src="https://avatars.githubusercontent.com/u/1427038?v=4?s=100" width="100px;" alt="Per Johansson"/><br /><sub><b>Per Johansson</b></sub></a><br /><a href="https://github.com/svtlabs/screencapturekit-rs/commits?author=1313" title="Code">💻</a> <a href="#ideas-1313" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-1313" title="Maintenance">🚧</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Pranav2612000"><img src="https://avatars.githubusercontent.com/u/20909078?v=4?s=100" width="100px;" alt="Pranav Joglekar"/><br /><sub><b>Pranav Joglekar</b></sub></a><br /><a href="https://github.com/svtlabs/screencapturekit-rs/commits?author=Pranav2612000" title="Code">💻</a></td>
     </tr>
   </tbody>
