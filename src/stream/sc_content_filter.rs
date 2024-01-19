@@ -1,6 +1,7 @@
 mod internal {
     #![allow(non_snake_case)]
-    use std::os::raw::c_void;
+
+    use std::ffi::c_void;
 
     use crate::shareable_content::{
         sc_display::SCDisplay, sc_running_application::SCRunningApplication, sc_window::SCWindow,
@@ -14,6 +15,13 @@ mod internal {
         pub fn SCContentFilterGetTypeID() -> CFTypeID;
     }
     pub type SCContentFilterRef = *mut __SCContentFilterRef;
+
+    declare_TCFType! {SCContentFilter, SCContentFilterRef}
+    impl_TCFType!(
+        SCContentFilter,
+        SCContentFilterRef,
+        SCContentFilterGetTypeID
+    );
 
     fn clone_elements<T: Clone>(elements: &[&T]) -> Vec<T> {
         elements.iter().map(|e| e.to_owned().clone()).collect()
@@ -77,12 +85,6 @@ mod internal {
             SCContentFilter::wrap_under_create_rule(ptr)
         }
     }
-    declare_TCFType! {SCContentFilter, SCContentFilterRef}
-    impl_TCFType!(
-        SCContentFilter,
-        SCContentFilterRef,
-        SCContentFilterGetTypeID
-    );
 }
 pub use internal::{SCContentFilter, SCContentFilterRef};
 

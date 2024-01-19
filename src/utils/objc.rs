@@ -19,3 +19,22 @@ impl<T: TCFTypeRef> SendableObjcRef for T {
         self as *const _ as *mut Object
     }
 }
+
+macro_rules! impl_deref {
+    ($tftype:ident) => {
+        impl Deref for $tftype {
+            type Target = Object;
+
+            fn deref(&self) -> &Object {
+                unsafe { &*(self.as_CFTypeRef() as *mut Object) }
+            }
+        }
+
+        impl DerefMut for $tftype {
+            fn deref_mut(&mut self) -> &mut Object {
+                unsafe { &mut *(self.as_CFTypeRef() as *mut Object) }
+            }
+        }
+    };
+}
+pub(crate) use impl_deref;
