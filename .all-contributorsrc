@@ -8,6 +8,17 @@
   "commitConvention": "angular",
   "contributors": [
     {
+      "login": "1313",
+      "name": "Per Johansson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1427038?v=4",
+      "profile": "http://doom.fish",
+      "contributions": [
+        "code",
+        "ideas",
+        "maintenance"
+      ]
+    },
+    {
       "login": "tokuhirom",
       "name": "Tokuhiro Matsuno",
       "avatar_url": "https://avatars.githubusercontent.com/u/21084?v=4",
@@ -23,17 +34,6 @@
       "profile": "https://github.com/bigduu",
       "contributions": [
         "code"
-      ]
-    },
-    {
-      "login": "1313",
-      "name": "Per Johansson",
-      "avatar_url": "https://avatars.githubusercontent.com/u/1427038?v=4",
-      "profile": "http://doom.fish",
-      "contributions": [
-        "code",
-        "ideas",
-        "maintenance"
       ]
     },
     {
