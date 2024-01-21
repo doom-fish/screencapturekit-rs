@@ -69,5 +69,4 @@
 //         .output()
 //         .expect("failedto execute process");
 // }
-fn main(){ }
-
+fn main() {}

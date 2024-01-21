@@ -63,4 +63,4 @@
 //
 //     thread::sleep(Duration::from_millis(10_000));
 // }
-fn main(){ }
+fn main() {}

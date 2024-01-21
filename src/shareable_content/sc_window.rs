@@ -3,6 +3,8 @@ mod internal {
     use std::os::raw::c_void;
 
     use core_foundation::{base::*, *};
+
+    use crate::utils::objc::impl_deref;
     #[repr(C)]
     pub struct __SCWindowRef(c_void);
     extern "C" {
@@ -12,6 +14,7 @@ mod internal {
 
     declare_TCFType! {SCWindow, SCWindowRef}
     impl_TCFType!(SCWindow, SCWindowRef, SCWindowGetTypeID);
+    impl_deref!(SCWindow);
 }
 pub use internal::{SCWindow, SCWindowRef};
 use std::fmt::{self};
@@ -24,29 +27,27 @@ use core_graphics::geometry::CGRect;
 
 use objc::{msg_send, *};
 
-use crate::utils::objc::SendableObjc;
-
 use super::sc_running_application::{SCRunningApplication, SCRunningApplicationRef};
 
 impl SCWindow {
     pub fn owning_application(&self) -> SCRunningApplication {
         unsafe {
-            let ptr: SCRunningApplicationRef = msg_send![self.to_sendable(), owningApplication];
+            let ptr: SCRunningApplicationRef = msg_send![*self, owningApplication];
             SCRunningApplication::wrap_under_get_rule(ptr)
         }
     }
     pub fn window_layer(&self) -> UInt32 {
-        unsafe { msg_send![self.to_sendable(), windowLayer] }
+        unsafe { msg_send![*self, windowLayer] }
     }
     pub fn window_id(&self) -> UInt32 {
-        unsafe { msg_send![self.to_sendable(), windowID] }
+        unsafe { msg_send![*self, windowID] }
     }
     pub fn get_frame(&self) -> CGRect {
-        unsafe { msg_send![self.to_sendable(), frame] }
+        unsafe { msg_send![*self, frame] }
     }
     pub fn title(&self) -> String {
         unsafe {
-            let ptr: CFStringRef = msg_send![self.to_sendable(), title];
+            let ptr: CFStringRef = msg_send![*self, title];
             if ptr.is_null() {
                 "".to_owned()
             } else {
@@ -55,10 +56,10 @@ impl SCWindow {
         }
     }
     pub fn is_on_screen(&self) -> bool {
-        unsafe { msg_send![self.to_sendable(), isOnScreen] }
+        unsafe { msg_send![*self, isOnScreen] }
     }
     pub fn is_active(&self) -> bool {
-        unsafe { msg_send![self.to_sendable(), isActive] }
+        unsafe { msg_send![*self, isActive] }
     }
 }
 

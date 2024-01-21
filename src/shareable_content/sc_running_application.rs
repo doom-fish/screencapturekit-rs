@@ -3,6 +3,8 @@ mod internal {
     use std::os::raw::c_void;
 
     use core_foundation::{base::*, *};
+
+    use crate::utils::objc::impl_deref;
     #[repr(C)]
     pub struct __SCRunningApplicationRef(c_void);
     extern "C" {
@@ -16,6 +18,7 @@ mod internal {
         SCRunningApplicationRef,
         SCRunningApplicationGetTypeID
     );
+    impl_deref!(SCRunningApplication);
 }
 use core::fmt;
 
@@ -26,15 +29,13 @@ use core_foundation::{
 pub use internal::{SCRunningApplication, SCRunningApplicationRef};
 use objc::{msg_send, *};
 
-use crate::utils::objc::SendableObjc;
-
 impl SCRunningApplication {
     pub fn process_id(&self) -> SInt32 {
-        unsafe { msg_send![self.to_sendable(), processID] }
+        unsafe { msg_send![*self, processID] }
     }
     pub fn application_name(&self) -> String {
         unsafe {
-            let ptr: CFStringRef = msg_send![self.to_sendable(), applicationName];
+            let ptr: CFStringRef = msg_send![*self, applicationName];
             if ptr.is_null() {
                 "".to_owned()
             } else {
@@ -44,7 +45,7 @@ impl SCRunningApplication {
     }
     pub fn bundle_identifier(&self) -> String {
         unsafe {
-            let ptr: CFStringRef = msg_send![self.to_sendable(), bundleIdentifier];
+            let ptr: CFStringRef = msg_send![*self, bundleIdentifier];
             if ptr.is_null() {
                 "".to_owned()
             } else {

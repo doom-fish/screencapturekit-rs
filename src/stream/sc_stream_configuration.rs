@@ -1,111 +1,41 @@
-use objc::{msg_send, runtime::Class, *};
+mod internal {
 
-use objc_foundation::INSObject;
-use objc_id::Id;
+    #![allow(non_snake_case)]
+    use objc::*;
 
-use crate::os_types::{
-    base::{CMTime, OSType, UInt32, BOOL},
-    four_char_code::FourCharCode,
-    geometry::CGRect,
-    graphics::CGColor,
-};
+    use std::ffi::c_void;
 
-#[derive(Debug)]
-pub struct UnsafeStreamConfigurationRef;
-unsafe impl Message for UnsafeStreamConfigurationRef {}
-impl From<UnsafeStreamConfiguration> for Id<UnsafeStreamConfigurationRef> {
-    fn from(value: UnsafeStreamConfiguration) -> Self {
-        let unsafe_ref = UnsafeStreamConfigurationRef::new();
-        // TODO: Add other settings
+    use core_foundation::{base::*, declare_TCFType, impl_TCFType};
+
+    use crate::utils::objc::impl_deref;
+
+    #[repr(C)]
+    pub struct __SCConfigurationRef(c_void);
+    extern "C" {
+        pub fn SCConfigurationGetTypeID() -> CFTypeID;
+    }
+
+    pub type SCConfigurationRef = *mut __SCConfigurationRef;
+
+    declare_TCFType! {SCConfiguration, SCConfigurationRef}
+    impl_TCFType!(
+        SCConfiguration,
+        SCConfigurationRef,
+        SCConfigurationGetTypeID
+    );
+    impl_deref!(SCConfiguration);
+    pub(crate) fn init() -> SCConfiguration {
         unsafe {
-            let _: () = msg_send![unsafe_ref, setWidth: value.width];
-            let _: () = msg_send![unsafe_ref, setHeight: value.height];
-            let _: () = msg_send![unsafe_ref, setCapturesAudio: value.captures_audio];
-            // let _: () = msg_send![unsafe_ref, setMinimumFrameInterval: CMTime {value: 1, timescale: 60, flags: 1, epoch: 0}];
-        }
-
-        unsafe_ref
-    }
-}
-
-impl INSObject for UnsafeStreamConfigurationRef {
-    fn class() -> &'static Class {
-        Class::get("SCStreamConfiguration")
-                .expect("Missing SCStreamConfiguration class, check that the binary is linked with ScreenCaptureKit")
-    }
-}
-
-#[derive(Debug)]
-pub struct UnsafeStreamConfiguration {
-    // The width of the output.
-    pub width: UInt32,
-    //   The height of the output.
-    pub height: UInt32,
-    // A boolean value that indicates whether to scale the output to fit the configured width and height.
-    pub scales_to_fit: BOOL,
-    // A rectangle that specifies the source area to capture.
-    pub source_rect: CGRect,
-    // A rectangle that specifies a destination into which to write the output.
-    pub destination_rect: CGRect,
-    // Configuring Colors
-
-    // A pixel format for sample buffers that a stream outputs.
-    pub pixel_format: OSType,
-    // A color matrix to apply to the output surface.
-    pub color_matrix: String,
-    // A color space to use for the output buffer.
-    pub color_space_name: String,
-    // A background color for the output.
-    // Controlling Visibility
-    pub background_color: CGColor,
-
-    // A boolean value that determines whether the cursor is visible in the stream.
-    pub shows_cursor: BOOL,
-    // Optimizing Performance
-    // The maximum number of frames for the queue to store.
-    pub queue_depth: UInt32,
-    // The desired minimum time between frame updates, in seconds.
-    pub minimum_frame_interval: CMTime,
-    // Configuring Audio
-    // A boolean value that indicates whether to capture audio.
-    pub captures_audio: BOOL,
-    // The sample rate for audio capture.
-    pub sample_rate: UInt32,
-    // The number of audio channels to capture.
-    pub channel_count: UInt32,
-    // A boolean value that indicates whether to exclude a
-    pub excludes_current_process_audio: BOOL,
-}
-
-impl Default for UnsafeStreamConfiguration {
-    fn default() -> Self {
-        Self {
-            width: Default::default(),
-            height: Default::default(),
-            scales_to_fit: 0,
-            source_rect: Default::default(),
-            destination_rect: Default::default(),
-            pixel_format: FourCharCode::from_chars(*b"BGRA"),
-            color_matrix: Default::default(),
-            color_space_name: Default::default(),
-            background_color: Default::default(),
-            shows_cursor: Default::default(),
-            queue_depth: Default::default(),
-            minimum_frame_interval: Default::default(),
-            captures_audio: Default::default(),
-            sample_rate: Default::default(),
-            channel_count: Default::default(),
-            excludes_current_process_audio: Default::default(),
+            let ptr: SCConfigurationRef = msg_send![class!(SCConfiguration), alloc];
+            let ptr = msg_send![ptr, init];
+            SCConfiguration::wrap_under_create_rule(ptr)
         }
     }
 }
+pub use internal::SCConfiguration;
 
-#[cfg(test)]
-mod get_shareable_content {
-
-    use super::*;
-    #[test]
-    fn test_from() {
-        let _: Id<UnsafeStreamConfigurationRef> = UnsafeStreamConfiguration::default().into();
+impl SCConfiguration {
+    fn new() -> Self {
+        internal::init()
     }
 }

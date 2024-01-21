@@ -6,14 +6,14 @@ pub use internal::{SCDisplay, SCDisplayRef};
 
 use objc::{msg_send, *};
 
-use crate::utils::objc::SendableObjc;
-
 mod internal {
 
     #![allow(non_snake_case)]
     use std::os::raw::c_void;
 
     use core_foundation::{base::*, *};
+
+    use crate::utils::objc::impl_deref;
     #[repr(C)]
     pub struct __SCDisplayRef(c_void);
     extern "C" {
@@ -23,6 +23,7 @@ mod internal {
 
     declare_TCFType! {SCDisplay, SCDisplayRef}
     impl_TCFType!(SCDisplay, SCDisplayRef, SCDisplayGetTypeID);
+    impl_deref!(SCDisplay);
 }
 
 impl fmt::Debug for SCDisplay {
@@ -38,16 +39,16 @@ impl fmt::Debug for SCDisplay {
 
 impl SCDisplay {
     pub fn display_id(&self) -> UInt32 {
-        unsafe { msg_send![self.to_sendable(), displayID] }
+        unsafe { msg_send![*self, displayID] }
     }
     pub fn frame(&self) -> CGRect {
-        unsafe { msg_send![self.to_sendable(), frame] }
+        unsafe { msg_send![*self, frame] }
     }
     pub fn height(&self) -> UInt32 {
-        unsafe { msg_send![self.to_sendable(), height] }
+        unsafe { msg_send![*self, height] }
     }
     pub fn width(&self) -> UInt32 {
-        unsafe { msg_send![self.to_sendable(), width] }
+        unsafe { msg_send![*self, width] }
     }
 }
 #[cfg(test)]

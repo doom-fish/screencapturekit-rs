@@ -6,6 +6,8 @@ mod internal {
     use std::os::raw::c_void;
 
     use core_foundation::{base::*, *};
+
+    use crate::utils::objc::impl_deref;
     #[repr(C)]
     pub struct __SCShareableContentRef(c_void);
     extern "C" {
@@ -19,6 +21,7 @@ mod internal {
         SCShareableContentRef,
         SCShareableContentGetTypeID
     );
+    impl_deref!(SCShareableContent);
 }
 pub use internal::SCShareableContent;
 
@@ -88,10 +91,7 @@ impl SCShareableContentOptions {
     }
 }
 
-use crate::utils::{
-    block::{new_completion_handler, CompletionHandler},
-    objc::SendableObjc,
-};
+use crate::utils::block::{new_completion_handler, CompletionHandler};
 
 use super::{
     sc_display::{SCDisplay, SCDisplayRef},
@@ -109,7 +109,7 @@ impl SCShareableContent {
 
     pub fn displays(&self) -> Vec<SCDisplay> {
         unsafe {
-            CFArray::<SCDisplayRef>::wrap_under_get_rule(msg_send![self.to_sendable(), displays])
+            CFArray::<SCDisplayRef>::wrap_under_get_rule(msg_send![*self, displays])
                 .into_untyped()
                 .iter()
                 .map(|ptr| SCDisplay::wrap_under_get_rule(SCDisplayRef::from_void_ptr(*ptr)))
@@ -118,23 +118,20 @@ impl SCShareableContent {
     }
     pub fn applications(&self) -> Vec<SCRunningApplication> {
         unsafe {
-            CFArray::<SCRunningApplicationRef>::wrap_under_get_rule(msg_send![
-                self.to_sendable(),
-                applications
-            ])
-            .into_untyped()
-            .iter()
-            .map(|ptr| {
-                SCRunningApplication::wrap_under_get_rule(SCRunningApplicationRef::from_void_ptr(
-                    *ptr,
-                ))
-            })
-            .collect()
+            CFArray::<SCRunningApplicationRef>::wrap_under_get_rule(msg_send![*self, applications])
+                .into_untyped()
+                .iter()
+                .map(|ptr| {
+                    SCRunningApplication::wrap_under_get_rule(
+                        SCRunningApplicationRef::from_void_ptr(*ptr),
+                    )
+                })
+                .collect()
         }
     }
     pub fn windows(&self) -> Vec<SCWindow> {
         unsafe {
-            CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![self.to_sendable(), windows])
+            CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![*self, windows])
                 .into_untyped()
                 .iter()
                 .map(|ptr| SCWindow::wrap_under_get_rule(SCWindowRef::from_void_ptr(*ptr)))

@@ -6,13 +6,7 @@ mod internal {
 
     #![allow(non_snake_case)]
 
-    use std::{
-        error::Error,
-        ffi::c_void,
-        ops::{Deref, DerefMut},
-        ptr::addr_of,
-        sync::Once,
-    };
+    use std::{error::Error, ffi::c_void, ptr::addr_of, sync::Once};
 
     use core_foundation::{
         base::*,
@@ -116,13 +110,13 @@ mod tests {
 
     use std::ptr;
 
-    use super::*;
-    use core_foundation::{
-        base::{CFAllocatorGetDefault, TCFType},
-        error::{kCFErrorDomainMach, CFErrorCreate},
-    };
     use objc::{runtime::Object, *};
-    #[repr(C)]
+
+    use core_foundation::error::kCFErrorDomainMach;
+
+    use crate::utils::error::internal::create_cf_error;
+
+    use super::*;
     struct ErrorDelegate;
     impl SCStreamDelegateTrait for ErrorDelegate {
         fn did_stop_with_error(&self, error: CFError) {
@@ -134,15 +128,7 @@ mod tests {
     #[test]
     fn test_sc_stream_delegate_did_stop_with_error() {
         let handle = SCStreamDelegate::new(ErrorDelegate);
-
-        let err = unsafe {
-            CFError::wrap_under_create_rule(CFErrorCreate(
-                CFAllocatorGetDefault(),
-                kCFErrorDomainMach,
-                4,
-                ptr::null(),
-            ))
-        };
+        let err = create_cf_error(kCFErrorDomainMach, 4);
         unsafe {
             let _: () = msg_send![handle, stream: ptr::null_mut::<Object>() didStopWithError: err];
         }
