@@ -1,7 +1,3 @@
-use std::mem;
-
-use objc::*;
-
 #[derive(Debug)]
 #[repr(i32)]
 pub enum SCFrameStatus {
@@ -22,7 +18,7 @@ pub enum SCFrameStatus {
 mod internal {
 
     #![allow(non_snake_case)]
-    use objc::*;
+    use objc::{runtime::Object, *};
 
     use std::{ffi::c_void, mem};
 
@@ -56,8 +52,8 @@ mod internal {
     impl_deref!(SCStreamFrameInfo);
     pub(crate) fn init() -> SCStreamFrameInfo {
         unsafe {
-            let ptr: SCStreamFrameInfoRef = msg_send![class!(SCStreamFrameInfo), alloc];
-            let ptr = msg_send![ptr, init];
+            let ptr: *mut Object = msg_send![class!(SCStreamFrameInfo), alloc];
+            let ptr: SCStreamFrameInfoRef = msg_send![ptr, init];
             SCStreamFrameInfo::wrap_under_create_rule(ptr)
         }
     }
@@ -65,20 +61,24 @@ mod internal {
         unsafe {
             let key = CFString::from("StreamUpdateFrameStatus");
             let raw_status: CFNumberRef = msg_send!(*status_info, objectForKey: key);
-            if (raw_status.is_null()) {
-                return Err(create_cf_error(*"Could not get StreamUpdateFrameStatus, the CMSampleBuffer does not contain any frame data", 0));
+            if raw_status.is_null() {
+                return Err(create_cf_error("Could not get StreamUpdateFrameStatus, the CMSampleBuffer does not contain any frame data", 0));
             }
 
             let status = CFNumber::wrap_under_get_rule(raw_status);
 
-            Ok(mem::transmute(*status.to_i32()))
+            Ok(mem::transmute(status.to_i32().unwrap() as i32))
         }
     }
 }
+use core_foundation::error::CFError;
 pub use internal::SCStreamFrameInfo;
 
 impl SCStreamFrameInfo {
-    fn new() -> Self {
+    pub fn new() -> Self {
         internal::init()
+    }
+    pub fn status(&self) -> Result<SCFrameStatus, CFError> {
+        internal::status(self)
     }
 }

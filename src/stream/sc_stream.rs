@@ -1,7 +1,5 @@
 use core_foundation::error::CFError;
 
-use self::internal::SCStream;
-
 use super::{
     sc_content_filter::SCContentFilter, sc_stream_configuration::SCConfiguration,
     sc_stream_delegate::SCStreamDelegateTrait,
@@ -19,13 +17,13 @@ mod internal {
             sc_stream_delegate::{SCStreamDelegate, SCStreamDelegateTrait},
         },
         utils::{
-            block::{new_completion_handler, CompletionHandler},
+            block::{new_void_completion_handler, VoidCompletionHandler},
             objc::impl_deref,
         },
     };
     use core_foundation::{base::*, declare_TCFType, error::CFError, impl_TCFType};
-    use dispatch::{Queue, QueueAttribute};
-    use objc::*;
+    // use dispatch::{Queue, QueueAttribute};
+    use objc::{runtime::Object, *};
 
     use super::SCConfiguration;
 
@@ -47,14 +45,14 @@ mod internal {
         stream_delegate: impl SCStreamDelegateTrait,
     ) -> SCStream {
         unsafe {
-            let instance: SCStreamRef = msg_send![class!(SCStream), alloc];
-            let instance = msg_send![instance, initWithFilter: *filter  configuration: *configuration delegate: SCStreamDelegate::new(stream_delegate)];
+            let instance: *mut Object = msg_send![class!(SCStream), alloc];
+            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate)];
             SCStream::wrap_under_create_rule(instance)
         }
     }
     pub(crate) fn start_capture(stream: &SCStream) -> Result<(), CFError> {
         unsafe {
-            let CompletionHandler(handler, rx) = new_completion_handler();
+            let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
             let _: () = msg_send![*stream, startCaptureWithCompletionHandler: handler];
             rx.recv()
                 .expect("Should receive a return from completion handler")
@@ -62,23 +60,24 @@ mod internal {
     }
     pub(crate) fn stop_capture(stream: &SCStream) -> Result<(), CFError> {
         unsafe {
-            let CompletionHandler(handler, rx) = new_completion_handler();
+            let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
+
             let _: () = msg_send![*stream, stopCaptureWithCompletionHandler: handler];
             rx.recv()
                 .expect("Should receive a return from completion handler")
         }
     }
 
-    pub(crate) fn add_stream_output() {
-        let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
-        todo!()
-        // let a = UnsafeSCStreamOutputHandler::init(handle);
-        // unsafe {
-        //     let _: () = msg_send!(self, addStreamOutput: a type: output_type sampleHandlerQueue: queue error: NSObject::new());
-        // }
-    }
+    // pub(crate) fn add_stream_output() {
+    // let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
+    // todo!()
+    // let a = UnsafeSCStreamOutputHandler::init(handle);
+    // unsafe {
+    //     let _: () = msg_send!(self, addStreamOutput: a type: output_type sampleHandlerQueue: queue error: NSObject::new());
+    // }
+    // }
 }
-
+pub use internal::SCStream;
 impl SCStream {
     pub fn new(
         filter: &SCContentFilter,
@@ -94,16 +93,16 @@ impl SCStream {
     pub fn stop_capture(&self) -> Result<(), CFError> {
         internal::stop_capture(self)
     }
-    pub fn add_stream_output(&self, handle: impl UnsafeSCStreamOutput, output_type: u8) {}
+    // pub fn add_stream_output(&self, handle: impl UnsafeSCStreamOutput, output_type: u8) {}
 }
 
-impl Drop for SCStream {
-    fn drop(self) {
-        if let Err(err) = self.stop_capture() {
-            eprintln!("Cannot stop capture: {:?}", err)
-        }
-    }
-}
+// impl Drop for SCStream {
+//     fn drop(self) {
+//         if let Err(err) = self.stop_capture() {
+//             eprintln!("Cannot stop capture: {:?}", err)
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod stream_test {

@@ -1,7 +1,7 @@
 mod internal {
 
     #![allow(non_snake_case)]
-    use objc::*;
+    use objc::{runtime::Object, *};
 
     use std::ffi::c_void;
 
@@ -26,8 +26,8 @@ mod internal {
     impl_deref!(SCConfiguration);
     pub(crate) fn init() -> SCConfiguration {
         unsafe {
-            let ptr: SCConfigurationRef = msg_send![class!(SCConfiguration), alloc];
-            let ptr = msg_send![ptr, init];
+            let ptr: *mut Object = msg_send![class!(SCConfiguration), alloc];
+            let ptr: SCConfigurationRef = msg_send![ptr, init];
             SCConfiguration::wrap_under_create_rule(ptr)
         }
     }
@@ -35,7 +35,7 @@ mod internal {
 pub use internal::SCConfiguration;
 
 impl SCConfiguration {
-    fn new() -> Self {
+    pub fn new() -> Self {
         internal::init()
     }
 }

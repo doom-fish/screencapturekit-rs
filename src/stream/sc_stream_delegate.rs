@@ -112,8 +112,6 @@ mod tests {
 
     use objc::{runtime::Object, *};
 
-    use core_foundation::error::kCFErrorDomainMach;
-
     use crate::utils::error::internal::create_cf_error;
 
     use super::*;
@@ -128,7 +126,7 @@ mod tests {
     #[test]
     fn test_sc_stream_delegate_did_stop_with_error() {
         let handle = SCStreamDelegate::new(ErrorDelegate);
-        let err = create_cf_error(kCFErrorDomainMach, 4);
+        let err = create_cf_error("ERROR!", 4);
         unsafe {
             let _: () = msg_send![handle, stream: ptr::null_mut::<Object>() didStopWithError: err];
         }
