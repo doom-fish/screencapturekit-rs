@@ -15,18 +15,23 @@ pub struct UnsafeStreamConfigurationRef;
 unsafe impl Message for UnsafeStreamConfigurationRef {}
 impl From<UnsafeStreamConfiguration> for Id<UnsafeStreamConfigurationRef> {
     fn from(value: UnsafeStreamConfiguration) -> Self {
-        let unsafe_ref = UnsafeStreamConfigurationRef::new();
-        // TODO: Add other settings
+        let sys_ref = UnsafeStreamConfigurationRef::new();
         unsafe {
-            let _: () = msg_send![unsafe_ref, setWidth: value.width];
-            let _: () = msg_send![unsafe_ref, setHeight: value.height];
-            let _: () = msg_send![unsafe_ref, setCapturesAudio: value.captures_audio];
-            let _: () = msg_send![unsafe_ref, setSourceRect: value.source_rect];
-            let _: () = msg_send![unsafe_ref, setPixelFormat: value.pixel_format];
-            // let _: () = msg_send![unsafe_ref, setMinimumFrameInterval: CMTime {value: 1, timescale: 60, flags: 1, epoch: 0}];
+            let _: () = msg_send![sys_ref, setWidth: value.width];
+            let _: () = msg_send![sys_ref, setHeight: value.height];
+            let _: () = msg_send![sys_ref, setCapturesAudio: value.captures_audio];
+            let _: () = msg_send![sys_ref, setSourceRect: value.source_rect];
+            let _: () = msg_send![sys_ref, setDestinationRect: value.destination_rect];
+            let _: () = msg_send![sys_ref, setPixelFormat: value.pixel_format];
+            let _: () = msg_send![sys_ref, setMinimumFrameInterval: value.minimum_frame_interval];
+            let _: () = msg_send![sys_ref, setScalesToFit: value.scales_to_fit];
+            let _: () =
+                msg_send![sys_ref, setSetPreservesAspectRatio: value.preserves_aspect_ratio];
+            let _: () =
+                msg_send![sys_ref, setSetPreservesAspectRatio: value.preserves_aspect_ratio];
         }
 
-        unsafe_ref
+        sys_ref
     }
 }
 
@@ -49,6 +54,8 @@ pub struct UnsafeStreamConfiguration {
     pub source_rect: CGRect,
     // A rectangle that specifies a destination into which to write the output.
     pub destination_rect: CGRect,
+    // A Boolean value that determines if the stream preserves aspect ratio.
+    pub preserves_aspect_ratio: BOOL,
     // Configuring Colors
 
     // A pixel format for sample buffers that a stream outputs.
@@ -85,6 +92,7 @@ impl Default for UnsafeStreamConfiguration {
             width: Default::default(),
             height: Default::default(),
             scales_to_fit: 0,
+            preserves_aspect_ratio: 1,
             source_rect: Default::default(),
             destination_rect: Default::default(),
             pixel_format: FourCharCode::from_chars(*b"BGRA"),
