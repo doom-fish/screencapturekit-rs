@@ -82,3 +82,9 @@ impl SCStreamFrameInfo {
         internal::status(self)
     }
 }
+
+impl Default for SCStreamFrameInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}

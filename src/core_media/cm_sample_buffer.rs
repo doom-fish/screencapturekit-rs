@@ -15,7 +15,6 @@ mod internal {
 
     declare_TCFType! {CMSampleBuffer, CMSampleBufferRef}
     impl_TCFType!(CMSampleBuffer, CMSampleBufferRef, CMSampleBufferGetTypeID);   impl_objc_compatability!(CMSampleBuffer, __CMSampleBufferRef);
-    use objc::Encode;
 }
 
 pub use internal::{CMSampleBuffer, CMSampleBufferRef};

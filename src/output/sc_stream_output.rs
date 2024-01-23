@@ -1,5 +1,3 @@
-use objc::*;
-
 use crate::{core_media::cm_sample_buffer::CMSampleBuffer, stream::sc_stream::SCStream};
 
 mod internal {
@@ -16,9 +14,9 @@ mod internal {
     };
 
     use crate::{
-        core_media::cm_sample_buffer::{CMSampleBuffer, CMSampleBufferRef},
+        core_media::cm_sample_buffer::CMSampleBuffer,
         output::sc_stream_output::SCStreamOutputTrait,
-        stream::sc_stream::{SCStream, SCStreamRef},
+        stream::sc_stream::SCStream,
         utils::objc::{create_concrete_from_void, get_concrete_from_void, impl_objc_compatability},
     };
 
@@ -105,7 +103,7 @@ mod internal {
             let stream_output: &dyn SCStreamOutputTrait = &sc_stream_output_trait;
             let trait_ptr = Box::into_raw(Box::new(stream_output));
             let _: () = msg_send![obj, setTrait: trait_ptr];
-            create_concrete_from_void(obj)
+            create_concrete_from_void(obj as *mut c_void)
         }
     }
 }
