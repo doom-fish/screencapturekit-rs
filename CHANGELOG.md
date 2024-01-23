@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.4] - 2024-01-23
 
 ### Fixed
-[#34](#34) minimum_frame_interval not working as expected
-[#33](#33) Can no longer import SCFrameStatus
+- [#34](#34) minimum_frame_interval not working as expected
+- [#33](#33) Can no longer import SCFrameStatus
 
 ## [0.2.3] - 2024-01-15
 
