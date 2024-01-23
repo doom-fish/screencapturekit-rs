@@ -7,7 +7,7 @@ mod internal {
 
     use core_foundation::{base::*, *};
 
-    use crate::utils::objc::impl_deref;
+    use crate::utils::objc::impl_objc_compatability;
     #[repr(C)]
     pub struct __SCShareableContentRef(c_void);
     extern "C" {
@@ -21,7 +21,7 @@ mod internal {
         SCShareableContentRef,
         SCShareableContentGetTypeID
     );
-    impl_deref!(SCShareableContent);
+    impl_objc_compatability!(SCShareableContent, __SCShareableContentRef);
 }
 pub use internal::SCShareableContent;
 
@@ -109,7 +109,7 @@ impl SCShareableContent {
 
     pub fn displays(&self) -> Vec<SCDisplay> {
         unsafe {
-            CFArray::<SCDisplayRef>::wrap_under_get_rule(msg_send![*self, displays])
+            CFArray::<SCDisplayRef>::wrap_under_get_rule(msg_send![self, displays])
                 .into_untyped()
                 .iter()
                 .map(|ptr| SCDisplay::wrap_under_get_rule(SCDisplayRef::from_void_ptr(*ptr)))
@@ -118,7 +118,7 @@ impl SCShareableContent {
     }
     pub fn applications(&self) -> Vec<SCRunningApplication> {
         unsafe {
-            CFArray::<SCRunningApplicationRef>::wrap_under_get_rule(msg_send![*self, applications])
+            CFArray::<SCRunningApplicationRef>::wrap_under_get_rule(msg_send![self, applications])
                 .into_untyped()
                 .iter()
                 .map(|ptr| {
@@ -131,7 +131,7 @@ impl SCShareableContent {
     }
     pub fn windows(&self) -> Vec<SCWindow> {
         unsafe {
-            CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![*self, windows])
+            CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![self, windows])
                 .into_untyped()
                 .iter()
                 .map(|ptr| SCWindow::wrap_under_get_rule(SCWindowRef::from_void_ptr(*ptr)))

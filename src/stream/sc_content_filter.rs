@@ -6,7 +6,7 @@ mod internal {
     use crate::shareable_content::{
         sc_display::SCDisplay, sc_running_application::SCRunningApplication, sc_window::SCWindow,
     };
-    use crate::utils::objc::impl_deref;
+    use crate::utils::objc::impl_objc_compatability;
     use core_foundation::{array::CFArray, base::*, *};
     use objc::*;
     #[repr(C)]
@@ -22,13 +22,13 @@ mod internal {
         SCContentFilterRef,
         SCContentFilterGetTypeID
     );
-    impl_deref!(SCContentFilter);
+    impl_objc_compatability!(SCContentFilter, __SCContentFilterRef);
     fn clone_elements<T: Clone>(elements: &[&T]) -> Vec<T> {
         elements.iter().map(|e| e.to_owned().clone()).collect()
     }
 
     pub(crate) fn init_with_desktop_independent_window(filter: &SCContentFilter, window: SCWindow) {
-        unsafe { msg_send![*filter, initWithDesktopIndependentWindow: window.as_CFTypeRef()] }
+        unsafe { msg_send![filter, initWithDesktopIndependentWindow: window.as_CFTypeRef()] }
     }
     pub(crate) fn init_with_display_including_windows(
         filter: &SCContentFilter,
@@ -37,7 +37,7 @@ mod internal {
     ) {
         unsafe {
             let cfarr = CFArray::from_CFTypes(clone_elements(including_windows).as_slice());
-            msg_send![*filter, initWithDisplay: display.as_CFTypeRef() includingWindows: cfarr.as_CFTypeRef() ]
+            msg_send![filter, initWithDisplay: display.as_CFTypeRef() includingWindows: cfarr.as_CFTypeRef() ]
         }
     }
     pub(crate) fn init_with_display_excluding_windows(
@@ -47,7 +47,7 @@ mod internal {
     ) {
         unsafe {
             let windows = CFArray::from_CFTypes(clone_elements(excluding_windows).as_slice());
-            msg_send![*filter, initWithDisplay: display.as_CFTypeRef() includingWindows: windows.as_CFTypeRef()]
+            msg_send![filter, initWithDisplay: display.as_CFTypeRef() includingWindows: windows.as_CFTypeRef()]
         }
     }
     pub(crate) fn init_with_display_including_applications_excepting_windows(
@@ -60,7 +60,7 @@ mod internal {
             let windows = CFArray::from_CFTypes(clone_elements(excepting_windows).as_slice());
             let applications =
                 CFArray::from_CFTypes(clone_elements(including_applications).as_slice());
-            msg_send![*filter, initWithDisplay: display.as_CFTypeRef() includingApplications: applications.as_CFTypeRef() exceptingWindows: windows.as_CFTypeRef()]
+            msg_send![filter, initWithDisplay: display.as_CFTypeRef() includingApplications: applications.as_CFTypeRef() exceptingWindows: windows.as_CFTypeRef()]
         }
     }
     pub(crate) fn init_with_display_excluding_applications_excepting_windows(
@@ -73,7 +73,7 @@ mod internal {
             let windows = CFArray::from_CFTypes(clone_elements(excepting_windows).as_slice());
             let applications =
                 CFArray::from_CFTypes(clone_elements(excluding_applications).as_slice());
-            msg_send![*filter, initWithDisplay: display.as_CFTypeRef() excludingApplications: applications.as_CFTypeRef() exceptingWindows: windows.as_CFTypeRef()]
+            msg_send![filter, initWithDisplay: display.as_CFTypeRef() excludingApplications: applications.as_CFTypeRef() exceptingWindows: windows.as_CFTypeRef()]
         }
     }
     pub(crate) fn create() -> SCContentFilter {

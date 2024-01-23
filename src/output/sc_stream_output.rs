@@ -1,120 +1,128 @@
-use std::{
-    collections::HashMap,
-    sync::{Once, RwLock},
-};
+use objc::*;
 
-use crate::cm_sample_buffer_ref::CMSampleBufferRef;
-use objc::{
-    class,
-    declare::ClassDecl,
-    runtime::{Class, Object, Sel},
-    *,
-};
-use objc_foundation::INSObject;
-use objc_id::Id;
-use once_cell::sync::Lazy;
+use crate::{core_media::cm_sample_buffer::CMSampleBuffer, stream::sc_stream::SCStream};
 
-use core_foundation::{base::*, *};
+mod internal {
 
-#[repr(C)]
-pub(crate) struct UnsafeSCStreamOutputHandler {
-    _priv: [u8; 0],
-}
+    #![allow(non_snake_case)]
 
-unsafe impl Message for UnsafeSCStreamOutputHandler {}
+    use std::{error::Error, ffi::c_void, ptr::addr_of, sync::Once};
 
-pub trait UnsafeSCStreamOutput: Send + Sync + 'static {
-    fn did_output_sample_buffer(&self, sample_buffer_ref: Id<CMSampleBufferRef>, of_type: u8);
-}
+    use core_foundation::{base::*, declare_TCFType, impl_TCFType};
+    use objc::{
+        declare::ClassDecl,
+        runtime::{Class, Object, Sel},
+        *,
+    };
 
-impl INSObject for UnsafeSCStreamOutputHandler {
-    fn class() -> &'static Class {
-        static REGISTER_UNSAFE_SC_OUTPUT_HANDLER: Once = Once::new();
-        REGISTER_UNSAFE_SC_OUTPUT_HANDLER.call_once(|| {
-            let mut decl = ClassDecl::new("SCStreamOutputHandler", class!(NSObject)).unwrap();
-            decl.add_ivar::<usize>("_output_handler");
+    use crate::{
+        core_media::cm_sample_buffer::{CMSampleBuffer, CMSampleBufferRef},
+        output::sc_stream_output::SCStreamOutputTrait,
+        stream::sc_stream::{SCStream, SCStreamRef},
+        utils::objc::{create_concrete_from_void, get_concrete_from_void, impl_objc_compatability},
+    };
+
+    #[repr(C)]
+    pub struct __SCStreamOutputRef(c_void);
+    extern "C" {
+        pub fn SCStreamOutputGetTypeID() -> CFTypeID;
+    }
+
+    pub type SCStreamOutputRef = *mut __SCStreamOutputRef;
+
+    declare_TCFType! {SCStreamOutput, SCStreamOutputRef}
+    impl_TCFType!(SCStreamOutput, SCStreamOutputRef, SCStreamOutputGetTypeID);
+    impl_objc_compatability!(SCStreamOutput, __SCStreamOutputRef);
+    #[repr(C)]
+    pub enum SCStreamOutputType {
+        Screen,
+        Audio,
+    }
+    unsafe impl objc::Encode for SCStreamOutputType {
+        fn encode() -> Encoding {
+            i8::encode()
+        }
+    }
+
+    fn register_objc_class() -> Result<&'static Class, Box<dyn Error>> {
+        let mut decl =
+            ClassDecl::new("SCStreamOutput", class!(NSObject)).ok_or("Could not register class")?;
+        decl.add_ivar::<usize>("_trait");
+
+        extern "C" fn trait_setter(this: &mut Object, _cmd: Sel, sc_stream_delegate_trait: usize) {
+            unsafe {
+                this.set_ivar::<usize>("_trait", sc_stream_delegate_trait);
+            }
+        }
+        extern "C" fn trait_getter(this: &Object, _cmd: Sel) -> usize {
+            unsafe { *this.get_ivar::<usize>("_trait") }
+        }
+        unsafe {
+            let set_trait: extern "C" fn(&mut Object, Sel, usize) = trait_setter;
+            let get_trait: extern "C" fn(&Object, Sel) -> usize = trait_getter;
+            decl.add_method(sel!(setTrait:), set_trait);
+            decl.add_method(sel!(trait), get_trait);
 
             extern "C" fn stream_output(
                 this: &mut Object,
                 _cmd: Sel,
-                _stream: *mut Object,
-                sample_ref: *mut Object,
-                of_type: u8,
+                stream_ref: *const c_void,
+                sample_buffer_ref: *const c_void,
+                of_type: SCStreamOutputType,
             ) {
                 unsafe {
-                    if sample_ref.is_null() {
-                        return;
-                    }
-                    let sample: Id<CMSampleBufferRef> = Id::from_ptr(sample_ref.cast());
-                    let handler_trait_ptr_address = this.get_ivar::<usize>("_output_handler");
-                    let lookup = OUTPUT_HANDLERS.read().unwrap();
-                    let output_handler_trait = lookup.get(handler_trait_ptr_address).unwrap();
-                    output_handler_trait.did_output_sample_buffer(sample, of_type)
+                    let ptr = this.get_ivar::<usize>("_trait");
+                    let stream: SCStream = get_concrete_from_void(stream_ref);
+                    let sample_buffer: CMSampleBuffer = get_concrete_from_void(sample_buffer_ref);
+                    let stream_output = addr_of!(ptr) as *mut Box<&dyn SCStreamOutputTrait>;
+                    (*stream_output).did_output_sample_buffer(stream, sample_buffer, of_type)
                 };
             }
-            unsafe {
-                let stream_output_method: for<'a> extern "C" fn(
-                    &mut Object,
-                    Sel,
-                    *mut Object,
-                    *mut Object,
-                    u8,
-                ) = stream_output;
+            let stream_output_method: extern "C" fn(
+                &mut Object,
+                Sel,
+                *const c_void,
+                *const c_void,
+                SCStreamOutputType,
+            ) = stream_output;
 
-                decl.add_method(
-                    sel!(stream:didOutputSampleBuffer:ofType:),
-                    stream_output_method,
-                );
-            }
-
+            decl.add_method(
+                sel!(stream:didOutputSampleBuffer:ofType:),
+                stream_output_method,
+            );
             decl.register();
+
+            Ok(class!(SCStreamOutput))
+        }
+    }
+    pub fn new(sc_stream_output_trait: impl SCStreamOutputTrait) -> SCStreamOutput {
+        static REGISTER_CLASS: Once = Once::new();
+        REGISTER_CLASS.call_once(|| {
+            register_objc_class().expect("Should register SCStreamOutput class");
         });
-        class!(SCStreamOutputHandler)
-    }
-}
-
-impl UnsafeSCStreamOutputHandler {
-    fn store_output_handler(&mut self, output_handler: impl UnsafeSCStreamOutput) {
         unsafe {
-            let obj = &mut *(self as *mut _ as *mut Object);
-            let hash = self.hash_code();
-            OUTPUT_HANDLERS
-                .write()
-                .unwrap()
-                .insert(hash, Box::new(output_handler));
-            obj.set_ivar("_output_handler", hash);
+            let obj: *mut Object = runtime::class_createInstance(class!(SCStreamOutput), 0);
+            let stream_output: &dyn SCStreamOutputTrait = &sc_stream_output_trait;
+            let trait_ptr = Box::into_raw(Box::new(stream_output));
+            let _: () = msg_send![obj, setTrait: trait_ptr];
+            create_concrete_from_void(obj)
         }
-    }
-    pub fn init(output_handler: impl UnsafeSCStreamOutput) -> Id<Self> {
-        let mut handle = Self::new();
-        handle.store_output_handler(output_handler);
-        handle
     }
 }
+pub use internal::{SCStreamOutput, SCStreamOutputRef};
 
-#[cfg(test)]
-mod tests {
-    use std::ptr;
+pub use internal::SCStreamOutputType;
+pub trait SCStreamOutputTrait {
+    fn did_output_sample_buffer(
+        &self,
+        stream: SCStream,
+        sample_buffer: CMSampleBuffer,
+        of_type: SCStreamOutputType,
+    );
+}
 
-    use super::*;
-
-    #[repr(C)]
-    struct TestHandler {}
-    impl UnsafeSCStreamOutput for TestHandler {
-        fn did_output_sample_buffer(&self, sample: Id<CMSampleBufferRef>, of_type: u8) {
-            println!("GOT SAMPLE! {:?} {}", sample, of_type);
-        }
-    }
-
-    #[test]
-    fn test_sc_stream_output_handler() {
-        let handle = TestHandler {};
-        let handle = UnsafeSCStreamOutputHandler::init(handle);
-        let _: () = unsafe {
-            msg_send![handle, stream: ptr::null_mut::<Object>() didOutputSampleBuffer: ptr::null_mut::<Object>() ofType: 0]
-        };
-        let _: () = unsafe {
-            msg_send![handle, stream: ptr::null_mut::<Object>() didOutputSampleBuffer: ptr::null_mut::<Object>() ofType: 1]
-        };
+impl SCStreamOutput {
+    pub fn new(stream_output: impl SCStreamOutputTrait) -> Self {
+        internal::new(stream_output)
     }
 }

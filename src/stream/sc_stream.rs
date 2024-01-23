@@ -1,5 +1,7 @@
 use core_foundation::error::CFError;
 
+use crate::output::sc_stream_output::{SCStreamOutputTrait, SCStreamOutputType};
+
 use super::{
     sc_content_filter::SCContentFilter, sc_stream_configuration::SCConfiguration,
     sc_stream_delegate::SCStreamDelegateTrait,
@@ -12,17 +14,18 @@ mod internal {
     use std::ffi::c_void;
 
     use crate::{
+        output::sc_stream_output::{SCStreamOutput, SCStreamOutputTrait, SCStreamOutputType},
         stream::{
             sc_content_filter::SCContentFilter,
             sc_stream_delegate::{SCStreamDelegate, SCStreamDelegateTrait},
         },
         utils::{
             block::{new_void_completion_handler, VoidCompletionHandler},
-            objc::impl_deref,
+            objc::impl_objc_compatability,
         },
     };
     use core_foundation::{base::*, declare_TCFType, error::CFError, impl_TCFType};
-    // use dispatch::{Queue, QueueAttribute};
+    use dispatch::{Queue, QueueAttribute};
     use objc::{runtime::Object, *};
 
     use super::SCConfiguration;
@@ -37,7 +40,7 @@ mod internal {
 
     declare_TCFType! {SCStream, SCStreamRef}
     impl_TCFType!(SCStream, SCStreamRef, SCStreamGetTypeID);
-    impl_deref!(SCStream);
+    impl_objc_compatability!(SCStream, __SCStreamRef);
 
     pub(crate) fn init_with_filter(
         filter: &SCContentFilter,
@@ -46,14 +49,15 @@ mod internal {
     ) -> SCStream {
         unsafe {
             let instance: *mut Object = msg_send![class!(SCStream), alloc];
-            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate)];
+            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate).as_CFTypeRef()];
+
             SCStream::wrap_under_create_rule(instance)
         }
     }
     pub(crate) fn start_capture(stream: &SCStream) -> Result<(), CFError> {
         unsafe {
             let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
-            let _: () = msg_send![*stream, startCaptureWithCompletionHandler: handler];
+            let _: () = msg_send![stream, startCaptureWithCompletionHandler: handler];
             rx.recv()
                 .expect("Should receive a return from completion handler")
         }
@@ -62,22 +66,26 @@ mod internal {
         unsafe {
             let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
 
-            let _: () = msg_send![*stream, stopCaptureWithCompletionHandler: handler];
+            let _: () = msg_send![stream, stopCaptureWithCompletionHandler: handler];
             rx.recv()
                 .expect("Should receive a return from completion handler")
         }
     }
 
-    // pub(crate) fn add_stream_output() {
-    // let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
-    // todo!()
-    // let a = UnsafeSCStreamOutputHandler::init(handle);
-    // unsafe {
-    //     let _: () = msg_send!(self, addStreamOutput: a type: output_type sampleHandlerQueue: queue error: NSObject::new());
-    // }
-    // }
+    pub(crate) fn add_stream_output(
+        stream: &SCStream,
+        stream_output: impl SCStreamOutputTrait,
+        output_type: SCStreamOutputType,
+    ) {
+        let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
+        let stream_output = SCStreamOutput::new(stream_output);
+        unsafe {
+            let _: () = msg_send![stream, addStreamOutput: stream_output type: output_type sampleHandlerQueue: queue];
+        };
+    }
 }
-pub use internal::SCStream;
+pub use internal::{SCStream, SCStreamRef};
+
 impl SCStream {
     pub fn new(
         filter: &SCContentFilter,
@@ -93,7 +101,13 @@ impl SCStream {
     pub fn stop_capture(&self) -> Result<(), CFError> {
         internal::stop_capture(self)
     }
-    // pub fn add_stream_output(&self, handle: impl UnsafeSCStreamOutput, output_type: u8) {}
+    pub fn add_stream_output(
+        &self,
+        stream_output: impl SCStreamOutputTrait,
+        output_type: SCStreamOutputType,
+    ) {
+        internal::add_stream_output(self, stream_output, output_type);
+    }
 }
 
 // impl Drop for SCStream {

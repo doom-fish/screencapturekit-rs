@@ -13,7 +13,7 @@ mod internal {
 
     use core_foundation::{base::*, *};
 
-    use crate::utils::objc::impl_deref;
+    use crate::utils::objc::impl_objc_compatability;
     #[repr(C)]
     pub struct __SCDisplayRef(c_void);
     extern "C" {
@@ -23,7 +23,7 @@ mod internal {
 
     declare_TCFType! {SCDisplay, SCDisplayRef}
     impl_TCFType!(SCDisplay, SCDisplayRef, SCDisplayGetTypeID);
-    impl_deref!(SCDisplay);
+    impl_objc_compatability!(SCDisplay, __SCDisplayRef);
 }
 
 impl fmt::Debug for SCDisplay {
@@ -39,16 +39,16 @@ impl fmt::Debug for SCDisplay {
 
 impl SCDisplay {
     pub fn display_id(&self) -> UInt32 {
-        unsafe { msg_send![*self, displayID] }
+        unsafe { msg_send![self, displayID] }
     }
     pub fn frame(&self) -> CGRect {
-        unsafe { msg_send![*self, frame] }
+        unsafe { msg_send![self, frame] }
     }
     pub fn height(&self) -> UInt32 {
-        unsafe { msg_send![*self, height] }
+        unsafe { msg_send![self, height] }
     }
     pub fn width(&self) -> UInt32 {
-        unsafe { msg_send![*self, width] }
+        unsafe { msg_send![self, width] }
     }
 }
 #[cfg(test)]

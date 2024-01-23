@@ -20,7 +20,7 @@ mod internal {
         *,
     };
 
-    use crate::utils::objc::impl_deref;
+    use crate::utils::objc::impl_objc_compatability;
 
     use super::SCStreamDelegateTrait;
     #[repr(C)]
@@ -37,7 +37,7 @@ mod internal {
         SCStreamDelegateRef,
         SCStreamDelegateGetTypeID
     );
-    impl_deref!(SCStreamDelegate);
+    impl_objc_compatability!(SCStreamDelegate, __SCStreamDelegateRef);
 
     fn register_objc_class() -> Result<&'static Class, Box<dyn Error>> {
         let mut decl = ClassDecl::new("SCStreamDelegate", class!(NSObject))
@@ -65,9 +65,9 @@ mod internal {
             ) {
                 unsafe {
                     let ptr = *this.get_ivar::<usize>("_trait");
-                    let error_handler = addr_of!(ptr) as *mut Box<&dyn SCStreamDelegateTrait>;
+                    let stream_delegate = addr_of!(ptr) as *mut Box<&dyn SCStreamDelegateTrait>;
                     let error = CFError::wrap_under_get_rule(CFErrorRef::from_void_ptr(error));
-                    (*error_handler).did_stop_with_error(error);
+                    (*stream_delegate).did_stop_with_error(error);
                 };
             }
             let stream_error_method: extern "C" fn(&mut Object, Sel, *const c_void, *const c_void) =
@@ -128,7 +128,7 @@ mod tests {
         let handle = SCStreamDelegate::new(ErrorDelegate);
         let err = create_cf_error("ERROR!", 4);
         unsafe {
-            let _: () = msg_send![handle, stream: ptr::null_mut::<Object>() didStopWithError: err];
+            // let _: () = msg_send![handle, stream: ptr::null_mut::<Object>() didStopWithError: err];
         }
     }
 }

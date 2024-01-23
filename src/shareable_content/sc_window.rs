@@ -4,7 +4,7 @@ mod internal {
 
     use core_foundation::{base::*, *};
 
-    use crate::utils::objc::impl_deref;
+    use crate::utils::objc::impl_objc_compatability;
     #[repr(C)]
     pub struct __SCWindowRef(c_void);
     extern "C" {
@@ -14,7 +14,7 @@ mod internal {
 
     declare_TCFType! {SCWindow, SCWindowRef}
     impl_TCFType!(SCWindow, SCWindowRef, SCWindowGetTypeID);
-    impl_deref!(SCWindow);
+    impl_objc_compatability!(SCWindow, __SCWindowRef);
 }
 pub use internal::{SCWindow, SCWindowRef};
 use std::fmt::{self};
@@ -32,22 +32,22 @@ use super::sc_running_application::{SCRunningApplication, SCRunningApplicationRe
 impl SCWindow {
     pub fn owning_application(&self) -> SCRunningApplication {
         unsafe {
-            let ptr: SCRunningApplicationRef = msg_send![*self, owningApplication];
+            let ptr: SCRunningApplicationRef = msg_send![self, owningApplication];
             SCRunningApplication::wrap_under_get_rule(ptr)
         }
     }
     pub fn window_layer(&self) -> UInt32 {
-        unsafe { msg_send![*self, windowLayer] }
+        unsafe { msg_send![self, windowLayer] }
     }
     pub fn window_id(&self) -> UInt32 {
-        unsafe { msg_send![*self, windowID] }
+        unsafe { msg_send![self, windowID] }
     }
     pub fn get_frame(&self) -> CGRect {
-        unsafe { msg_send![*self, frame] }
+        unsafe { msg_send![self, frame] }
     }
     pub fn title(&self) -> String {
         unsafe {
-            let ptr: CFStringRef = msg_send![*self, title];
+            let ptr: CFStringRef = msg_send![self, title];
             if ptr.is_null() {
                 "".to_owned()
             } else {
@@ -56,10 +56,10 @@ impl SCWindow {
         }
     }
     pub fn is_on_screen(&self) -> bool {
-        unsafe { msg_send![*self, isOnScreen] }
+        unsafe { msg_send![self, isOnScreen] }
     }
     pub fn is_active(&self) -> bool {
-        unsafe { msg_send![*self, isActive] }
+        unsafe { msg_send![self, isActive] }
     }
 }
 

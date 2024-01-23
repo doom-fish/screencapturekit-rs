@@ -7,7 +7,7 @@ mod internal {
 
     use core_foundation::{base::*, declare_TCFType, impl_TCFType};
 
-    use crate::utils::objc::impl_deref;
+    use crate::utils::objc::impl_objc_compatability;
 
     #[repr(C)]
     pub struct __SCConfigurationRef(c_void);
@@ -23,7 +23,7 @@ mod internal {
         SCConfigurationRef,
         SCConfigurationGetTypeID
     );
-    impl_deref!(SCConfiguration);
+    impl_objc_compatability!(SCConfiguration, __SCConfigurationRef);
     pub(crate) fn init() -> SCConfiguration {
         unsafe {
             let ptr: *mut Object = msg_send![class!(SCConfiguration), alloc];
@@ -37,5 +37,11 @@ pub use internal::SCConfiguration;
 impl SCConfiguration {
     pub fn new() -> Self {
         internal::init()
+    }
+}
+
+impl Default for SCConfiguration {
+    fn default() -> Self {
+        Self::new()
     }
 }
