@@ -69,6 +69,9 @@ pub struct SCStreamConfiguration {
     pub destination_rect: CGRect,
     // A boolean value that determines whether the cursor is visible in the stream.
     pub shows_cursor: bool,
+
+    // A Boolean value that determines if the stream preserves aspect ratio.
+    pub preserves_aspect_ratio: bool,
     // Optimizing Performance
     // The maximum number of frames for the queue to store.
     pub queue_depth: u32,
@@ -114,6 +117,7 @@ impl From<SCStreamConfiguration> for UnsafeStreamConfiguration {
             scales_to_fit: value.scales_to_fit as i8,
             source_rect: value.source_rect,
             destination_rect: value.destination_rect,
+            preserves_aspect_ratio: value.preserves_aspect_ratio as i8,
             pixel_format: value.pixel_format.into(),
             color_matrix: value.color_matrix.into(),
             color_space_name: value.color_space_name.into(),
