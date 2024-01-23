@@ -1,9 +1,12 @@
 mod internal {
 
     #![allow(non_snake_case)]
-    use objc::{runtime::Object, *};
+    use objc::{
+        runtime::{Object, Sel},
+        *,
+    };
 
-    use std::ffi::c_void;
+    use std::{collections::HashMap, error::Error, ffi::c_void, sync::OnceLock};
 
     use core_foundation::{base::*, declare_TCFType, impl_TCFType};
 
@@ -31,12 +34,37 @@ mod internal {
             SCConfiguration::wrap_under_create_rule(ptr)
         }
     }
+    fn config_selectors() -> &'static HashMap<&'static str, Sel> {
+        static SELECTORS: OnceLock<HashMap<&str, Sel>> = OnceLock::new();
+        SELECTORS.get_or_init(|| {
+            let mut m = HashMap::new();
+            m.insert("setWidth", sel!(setWidth));
+            m.insert("setHeight", sel!(setHeight));
+            m
+        })
+    }
+    pub(crate) fn set<T: MessageArguments>(
+        config: &SCConfiguration,
+        selector: &str,
+        value: T,
+    ) -> Result<(), String> {
+        unsafe {
+            if let Some(sel) = config_selectors().get(selector) {
+                objc::__send_message(config, *sel, value).map_err(|e| e.to_string())
+            } else {
+                Err(format!("unknown configuration selector: {selector}"))
+            }
+        }
+    }
 }
 pub use internal::SCConfiguration;
 
 impl SCConfiguration {
     pub fn new() -> Self {
         internal::init()
+    }
+    pub fn set_width(&self, width: u32) -> &Self {
+        &self
     }
 }
 

@@ -15,7 +15,7 @@ mod internal {
 
     use crate::{
         core_media::cm_sample_buffer::CMSampleBuffer,
-        output::sc_stream_output::SCStreamOutputTrait,
+        output::sc_stream_output::{SCStreamOutputTrait, SCStreamOutputType},
         stream::sc_stream::SCStream,
         utils::objc::{create_concrete_from_void, get_concrete_from_void, impl_objc_compatability},
     };
@@ -31,16 +31,6 @@ mod internal {
     declare_TCFType! {SCStreamOutput, SCStreamOutputRef}
     impl_TCFType!(SCStreamOutput, SCStreamOutputRef, SCStreamOutputGetTypeID);
     impl_objc_compatability!(SCStreamOutput, __SCStreamOutputRef);
-    #[repr(C)]
-    pub enum SCStreamOutputType {
-        Screen,
-        Audio,
-    }
-    unsafe impl objc::Encode for SCStreamOutputType {
-        fn encode() -> Encoding {
-            i8::encode()
-        }
-    }
 
     fn register_objc_class() -> Result<&'static Class, Box<dyn Error>> {
         let mut decl =
@@ -66,14 +56,22 @@ mod internal {
                 _cmd: Sel,
                 stream_ref: *const c_void,
                 sample_buffer_ref: *const c_void,
-                of_type: SCStreamOutputType,
+                of_type: i8,
             ) {
                 unsafe {
                     let ptr = this.get_ivar::<usize>("_trait");
                     let stream: SCStream = get_concrete_from_void(stream_ref);
                     let sample_buffer: CMSampleBuffer = get_concrete_from_void(sample_buffer_ref);
                     let stream_output = addr_of!(ptr) as *mut Box<&dyn SCStreamOutputTrait>;
-                    (*stream_output).did_output_sample_buffer(stream, sample_buffer, of_type)
+                    (*stream_output).did_output_sample_buffer(
+                        stream,
+                        sample_buffer,
+                        match of_type {
+                            0 => SCStreamOutputType::Screen,
+                            1 => SCStreamOutputType::Audio,
+                            _ => unreachable!("Should not be possible!"),
+                        },
+                    )
                 };
             }
             let stream_output_method: extern "C" fn(
@@ -81,7 +79,7 @@ mod internal {
                 Sel,
                 *const c_void,
                 *const c_void,
-                SCStreamOutputType,
+                i8,
             ) = stream_output;
 
             decl.add_method(
@@ -109,7 +107,11 @@ mod internal {
 }
 pub use internal::{SCStreamOutput, SCStreamOutputRef};
 
-pub use internal::SCStreamOutputType;
+#[repr(C)]
+pub enum SCStreamOutputType {
+    Screen,
+    Audio,
+}
 pub trait SCStreamOutputTrait {
     fn did_output_sample_buffer(
         &self,
