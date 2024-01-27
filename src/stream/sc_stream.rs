@@ -3,7 +3,7 @@ use core_foundation::error::CFError;
 use crate::output::sc_stream_output::{SCStreamOutputTrait, SCStreamOutputType};
 
 use super::{
-    sc_content_filter::SCContentFilter, sc_stream_configuration::SCConfiguration,
+    sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
     sc_stream_delegate::SCStreamDelegateTrait,
 };
 
@@ -17,6 +17,7 @@ mod internal {
         output::sc_stream_output::{SCStreamOutput, SCStreamOutputTrait, SCStreamOutputType},
         stream::{
             sc_content_filter::SCContentFilter,
+            sc_stream_configuration::SCStreamConfiguration,
             sc_stream_delegate::{SCStreamDelegate, SCStreamDelegateTrait},
         },
         utils::{
@@ -27,8 +28,6 @@ mod internal {
     use core_foundation::{base::*, declare_TCFType, error::CFError, impl_TCFType};
     use dispatch::{Queue, QueueAttribute};
     use objc::{runtime::Object, *};
-
-    use super::SCConfiguration;
 
     #[repr(C)]
     pub struct __SCStreamRef(c_void);
@@ -44,7 +43,7 @@ mod internal {
 
     pub(crate) fn init_with_filter(
         filter: &SCContentFilter,
-        configuration: &SCConfiguration,
+        configuration: &SCStreamConfiguration,
         stream_delegate: impl SCStreamDelegateTrait,
     ) -> SCStream {
         unsafe {
@@ -89,7 +88,7 @@ pub use internal::{SCStream, SCStreamRef};
 impl SCStream {
     pub fn new(
         filter: &SCContentFilter,
-        configuration: &SCConfiguration,
+        configuration: &SCStreamConfiguration,
         stream_delegate: impl SCStreamDelegateTrait,
     ) -> Self {
         internal::init_with_filter(filter, configuration, stream_delegate)

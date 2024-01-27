@@ -1,11 +1,24 @@
-macro_rules! impl_objc_compatability {
-    ($tftype:ident, $tfreftype:ident) => {
-        unsafe impl objc::Message for $tftype {}
-    };
-}
 use std::ffi::c_void;
 
 use core_foundation::base::*;
+
+pub trait MessageForTFType {
+    fn as_sendable(&self) -> *mut Object;
+}
+pub trait MessageForTFTypeRef {
+    fn as_sendable(&self) -> *mut Object;
+}
+
+impl<T: TCFType> MessageForTFType for T {
+    fn as_sendable(&self) -> *mut Object {
+        self.as_CFTypeRef() as *mut Object
+    }
+}
+impl<T: TCFTypeRef> MessageForTFTypeRef for T {
+    fn as_sendable(&self) -> *mut Object {
+        self as *const _ as *mut Object
+    }
+}
 
 /// .
 ///
@@ -25,4 +38,4 @@ pub unsafe fn create_concrete_from_void<T: TCFType>(void_ptr: *const c_void) -> 
     T::wrap_under_get_rule(T::Ref::from_void_ptr(void_ptr))
 }
 use core_foundation::base::TCFType;
-pub(crate) use impl_objc_compatability;
+use objc::runtime::Object;
