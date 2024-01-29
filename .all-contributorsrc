@@ -8,6 +8,17 @@
   "commitConvention": "angular",
   "contributors": [
     {
+      "login": "1313",
+      "name": "Per Johansson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1427038?v=4",
+      "profile": "http://doom.fish",
+      "contributions": [
+        "code",
+        "ideas",
+        "maintenance"
+      ]
+    },
+    {
       "login": "tokuhirom",
       "name": "Tokuhiro Matsuno",
       "avatar_url": "https://avatars.githubusercontent.com/u/21084?v=4",
@@ -26,14 +37,12 @@
       ]
     },
     {
-      "login": "1313",
-      "name": "Per Johansson",
-      "avatar_url": "https://avatars.githubusercontent.com/u/1427038?v=4",
-      "profile": "http://doom.fish",
+      "login": "Pranav2612000",
+      "name": "Pranav Joglekar",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20909078?v=4",
+      "profile": "https://github.com/Pranav2612000",
       "contributions": [
-        "code",
-        "ideas",
-        "maintenance"
+        "code"
       ]
     }
   ],
