@@ -1,13 +1,15 @@
-use core_foundation::{array::CFArray, base::TCFType, base::*, error::CFError};
-use objc::{msg_send, *};
+use core_foundation::{array::CFArray, base::TCFType, base::TCFTypeRef, error::CFError};
+use objc::{class, msg_send, sel, sel_impl};
 
 mod internal {
     #![allow(non_snake_case)]
     use std::os::raw::c_void;
 
-    use core_foundation::{base::*, *};
+    use core_foundation::{
+        base::{CFTypeID, TCFType},
+        declare_TCFType, impl_TCFType,
+    };
 
-    use crate::utils::objc::impl_objc_compatability;
     #[repr(C)]
     pub struct __SCShareableContentRef(c_void);
     extern "C" {
@@ -21,7 +23,6 @@ mod internal {
         SCShareableContentRef,
         SCShareableContentGetTypeID
     );
-    impl_objc_compatability!(SCShareableContent, __SCShareableContentRef);
 }
 pub use internal::SCShareableContent;
 
@@ -41,22 +42,35 @@ pub struct SCShareableContentOptions {
 }
 
 impl SCShareableContentOptions {
-    pub fn exclude_desktop(mut self) -> Self {
+    #[must_use]
+    pub const fn exclude_desktop(mut self) -> Self {
         self.exclude_desktop = true;
         self
     }
+    #[must_use]
     pub fn on_screen_windows_only(mut self) -> Self {
         self.capture_option = CaptureOption::OnlyOnScreen;
         self
     }
+    #[must_use]
     pub fn on_screen_windows_only_above(mut self, window: SCWindow) -> Self {
         self.capture_option = CaptureOption::OnlyOnScreenAbove(window);
         self
     }
+    #[must_use]
     pub fn on_screen_windows_only_below(mut self, window: SCWindow) -> Self {
         self.capture_option = CaptureOption::OnlyOnScreenBelow(window);
         self
     }
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn get(self) -> Result<SCShareableContent, CFError> {
         let CompletionHandler(completion_handler, rx) = new_completion_handler();
 
@@ -68,19 +82,19 @@ impl SCShareableContentOptions {
                 ],
                 CaptureOption::OnlyOnScreen => msg_send![
                     class!(SCShareableContent),
-                    getShareableContentExcludingDesktopWindows: self.exclude_desktop as u8
+                    getShareableContentExcludingDesktopWindows: u8::from(self.exclude_desktop)
                     onScreenWindowsOnly: 1
                     completionHandler: completion_handler
                 ],
                 CaptureOption::OnlyOnScreenAbove(w) => msg_send![
                     class!(SCShareableContent),
-                    getShareableContentExcludingDesktopWindows: self.exclude_desktop as u8
+                    getShareableContentExcludingDesktopWindows: u8::from(self.exclude_desktop)
                     onScreenWindowsOnlyAboveWindow: w.as_CFTypeRef()
                     completionHandler: completion_handler
                 ],
                 CaptureOption::OnlyOnScreenBelow(w) => msg_send![
                     class!(SCShareableContent),
-                    getShareableContentExcludingDesktopWindows: self.exclude_desktop as u8
+                    getShareableContentExcludingDesktopWindows: u8::from(self.exclude_desktop)
                     onScreenWindowsOnlyBelowWindow: w.as_CFTypeRef()
                     completionHandler: completion_handler
                 ],
@@ -91,7 +105,10 @@ impl SCShareableContentOptions {
     }
 }
 
-use crate::utils::block::{new_completion_handler, CompletionHandler};
+use crate::utils::{
+    block::{new_completion_handler, CompletionHandler},
+    objc::MessageForTFType,
+};
 
 use super::{
     sc_display::{SCDisplay, SCDisplayRef},
@@ -103,13 +120,18 @@ impl SCShareableContent {
     pub fn with_options() -> SCShareableContentOptions {
         SCShareableContentOptions::default()
     }
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn get() -> Result<Self, CFError> {
         Self::with_options().get()
     }
 
     pub fn displays(&self) -> Vec<SCDisplay> {
         unsafe {
-            CFArray::<SCDisplayRef>::wrap_under_get_rule(msg_send![self, displays])
+            CFArray::<SCDisplayRef>::wrap_under_get_rule(msg_send![self.as_sendable(), displays])
                 .into_untyped()
                 .iter()
                 .map(|ptr| SCDisplay::wrap_under_get_rule(SCDisplayRef::from_void_ptr(*ptr)))
@@ -118,20 +140,23 @@ impl SCShareableContent {
     }
     pub fn applications(&self) -> Vec<SCRunningApplication> {
         unsafe {
-            CFArray::<SCRunningApplicationRef>::wrap_under_get_rule(msg_send![self, applications])
-                .into_untyped()
-                .iter()
-                .map(|ptr| {
-                    SCRunningApplication::wrap_under_get_rule(
-                        SCRunningApplicationRef::from_void_ptr(*ptr),
-                    )
-                })
-                .collect()
+            CFArray::<SCRunningApplicationRef>::wrap_under_get_rule(msg_send![
+                self.as_sendable(),
+                applications
+            ])
+            .into_untyped()
+            .iter()
+            .map(|ptr| {
+                SCRunningApplication::wrap_under_get_rule(SCRunningApplicationRef::from_void_ptr(
+                    *ptr,
+                ))
+            })
+            .collect()
         }
     }
     pub fn windows(&self) -> Vec<SCWindow> {
         unsafe {
-            CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![self, windows])
+            CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![self.as_sendable(), windows])
                 .into_untyped()
                 .iter()
                 .map(|ptr| SCWindow::wrap_under_get_rule(SCWindowRef::from_void_ptr(*ptr)))

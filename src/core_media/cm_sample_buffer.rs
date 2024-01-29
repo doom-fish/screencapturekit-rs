@@ -3,9 +3,11 @@ mod internal {
     #![allow(non_snake_case)]
     use std::os::raw::c_void;
 
-    use core_foundation::{base::*, *};
+    use core_foundation::{
+        base::{CFTypeID, TCFType},
+        declare_TCFType, impl_TCFType,
+    };
 
-    use crate::utils::objc::impl_objc_compatability;
     #[repr(C)]
     pub struct __CMSampleBufferRef(c_void);
     extern "C" {
@@ -14,7 +16,7 @@ mod internal {
     pub type CMSampleBufferRef = *mut __CMSampleBufferRef;
 
     declare_TCFType! {CMSampleBuffer, CMSampleBufferRef}
-    impl_TCFType!(CMSampleBuffer, CMSampleBufferRef, CMSampleBufferGetTypeID);   impl_objc_compatability!(CMSampleBuffer, __CMSampleBufferRef);
+    impl_TCFType!(CMSampleBuffer, CMSampleBufferRef, CMSampleBufferGetTypeID);
 }
 
 pub use internal::{CMSampleBuffer, CMSampleBufferRef};

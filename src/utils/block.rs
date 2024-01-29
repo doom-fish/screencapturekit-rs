@@ -14,6 +14,11 @@ pub struct CompletionHandler<Concrete: TCFType>(
     pub Receiver<Result<Concrete, CFError>>,
 );
 
+/// .
+///
+/// # Panics
+///
+/// Panics if .
 pub fn new_completion_handler<ConcreteCFType>() -> CompletionHandler<ConcreteCFType>
 where
     ConcreteCFType: TCFType + 'static,
@@ -35,6 +40,11 @@ pub struct VoidCompletionHandler(
     pub Receiver<Result<(), CFError>>,
 );
 
+/// .
+///
+/// # Panics
+///
+/// Panics if .
 pub fn new_void_completion_handler() -> VoidCompletionHandler {
     let (tx, rx) = channel();
     let handler = ConcreteBlock::new(move |_: *mut c_void, error: CFErrorRef| {

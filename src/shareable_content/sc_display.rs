@@ -4,16 +4,20 @@ use core_foundation::base::UInt32;
 use core_graphics::geometry::CGRect;
 pub use internal::{SCDisplay, SCDisplayRef};
 
-use objc::{msg_send, *};
+use objc::{msg_send, sel, sel_impl};
+
+use crate::utils::objc::MessageForTFType;
 
 mod internal {
 
     #![allow(non_snake_case)]
     use std::os::raw::c_void;
 
-    use core_foundation::{base::*, *};
+    use core_foundation::{
+        base::{CFTypeID, TCFType},
+        declare_TCFType, impl_TCFType,
+    };
 
-    use crate::utils::objc::impl_objc_compatability;
     #[repr(C)]
     pub struct __SCDisplayRef(c_void);
     extern "C" {
@@ -23,7 +27,6 @@ mod internal {
 
     declare_TCFType! {SCDisplay, SCDisplayRef}
     impl_TCFType!(SCDisplay, SCDisplayRef, SCDisplayGetTypeID);
-    impl_objc_compatability!(SCDisplay, __SCDisplayRef);
 }
 
 impl fmt::Debug for SCDisplay {
@@ -39,16 +42,16 @@ impl fmt::Debug for SCDisplay {
 
 impl SCDisplay {
     pub fn display_id(&self) -> UInt32 {
-        unsafe { msg_send![self, displayID] }
+        unsafe { msg_send![self.as_sendable(), displayID] }
     }
     pub fn frame(&self) -> CGRect {
-        unsafe { msg_send![self, frame] }
+        unsafe { msg_send![self.as_sendable(), frame] }
     }
     pub fn height(&self) -> UInt32 {
-        unsafe { msg_send![self, height] }
+        unsafe { msg_send![self.as_sendable(), height] }
     }
     pub fn width(&self) -> UInt32 {
-        unsafe { msg_send![self, width] }
+        unsafe { msg_send![self.as_sendable(), width] }
     }
 }
 #[cfg(test)]
@@ -63,7 +66,7 @@ mod sc_display_test {
         let displays = content.displays();
         assert!(!displays.is_empty());
         for d in displays {
-            println!("Display: {:#?}", d);
+            println!("Display: {d:#?}");
         }
     }
 }

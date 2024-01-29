@@ -9,7 +9,10 @@ mod internal {
 
     use std::{collections::HashMap, ffi::c_void, sync::OnceLock};
 
-    use core_foundation::{base::*, declare_TCFType, impl_TCFType};
+    use core_foundation::{
+        base::{CFTypeID, TCFType},
+        declare_TCFType, impl_TCFType,
+    };
 
     use crate::utils::objc::MessageForTFType;
 

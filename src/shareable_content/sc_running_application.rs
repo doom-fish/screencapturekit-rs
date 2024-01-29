@@ -2,9 +2,11 @@ mod internal {
     #![allow(non_snake_case)]
     use std::os::raw::c_void;
 
-    use core_foundation::{base::*, *};
+    use core_foundation::{
+        base::{CFTypeID, TCFType},
+        declare_TCFType, impl_TCFType,
+    };
 
-    use crate::utils::objc::impl_objc_compatability;
     #[repr(C)]
     pub struct __SCRunningApplicationRef(c_void);
     extern "C" {
@@ -18,7 +20,6 @@ mod internal {
         SCRunningApplicationRef,
         SCRunningApplicationGetTypeID
     );
-    impl_objc_compatability!(SCRunningApplication, __SCRunningApplicationRef);
 }
 use core::fmt;
 
@@ -27,17 +28,19 @@ use core_foundation::{
     string::{CFString, CFStringRef},
 };
 pub use internal::{SCRunningApplication, SCRunningApplicationRef};
-use objc::{msg_send, *};
+use objc::{msg_send, sel, sel_impl};
+
+use crate::utils::objc::MessageForTFType;
 
 impl SCRunningApplication {
     pub fn process_id(&self) -> SInt32 {
-        unsafe { msg_send![self, processID] }
+        unsafe { msg_send![self.as_sendable(), processID] }
     }
     pub fn application_name(&self) -> String {
         unsafe {
-            let ptr: CFStringRef = msg_send![self, applicationName];
+            let ptr: CFStringRef = msg_send![self.as_sendable(), applicationName];
             if ptr.is_null() {
-                "".to_owned()
+                String::new()
             } else {
                 CFString::wrap_under_get_rule(ptr).to_string()
             }
@@ -45,9 +48,9 @@ impl SCRunningApplication {
     }
     pub fn bundle_identifier(&self) -> String {
         unsafe {
-            let ptr: CFStringRef = msg_send![self, bundleIdentifier];
+            let ptr: CFStringRef = msg_send![self.as_sendable(), bundleIdentifier];
             if ptr.is_null() {
-                "".to_owned()
+                String::new()
             } else {
                 CFString::wrap_under_get_rule(ptr).to_string()
             }
@@ -77,7 +80,7 @@ mod sc_running_application_test {
         let applications = content.applications();
         assert!(!applications.is_empty());
         for application in applications {
-            println!("Application: {:#?}", application);
+            println!("Application: {application:#?}");
         }
     }
 }

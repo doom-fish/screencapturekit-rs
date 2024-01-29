@@ -18,12 +18,12 @@ pub enum SCFrameStatus {
 mod internal {
 
     #![allow(non_snake_case)]
-    use objc::{runtime::Object, *};
+    use objc::{class, msg_send, runtime::Object, sel, sel_impl};
 
     use std::{ffi::c_void, mem};
 
     use core_foundation::{
-        base::*,
+        base::{CFTypeID, TCFType},
         declare_TCFType,
         error::CFError,
         impl_TCFType,
@@ -31,7 +31,7 @@ mod internal {
         string::CFString,
     };
 
-    use crate::utils::{error::internal::create_cf_error, objc::impl_objc_compatability};
+    use crate::utils::{error::internal::create_cf_error, objc::MessageForTFType};
 
     use super::SCFrameStatus;
 
@@ -49,8 +49,7 @@ mod internal {
         SCStreamFrameInfoRef,
         SCStreamFrameInfoGetTypeID
     );
-    impl_objc_compatability!(SCStreamFrameInfo, __SCStreamFrameInfoRef);
-    pub(crate) fn init() -> SCStreamFrameInfo {
+    pub fn init() -> SCStreamFrameInfo {
         unsafe {
             let ptr: *mut Object = msg_send![class!(SCStreamFrameInfo), alloc];
             let ptr: SCStreamFrameInfoRef = msg_send![ptr, init];
@@ -60,7 +59,8 @@ mod internal {
     pub fn status(status_info: &SCStreamFrameInfo) -> Result<SCFrameStatus, CFError> {
         unsafe {
             let key = CFString::from("StreamUpdateFrameStatus");
-            let raw_status: CFNumberRef = msg_send![status_info, objectForKey: key];
+            let raw_status: CFNumberRef = msg_send![status_info.as_sendable(), objectForKey: key];
+
             if raw_status.is_null() {
                 return Err(create_cf_error("Could not get StreamUpdateFrameStatus, the CMSampleBuffer does not contain any frame data", 0));
             }
@@ -78,6 +78,11 @@ impl SCStreamFrameInfo {
     pub fn new() -> Self {
         internal::init()
     }
+    /// Returns the status of this [`SCStreamFrameInfo`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn status(&self) -> Result<SCFrameStatus, CFError> {
         internal::status(self)
     }

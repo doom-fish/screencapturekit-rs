@@ -7,7 +7,7 @@ pub(crate) mod internal {
         string::CFString,
     };
 
-    pub(crate) fn create_cf_error(domain: &str, code: isize) -> CFError {
+    pub fn create_cf_error(domain: &str, code: isize) -> CFError {
         unsafe {
             CFError::wrap_under_create_rule(CFErrorCreate(
                 CFAllocatorGetDefault(),

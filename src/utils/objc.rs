@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 
-use core_foundation::base::*;
+use core_foundation::base::{TCFType, TCFTypeRef};
+use objc::runtime::Object;
 
 pub trait MessageForTFType {
     fn as_sendable(&self) -> *mut Object;
@@ -37,5 +38,3 @@ pub unsafe fn get_concrete_from_void<T: TCFType>(void_ptr: *const c_void) -> T {
 pub unsafe fn create_concrete_from_void<T: TCFType>(void_ptr: *const c_void) -> T {
     T::wrap_under_get_rule(T::Ref::from_void_ptr(void_ptr))
 }
-use core_foundation::base::TCFType;
-use objc::runtime::Object;
