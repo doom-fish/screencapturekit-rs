@@ -55,7 +55,7 @@ pub struct Size {
     pub scales_to_fit: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SCStreamConfiguration {
     //   The width of the output.
     pub width: u32,
@@ -96,6 +96,31 @@ pub struct SCStreamConfiguration {
     // A background color for the output.
     // Controlling Visibility
     pub background_color: CGColor,
+}
+
+impl Default for SCStreamConfiguration {
+    fn default() -> Self {
+        Self {
+            width: Default::default(),
+            height: Default::default(),
+            scales_to_fit: Default::default(),
+            source_rect: Default::default(),
+            destination_rect: Default::default(),
+            // Apple docs set this to true by default, but we are consistent with UnsafeStreamConfiguration.
+            shows_cursor: Default::default(),
+            preserves_aspect_ratio: true,
+            queue_depth: Default::default(),
+            minimum_frame_interval: Default::default(),
+            captures_audio: Default::default(),
+            sample_rate: Default::default(),
+            channel_count: Default::default(),
+            excludes_current_process_audio: Default::default(),
+            pixel_format: PixelFormat::ARGB8888,
+            color_matrix: Default::default(),
+            color_space_name: Default::default(),
+            background_color: Default::default(),
+        }
+    }
 }
 
 impl SCStreamConfiguration {
