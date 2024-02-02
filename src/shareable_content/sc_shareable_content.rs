@@ -1,3 +1,5 @@
+use core::fmt;
+
 use core_foundation::{base::TCFType, error::CFError};
 use objc::{class, msg_send, sel, sel_impl};
 
@@ -138,6 +140,15 @@ impl SCShareableContent {
         objc_get_vec_property(self, sel!(windows))
     }
 }
+impl fmt::Debug for SCShareableContent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SCShareableContent")
+            .field("displays", &self.displays().len())
+            .field("applications", &self.applications().len())
+            .field("windows", &self.windows().len())
+            .finish()
+    }
+}
 
 #[cfg(test)]
 mod sc_shareable_content_test {
@@ -153,12 +164,18 @@ mod sc_shareable_content_test {
     }
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
+    fn debug_format() {
+        println!("{:?}", SCShareableContent::get());
+    }
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn get_on_screen() {
         SCShareableContent::with_options()
             .exclude_desktop()
             .on_screen_windows_only()
             .get()
             .expect("should work");
+
         SCShareableContent::with_options()
             .on_screen_windows_only()
             .get()
