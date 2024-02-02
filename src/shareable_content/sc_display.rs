@@ -4,9 +4,9 @@ use core_foundation::base::UInt32;
 use core_graphics::geometry::CGRect;
 pub use internal::{SCDisplay, SCDisplayRef};
 
-use objc::{msg_send, sel, sel_impl};
+use objc::{sel, sel_impl};
 
-use crate::utils::objc::MessageForTFType;
+use crate::utils::objc::objc_get_property;
 
 mod internal {
 
@@ -42,16 +42,16 @@ impl fmt::Debug for SCDisplay {
 
 impl SCDisplay {
     pub fn display_id(&self) -> UInt32 {
-        unsafe { msg_send![self.as_sendable(), displayID] }
+        objc_get_property(self, sel!(displayID))
     }
     pub fn frame(&self) -> CGRect {
-        unsafe { msg_send![self.as_sendable(), frame] }
+        objc_get_property(self, sel!(frame))
     }
     pub fn height(&self) -> UInt32 {
-        unsafe { msg_send![self.as_sendable(), height] }
+        objc_get_property(self, sel!(height))
     }
     pub fn width(&self) -> UInt32 {
-        unsafe { msg_send![self.as_sendable(), width] }
+        objc_get_property(self, sel!(width))
     }
 }
 #[cfg(test)]

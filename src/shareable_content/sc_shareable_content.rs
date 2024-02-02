@@ -1,4 +1,4 @@
-use core_foundation::{array::CFArray, base::TCFType, base::TCFTypeRef, error::CFError};
+use core_foundation::{base::TCFType, error::CFError};
 use objc::{class, msg_send, sel, sel_impl};
 
 mod internal {
@@ -107,13 +107,11 @@ impl SCShareableContentOptions {
 
 use crate::utils::{
     block::{new_completion_handler, CompletionHandler},
-    objc::MessageForTFType,
+    objc::objc_get_vec_property,
 };
 
 use super::{
-    sc_display::{SCDisplay, SCDisplayRef},
-    sc_running_application::{SCRunningApplication, SCRunningApplicationRef},
-    sc_window::{SCWindow, SCWindowRef},
+    sc_display::SCDisplay, sc_running_application::SCRunningApplication, sc_window::SCWindow,
 };
 
 impl SCShareableContent {
@@ -130,38 +128,14 @@ impl SCShareableContent {
     }
 
     pub fn displays(&self) -> Vec<SCDisplay> {
-        unsafe {
-            CFArray::<SCDisplayRef>::wrap_under_get_rule(msg_send![self.as_sendable(), displays])
-                .into_untyped()
-                .iter()
-                .map(|ptr| SCDisplay::wrap_under_get_rule(SCDisplayRef::from_void_ptr(*ptr)))
-                .collect()
-        }
+        objc_get_vec_property(self, sel!(displays))
     }
+
     pub fn applications(&self) -> Vec<SCRunningApplication> {
-        unsafe {
-            CFArray::<SCRunningApplicationRef>::wrap_under_get_rule(msg_send![
-                self.as_sendable(),
-                applications
-            ])
-            .into_untyped()
-            .iter()
-            .map(|ptr| {
-                SCRunningApplication::wrap_under_get_rule(SCRunningApplicationRef::from_void_ptr(
-                    *ptr,
-                ))
-            })
-            .collect()
-        }
+        objc_get_vec_property(self, sel!(applications))
     }
     pub fn windows(&self) -> Vec<SCWindow> {
-        unsafe {
-            CFArray::<SCWindowRef>::wrap_under_get_rule(msg_send![self.as_sendable(), windows])
-                .into_untyped()
-                .iter()
-                .map(|ptr| SCWindow::wrap_under_get_rule(SCWindowRef::from_void_ptr(*ptr)))
-                .collect()
-        }
+        objc_get_vec_property(self, sel!(windows))
     }
 }
 

@@ -23,38 +23,21 @@ mod internal {
 }
 use core::fmt;
 
-use core_foundation::{
-    base::{SInt32, TCFType},
-    string::{CFString, CFStringRef},
-};
+use core_foundation::base::SInt32;
 pub use internal::{SCRunningApplication, SCRunningApplicationRef};
-use objc::{msg_send, sel, sel_impl};
+use objc::{sel, sel_impl};
 
-use crate::utils::objc::MessageForTFType;
+use crate::utils::objc::{objc_get_property, objc_get_string_property};
 
 impl SCRunningApplication {
     pub fn process_id(&self) -> SInt32 {
-        unsafe { msg_send![self.as_sendable(), processID] }
+        objc_get_property(self, sel!(processID))
     }
     pub fn application_name(&self) -> String {
-        unsafe {
-            let ptr: CFStringRef = msg_send![self.as_sendable(), applicationName];
-            if ptr.is_null() {
-                String::new()
-            } else {
-                CFString::wrap_under_get_rule(ptr).to_string()
-            }
-        }
+        objc_get_string_property(self, sel!(applicationName))
     }
     pub fn bundle_identifier(&self) -> String {
-        unsafe {
-            let ptr: CFStringRef = msg_send![self.as_sendable(), bundleIdentifier];
-            if ptr.is_null() {
-                String::new()
-            } else {
-                CFString::wrap_under_get_rule(ptr).to_string()
-            }
-        }
+        objc_get_string_property(self, sel!(bundleIdentifier))
     }
 }
 

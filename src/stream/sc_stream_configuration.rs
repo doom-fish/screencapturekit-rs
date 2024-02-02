@@ -1,11 +1,7 @@
 mod internal {
 
     #![allow(non_snake_case)]
-    use objc::{
-        class, msg_send,
-        runtime::{Object, Sel},
-        sel, sel_impl,
-    };
+    use objc::{class, msg_send, runtime::Object, sel, sel_impl};
 
     use std::ffi::c_void;
 
@@ -13,8 +9,6 @@ mod internal {
         base::{CFTypeID, TCFType},
         declare_TCFType, impl_TCFType,
     };
-
-    use crate::utils::objc::MessageForTFType;
 
     #[repr(C)]
     pub struct __SCStreamConfigurationRef(c_void);
@@ -38,20 +32,12 @@ mod internal {
             SCStreamConfiguration::wrap_under_create_rule(ptr)
         }
     }
-    pub fn set<T>(
-        config: &mut SCStreamConfiguration,
-        selector: Sel,
-        value: T,
-    ) -> Result<(), String> {
-        unsafe {
-            objc::__send_message(config.as_sendable(), selector, (value,))
-                .map_err(|e| e.to_string())
-        }
-    }
 }
 
 pub use internal::SCStreamConfiguration;
 use objc::{sel, sel_impl};
+
+use crate::utils::objc::objc_set_property;
 
 impl SCStreamConfiguration {
     #[must_use]
@@ -61,14 +47,14 @@ impl SCStreamConfiguration {
 
     #[must_use]
     pub fn set_width(mut self, width: u32) -> Self {
-        internal::set(&mut self, sel!(setWidth:), width).unwrap_or_else(|e| {
+        objc_set_property(&mut self, sel!(setWidth:), width).unwrap_or_else(|e| {
             println!("{e}");
         });
         self
     }
     #[must_use]
     pub fn set_height(mut self, height: u32) -> Self {
-        internal::set(&mut self, sel!(setHeight:), height).unwrap_or_else(|e| {
+        objc_set_property(&mut self, sel!(setHeight:), height).unwrap_or_else(|e| {
             println!("{e}");
         });
         self
