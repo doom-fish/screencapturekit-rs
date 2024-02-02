@@ -39,11 +39,11 @@ mod internal {
     fn register_objc_class() -> Result<&'static Class, Box<dyn Error>> {
         extern "C" fn trait_setter(this: &mut Object, _cmd: Sel, sc_stream_delegate_trait: usize) {
             unsafe {
-                this.set_ivar::<usize>("_trait", sc_stream_delegate_trait);
+                this.set_ivar::<usize>("_output_trait", sc_stream_delegate_trait);
             }
         }
         extern "C" fn trait_getter(this: &Object, _cmd: Sel) -> usize {
-            unsafe { *this.get_ivar::<usize>("_trait") }
+            unsafe { *this.get_ivar::<usize>("_output_trait") }
         }
         extern "C" fn stream_output(
             this: &mut Object,
@@ -53,7 +53,7 @@ mod internal {
             of_type: i8,
         ) {
             unsafe {
-                let ptr = this.get_ivar::<usize>("_trait");
+                let ptr = *this.get_ivar::<usize>("_output_trait");
                 let stream: SCStream = get_concrete_from_void(stream_ref);
                 let sample_buffer: CMSampleBuffer = get_concrete_from_void(sample_buffer_ref);
                 let stream_output = addr_of!(ptr) as *mut Box<&dyn SCStreamOutputTrait>;
@@ -70,7 +70,7 @@ mod internal {
         }
         let mut decl =
             ClassDecl::new("SCStreamOutput", class!(NSObject)).ok_or("Could not register class")?;
-        decl.add_ivar::<usize>("_trait");
+        decl.add_ivar::<usize>("_output_trait");
 
         unsafe {
             let set_trait: extern "C" fn(&mut Object, Sel, usize) = trait_setter;
@@ -97,10 +97,10 @@ mod internal {
     }
     pub fn new(sc_stream_output_trait: &impl SCStreamOutputTrait) -> SCStreamOutput {
         static REGISTER_CLASS: Once = Once::new();
-        let stream_output: &dyn SCStreamOutputTrait = sc_stream_output_trait;
         REGISTER_CLASS.call_once(|| {
             register_objc_class().expect("Should register SCStreamOutput class");
         });
+        let stream_output: &dyn SCStreamOutputTrait = sc_stream_output_trait;
         unsafe {
             let obj: *mut Object = runtime::class_createInstance(class!(SCStreamOutput), 0);
             let trait_ptr = Box::into_raw(Box::new(stream_output));
@@ -128,5 +128,53 @@ pub trait SCStreamOutputTrait {
 impl SCStreamOutput {
     pub fn new(stream_output: &impl SCStreamOutputTrait) -> Self {
         internal::new(stream_output)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::error::Error;
+
+    use core_foundation::base::TCFType;
+    use objc::{msg_send, sel, sel_impl};
+
+    use crate::{
+        shareable_content::sc_shareable_content::SCShareableContent,
+        stream::{
+            sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
+            sc_stream_delegate::SCStreamDelegateTrait,
+        },
+        utils::objc::MessageForTFType,
+    };
+
+    use super::*;
+    struct StreamOutput;
+
+    impl SCStreamOutputTrait for StreamOutput {
+        fn did_output_sample_buffer(
+            &self,
+            _stream: SCStream,
+            _sample_buffer: CMSampleBuffer,
+            _of_type: SCStreamOutputType,
+        ) {
+        }
+    }
+    impl SCStreamDelegateTrait for StreamOutput {}
+    #[test]
+    fn test_sc_stream_delegate_did_stop_with_error() -> Result<(), Box<dyn Error>> {
+        let handle = SCStreamOutput::new(&StreamOutput);
+        let config = SCStreamConfiguration::new();
+        let display = SCShareableContent::get()?.displays().remove(0);
+
+        let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
+        let stream = SCStream::new(&filter, &config, &StreamOutput);
+        let sample_buffer = CMSampleBuffer::new_empty();
+        unsafe {
+            let _: () = msg_send![handle.as_sendable(), stream: stream.as_CFTypeRef() didOutputSampleBuffer: sample_buffer.as_CFTypeRef() ofType: 1];
+            let _: () = msg_send![handle.as_sendable(), stream: stream.as_CFTypeRef() didOutputSampleBuffer: sample_buffer.as_CFTypeRef() ofType: 0];
+        }
+
+        Ok(())
     }
 }

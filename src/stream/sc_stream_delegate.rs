@@ -22,6 +22,8 @@ mod internal {
         sel, sel_impl,
     };
 
+    use crate::utils::objc::create_concrete_from_void;
+
     use super::SCStreamDelegateTrait;
     #[repr(C)]
     pub struct __SCStreamDelegateRef(c_void);
@@ -41,11 +43,11 @@ mod internal {
     fn register_objc_class() -> Result<&'static Class, Box<dyn Error>> {
         extern "C" fn trait_setter(this: &mut Object, _cmd: Sel, sc_stream_delegate_trait: usize) {
             unsafe {
-                this.set_ivar::<usize>("_trait", sc_stream_delegate_trait);
+                this.set_ivar::<usize>("_delegate_trait", sc_stream_delegate_trait);
             }
         }
         extern "C" fn trait_getter(this: &Object, _cmd: Sel) -> usize {
-            unsafe { *this.get_ivar::<usize>("_trait") }
+            unsafe { *this.get_ivar::<usize>("_delegate_trait") }
         }
         extern "C" fn stream_error(
             this: &mut Object,
@@ -54,7 +56,7 @@ mod internal {
             error: *const c_void,
         ) {
             unsafe {
-                let ptr = *this.get_ivar::<usize>("_trait");
+                let ptr = *this.get_ivar::<usize>("_delegate_trait");
                 let stream_delegate = addr_of!(ptr) as *mut Box<&dyn SCStreamDelegateTrait>;
                 let error = CFError::wrap_under_get_rule(CFErrorRef::from_void_ptr(error));
                 (*stream_delegate).did_stop_with_error(error);
@@ -63,7 +65,7 @@ mod internal {
 
         let mut decl = ClassDecl::new("SCStreamDelegate", class!(NSObject))
             .ok_or("Could not register class")?;
-        decl.add_ivar::<usize>("_trait");
+        decl.add_ivar::<usize>("_delegate_trait");
 
         unsafe {
             let set_trait: extern "C" fn(&mut Object, Sel, usize) = trait_setter;
@@ -86,13 +88,11 @@ mod internal {
             register_objc_class().expect("Should register SCStreamDelegate class");
         });
         let delegate: &dyn SCStreamDelegateTrait = sc_stream_delegate;
-        let obj = unsafe { runtime::class_createInstance(class!(SCStreamDelegate), 0) };
         unsafe {
+            let obj = runtime::class_createInstance(class!(SCStreamDelegate), 0);
             let trait_ptr = Box::into_raw(Box::new(delegate));
             let _: () = msg_send![obj, setTrait: trait_ptr];
-            SCStreamDelegate::wrap_under_create_rule(SCStreamDelegateRef::from_void_ptr(
-                obj as *const c_void,
-            ))
+            create_concrete_from_void(obj as *const c_void)
         }
     }
 }
@@ -106,23 +106,30 @@ impl SCStreamDelegate {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//
-//     use crate::utils::error::internal::create_cf_error;
-//
-//     use super::*;
-//     struct ErrorDelegate;
-//     impl SCStreamDelegateTrait for ErrorDelegate {
-//         fn did_stop_with_error(&self, error: CFError) {
-//             assert_eq!(error.code(), 4);
-//             assert_eq!(error.domain(), "NSMachErrorDomain");
-//         }
-//     }
-//
-//     #[test]
-//     fn test_sc_stream_delegate_did_stop_with_error() {
-//         let handle = SCStreamDelegate::new(&ErrorDelegate);
-//         let err = create_cf_error("ERROR!", 4);
-//     }
-// }
+#[cfg(test)]
+mod tests {
+
+    use std::{ffi::c_void, ptr};
+
+    use objc::{msg_send, sel, sel_impl};
+
+    use crate::utils::{error::internal::create_cf_error, objc::MessageForTFType};
+
+    use super::*;
+    struct ErrorDelegate;
+    impl SCStreamDelegateTrait for ErrorDelegate {
+        fn did_stop_with_error(&self, error: CFError) {
+            assert_eq!(error.code(), 4);
+            assert_eq!(error.domain(), "ERROR!");
+        }
+    }
+
+    #[test]
+    fn test_sc_stream_delegate_did_stop_with_error() {
+        let handle = SCStreamDelegate::new(&ErrorDelegate);
+        let err = create_cf_error("ERROR!", 4);
+        unsafe {
+            let _: () = msg_send![handle.as_sendable(), stream: ptr::null::<c_void>() didStopWithError: err];
+        }
+    }
+}

@@ -110,48 +110,58 @@ impl SCContentFilter {
         create()
     }
 
-    pub fn with_desktop_independent_window(self, window: &SCWindow) {
+    #[must_use]
+    pub fn with_desktop_independent_window(self, window: &SCWindow) -> Self {
         init_with_desktop_independent_window(&self, window);
+        self
     }
-    pub fn init_with_display_excluding_windows(
-        &self,
+    #[must_use]
+    pub fn with_with_display_excluding_windows(
+        self,
         display: &SCDisplay,
         excluding_windows: &[&SCWindow],
-    ) {
-        init_with_display_excluding_windows(self, display, excluding_windows);
+    ) -> Self {
+        init_with_display_excluding_windows(&self, display, excluding_windows);
+        self
     }
+    #[must_use]
     pub fn with_display_including_windows(
-        &self,
+        self,
         display: &SCDisplay,
         including_windows: &[&SCWindow],
-    ) {
-        init_with_display_including_windows(self, display, including_windows);
+    ) -> Self {
+        init_with_display_including_windows(&self, display, including_windows);
+        self
     }
+    #[must_use]
     pub fn with_display_including_application_excepting_windows(
-        &self,
+        self,
         display: &SCDisplay,
         applications: &[&SCRunningApplication],
         excepting_windows: &[&SCWindow],
-    ) {
+    ) -> Self {
         init_with_display_including_applications_excepting_windows(
-            self,
+            &self,
             display,
             applications,
             excepting_windows,
         );
+        self
     }
+    #[must_use]
     pub fn with_display_excluding_applications_excepting_windows(
-        &self,
+        self,
         display: &SCDisplay,
         applications: &[&SCRunningApplication],
         excepting_windows: &[&SCWindow],
-    ) {
+    ) -> Self {
         init_with_display_excluding_applications_excepting_windows(
-            self,
+            &self,
             display,
             applications,
             excepting_windows,
         );
+        self
     }
 }
 
@@ -171,6 +181,6 @@ mod test_content_filter {
     fn test_init_with_display() {
         let displays = SCShareableContent::get().expect("Should work").displays();
         let display = displays.first().unwrap();
-        SCContentFilter::new().init_with_display_excluding_windows(display, &[]);
+        let _ = SCContentFilter::new().with_with_display_excluding_windows(display, &[]);
     }
 }

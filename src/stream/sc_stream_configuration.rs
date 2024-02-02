@@ -45,19 +45,23 @@ impl SCStreamConfiguration {
         internal::init()
     }
 
-    #[must_use]
-    pub fn set_width(mut self, width: u32) -> Self {
-        objc_set_property(&mut self, sel!(setWidth:), width).unwrap_or_else(|e| {
-            println!("{e}");
-        });
-        self
+    /// Sets the width of this [`SCStreamConfiguration`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn set_width(mut self, width: u32) -> Result<Self, String> {
+        objc_set_property(&mut self, sel!(setWidth:), width)?;
+        Ok(self)
     }
-    #[must_use]
-    pub fn set_height(mut self, height: u32) -> Self {
-        objc_set_property(&mut self, sel!(setHeight:), height).unwrap_or_else(|e| {
-            println!("{e}");
-        });
-        self
+    /// Sets the height of this [`SCStreamConfiguration`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn set_height(mut self, height: u32) -> Result<Self, String> {
+        objc_set_property(&mut self, sel!(setHeight:), height)?;
+        Ok(self)
     }
 }
 
@@ -72,7 +76,10 @@ mod sc_stream_configuration_test {
     use super::SCStreamConfiguration;
 
     #[test]
-    fn test_setters() {
-        let _ = SCStreamConfiguration::new().set_width(100).set_height(100);
+    fn test_setters() -> Result<(), String> {
+        SCStreamConfiguration::new()
+            .set_width(100)?
+            .set_height(100)?;
+        Ok(())
     }
 }
