@@ -112,6 +112,7 @@ mod internal {
 pub use internal::{SCStreamOutput, SCStreamOutputRef};
 
 #[repr(C)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum SCStreamOutputType {
     Screen,
     Audio,
@@ -134,44 +135,68 @@ impl SCStreamOutput {
 #[cfg(test)]
 mod tests {
 
-    use std::error::Error;
+    use std::{error::Error, ptr};
 
     use core_foundation::base::TCFType;
     use objc::{msg_send, sel, sel_impl};
 
     use crate::{
+        core_media::cm_sample_buffer::CMSampleBufferRef,
         shareable_content::sc_shareable_content::SCShareableContent,
         stream::{
-            sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
+            sc_content_filter::SCContentFilter, sc_stream::SCStreamRef,
+            sc_stream_configuration::SCStreamConfiguration,
             sc_stream_delegate::SCStreamDelegateTrait,
         },
         utils::objc::MessageForTFType,
     };
 
     use super::*;
-    struct StreamOutput;
+    struct StreamOutput {
+        stream: SCStreamRef,
+        sample_buffer: CMSampleBufferRef,
+        of_type: SCStreamOutputType,
+    }
+
+    impl Default for StreamOutput {
+        fn default() -> Self {
+            Self {
+                stream: ptr::null_mut() as SCStreamRef,
+                sample_buffer: ptr::null_mut() as CMSampleBufferRef,
+                of_type: SCStreamOutputType::Screen,
+            }
+        }
+    }
 
     impl SCStreamOutputTrait for StreamOutput {
         fn did_output_sample_buffer(
             &self,
-            _stream: SCStream,
-            _sample_buffer: CMSampleBuffer,
-            _of_type: SCStreamOutputType,
+            stream: SCStream,
+            sample_buffer: CMSampleBuffer,
+            of_type: SCStreamOutputType,
         ) {
+            assert_eq!(stream.as_concrete_TypeRef(), self.stream);
+            assert_eq!(sample_buffer.as_concrete_TypeRef(), self.sample_buffer);
+            assert_eq!(of_type, self.of_type);
         }
     }
     impl SCStreamDelegateTrait for StreamOutput {}
     #[test]
     fn test_sc_stream_delegate_did_stop_with_error() -> Result<(), Box<dyn Error>> {
-        let handle = SCStreamOutput::new(&StreamOutput);
+        let mut output = StreamOutput::default();
+        let handle = SCStreamOutput::new(&output);
         let config = SCStreamConfiguration::new();
         let display = SCShareableContent::get()?.displays().remove(0);
 
         let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
-        let stream = SCStream::new(&filter, &config, &StreamOutput);
+        let stream = SCStream::new(&filter, &config, &output);
         let sample_buffer = CMSampleBuffer::new_empty();
+        output.stream = stream.as_concrete_TypeRef();
+        output.sample_buffer = sample_buffer.as_concrete_TypeRef();
         unsafe {
+            output.of_type = SCStreamOutputType::Audio;
             let _: () = msg_send![handle.as_sendable(), stream: stream.as_CFTypeRef() didOutputSampleBuffer: sample_buffer.as_CFTypeRef() ofType: 1];
+            output.of_type = SCStreamOutputType::Screen;
             let _: () = msg_send![handle.as_sendable(), stream: stream.as_CFTypeRef() didOutputSampleBuffer: sample_buffer.as_CFTypeRef() ofType: 0];
         }
 
