@@ -11,4 +11,3 @@ pub trait AsMutPtr {
 
 impl<T> AsPtr for T {}
 impl<T> AsMutPtr for T {}
-
