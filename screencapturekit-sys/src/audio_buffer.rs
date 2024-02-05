@@ -21,4 +21,4 @@ pub struct CopiedAudioBuffer {
 }
 
 #[allow(non_upper_case_globals)]
-pub const kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment: u32 = 1<<0;
+pub const kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment: u32 = 1 << 0;
