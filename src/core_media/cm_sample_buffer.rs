@@ -69,7 +69,7 @@ impl CMSampleBuffer {
     ///
     /// Panics if .
     pub fn new_empty() -> Self {
-        internal::empty().expect("should work!")
+        internal::empty().expect("could not create empty sample buffer")
     }
 }
 
