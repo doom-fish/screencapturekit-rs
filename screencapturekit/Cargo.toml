@@ -25,4 +25,4 @@ ci = []
 path = "./src/lib.rs"
 
 [dependencies]
-screencapturekit-sys = { version = "0.2.5", path = "../screencapturekit-sys" }
+screencapturekit-sys = { version = "0.2.6", path = "../screencapturekit-sys" }
