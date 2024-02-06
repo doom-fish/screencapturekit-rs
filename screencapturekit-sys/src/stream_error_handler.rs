@@ -1,4 +1,4 @@
-use std::{ptr::addr_of, sync::Once};
+use std::sync::Once;
 
 use objc::{
     class,
@@ -19,10 +19,10 @@ pub(crate) struct UnsafeSCStreamErrorHandler {}
 unsafe impl Message for UnsafeSCStreamErrorHandler {}
 
 use once_cell::sync::Lazy;
-use std::sync::RwLock;
 use std::collections::HashMap;
+use std::sync::RwLock;
 static ERROR_HANDLERS: Lazy<RwLock<HashMap<usize, Box<dyn UnsafeSCStreamError + Send + Sync>>>> =
-  Lazy::new(|| RwLock::new(HashMap::new()));
+    Lazy::new(|| RwLock::new(HashMap::new()));
 
 impl INSObject for UnsafeSCStreamErrorHandler {
     fn class() -> &'static Class {
@@ -62,12 +62,15 @@ impl UnsafeSCStreamErrorHandler {
         unsafe {
             let obj = &mut *(self as *mut _ as *mut Object);
             let hash = self.hash_code();
-            ERROR_HANDLERS.write().unwrap().insert(hash, Box::new(error_handler));
-            obj.set_ivar("_hash", hash as usize);
+            ERROR_HANDLERS
+                .write()
+                .unwrap()
+                .insert(hash, Box::new(error_handler));
+            obj.set_ivar("_hash", hash);
         }
     }
     // Error handlers passed into here will currently live forever inside the statically
-    // allocated map. 
+    // allocated map.
     // TODO: Remove the handler from the HashMap whenever the associated stream is dropped.
     pub fn init(error_handler: impl UnsafeSCStreamError) -> Id<Self> {
         let mut handle = Self::new();
@@ -79,7 +82,7 @@ impl UnsafeSCStreamErrorHandler {
 #[cfg(test)]
 mod tests {
     use std::ptr;
-    use std::sync::mpsc::{SyncSender, sync_channel};
+    use std::sync::mpsc::{sync_channel, SyncSender};
 
     use super::*;
 
