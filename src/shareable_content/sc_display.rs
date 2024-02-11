@@ -6,7 +6,7 @@ pub use internal::{SCDisplay, SCDisplayRef};
 
 use objc::{sel, sel_impl};
 
-use crate::utils::objc::objc_get_property;
+use crate::utils::objc::get_property;
 
 mod internal {
 
@@ -42,16 +42,16 @@ impl fmt::Debug for SCDisplay {
 
 impl SCDisplay {
     pub fn display_id(&self) -> UInt32 {
-        objc_get_property(self, sel!(displayID))
+        get_property(self, sel!(displayID))
     }
     pub fn frame(&self) -> CGRect {
-        objc_get_property(self, sel!(frame))
+        get_property(self, sel!(frame))
     }
     pub fn height(&self) -> UInt32 {
-        objc_get_property(self, sel!(height))
+        get_property(self, sel!(height))
     }
     pub fn width(&self) -> UInt32 {
-        objc_get_property(self, sel!(width))
+        get_property(self, sel!(width))
     }
 }
 #[cfg(test)]

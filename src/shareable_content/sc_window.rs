@@ -25,9 +25,7 @@ use core_graphics::geometry::CGRect;
 
 use objc::{msg_send, sel, sel_impl};
 
-use crate::utils::objc::{
-    objc_get_bool_property, objc_get_property, objc_get_string_property, MessageForTFType,
-};
+use crate::utils::objc::{get_bool_property, get_property, get_string_property, MessageForTFType};
 
 use super::sc_running_application::{SCRunningApplication, SCRunningApplicationRef};
 
@@ -39,23 +37,23 @@ impl SCWindow {
         }
     }
     pub fn window_layer(&self) -> UInt32 {
-        objc_get_property(self, sel!(windowLayer))
+        get_property(self, sel!(windowLayer))
     }
     pub fn window_id(&self) -> UInt32 {
-        objc_get_property(self, sel!(windowID))
+        get_property(self, sel!(windowID))
     }
     pub fn get_frame(&self) -> CGRect {
-        objc_get_property(self, sel!(frame))
+        get_property(self, sel!(frame))
     }
     pub fn title(&self) -> String {
-        objc_get_string_property(self, sel!(title))
+        get_string_property(self, sel!(title))
     }
 
     pub fn is_on_screen(&self) -> bool {
-        objc_get_bool_property(self, sel!(isOnScreen))
+        get_bool_property(self, sel!(isOnScreen))
     }
     pub fn is_active(&self) -> bool {
-        objc_get_bool_property(self, sel!(isActive))
+        get_bool_property(self, sel!(isActive))
     }
 }
 

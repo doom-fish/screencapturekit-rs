@@ -37,7 +37,7 @@ mod internal {
 pub use internal::SCStreamConfiguration;
 use objc::{sel, sel_impl};
 
-use crate::utils::objc::objc_set_property;
+use crate::utils::objc::set_property;
 
 impl SCStreamConfiguration {
     #[must_use]
@@ -51,7 +51,7 @@ impl SCStreamConfiguration {
     ///
     /// This function will return an error if .
     pub fn set_width(mut self, width: u32) -> Result<Self, String> {
-        objc_set_property(&mut self, sel!(setWidth:), width)?;
+        set_property(&mut self, sel!(setWidth:), width)?;
         Ok(self)
     }
     /// Sets the height of this [`SCStreamConfiguration`].
@@ -60,7 +60,7 @@ impl SCStreamConfiguration {
     ///
     /// This function will return an error if .
     pub fn set_height(mut self, height: u32) -> Result<Self, String> {
-        objc_set_property(&mut self, sel!(setHeight:), height)?;
+        set_property(&mut self, sel!(setHeight:), height)?;
         Ok(self)
     }
 }

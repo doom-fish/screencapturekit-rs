@@ -27,17 +27,17 @@ use core_foundation::base::SInt32;
 pub use internal::{SCRunningApplication, SCRunningApplicationRef};
 use objc::{sel, sel_impl};
 
-use crate::utils::objc::{objc_get_property, objc_get_string_property};
+use crate::utils::objc::{get_property, get_string_property};
 
 impl SCRunningApplication {
     pub fn process_id(&self) -> SInt32 {
-        objc_get_property(self, sel!(processID))
+        get_property(self, sel!(processID))
     }
     pub fn application_name(&self) -> String {
-        objc_get_string_property(self, sel!(applicationName))
+        get_string_property(self, sel!(applicationName))
     }
     pub fn bundle_identifier(&self) -> String {
-        objc_get_string_property(self, sel!(bundleIdentifier))
+        get_string_property(self, sel!(bundleIdentifier))
     }
 }
 

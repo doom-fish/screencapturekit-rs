@@ -109,7 +109,7 @@ impl SCShareableContentOptions {
 
 use crate::utils::{
     block::{new_completion_handler, CompletionHandler},
-    objc::objc_get_vec_property,
+    objc::get_vec_property,
 };
 
 use super::{
@@ -130,14 +130,14 @@ impl SCShareableContent {
     }
 
     pub fn displays(&self) -> Vec<SCDisplay> {
-        objc_get_vec_property(self, sel!(displays))
+        get_vec_property(self, sel!(displays))
     }
 
     pub fn applications(&self) -> Vec<SCRunningApplication> {
-        objc_get_vec_property(self, sel!(applications))
+        get_vec_property(self, sel!(applications))
     }
     pub fn windows(&self) -> Vec<SCWindow> {
-        objc_get_vec_property(self, sel!(windows))
+        get_vec_property(self, sel!(windows))
     }
 }
 impl fmt::Debug for SCShareableContent {

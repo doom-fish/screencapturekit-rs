@@ -48,8 +48,7 @@ pub unsafe fn create_concrete_from_void<T: TCFType>(void_ptr: *const c_void) -> 
 /// # Errors
 ///
 /// This function will return an error if .
-#[allow(clippy::module_name_repetitions)]
-pub fn objc_set_property<TSubject: TCFType, TValue>(
+pub fn set_property<TSubject: TCFType, TValue>(
     subject: &mut TSubject,
     selector: Sel,
     value: TValue,
@@ -63,8 +62,7 @@ pub fn objc_set_property<TSubject: TCFType, TValue>(
 /// # Panics
 ///
 /// Panics if .
-#[allow(clippy::module_name_repetitions)]
-pub fn objc_get_property<TSubject: TCFType, TReturn: 'static>(
+pub fn get_property<TSubject: TCFType, TReturn: 'static>(
     subject: &TSubject,
     selector: Sel,
 ) -> TReturn {
@@ -73,13 +71,12 @@ pub fn objc_get_property<TSubject: TCFType, TReturn: 'static>(
             .expect("should work! Otherwise illegal selector!")
     }
 }
-#[allow(clippy::module_name_repetitions)]
-pub fn objc_get_cftype_property<TReturn: 'static + TCFType, TSubject: TCFType>(
+pub fn get_cftype_property<TReturn: 'static + TCFType, TSubject: TCFType>(
     subject: &TSubject,
     selector: Sel,
 ) -> Option<TReturn> {
     unsafe {
-        let return_ref: *const c_void = objc_get_property(subject, selector);
+        let return_ref: *const c_void = get_property(subject, selector);
         if return_ref.is_null() {
             None
         } else {
@@ -89,26 +86,23 @@ pub fn objc_get_cftype_property<TReturn: 'static + TCFType, TSubject: TCFType>(
         }
     }
 }
-#[allow(clippy::module_name_repetitions)]
-pub fn objc_get_string_property<TSubject: TCFType>(subject: &TSubject, selector: Sel) -> String {
-    objc_get_cftype_property(subject, selector)
+pub fn get_string_property<TSubject: TCFType>(subject: &TSubject, selector: Sel) -> String {
+    get_cftype_property(subject, selector)
         .map_or(String::new(), |cfstring: CFString| cfstring.to_string())
 }
 
-#[allow(clippy::module_name_repetitions)]
-pub fn objc_get_bool_property<TSubject: TCFType>(subject: &TSubject, selector: Sel) -> bool {
-    objc_get_cftype_property::<CFBoolean, TSubject>(subject, selector)
+pub fn get_bool_property<TSubject: TCFType>(subject: &TSubject, selector: Sel) -> bool {
+    get_cftype_property::<CFBoolean, TSubject>(subject, selector)
         .unwrap_or_else(CFBoolean::false_value)
         .into()
 }
 
-#[allow(clippy::module_name_repetitions)]
-pub fn objc_get_vec_property<TSubject: TCFType, TReturn: 'static + TCFType>(
+pub fn get_vec_property<TSubject: TCFType, TReturn: 'static + TCFType>(
     subject: &TSubject,
     selector: Sel,
 ) -> Vec<TReturn> {
     unsafe {
-        CFArray::<TReturn::Ref>::wrap_under_get_rule(objc_get_property(subject, selector))
+        CFArray::<TReturn::Ref>::wrap_under_get_rule(get_property(subject, selector))
             .into_untyped()
             .iter()
             .map(|ptr| TReturn::wrap_under_get_rule(TReturn::Ref::from_void_ptr(*ptr)))
