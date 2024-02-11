@@ -20,15 +20,14 @@ mod internal {
 pub use internal::{SCWindow, SCWindowRef};
 use std::fmt::{self};
 
-use core_foundation::{
-    base::{TCFType, UInt32},
-    string::{CFString, CFStringRef},
-};
+use core_foundation::base::{TCFType, UInt32};
 use core_graphics::geometry::CGRect;
 
 use objc::{msg_send, sel, sel_impl};
 
-use crate::utils::objc::MessageForTFType;
+use crate::utils::objc::{
+    objc_get_bool_property, objc_get_property, objc_get_string_property, MessageForTFType,
+};
 
 use super::sc_running_application::{SCRunningApplication, SCRunningApplicationRef};
 
@@ -40,29 +39,23 @@ impl SCWindow {
         }
     }
     pub fn window_layer(&self) -> UInt32 {
-        unsafe { msg_send![self.as_sendable(), windowLayer] }
+        objc_get_property(self, sel!(windowLayer))
     }
     pub fn window_id(&self) -> UInt32 {
-        unsafe { msg_send![self.as_sendable(), windowID] }
+        objc_get_property(self, sel!(windowID))
     }
     pub fn get_frame(&self) -> CGRect {
-        unsafe { msg_send![self.as_sendable(), frame] }
+        objc_get_property(self, sel!(frame))
     }
     pub fn title(&self) -> String {
-        unsafe {
-            let ptr: CFStringRef = msg_send![self.as_sendable(), title];
-            if ptr.is_null() {
-                String::new()
-            } else {
-                CFString::wrap_under_get_rule(ptr).to_string()
-            }
-        }
+        objc_get_string_property(self, sel!(title))
     }
+
     pub fn is_on_screen(&self) -> bool {
-        unsafe { msg_send![self.as_sendable(), isOnScreen] }
+        objc_get_bool_property(self, sel!(isOnScreen))
     }
     pub fn is_active(&self) -> bool {
-        unsafe { msg_send![self.as_sendable(), isActive] }
+        objc_get_bool_property(self, sel!(isActive))
     }
 }
 

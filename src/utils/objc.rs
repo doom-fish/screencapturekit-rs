@@ -1,6 +1,7 @@
 use core_foundation::{
     array::CFArray,
     base::{TCFType, TCFTypeRef},
+    boolean::CFBoolean,
     string::CFString,
 };
 use objc::runtime::{Object, Sel};
@@ -93,6 +94,14 @@ pub fn objc_get_string_property<TSubject: TCFType>(subject: &TSubject, selector:
     objc_get_cftype_property(subject, selector)
         .map_or(String::new(), |cfstring: CFString| cfstring.to_string())
 }
+
+#[allow(clippy::module_name_repetitions)]
+pub fn objc_get_bool_property<TSubject: TCFType>(subject: &TSubject, selector: Sel) -> bool {
+    objc_get_cftype_property::<CFBoolean, TSubject>(subject, selector)
+        .unwrap_or_else(CFBoolean::false_value)
+        .into()
+}
+
 #[allow(clippy::module_name_repetitions)]
 pub fn objc_get_vec_property<TSubject: TCFType, TReturn: 'static + TCFType>(
     subject: &TSubject,
