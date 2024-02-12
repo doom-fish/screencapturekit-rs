@@ -22,14 +22,14 @@ mod internal {
         sel, sel_impl,
     };
 
+    use crate::utils;
+
+    use super::SCStreamDelegateTrait;
+
     static ERROR_DELEGATES: Lazy<
         RwLock<HashMap<u64, Box<dyn SCStreamDelegateTrait + Send + Sync>>>,
     > = Lazy::new(|| RwLock::new(HashMap::new()));
 
-    use crate::utils;
-
-    use super::SCStreamDelegateTrait;
-    #[repr(C)]
     pub struct SCStreamDelegate(pub *mut Object);
 
     impl Drop for SCStreamDelegate {
@@ -38,7 +38,7 @@ mod internal {
                 if let Some(delegate) = ERROR_DELEGATES
                     .write()
                     .expect("could not obtain read lock for ERROR_DELEGATES")
-                    .remove(&calculate_hash(self as *const _ as *mut Object))
+                    .remove(&calculate_hash(self.0))
                 {
                     mem::drop(delegate);
                 }
