@@ -12,6 +12,7 @@ mod internal {
         ffi::c_void,
         hash::{self, DefaultHasher, Hasher},
         mem,
+        ops::Deref,
         sync::{Once, RwLock},
     };
 
@@ -31,6 +32,14 @@ mod internal {
     > = Lazy::new(|| RwLock::new(HashMap::new()));
 
     pub struct SCStreamDelegate(pub *mut Object);
+
+    impl Deref for SCStreamDelegate {
+        type Target = Object;
+
+        fn deref(&self) -> &Self::Target {
+            unsafe { &*self.0 }
+        }
+    }
 
     impl Drop for SCStreamDelegate {
         fn drop(&mut self) {
@@ -129,10 +138,8 @@ mod tests {
     struct ErrorDelegate {
         tx: SyncSender<isize>,
     }
-
     impl SCStreamDelegateTrait for ErrorDelegate {
         fn did_stop_with_error(&self, error: CFError) {
-            assert_eq!(error.code(), 4);
             assert_eq!(error.domain(), "ERROR!");
             self.tx
                 .send(error.code())
@@ -145,15 +152,21 @@ mod tests {
         let (tx, rx) = sync_channel(2);
         let handle = SCStreamDelegate::new(ErrorDelegate { tx });
         let err = create_cf_error("ERROR!", 4);
-        let err2 = create_cf_error("ERROR!", 4);
+        let err2 = create_cf_error("ERROR!", 2);
         unsafe {
-            let _: () = msg_send![handle.0, stream: ptr::null::<c_void>() didStopWithError: err];
-            let _: () = msg_send![handle.0, stream: ptr::null::<c_void>() didStopWithError: err2];
+            let _: () = msg_send![handle, stream: ptr::null::<c_void>() didStopWithError: err];
+
+            let _: () = msg_send![handle, stream: ptr::null::<c_void>() didStopWithError: err2];
         }
         let code = rx
             .recv_timeout(Duration::from_millis(10_000))
             .expect("could not receive from error delegate");
 
         assert_eq!(code, 4);
+        let code = rx
+            .recv_timeout(Duration::from_millis(10_000))
+            .expect("could not receive from error delegate");
+
+        assert_eq!(code, 2);
     }
 }
