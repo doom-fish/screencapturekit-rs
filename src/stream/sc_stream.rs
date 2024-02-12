@@ -48,11 +48,11 @@ mod internal {
     pub fn init_with_filter(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
-        stream_delegate: &impl SCStreamDelegateTrait,
+        stream_delegate: impl SCStreamDelegateTrait + 'static,
     ) -> SCStream {
         unsafe {
             let instance: *mut Object = msg_send![class!(SCStream), alloc];
-            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate).as_CFTypeRef()];
+            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate)];
 
             SCStream::wrap_under_create_rule(instance)
         }
@@ -93,7 +93,7 @@ impl SCStream {
     pub fn new(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
-        stream_delegate: &impl SCStreamDelegateTrait,
+        stream_delegate: impl SCStreamDelegateTrait + 'static,
     ) -> Self {
         internal::init_with_filter(filter, configuration, stream_delegate)
     }

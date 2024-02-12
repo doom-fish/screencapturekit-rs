@@ -24,7 +24,6 @@ impl<T: TCFTypeRef> MessageForTFTypeRef for T {
         self as *const _ as *mut Object
     }
 }
-
 /// .
 ///
 /// # Safety
