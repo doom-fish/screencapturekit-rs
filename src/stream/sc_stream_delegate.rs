@@ -10,7 +10,6 @@ mod internal {
         collections::HashMap,
         error::Error,
         ffi::c_void,
-        hash::{self, DefaultHasher, Hasher},
         mem,
         ops::Deref,
         sync::{Once, RwLock},
@@ -23,7 +22,7 @@ mod internal {
         sel, sel_impl,
     };
 
-    use crate::utils;
+    use crate::utils::{self, hash::hash};
 
     use super::SCStreamDelegateTrait;
 
@@ -47,7 +46,7 @@ mod internal {
                 if let Some(delegate) = ERROR_DELEGATES
                     .write()
                     .expect("could not obtain read lock for ERROR_DELEGATES")
-                    .remove(&calculate_hash(self.0))
+                    .remove(&hash(self.0))
                 {
                     mem::drop(delegate);
                 }
@@ -66,7 +65,7 @@ mod internal {
             if let Some(stream_delegate) = ERROR_DELEGATES
                 .read()
                 .expect("could not obtain read lock for ERROR_DELEGATES")
-                .get(&calculate_hash(this as *mut _))
+                .get(&hash(this as *mut _))
             {
                 stream_delegate
                     .did_stop_with_error(unsafe { utils::objc::get_concrete_from_void(error) });
@@ -87,11 +86,6 @@ mod internal {
         Ok(class!(SCStreamDelegate))
     }
 
-    fn calculate_hash<T: hash::Hash>(t: T) -> u64 {
-        let mut s = DefaultHasher::new();
-        t.hash(&mut s);
-        s.finish()
-    }
     pub fn new(sc_stream_delegate: impl SCStreamDelegateTrait) -> SCStreamDelegate {
         static REGISTER_CLASS: Once = Once::new();
 
@@ -99,12 +93,12 @@ mod internal {
             register_objc_class().expect("Should register SCStreamDelegate class");
         });
         unsafe {
-            let obj = runtime::class_createInstance(class!(SCStreamDelegate), 0);
+            let instance_ptr = runtime::class_createInstance(class!(SCStreamDelegate), 0);
             ERROR_DELEGATES
                 .write()
                 .expect("could not obtain write lock for ERROR_DELEGATES")
-                .insert(calculate_hash(obj), Box::new(sc_stream_delegate));
-            SCStreamDelegate(obj)
+                .insert(hash(instance_ptr), Box::new(sc_stream_delegate));
+            SCStreamDelegate(instance_ptr)
         }
     }
 }

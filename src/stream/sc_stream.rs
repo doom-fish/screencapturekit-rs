@@ -77,7 +77,7 @@ mod internal {
 
     pub fn add_stream_output(
         stream: &SCStream,
-        stream_output: &impl SCStreamOutputTrait,
+        stream_output: impl SCStreamOutputTrait,
         output_type: SCStreamOutputType,
     ) {
         let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
@@ -117,7 +117,7 @@ impl SCStream {
 
     pub fn add_stream_output(
         &self,
-        stream_output: &impl SCStreamOutputTrait,
+        stream_output: impl SCStreamOutputTrait,
         output_type: SCStreamOutputType,
     ) {
         internal::add_stream_output(self, stream_output, output_type);
