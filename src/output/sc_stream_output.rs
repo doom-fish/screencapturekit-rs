@@ -153,17 +153,16 @@ mod tests {
         shareable_content::sc_shareable_content::SCShareableContent,
         stream::{
             sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
-            sc_stream_delegate::SCStreamDelegateTrait,
         },
     };
 
     use super::*;
-    #[derive(Clone)]
-    struct StreamOutput {
+
+    struct TestStreamOutput {
         of_type: SCStreamOutputType,
     }
 
-    impl Default for StreamOutput {
+    impl Default for TestStreamOutput {
         fn default() -> Self {
             Self {
                 of_type: SCStreamOutputType::Screen,
@@ -171,7 +170,7 @@ mod tests {
         }
     }
 
-    impl SCStreamOutputTrait for StreamOutput {
+    impl SCStreamOutputTrait for TestStreamOutput {
         fn did_output_sample_buffer(
             &self,
             _stream: SCStream,
@@ -181,13 +180,12 @@ mod tests {
             assert_eq!(of_type, self.of_type);
         }
     }
-    impl SCStreamDelegateTrait for StreamOutput {}
     #[test]
     fn test_sc_stream_output_did_output_sample_buffer() {
-        let handle1 = SCStreamOutput::new(StreamOutput {
+        let handle1 = SCStreamOutput::new(TestStreamOutput {
             of_type: SCStreamOutputType::Audio,
         });
-        let handle2 = SCStreamOutput::new(StreamOutput {
+        let handle2 = SCStreamOutput::new(TestStreamOutput {
             of_type: SCStreamOutputType::Screen,
         });
 
@@ -195,7 +193,11 @@ mod tests {
         let display = SCShareableContent::get().unwrap().displays().remove(0);
 
         let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
-        let stream = SCStream::new(&filter, &config, StreamOutput::default());
+        let stream = {
+            let filter = &filter;
+            let configuration = &config;
+            SCStream::new(filter, configuration)
+        };
         let sample_buffer = CMSampleBuffer::new_empty();
         unsafe {
             let _: () = msg_send![handle1, stream: stream.as_CFTypeRef() didOutputSampleBuffer: sample_buffer.as_CFTypeRef() ofType: 1];

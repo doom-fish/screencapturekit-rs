@@ -89,7 +89,7 @@ pub fn get_string_property<TSubject: TCFType>(subject: &TSubject, selector: Sel)
     get_cftype_property(subject, selector)
         .map_or(String::new(), |cfstring: CFString| cfstring.to_string())
 }
-
+ 
 pub fn get_bool_property<TSubject: TCFType>(subject: &TSubject, selector: Sel) -> bool {
     get_cftype_property::<CFBoolean, TSubject>(subject, selector)
         .unwrap_or_else(CFBoolean::false_value)

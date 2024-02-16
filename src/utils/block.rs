@@ -1,7 +1,4 @@
-use std::{
-    os::raw::c_void,
-    sync::mpsc::{channel, Receiver},
-};
+use std::sync::mpsc::{channel, Receiver};
 
 use block::{ConcreteBlock, RcBlock};
 use core_foundation::{
@@ -36,7 +33,7 @@ where
     CompletionHandler(handler.copy(), rx)
 }
 pub struct VoidCompletionHandler(
-    pub RcBlock<(*mut c_void, CFErrorRef), ()>,
+    pub RcBlock<(CFErrorRef,), ()>,
     pub Receiver<Result<(), CFError>>,
 );
 
@@ -47,7 +44,7 @@ pub struct VoidCompletionHandler(
 /// Panics if .
 pub fn new_void_completion_handler() -> VoidCompletionHandler {
     let (tx, rx) = channel();
-    let handler = ConcreteBlock::new(move |_: *mut c_void, error: CFErrorRef| {
+    let handler = ConcreteBlock::new(move |error: CFErrorRef| {
         if error.is_null() {
             tx.send(Ok(())).expect("should work");
         } else {
