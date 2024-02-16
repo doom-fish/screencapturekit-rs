@@ -38,7 +38,7 @@ use core_foundation::boolean::CFBoolean;
 pub use internal::SCStreamConfiguration;
 use objc::{runtime::BOOL, sel, sel_impl};
 
-use crate::utils::objc::set_property;
+use crate::utils::objc::{get_property, set_property};
 
 impl SCStreamConfiguration {
     #[must_use]
@@ -70,8 +70,11 @@ impl SCStreamConfiguration {
     ///
     /// This function will return an error if .
     pub fn set_captures_audio(mut self, captures_audio: bool) -> Result<Self, String> {
-        set_property(&mut self, sel!(setCapturesAudio:), 1 as BOOL)?;
+        set_property(&mut self, sel!(setCapturesAudio:), i8::from(captures_audio))?;
         Ok(self)
+    }
+    pub fn get_captures_audio(&self) -> bool {
+        get_property(self, sel!(capturesAudio))
     }
     /// Sets capturesAudio of this [`SCStreamConfiguration`].
     ///

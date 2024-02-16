@@ -65,6 +65,7 @@ mod internal {
             of_type: i8,
         ) {
             unsafe {
+                println!("GOT   ");
                 if let Some(output_handler) = OUTPUT_HANDLERS
                     .read()
                     .expect("could not obtain read lock for OUTPUT_HANDLERS")
@@ -122,12 +123,12 @@ mod internal {
 }
 pub use internal::SCStreamOutput;
 
-#[repr(C)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum SCStreamOutputType {
     Screen = 0,
     Audio = 1,
 }
+
 pub trait SCStreamOutputTrait: Send + Sync + 'static {
     fn did_output_sample_buffer(
         &self,

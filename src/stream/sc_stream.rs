@@ -11,7 +11,10 @@ mod internal {
 
     #![allow(non_snake_case)]
 
-    use std::ffi::c_void;
+    use std::{
+        ffi::c_void,
+        mem::{self, ManuallyDrop},
+    };
 
     use crate::{
         output::sc_stream_output::{SCStreamOutput, SCStreamOutputTrait, SCStreamOutputType},
@@ -27,6 +30,7 @@ mod internal {
     };
     use core_foundation::{
         base::{CFTypeID, TCFType},
+        boolean::CFBoolean,
         declare_TCFType,
         error::{CFError, CFErrorRef},
         impl_TCFType,
@@ -52,7 +56,7 @@ mod internal {
     ) -> SCStream {
         unsafe {
             let instance: *mut Object = msg_send![class!(SCStream), alloc];
-            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate)];
+            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.clone().as_CFTypeRef()  configuration: configuration.clone().as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate)];
 
             SCStream::wrap_under_create_rule(instance)
         }
@@ -65,7 +69,7 @@ mod internal {
         impl SCStreamDelegateTrait for NoopDelegate {}
         unsafe {
             let instance: *mut Object = msg_send![class!(SCStream), alloc];
-            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(NoopDelegate)];
+            let instance: SCStreamRef = msg_send![instance, initWithFilter: filter.clone().as_CFTypeRef()  configuration: configuration.clone().as_CFTypeRef() delegate: SCStreamDelegate::new(NoopDelegate)];
 
             SCStream::wrap_under_create_rule(instance)
         }
@@ -94,10 +98,13 @@ mod internal {
         output_type: SCStreamOutputType,
     ) {
         let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
-        let stream_output = SCStreamOutput::new(stream_output);
-
+        let stream_output = ManuallyDrop::new(SCStreamOutput::new(stream_output));
+        let out_type = match output_type {
+            SCStreamOutputType::Screen => 0,
+            SCStreamOutputType::Audio => 1,
+        };
         unsafe {
-            let _: () = msg_send![stream.as_sendable(), addStreamOutput: stream_output type: output_type sampleHandlerQueue: queue error: std::ptr::null::<CFErrorRef>()];
+            let _: () = msg_send![stream.as_sendable(), addStreamOutput: stream_output type: out_type sampleHandlerQueue: queue error: std::ptr::null_mut::<CFErrorRef>()];
         };
     }
 }
@@ -147,10 +154,8 @@ impl SCStream {
 mod stream_test {
     use std::{
         error::Error,
-        sync::{
-            mpsc::{sync_channel, SyncSender},
-            Arc,
-        },
+        mem::ManuallyDrop,
+        sync::mpsc::{sync_channel, SyncSender},
         time::Duration,
     };
 
@@ -164,38 +169,34 @@ mod stream_test {
 
     use super::SCStream;
 
+    struct TestStreamOutput {
+        tx: SyncSender<()>,
+    }
+    impl SCStreamOutputTrait for TestStreamOutput {
+        fn did_output_sample_buffer(
+            &self,
+            _stream: SCStream,
+            _sample_buffer: crate::core_media::cm_sample_buffer::CMSampleBuffer,
+            of_type: SCStreamOutputType,
+        ) {
+            self.tx.send(()).expect("could not send");
+        }
+    }
     #[test]
     fn test_sc_stream() -> Result<(), Box<dyn Error>> {
-        struct TestStreamOutput {
-            tx: SyncSender<()>,
-        }
-        impl SCStreamOutputTrait for TestStreamOutput {
-            fn did_output_sample_buffer(
-                &self,
-                _stream: SCStream,
-                _sample_buffer: crate::core_media::cm_sample_buffer::CMSampleBuffer,
-                _of_type: SCStreamOutputType,
-            ) {
-                self.tx.send(()).expect("could not send");
-            }
-        }
-
-        // let (tx_screen, rx_screen) = sync_channel(2);
         let (tx_audio, rx_audio) = sync_channel(1);
+        let mut stream = {
+            let config = SCStreamConfiguration::new()
+                .set_width(100)?
+                .set_height(100)?
+                .set_captures_audio(true)?;
 
-        let config = SCStreamConfiguration::new().set_captures_audio(true)?;
-        let display = SCShareableContent::get().unwrap().displays().remove(1);
-        let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
-        let mut stream = SCStream::new(&filter, &config);
-        // stream.add_stream_output(
-        //     TestStreamOutput { tx: tx_screen },
-        //     SCStreamOutputType::Screen,
-        // );
+            let display = SCShareableContent::get().unwrap().displays().remove(1);
+            let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
+            SCStream::new(&filter, &config)
+        };
         stream.add_stream_output(TestStreamOutput { tx: tx_audio }, SCStreamOutputType::Audio);
         stream.start_capture()?;
-        // rx_screen
-        //     .recv_timeout(Duration::from_secs(2))
-        //     .expect("could not receive");
         rx_audio
             .recv_timeout(Duration::from_secs(5))
             .expect("could not receive");
