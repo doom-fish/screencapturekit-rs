@@ -34,8 +34,9 @@ mod internal {
     }
 }
 
+use core_foundation::boolean::CFBoolean;
 pub use internal::SCStreamConfiguration;
-use objc::{sel, sel_impl};
+use objc::{runtime::BOOL, sel, sel_impl};
 
 use crate::utils::objc::set_property;
 
@@ -63,6 +64,31 @@ impl SCStreamConfiguration {
         set_property(&mut self, sel!(setHeight:), height)?;
         Ok(self)
     }
+    /// Sets capturesAudio of this [`SCStreamConfiguration`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn set_captures_audio(mut self, captures_audio: bool) -> Result<Self, String> {
+        set_property(&mut self, sel!(setCapturesAudio:), 1 as BOOL)?;
+        Ok(self)
+    }
+    /// Sets capturesAudio of this [`SCStreamConfiguration`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn set_excludes_current_process_audio(
+        mut self,
+        excludes_current_process_audio: bool,
+    ) -> Result<Self, String> {
+        set_property(
+            &mut self,
+            sel!(setExcludesCurrentProcessAudio:),
+            CFBoolean::from(excludes_current_process_audio),
+        )?;
+        Ok(self)
+    }
 }
 
 impl Default for SCStreamConfiguration {
@@ -78,6 +104,7 @@ mod sc_stream_configuration_test {
     #[test]
     fn test_setters() -> Result<(), String> {
         SCStreamConfiguration::new()
+            .set_captures_audio(true)?
             .set_width(100)?
             .set_height(100)?;
         Ok(())

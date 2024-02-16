@@ -125,8 +125,8 @@ pub use internal::SCStreamOutput;
 #[repr(C)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum SCStreamOutputType {
-    Screen,
-    Audio,
+    Screen = 0,
+    Audio = 1,
 }
 pub trait SCStreamOutputTrait: Send + Sync + 'static {
     fn did_output_sample_buffer(

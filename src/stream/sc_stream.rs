@@ -147,12 +147,15 @@ impl SCStream {
 mod stream_test {
     use std::{
         error::Error,
-        sync::mpsc::{sync_channel, SyncSender},
+        sync::{
+            mpsc::{sync_channel, SyncSender},
+            Arc,
+        },
         time::Duration,
     };
 
     use crate::{
-        output::sc_stream_output::SCStreamOutputTrait,
+        output::sc_stream_output::{SCStreamOutputTrait, SCStreamOutputType},
         shareable_content::sc_shareable_content::SCShareableContent,
         stream::{
             sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
@@ -171,24 +174,30 @@ mod stream_test {
                 &self,
                 _stream: SCStream,
                 _sample_buffer: crate::core_media::cm_sample_buffer::CMSampleBuffer,
-                _of_type: crate::output::sc_stream_output::SCStreamOutputType,
+                _of_type: SCStreamOutputType,
             ) {
                 self.tx.send(()).expect("could not send");
             }
         }
 
-        let (tx, rx) = sync_channel(2);
-        let config = SCStreamConfiguration::new();
-        let display = SCShareableContent::get().unwrap().displays().remove(0);
+        // let (tx_screen, rx_screen) = sync_channel(2);
+        let (tx_audio, rx_audio) = sync_channel(1);
 
+        let config = SCStreamConfiguration::new().set_captures_audio(true)?;
+        let display = SCShareableContent::get().unwrap().displays().remove(1);
         let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
         let mut stream = SCStream::new(&filter, &config);
-        stream.add_stream_output(
-            TestStreamOutput { tx },
-            crate::output::sc_stream_output::SCStreamOutputType::Screen,
-        );
+        // stream.add_stream_output(
+        //     TestStreamOutput { tx: tx_screen },
+        //     SCStreamOutputType::Screen,
+        // );
+        stream.add_stream_output(TestStreamOutput { tx: tx_audio }, SCStreamOutputType::Audio);
         stream.start_capture()?;
-        rx.recv_timeout(Duration::from_secs(2))
+        // rx_screen
+        //     .recv_timeout(Duration::from_secs(2))
+        //     .expect("could not receive");
+        rx_audio
+            .recv_timeout(Duration::from_secs(5))
             .expect("could not receive");
         stream.stop_capture()?;
         Ok(())
