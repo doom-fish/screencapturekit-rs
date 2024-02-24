@@ -36,7 +36,7 @@ pub unsafe fn get_concrete_from_void<T: TCFType>(void_ptr: *const c_void) -> T {
 /// .
 ///
 /// # Safety
-///
+/// 
 /// .
 pub unsafe fn create_concrete_from_void<T: TCFType>(void_ptr: *const c_void) -> T {
     T::wrap_under_get_rule(T::Ref::from_void_ptr(void_ptr))

@@ -36,7 +36,7 @@ mod internal {
 
 use core_foundation::boolean::CFBoolean;
 pub use internal::SCStreamConfiguration;
-use objc::{runtime::BOOL, sel, sel_impl};
+use objc::{sel, sel_impl};
 
 use crate::utils::objc::{get_property, set_property};
 
@@ -70,9 +70,16 @@ impl SCStreamConfiguration {
     ///
     /// This function will return an error if .
     pub fn set_captures_audio(mut self, captures_audio: bool) -> Result<Self, String> {
-        set_property(&mut self, sel!(setCapturesAudio:), i8::from(captures_audio))?;
+        set_property(&mut self, sel!(setCapturesAudio:), captures_audio)?;
         Ok(self)
     }
+    // let _: () = msg_send![sys_ref, setWidth: value.width];
+    // let _: () = msg_send![sys_ref, setHeight: value.height];
+    // let _: () = msg_send![sys_ref, setCapturesAudio: value.captures_audio];
+    // let _: () = msg_send![sys_ref, setSourceRect: value.source_rect];
+    // let _: () = msg_send![sys_ref, setDestinationRect: value.destination_rect];
+    // let _: () = msg_send![sys_ref, setPixelFormat: value.pixel_format];
+    // let _: () = msg_send![sys_ref, setMinimumFrameInterval: value.minimum_frame_interval];
     pub fn get_captures_audio(&self) -> bool {
         get_property(self, sel!(capturesAudio))
     }
