@@ -10,7 +10,6 @@ mod internal {
     #![allow(non_snake_case)]
     #![allow(clippy::needless_pass_by_value)]
     use std::{
-        error::Error,
         ffi::c_void,
         ops::{Deref, DerefMut},
         ptr,
@@ -34,17 +33,20 @@ mod internal {
         class,
         declare::ClassDecl,
         msg_send,
-        runtime::{self, Class, Object, Sel},
+        runtime::{self, Object, Sel},
         sel, sel_impl,
     };
     use once_cell::sync::Lazy;
+
+    #[derive(Debug)]
+    #[repr(C)]
     pub struct SCStream {
         obj: *mut Object,
         // output_handler: Vec<Box<dyn SCStreamOutputTrait>>,
     }
     impl SCStream {
         fn test(&self) {
-            println!("TEST!");
+            println!("TEST! {self:?}");
         }
     }
 
@@ -69,12 +71,12 @@ mod internal {
         extern "C" fn stream_output(
             this: &Object,
             _cmd: Sel,
-            stream_ref: *const c_void,
-            sample_buffer_ref: *const c_void,
-            of_type: SCStreamOutputType,
+            _stream_ref: *const c_void,
+            _sample_buffer_ref: *const c_void,
+            _of_type: SCStreamOutputType,
         ) {
             unsafe {
-                let s: &SCStream = &*(this.get_ivar::<*mut c_void>("_stream").cast());
+                let s: &SCStream = ptr::read(this.get_ivar::<*mut c_void>("_stream").cast());
                 s.test();
             };
         }
@@ -93,12 +95,8 @@ mod internal {
         REGISTER_UNSAFE_SC_OUTPUT_HANDLER.call_once(register_objc_class);
         let output = unsafe { runtime::class_createInstance(class!(StreamOutput), 0) };
         unsafe {
-            (*output).set_ivar(
-                "_stream",
-                ptr::addr_of!(stream) as *const _ as *const c_void,
-            );
+            (*output).set_ivar("_stream", ptr::addr_of!(stream).cast::<c_void>());
             let _: () = msg_send![*stream, addStreamOutput: output type: SCStreamOutputType::Screen sampleHandlerQueue: QUEUE.clone() error: ptr::null_mut::<CFErrorRef>()];
-
             let _: () = msg_send![*stream, addStreamOutput: output type: SCStreamOutputType::Audio sampleHandlerQueue: QUEUE.clone() error: ptr::null_mut::<CFErrorRef>()];
         }
     }
