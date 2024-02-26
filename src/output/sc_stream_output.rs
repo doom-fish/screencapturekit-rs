@@ -127,22 +127,6 @@ mod internal {
 }
 use internal::store_output_trait;
 
-
-pub trait SCStreamOutputTrait: 'static + Send + Sync {
-    fn did_output_sample_buffer(
-        &self,
-        stream: SCStream,
-        sample_buffer: CMSampleBuffer,
-        of_type: SCStreamOutputType,
-    );
-    fn store(self) -> *mut objc::runtime::Object
-    where
-        Self: Sized,
-    {
-        store_output_trait(self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
