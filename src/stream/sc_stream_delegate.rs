@@ -125,7 +125,7 @@ mod tests {
 
     use objc::{msg_send, sel, sel_impl};
 
-    use crate::utils::error::internal::create_cf_error;
+    use crate::utils::error::create_cf_error;
 
     use super::*;
 

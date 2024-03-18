@@ -2,6 +2,7 @@ use core_foundation::{
     array::CFArray,
     base::{TCFType, TCFTypeRef},
     boolean::CFBoolean,
+    error::CFError,
     string::CFString,
 };
 use objc::runtime::{Object, Sel};
@@ -36,7 +37,7 @@ pub unsafe fn get_concrete_from_void<T: TCFType>(void_ptr: *const c_void) -> T {
 /// .
 ///
 /// # Safety
-/// 
+///
 /// .
 pub unsafe fn create_concrete_from_void<T: TCFType>(void_ptr: *const c_void) -> T {
     T::wrap_under_get_rule(T::Ref::from_void_ptr(void_ptr))
@@ -51,9 +52,10 @@ pub fn set_property<TSubject: TCFType, TValue>(
     subject: &mut TSubject,
     selector: Sel,
     value: TValue,
-) -> Result<(), String> {
+) -> Result<(), CFError> {
     unsafe {
-        objc::__send_message(subject.as_sendable(), selector, (value,)).map_err(|e| e.to_string())
+        objc::__send_message(subject.as_sendable(), selector, (value,))
+            .map_err(crate::utils::error::create_sc_error)
     }
 }
 /// .
@@ -89,7 +91,7 @@ pub fn get_string_property<TSubject: TCFType>(subject: &TSubject, selector: Sel)
     get_cftype_property(subject, selector)
         .map_or(String::new(), |cfstring: CFString| cfstring.to_string())
 }
- 
+
 pub fn get_bool_property<TSubject: TCFType>(subject: &TSubject, selector: Sel) -> bool {
     get_cftype_property::<CFBoolean, TSubject>(subject, selector)
         .unwrap_or_else(CFBoolean::false_value)

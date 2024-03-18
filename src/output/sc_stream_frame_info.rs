@@ -31,7 +31,7 @@ mod internal {
         string::CFString,
     };
 
-    use crate::utils::{error::internal::create_cf_error, objc::MessageForTFType};
+    use crate::utils::{error::create_cf_error, objc::MessageForTFType};
 
     use super::SCFrameStatus;
 

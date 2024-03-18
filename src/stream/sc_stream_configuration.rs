@@ -34,7 +34,7 @@ mod internal {
     }
 }
 
-use core_foundation::boolean::CFBoolean;
+use core_foundation::{boolean::CFBoolean, error::CFError};
 pub use internal::SCStreamConfiguration;
 use objc::{sel, sel_impl};
 
@@ -51,7 +51,7 @@ impl SCStreamConfiguration {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn set_width(mut self, width: u32) -> Result<Self, String> {
+    pub fn set_width(mut self, width: u32) -> Result<Self, CFError> {
         set_property(&mut self, sel!(setWidth:), width)?;
         Ok(self)
     }
@@ -60,7 +60,7 @@ impl SCStreamConfiguration {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn set_height(mut self, height: u32) -> Result<Self, String> {
+    pub fn set_height(mut self, height: u32) -> Result<Self, CFError> {
         set_property(&mut self, sel!(setHeight:), height)?;
         Ok(self)
     }
@@ -69,7 +69,7 @@ impl SCStreamConfiguration {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn set_captures_audio(mut self, captures_audio: bool) -> Result<Self, String> {
+    pub fn set_captures_audio(mut self, captures_audio: bool) -> Result<Self, CFError> {
         set_property(&mut self, sel!(setCapturesAudio:), captures_audio)?;
         Ok(self)
     }
@@ -91,7 +91,7 @@ impl SCStreamConfiguration {
     pub fn set_excludes_current_process_audio(
         mut self,
         excludes_current_process_audio: bool,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, CFError> {
         set_property(
             &mut self,
             sel!(setExcludesCurrentProcessAudio:),
@@ -109,10 +109,12 @@ impl Default for SCStreamConfiguration {
 
 #[cfg(test)]
 mod sc_stream_configuration_test {
+    use core_foundation::error::CFError;
+
     use super::SCStreamConfiguration;
 
     #[test]
-    fn test_setters() -> Result<(), String> {
+    fn test_setters() -> Result<(), CFError> {
         SCStreamConfiguration::new()
             .set_captures_audio(true)?
             .set_width(100)?

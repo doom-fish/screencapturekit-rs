@@ -55,7 +55,7 @@ mod internal {
     ) {
         unsafe {
             let windows = CFArray::from_CFTypes(clone_elements(excluding_windows).as_slice());
-            let _: () = msg_send![filter.as_sendable(), initWithDisplay: display.as_CFTypeRef() includingWindows: windows.as_CFTypeRef()];
+            let _: () = msg_send![filter.as_sendable(), initWithDisplay: display.as_CFTypeRef() excludingWindows: windows.as_CFTypeRef()];
         }
     }
     pub fn init_with_display_including_applications_excepting_windows(

@@ -2,7 +2,7 @@ mod internal {
 
     #![allow(non_snake_case)]
 
-    use std::{ffi::c_void, ptr};
+    use std::{ffi::c_void, ptr, sync::atomic::AtomicPtr};
 
     use core_foundation::{
         base::{kCFAllocatorDefault, Boolean, CFTypeID, OSStatus, TCFType},
@@ -10,8 +10,8 @@ mod internal {
         mach_port::CFAllocatorRef,
     };
 
-    #[repr(C)]
-    pub struct __CMSampleBufferRef(c_void);
+    pub type AtomicCMSampleBufferRef = AtomicPtr<__CMSampleBufferRef>;
+
     extern "C" {
         pub fn CMSampleBufferGetTypeID() -> CFTypeID;
         pub fn CMSampleBufferCreate(
@@ -30,10 +30,14 @@ mod internal {
         ) -> OSStatus;
 
     }
+    #[repr(C)]
+    pub struct __CMSampleBufferRef(c_void);
     pub type CMSampleBufferRef = *mut __CMSampleBufferRef;
 
     declare_TCFType! {CMSampleBuffer, CMSampleBufferRef}
     impl_TCFType!(CMSampleBuffer, CMSampleBufferRef, CMSampleBufferGetTypeID);
+
+    unsafe impl Send for __CMSampleBufferRef {}
     pub fn empty() -> Option<CMSampleBuffer> {
         let sampleBufferOut: CMSampleBufferRef = ptr::null_mut();
         unsafe {
@@ -60,7 +64,7 @@ mod internal {
     }
 }
 
-pub use internal::{CMSampleBuffer, CMSampleBufferRef};
+pub use internal::{AtomicCMSampleBufferRef, CMSampleBuffer, CMSampleBufferRef};
 
 impl CMSampleBuffer {
     /// Creates a new [`CMSampleBuffer`].
