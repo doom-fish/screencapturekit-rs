@@ -93,9 +93,7 @@ pub fn get_string_property<TSubject: TCFType>(subject: &TSubject, selector: Sel)
 }
 
 pub fn get_bool_property<TSubject: TCFType>(subject: &TSubject, selector: Sel) -> bool {
-    get_cftype_property::<CFBoolean, TSubject>(subject, selector)
-        .unwrap_or_else(CFBoolean::false_value)
-        .into()
+    get_property(subject, selector)
 }
 
 pub fn get_vec_property<TSubject: TCFType, TReturn: 'static + TCFType>(
