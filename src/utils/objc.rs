@@ -1,7 +1,6 @@
 use core_foundation::{
     array::CFArray,
     base::{TCFType, TCFTypeRef},
-    boolean::CFBoolean,
     error::CFError,
     string::CFString,
 };
