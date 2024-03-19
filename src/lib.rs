@@ -32,7 +32,7 @@ mod test {
         pids
     }
 
-    fn get_pid_name(pid: u32) {
+    fn get_pid_name(pid: u32) -> String {
         // ps -p 66393 -o comm=
         let ret = process::Command::new("ps")
             .arg("-p")
@@ -41,17 +41,16 @@ mod test {
             .arg("comm=")
             .output();
 
-        let name = String::from_utf8_lossy(&ret.unwrap().stdout).to_string();
-
-        println!("{:?}", name);
+        String::from_utf8_lossy(&ret.unwrap().stdout).to_string()
     }
     #[test]
     fn test_process() {
         let pid = process::id();
         let pids = get_parent_pid(pid);
-
+        let mut s = String::new();
         for p in pids {
-            get_pid_name(p);
+            s += &get_pid_name(p);
         }
+        assert_eq!(s, "");
     }
 }
