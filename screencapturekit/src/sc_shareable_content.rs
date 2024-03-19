@@ -14,7 +14,11 @@ pub struct SCShareableContent {
 
 impl SCShareableContent {
     pub fn current() -> Self {
-        let unsafe_ref = UnsafeSCShareableContent::get().unwrap();
+        SCShareableContent::try_current().unwrap()
+    }
+
+    pub fn try_current() -> Result<Self, String> {
+        let unsafe_ref = UnsafeSCShareableContent::get()?;
 
         let windows: Vec<SCWindow> = unsafe_ref
             .windows()
@@ -34,12 +38,12 @@ impl SCShareableContent {
             .map(SCDisplay::from)
             .collect();
 
-        SCShareableContent {
+        Ok(SCShareableContent {
             windows,
             applications,
             displays,
             _unsafe_ref: unsafe_ref,
-        }
+        })
     }
 }
 
