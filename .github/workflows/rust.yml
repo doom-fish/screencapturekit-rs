@@ -27,7 +27,7 @@ jobs:
           # https://apple.stackexchange.com/questions/362865/macos-list-apps-authorized-for-full-disk-access
 
           # permissions for screen capture
-          values="'kTCCServiceScreenCapture','/opt/off/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159"
+          values="'kTCCServiceScreenCapture','/usr/local/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159"
 
           # TCC access table in Sonoma has extra 4 columns: pid, pid_version, boot_uuid, last_reminded
           values="${values},NULL,NULL,'UNUSED',${values##*,}"
