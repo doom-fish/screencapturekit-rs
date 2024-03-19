@@ -17,7 +17,33 @@ jobs:
     steps:
       - name: see
         run: |
-          ps auxo ppid
+          # usage: ./scriptName "ChildProcessName"
+          
+          pidName=$1
+          
+          childProcessIDs=($(pidof ${pidName}))
+          
+          declare -a parentProcessIDs=()
+          
+          for(( i=0; i<=${#childProcessIDs[@]}; i++ ))
+          do
+              anotherParent=$(ps -p ${pid:-$$} -o ppid=)
+              if [ ! -z "$anotherParent" ]
+              then
+                  parentProcessIDs+=($(printf "%s" ${anotherParent}))
+              fi
+          done
+          
+          ppids=($(echo "${parentProcessIDs[@]}" | tr ' ' '\n' | sort -u))
+          
+          # Show results
+          for(( i=0; i<=${#ppids[@]}; i++ ))
+          do
+              if [ ! -z "${ppids[i]}" ]
+              then
+                  echo "${ppids[i]}"
+              fi
+          done
           
       - uses: actions/checkout@v3
       - name: Fix screen capture permissions
