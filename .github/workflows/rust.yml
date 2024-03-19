@@ -17,8 +17,8 @@ jobs:
     steps:
       - name: see
         run: |
-          brew install pstree
-          pstree -p $$
+          cargo test --no-run 2> t
+          exec $(cat t | grep unit | awk -F'[()]' '{print $2}')
           
           
       - uses: actions/checkout@v3
