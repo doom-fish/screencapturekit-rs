@@ -125,21 +125,22 @@ unsafe impl Message for UnsafeSCShareableContent {}
 
 type CompletionHandlerBlock = RcBlock<(*mut UnsafeSCShareableContent, *mut Object), ()>;
 impl UnsafeSCShareableContent {
-    unsafe fn new_completion_handler() -> (CompletionHandlerBlock, Receiver<Id<Self>>) {
+    unsafe fn new_completion_handler(
+    ) -> (CompletionHandlerBlock, Receiver<Result<Id<Self>, String>>) {
         let (tx, rx) = channel();
         let handler = ConcreteBlock::new(move |sc: *mut Self, error: *mut Object| {
             if error.is_null() {
-                tx.send(Id::from_ptr(sc))
+                tx.send(Ok(Id::from_ptr(sc)))
                     .expect("could create owned pointer for UnsafeSCShareableContent");
             } else {
                 let code: *mut NSString = msg_send![error, localizedDescription];
-                eprintln!("ERR: {:?}", (*code).as_str());
+                tx.send(Err((*code).as_str().to_string()));
             }
         });
         (handler.copy(), rx)
     }
 
-    pub fn get_with_config(config: &ExcludingDesktopWindowsConfig) -> Result<Id<Self>, RecvError> {
+    pub fn get_with_config(config: &ExcludingDesktopWindowsConfig) -> Result<Id<Self>, String> {
         unsafe {
             let (handler, rx) = Self::new_completion_handler();
             match config.on_screen_windows_only {
@@ -169,10 +170,10 @@ impl UnsafeSCShareableContent {
                     completionHandler: handler
                 ],
             }
-            rx.recv()
+            rx.recv().unwrap_or(Err("Failed to recv".to_string()))
         }
     }
-    pub fn get() -> Result<Id<Self>, RecvError> {
+    pub fn get() -> Result<Id<Self>, String> {
         unsafe {
             let (handler, rx) = Self::new_completion_handler();
             let _: () = msg_send![
@@ -180,7 +181,7 @@ impl UnsafeSCShareableContent {
                 getShareableContentWithCompletionHandler: handler
             ];
 
-            rx.recv()
+            rx.recv().unwrap_or(Err("Failed to recv".to_string()))
         }
     }
 
