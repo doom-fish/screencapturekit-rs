@@ -17,16 +17,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Fix screen capture permissions
-        if: ${{ matrix.os_version != 12 }}  # macOS-12 is okay
         run: |
           # https://apple.stackexchange.com/questions/362865/macos-list-apps-authorized-for-full-disk-access
 
           # permissions for screen capture
           values="'kTCCServiceScreenCapture','/opt/off/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159"
-          if [[ "${{ matrix.os_version }}" == "14" ]]; then
-            # TCC access table in Sonoma has extra 4 columns: pid, pid_version, boot_uuid, last_reminded
-            values="${values},NULL,NULL,'UNUSED',${values##*,}"
-          fi
+          
+          # TCC access table in Sonoma has extra 4 columns: pid, pid_version, boot_uuid, last_reminded
+          values="${values},NULL,NULL,'UNUSED',${values##*,}"
+          
 
           # system and user databases
           dbPaths=(
