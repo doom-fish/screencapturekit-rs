@@ -5,6 +5,8 @@ use core_foundation::error::CFError;
 
 use crate::core_media::cm_sample_buffer::CMSampleBuffer;
 
+use self::internal::OutputHandle;
+
 use super::{
     sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
     sc_stream_delegate::SCStreamDelegateTrait,
@@ -14,11 +16,7 @@ mod internal {
 
     #![allow(non_snake_case)]
     #![allow(clippy::needless_pass_by_value)]
-    use std::{
-        collections::HashMap,
-        ffi::c_void,
-        sync::{atomic::AtomicU32, Once, RwLock},
-    };
+    use std::{ffi::c_void, marker::PhantomData, ops::Deref, ptr, sync::Once};
 
     use crate::{
         core_media::cm_sample_buffer::CMSampleBuffer,
@@ -29,36 +27,20 @@ mod internal {
         },
         utils::{
             block::{new_void_completion_handler, VoidCompletionHandler},
-            objc::{create_concrete_from_void, get_concrete_from_void, MessageForTFType},
+            objc::get_concrete_from_void,
         },
     };
-    use core_foundation::{
-        base::{CFTypeID, TCFType},
-        declare_TCFType,
-        error::CFError,
-        impl_TCFType,
-    };
+    use core_foundation::{base::TCFType, error::CFError};
     use dispatch::{Queue, QueueAttribute};
     use objc::{
         class,
         declare::ClassDecl,
         msg_send,
         runtime::{self, Object, Sel},
-        sel, sel_impl,
+        sel, sel_impl, Message,
     };
-    use once_cell::sync::Lazy;
 
     use super::{SCStreamOutputTrait, SCStreamOutputType};
-
-    #[repr(C)]
-    pub struct __SCStreamRef(c_void);
-    pub type SCStreamRef = *mut __SCStreamRef;
-
-    extern "C" {
-        pub fn SCStreamGetTypeID() -> CFTypeID;
-    }
-    declare_TCFType! {SCStream, SCStreamRef}
-    impl_TCFType!(SCStream, SCStreamRef, SCStreamGetTypeID);
 
     unsafe impl objc::Encode for SCStreamOutputType {
         fn encode() -> objc::Encoding {
@@ -66,71 +48,123 @@ mod internal {
         }
     }
 
-    type SenderMap = HashMap<u32, Box<dyn SCStreamOutputTrait + 'static + Send + Sync>>;
-    static OUTPUT_HANDLERS: Lazy<RwLock<SenderMap>> = Lazy::new(|| RwLock::new(HashMap::new()));
+    pub struct SCStream<T: SCStreamOutputTrait> {
+        traits: Vec<TraitHolder<T>>,
+        obj: *mut Object,
+    }
 
-    impl SCStream {
-        fn internal_register_objc_class() {
+    impl<T: SCStreamOutputTrait> Drop for SCStream<T> {
+        fn drop(&mut self) {
+            unsafe {
+                println!("Dropping SCStream");
+                // drop all the trait objects
+                self.traits.iter().for_each(|t| {
+                    // drop trait ptr
+                    println!("Dropping trait object");
+                    ptr::drop_in_place(t.trait_object);
+                });
+
+                runtime::object_dispose(self.obj);
+            }
+        }
+    }
+    #[repr(C)]
+    struct TraitHolder<T: SCStreamOutputTrait> {
+        pub trait_object: *mut Box<T>,
+        data: PhantomData<T>,
+    }
+
+    impl<T: SCStreamOutputTrait> Deref for TraitHolder<T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            unsafe { &*self.trait_object }
+        }
+    }
+
+    impl<T: SCStreamOutputTrait> Clone for TraitHolder<T> {
+        fn clone(&self) -> Self {
+            Self {
+                trait_object: self.trait_object,
+                data: PhantomData,
+            }
+        }
+    }
+
+    unsafe impl<T: SCStreamOutputTrait> objc::Encode for TraitHolder<T> {
+        fn encode() -> objc::Encoding {
+            unsafe { objc::Encoding::from_str("^v") }
+        }
+    }
+    unsafe impl<T: SCStreamOutputTrait> Message for TraitHolder<T> {}
+    impl<T: SCStreamOutputTrait> TraitHolder<T> {
+        pub fn from(output: T) -> Self {
+            Self {
+                trait_object: Box::into_raw(Box::new(Box::new(output))),
+                data: PhantomData,
+            }
+        }
+    }
+
+    pub type OutputHandle = *mut Object;
+    impl<T: SCStreamOutputTrait> SCStream<T> {
+        fn internal_register_output_class() {
             type StreamOutputMethod =
-                extern "C" fn(&Object, Sel, *const c_void, *const c_void, SCStreamOutputType);
-            extern "C" fn stream_output(
+                extern "C" fn(&Object, Sel, *mut Object, *const c_void, SCStreamOutputType);
+
+            extern "C" fn stream_output<T: SCStreamOutputTrait>(
                 this: &Object,
                 _cmd: Sel,
-                stream_ref: *const c_void,
+                _stream_ref: *mut Object,
                 sample_buffer_ref: *const c_void,
                 of_type: SCStreamOutputType,
             ) {
-                let id: &u32 = unsafe { this.get_ivar("channel_hash") };
-                let stream: SCStream = unsafe { get_concrete_from_void(stream_ref) };
-                let cm_sample_buffer: CMSampleBuffer =
+                let holder = unsafe { this.get_ivar::<TraitHolder<T>>("trait_holder") };
+                let sample_buffer: CMSampleBuffer =
                     unsafe { get_concrete_from_void(sample_buffer_ref) };
-                OUTPUT_HANDLERS
-                    .read()
-                    .map(|m| {
-                        m.get(id)
-                            .expect("should have a sender")
-                            .did_output_sample_buffer(stream, cm_sample_buffer, of_type);
-                    })
-                    .expect("should be able to obtain lock");
+                holder.did_output_sample_buffer(sample_buffer, of_type);
             }
             let mut decl =
                 ClassDecl::new("StreamOutput", class!(NSObject)).expect("Could not register class");
-
             unsafe {
-                let output_handler: StreamOutputMethod = stream_output;
-
+                let output_handler: StreamOutputMethod = stream_output::<T>;
                 decl.add_method(sel!(stream:didOutputSampleBuffer:ofType:), output_handler);
-                decl.add_ivar::<u32>("channel_hash");
+                decl.add_ivar::<TraitHolder<T>>("trait_holder");
                 decl.register();
             }
         }
-        /// .
-        ///
-        /// # Panics
-        ///
-        /// Panics if .
-        pub fn internal_add_output_handler(
+
+        pub(crate) fn internal_remove_output_handler(
             &mut self,
-            output: impl SCStreamOutputTrait,
+            output_handle: OutputHandle,
             of_type: SCStreamOutputType,
         ) {
-            static REGISTER_ONCE: Once = Once::new();
-            static ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+            unsafe {
+                let error = runtime::class_createInstance(class!(NSObject), 0);
+                let _: () = msg_send![self.obj, removeStreamOutput: output_handle type: of_type error:error];
+            }
+        }
 
-            REGISTER_ONCE.call_once(Self::internal_register_objc_class);
-            let id = ID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        pub(crate) fn internal_add_output_handler(
+            &mut self,
+            outputTrait: T,
+            of_type: SCStreamOutputType,
+        ) -> OutputHandle {
+            static REGISTER_ONCE: Once = Once::new();
+            REGISTER_ONCE.call_once(Self::internal_register_output_class);
+
             unsafe {
                 let output = runtime::class_createInstance(class!(StreamOutput), 0);
-                (*output).set_ivar("channel_hash", id);
+                let t = TraitHolder::from(outputTrait);
+                (*output).set_ivar("trait_holder", t.clone());
                 let error = runtime::class_createInstance(class!(NSObject), 0);
+
                 let queue = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
 
-                let _: () = msg_send![self.as_sendable(), addStreamOutput: output type: of_type sampleHandlerQueue: queue  error: error];
+                let _: () = msg_send![self.obj, addStreamOutput: output type: of_type sampleHandlerQueue: queue  error: error];
+                self.traits.push(t);
+                output
             }
-            OUTPUT_HANDLERS
-                .write()
-                .expect("should be able to obtain lock")
-                .insert(id, Box::new(output));
         }
 
         pub fn internal_init_with_filter_and_delegate(
@@ -139,9 +173,12 @@ mod internal {
             stream_delegate: impl SCStreamDelegateTrait,
         ) -> Self {
             unsafe {
-                let instance: *mut Object = msg_send![class!(SCStream), alloc];
-                let instance: *mut c_void = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate)];
-                create_concrete_from_void(instance)
+                let obj: *mut Object = msg_send![class!(SCStream), alloc];
+                let obj: *mut Object = msg_send![obj, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: SCStreamDelegate::new(stream_delegate)];
+                Self {
+                    obj,
+                    traits: vec![],
+                }
             }
         }
         pub fn internal_init_with_filter(
@@ -152,11 +189,7 @@ mod internal {
             impl SCStreamDelegateTrait for NoopDelegate {
                 fn did_stop_with_error(&self, _error: CFError) {}
             }
-            unsafe {
-                let instance: *mut Object = msg_send![class!(SCStream), alloc];
-                let instance: *mut c_void = msg_send![instance, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: NoopDelegate];
-                create_concrete_from_void(instance)
-            }
+            Self::internal_init_with_filter_and_delegate(&filter, &configuration, NoopDelegate)
         }
         /// Returns the internal start capture of this [`SCStream<T>`].
         ///
@@ -170,8 +203,7 @@ mod internal {
         pub fn internal_start_capture(&self) -> Result<(), CFError> {
             unsafe {
                 let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
-                let _: () =
-                    msg_send![self.as_sendable(), startCaptureWithCompletionHandler: handler];
+                let _: () = msg_send![self.obj, startCaptureWithCompletionHandler: handler];
 
                 rx.recv()
                     .expect("Should receive a return from completion handler")
@@ -190,8 +222,7 @@ mod internal {
             unsafe {
                 let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
 
-                let _: () =
-                    msg_send![self.as_sendable(), stopCaptureWithCompletionHandler: handler];
+                let _: () = msg_send![self.obj, stopCaptureWithCompletionHandler: handler];
 
                 rx.recv()
                     .expect("Should receive a return from completion handler")
@@ -215,15 +246,10 @@ impl Display for SCStreamOutputType {
         }
     }
 }
-pub trait SCStreamOutputTrait: 'static + Sync + Send {
-    fn did_output_sample_buffer(
-        &self,
-        stream: SCStream,
-        sample_buffer: CMSampleBuffer,
-        of_type: SCStreamOutputType,
-    );
+pub trait SCStreamOutputTrait: Sync + Send {
+    fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType);
 }
-impl SCStream {
+impl<T: SCStreamOutputTrait> SCStream<T> {
     /// .
     pub fn new_with_error_delegate(
         filter: &SCContentFilter,
@@ -238,10 +264,18 @@ impl SCStream {
     }
     pub fn add_output_handler(
         &mut self,
-        output_trait: impl SCStreamOutputTrait,
+        output_trait: T,
+        of_type: SCStreamOutputType,
+    ) -> OutputHandle {
+        self.internal_add_output_handler(output_trait, of_type)
+    }
+
+    pub fn remove_output_handler(
+        &mut self,
+        outout_handle: OutputHandle,
         of_type: SCStreamOutputType,
     ) {
-        self.internal_add_output_handler(output_trait, of_type);
+        self.internal_remove_output_handler(outout_handle, of_type);
     }
 
     /// Returns the start capture of this [`SCStream`].
@@ -286,7 +320,6 @@ mod stream_test {
     impl SCStreamOutputTrait for TestStreamOutput {
         fn did_output_sample_buffer(
             &self,
-            _stream: SCStream,
             _sample_buffer: CMSampleBuffer,
             of_type: SCStreamOutputType,
         ) {
@@ -296,10 +329,26 @@ mod stream_test {
         }
     }
     #[test]
+    fn test_remove_output_handler() -> Result<(), CFError> {
+        let c = channel();
+        let output_handler = TestStreamOutput { sender: c.0 };
+        let config = SCStreamConfiguration::new()
+            .set_captures_audio(true)?
+            .set_width(100)?
+            .set_height(100)?;
+        let display = SCShareableContent::get().unwrap().displays().remove(1);
+        let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
+        let mut stream = SCStream::new(&filter, &config);
+        let id = stream.add_output_handler(output_handler, SCStreamOutputType::Screen);
+        stream.remove_output_handler(id, SCStreamOutputType::Screen);
+        drop(stream);
+        Ok(())
+    }
+
+    #[test]
     fn test_sc_stream() -> Result<(), CFError> {
         for expected_type in [SCStreamOutputType::Screen, SCStreamOutputType::Audio] {
             let (tx, rx) = channel();
-            let output_handler = TestStreamOutput { sender: tx };
 
             let stream = {
                 let config = SCStreamConfiguration::new()
@@ -311,16 +360,16 @@ mod stream_test {
                 let filter =
                     SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
                 let mut stream = SCStream::new(&filter, &config);
-                stream.add_output_handler(output_handler, expected_type);
+                stream.add_output_handler(TestStreamOutput { sender: tx.clone() }, expected_type);
                 stream
             };
             stream.start_capture()?;
             let got_type = rx
                 .recv_timeout(std::time::Duration::from_secs(10))
                 .expect("could not receive from output_buffer");
-
             assert_eq!(got_type, expected_type);
             stream.stop_capture()?;
+            drop(stream);
         }
         Ok(())
     }
