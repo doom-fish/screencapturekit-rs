@@ -2,8 +2,7 @@ use core::fmt;
 use std::fmt::Display;
 
 use core_foundation::error::CFError;
-
-use crate::core_media::cm_sample_buffer::CMSampleBuffer;
+use core_media_rs::cm_sample_buffer::CMSampleBuffer;
 
 use self::internal::OutputHandle;
 
@@ -19,7 +18,6 @@ mod internal {
     use std::{ffi::c_void, marker::PhantomData, ops::Deref, ptr, sync::Once};
 
     use crate::{
-        core_media::cm_sample_buffer::CMSampleBuffer,
         stream::{
             sc_content_filter::SCContentFilter,
             sc_stream_configuration::SCStreamConfiguration,
@@ -31,6 +29,7 @@ mod internal {
         },
     };
     use core_foundation::{base::TCFType, error::CFError};
+    use core_media_rs::cm_sample_buffer::CMSampleBuffer;
     use dispatch::{Queue, QueueAttribute};
     use objc::{
         class,
@@ -56,11 +55,7 @@ mod internal {
     impl<T: SCStreamOutputTrait> Drop for SCStream<T> {
         fn drop(&mut self) {
             unsafe {
-                println!("Dropping SCStream");
-                // drop all the trait objects
                 self.traits.iter().for_each(|t| {
-                    // drop trait ptr
-                    println!("Dropping trait object");
                     ptr::drop_in_place(t.trait_object);
                 });
 
@@ -167,7 +162,7 @@ mod internal {
             }
         }
 
-        pub fn internal_init_with_filter_and_delegate(
+        pub(crate) fn internal_init_with_filter_and_delegate(
             filter: &SCContentFilter,
             configuration: &SCStreamConfiguration,
             stream_delegate: impl SCStreamDelegateTrait,
@@ -181,7 +176,7 @@ mod internal {
                 }
             }
         }
-        pub fn internal_init_with_filter(
+        pub(crate) fn internal_init_with_filter(
             filter: SCContentFilter,
             configuration: SCStreamConfiguration,
         ) -> Self {
@@ -200,7 +195,7 @@ mod internal {
         /// # Errors
         ///
         /// This function will return an error if .
-        pub fn internal_start_capture(&self) -> Result<(), CFError> {
+        pub(crate) fn internal_start_capture(&self) -> Result<(), CFError> {
             unsafe {
                 let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
                 let _: () = msg_send![self.obj, startCaptureWithCompletionHandler: handler];
@@ -218,7 +213,7 @@ mod internal {
         /// # Errors
         ///
         /// This function will return an error if .
-        pub fn internal_stop_capture(&self) -> Result<(), CFError> {
+        pub(crate) fn internal_stop_capture(&self) -> Result<(), CFError> {
             unsafe {
                 let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
 
@@ -250,7 +245,6 @@ pub trait SCStreamOutputTrait: Sync + Send {
     fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType);
 }
 impl<T: SCStreamOutputTrait> SCStream<T> {
-    /// .
     pub fn new_with_error_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
@@ -262,6 +256,7 @@ impl<T: SCStreamOutputTrait> SCStream<T> {
     pub fn new(filter: &SCContentFilter, configuration: &SCStreamConfiguration) -> Self {
         Self::internal_init_with_filter(filter.clone(), configuration.clone())
     }
+
     pub fn add_output_handler(
         &mut self,
         output_trait: T,
@@ -302,9 +297,9 @@ mod stream_test {
     use std::sync::mpsc::{channel, Sender};
 
     use core_foundation::error::CFError;
+    use core_media_rs::cm_sample_buffer::CMSampleBuffer;
 
     use crate::{
-        core_media::cm_sample_buffer::CMSampleBuffer,
         shareable_content::sc_shareable_content::SCShareableContent,
         stream::{
             sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
@@ -312,6 +307,7 @@ mod stream_test {
     };
 
     use super::{SCStream, SCStreamOutputTrait, SCStreamOutputType};
+
     #[derive(Debug)]
     struct TestStreamOutput {
         sender: Sender<SCStreamOutputType>,

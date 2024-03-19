@@ -50,7 +50,6 @@ mod internal {
 
     fn register_objc_class() -> Result<&'static Class, Box<dyn Error>> {
         extern "C" fn dealloc(this: &mut Object, _cmd: Sel) {
-            println!("Deallocating SCStreamOutput");
             unsafe {
                 let handler_key: &OpaqueIdentifier = this.get_ivar("_output_handler");
                 OUTPUT_HANDLERS
