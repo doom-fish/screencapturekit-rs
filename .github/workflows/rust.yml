@@ -17,6 +17,7 @@ jobs:
     steps:
       - name: see
         run: |
+          brew install pidof
           # usage: ./scriptName "ChildProcessName"
           
           pidName=$1
