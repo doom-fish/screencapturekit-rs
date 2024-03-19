@@ -50,7 +50,7 @@ jobs:
       - name: Update rust
         run: rustup update
       - name: see_parent
-        run: cargo run --example get_pid
+        run: cargo test test::test_process -- --nocapture
       - name: Build
         run: cargo build --verbose --features ci
       - name: Run tests
