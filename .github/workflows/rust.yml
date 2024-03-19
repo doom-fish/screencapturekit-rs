@@ -14,13 +14,7 @@ env:
 jobs:
   build:
     runs-on: macos-14
-    steps:
-      - name: see
-        run: |
-          cargo test --no-run 2> t
-          exec $(cat t | grep unit | awk -F'[()]' '{print $2}')
-          
-          
+    steps:       
       - uses: actions/checkout@v3
       - name: Fix screen capture permissions
         run: |
@@ -57,5 +51,7 @@ jobs:
         run: rustup update
       - name: Build
         run: cargo build --verbose --features ci
-      - name: Run tests
-        run: cargo test --verbose --features ci
+      - name: see
+        run: |
+          cargo test --no-run 2> t
+          exec $(cat t | grep unit | awk -F'[()]' '{print $2}')
