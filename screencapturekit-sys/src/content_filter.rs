@@ -58,14 +58,14 @@ impl UnsafeContentFilter {
                     applications,
                     windows,
                 ) => {
-                    let _: () = msg_send![content_filter, initWithDisplay : display excludingApplications : NSArray::from_vec(applications) exceptingWindows:  NSArray::from_vec(windows)];
+                    let _: () = msg_send![content_filter, initWithDisplay : display includingApplications: NSArray::from_vec(applications) exceptingWindows:  NSArray::from_vec(windows)];
                 }
                 UnsafeInitParams::DisplayExcludingApplicationsExceptingWindows(
                     display,
                     applications,
                     windows,
                 ) => {
-                    let _: () = msg_send![content_filter, initWithDisplay : display includingApplications : NSArray::from_vec(applications) exceptingWindows: NSArray::from_vec(windows)];
+                    let _: () = msg_send![content_filter, initWithDisplay : display excludingApplications : NSArray::from_vec(applications) exceptingWindows: NSArray::from_vec(windows)];
                 }
             }
         };
