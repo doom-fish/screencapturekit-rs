@@ -26,6 +26,8 @@ impl From<UnsafeStreamConfiguration> for Id<UnsafeStreamConfigurationRef> {
             let _: () = msg_send![sys_ref, setMinimumFrameInterval: value.minimum_frame_interval];
             let _: () = msg_send![sys_ref, setScalesToFit: value.scales_to_fit];
             let _: () = msg_send![sys_ref, setShowsCursor: value.shows_cursor];
+            let _: () = msg_send![sys_ref, setChannelCount: value.channel_count];
+            let _: () = msg_send![sys_ref, setSampleRate: value.sample_rate];
             // let _: () =
             // msg_send![sys_ref, setSetPreservesAspectRatio: value.preserves_aspect_ratio];
         }
