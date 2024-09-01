@@ -2,9 +2,7 @@
 
 > [!warning]
 > This project is not ready for production. The main branch has memory leak issues.
-> These will be solved when #27 is merged.
-
-
+> These will be solved when [#27](https://github.com/svtlabs/screencapturekit-rs/pull/27) is merged.
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
