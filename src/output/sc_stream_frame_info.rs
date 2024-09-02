@@ -67,7 +67,9 @@ mod internal {
 
             let status = CFNumber::wrap_under_get_rule(raw_status);
 
-            Ok(mem::transmute(status.to_i32().unwrap() as i32))
+            Ok(mem::transmute::<i32, SCFrameStatus>(
+                status.to_i32().unwrap() as i32,
+            ))
         }
     }
 }

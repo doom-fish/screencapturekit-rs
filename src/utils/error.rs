@@ -5,7 +5,12 @@ use core_foundation::{
     error::{CFError, CFErrorCreate},
     string::CFString,
 };
-
+/// .
+///
+/// # Panics
+///
+/// Panics if .
+#[allow(clippy::module_name_repetitions)]
 pub fn create_cf_error(domain: &str, code: isize) -> CFError {
     unsafe {
         CFError::wrap_under_create_rule(CFErrorCreate(
@@ -18,6 +23,12 @@ pub fn create_cf_error(domain: &str, code: isize) -> CFError {
         ))
     }
 }
+/// .
+///
+/// # Panics
+///
+/// Panics if .
+#[allow(clippy::module_name_repetitions)]
 pub fn create_sc_error(message: impl Display) -> CFError {
     unsafe {
         CFError::wrap_under_create_rule(CFErrorCreate(
