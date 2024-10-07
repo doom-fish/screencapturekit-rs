@@ -1,5 +1,4 @@
 use core_foundation::error::CFError;
-use core_media_rs::cm_sample_buffer::CMSampleBuffer;
 
 use super::{
     internal_stream::SCStream, sc_content_filter::SCContentFilter,
@@ -7,7 +6,7 @@ use super::{
     sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
 };
 
-impl SCStream {
+impl<'a> SCStream<'a> {
     pub fn new_with_error_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
@@ -24,7 +23,7 @@ impl SCStream {
 
     pub fn add_output_handler(
         &mut self,
-        output_trait: impl SCStreamOutputTrait,
+        output_trait: impl SCStreamOutputTrait + 'a,
         of_type: SCStreamOutputType,
     ) -> usize {
         self.internal_add_output_handler(output_trait, of_type)
