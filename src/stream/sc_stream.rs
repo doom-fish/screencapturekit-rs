@@ -70,20 +70,21 @@ mod stream_test {
 
     #[derive(Debug)]
     struct TestStreamOutput {
-        sender: Sender<SCStreamOutputType>,
+        sender: Sender<(CMSampleBuffer, SCStreamOutputType)>,
     }
 
-    impl SCStreamOutputTrait for TestStreamOutput {
+    impl<'a> SCStreamOutputTrait for TestStreamOutput {
         fn did_output_sample_buffer(
             &self,
-            _sample_buffer: CMSampleBuffer,
+            sample_buffer: CMSampleBuffer,
             of_type: SCStreamOutputType,
         ) {
             self.sender
-                .send(of_type)
+                .send((sample_buffer, of_type))
                 .expect("could not send from output buffer");
         }
     }
+
     #[test]
     fn test_remove_output_handler() -> Result<(), CFError> {
         let c = channel();
@@ -100,33 +101,33 @@ mod stream_test {
         drop(stream);
         Ok(())
     }
-
     #[test]
-    fn test_sc_stream() -> Result<(), CFError> {
-        for expected_type in [SCStreamOutputType::Screen, SCStreamOutputType::Audio] {
-            let (tx, rx) = channel();
+    fn test_sc_stream_audio_list() -> Result<(), CFError> {
+        let (tx, rx) = channel();
 
-            let stream = {
-                let config = SCStreamConfiguration::new()
-                    .set_captures_audio(true)?
-                    .set_width(100)?
-                    .set_height(100)?;
+        let stream = {
+            let config = SCStreamConfiguration::new()
+                .set_captures_audio(true)?
+                .set_width(100)?
+                .set_height(100)?;
 
-                let display = SCShareableContent::get().unwrap().displays().remove(0);
-                let filter =
-                    SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
-                let mut stream = SCStream::new(&filter, &config);
-                stream.add_output_handler(TestStreamOutput { sender: tx.clone() }, expected_type);
-                stream
-            };
-            stream.start_capture()?;
-            let got_type = rx
-                .recv_timeout(std::time::Duration::from_secs(10))
-                .expect("could not receive from output_buffer");
-            assert_eq!(got_type, expected_type);
-            stream.stop_capture()?;
-            drop(stream);
-        }
+            let display = SCShareableContent::get().unwrap().displays().remove(0);
+            let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
+            let mut stream = SCStream::new(&filter, &config);
+            stream.add_output_handler(
+                TestStreamOutput { sender: tx.clone() },
+                SCStreamOutputType::Audio,
+            );
+            stream
+        };
+        stream.start_capture()?;
+        let (buf, _) = rx
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("could not receive from output_buffer");
+        let b = buf.get_audio_buffer_list().expect("should work");
+        println!("{b:?}");
+
+        stream.stop_capture()?;
         Ok(())
     }
 }

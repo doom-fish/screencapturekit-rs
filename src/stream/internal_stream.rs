@@ -207,7 +207,7 @@ mod test {
         pub test_ref: &'a str,
         pub output: String,
     }
-    impl SCStreamOutputTrait for OutputHandler<'_> {
+    impl<'a> SCStreamOutputTrait for OutputHandler<'a> {
         fn did_output_sample_buffer(
             &self,
             sample_buffer: core_media_rs::cm_sample_buffer::CMSampleBuffer,
