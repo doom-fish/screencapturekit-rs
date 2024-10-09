@@ -1,10 +1,10 @@
 use core_foundation::error::CFError;
 
 use super::{
-    internal_stream::SCStream, sc_content_filter::SCContentFilter,
-    sc_stream_configuration::SCStreamConfiguration, sc_stream_delegate::SCStreamDelegateTrait,
-    sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
+    sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration, sc_stream_delegate::SCStreamDelegateTrait, sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType
 };
+
+pub use super::internal_stream::SCStream;
 
 impl<'a> SCStream<'a> {
     pub fn new_with_error_delegate(
@@ -114,10 +114,7 @@ mod stream_test {
             let display = SCShareableContent::get().unwrap().displays().remove(0);
             let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
             let mut stream = SCStream::new(&filter, &config);
-            stream.add_output_handler(
-                TestStreamOutput { sender: tx.clone() },
-                SCStreamOutputType::Audio,
-            );
+            stream.add_output_handler(TestStreamOutput { sender: tx }, SCStreamOutputType::Audio);
             stream
         };
         stream.start_capture()?;
