@@ -73,7 +73,7 @@ mod stream_test {
         sender: Sender<(CMSampleBuffer, SCStreamOutputType)>,
     }
 
-    impl<'a> SCStreamOutputTrait for TestStreamOutput {
+    impl SCStreamOutputTrait for TestStreamOutput {
         fn did_output_sample_buffer(
             &self,
             sample_buffer: CMSampleBuffer,

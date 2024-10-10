@@ -1,7 +1,3 @@
-use std::{
-    fs::OpenOptions, io::Write, sync::mpsc::{channel, Sender}
-};
-
 use core_foundation::error::CFError;
 use core_media_rs::cm_sample_buffer::CMSampleBuffer;
 use screencapturekit::{
@@ -11,6 +7,13 @@ use screencapturekit::{
         sc_stream_configuration::SCStreamConfiguration,
         sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
     },
+};
+
+use std::{
+    fs::OpenOptions,
+    io::Write,
+    sync::mpsc::{channel, Sender},
+    thread,
 };
 
 struct AudioStreamOutput {
@@ -40,20 +43,22 @@ fn main() -> Result<(), CFError> {
     };
     stream.start_capture()?;
 
-    let max_number_of_samples: i32 = 20;
+    let max_number_of_samples: i32 = 100;
 
-    for _ in 0..max_number_of_samples {
+    for i in 0..max_number_of_samples {
         let (buf, _) = rx
             .recv_timeout(std::time::Duration::from_secs(10))
             .expect("could not receive from output_buffer");
-        let b = buf.get_audio_buffer_list().expect("should work");
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true) // Use append mode
-            .open("out.raw")
-            .expect("failed to open file");
 
+        println!("Number of buffers: {}", i);
+        let b = buf.get_audio_buffer_list().expect("should work");
         for i in 0..b.number_buffers {
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true) // Use append mode
+                .open(format!("out_{i}.raw"))
+                .expect("failed to open file");
+
             let buf = b.buffers[i as usize];
             println!(
                 "  {}: channels={}, size={}",
@@ -66,6 +71,7 @@ fn main() -> Result<(), CFError> {
             }
         }
     }
+    thread::sleep(std::time::Duration::from_secs(1));
 
     stream.stop_capture()
 }

@@ -8,13 +8,14 @@ use crate::{
     },
     utils::{
         block::{new_void_completion_handler, VoidCompletionHandler},
-        objc::get_concrete_from_void,
+        objc::{create_concrete_from_void, get_concrete_from_void},
     },
 };
 use core_foundation::base::TCFType;
 use core_foundation::error::CFError;
 use core_media_rs::cm_sample_buffer::CMSampleBuffer;
-use dispatch::{Queue, QueueAttribute};
+use dispatch::{Queue, QueuePriority};
+
 use objc::{
     class,
     declare::ClassDecl,
@@ -96,12 +97,9 @@ impl<'a> SCStream<'a> {
             sample_buffer_ref: *const c_void,
             of_type: SCStreamOutputType,
         ) {
+            let sc_stream: &&mut SCStream = unsafe { this.get_ivar("super") };
             let sample_buffer: CMSampleBuffer =
                 unsafe { get_concrete_from_void(sample_buffer_ref) };
-
-            #[allow(clippy::mut_mut)]
-            let sc_stream: &&mut SCStream = unsafe { this.get_ivar("super") };
-
             sc_stream.call_handlers(&sample_buffer, of_type);
         }
         let mut decl =
@@ -113,10 +111,8 @@ impl<'a> SCStream<'a> {
             decl.register();
             self.output_handle = runtime::class_createInstance(class!(StreamOutput), 0);
             let error = runtime::class_createInstance(class!(NSObject), 0);
-            let queue1 = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
-            let queue2 = Queue::create("fish.doom.screencapturekit", QueueAttribute::Concurrent);
-            let _: () = msg_send![self.inner, addStreamOutput: self.output_handle type: SCStreamOutputType::Audio  sampleHandlerQueue: queue1  error: error];
-            let _: () = msg_send![self.inner, addStreamOutput: self.output_handle type: SCStreamOutputType::Screen sampleHandlerQueue: queue2 error: error];
+            let _: () = msg_send![self.inner, addStreamOutput: self.output_handle type: SCStreamOutputType::Audio  sampleHandlerQueue: Queue::global(QueuePriority::High) error: error];
+            let _: () = msg_send![self.inner, addStreamOutput: self.output_handle type: SCStreamOutputType::Screen sampleHandlerQueue: Queue::global(QueuePriority::High) error: error];
             (*self.output_handle).set_ivar("super", self);
         }
     }

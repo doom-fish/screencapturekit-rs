@@ -61,9 +61,10 @@ impl SCStreamConfiguration {
     ///
     /// This function will return an error if .
     pub fn set_height(mut self, height: u32) -> Result<Self, CFError> {
-        set_property(&mut self, sel!(setHeight:), height)?;
+        set_property(&mut self, sel!(setheight:), height)?;
         Ok(self)
     }
+
     /// Sets capturesAudio of this [`SCStreamConfiguration`].
     ///
     /// # Errors
@@ -73,13 +74,6 @@ impl SCStreamConfiguration {
         set_property(&mut self, sel!(setCapturesAudio:), captures_audio)?;
         Ok(self)
     }
-    // let _: () = msg_send![sys_ref, setWidth: value.width];
-    // let _: () = msg_send![sys_ref, setHeight: value.height];
-    // let _: () = msg_send![sys_ref, setCapturesAudio: value.captures_audio];
-    // let _: () = msg_send![sys_ref, setSourceRect: value.source_rect];
-    // let _: () = msg_send![sys_ref, setDestinationRect: value.destination_rect];
-    // let _: () = msg_send![sys_ref, setPixelFormat: value.pixel_format];
-    // let _: () = msg_send![sys_ref, setMinimumFrameInterval: value.minimum_frame_interval];
     pub fn get_captures_audio(&self) -> bool {
         get_property(self, sel!(capturesAudio))
     }
@@ -98,6 +92,18 @@ impl SCStreamConfiguration {
             CFBoolean::from(excludes_current_process_audio),
         )?;
         Ok(self)
+    }
+    /// Sets the channel count of this [`SCStreamConfiguration`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn set_channel_count(mut self, channel_count: u8) -> Result<Self, CFError> {
+        set_property(&mut self, sel!(setChannelCount:), channel_count)?;
+        Ok(self)
+    }
+    pub fn get_channel_count(&self) -> u8 {
+        get_property(self, sel!(channelCount))
     }
 }
 
