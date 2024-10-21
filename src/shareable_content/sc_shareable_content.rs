@@ -74,36 +74,37 @@ impl SCShareableContentOptions {
     ///
     /// This function will return an error if .
     pub fn get(self) -> Result<SCShareableContent, CFError> {
-        let CompletionHandler(completion_handler, rx) = new_completion_handler();
+        let CompletionHandler(handler, rx) = new_completion_handler();
 
         unsafe {
             let _: () = match self.capture_option {
                 CaptureOption::Default => msg_send![
                     class!(SCShareableContent),
-                    getShareableContentWithCompletionHandler: completion_handler
+                    getShareableContentWithCompletionHandler: handler
                 ],
                 CaptureOption::OnlyOnScreen => msg_send![
                     class!(SCShareableContent),
                     getShareableContentExcludingDesktopWindows: u8::from(self.exclude_desktop)
                     onScreenWindowsOnly: 1
-                    completionHandler: completion_handler
+                    completionHandler: handler
                 ],
                 CaptureOption::OnlyOnScreenAbove(w) => msg_send![
                     class!(SCShareableContent),
                     getShareableContentExcludingDesktopWindows: u8::from(self.exclude_desktop)
                     onScreenWindowsOnlyAboveWindow: w.as_CFTypeRef()
-                    completionHandler: completion_handler
+                    completionHandler: handler
                 ],
                 CaptureOption::OnlyOnScreenBelow(w) => msg_send![
                     class!(SCShareableContent),
                     getShareableContentExcludingDesktopWindows: u8::from(self.exclude_desktop)
                     onScreenWindowsOnlyBelowWindow: w.as_CFTypeRef()
-                    completionHandler: completion_handler
+                    completionHandler: handler
                 ],
             };
         };
 
-        rx.recv().expect("should work")
+        rx.recv()
+            .expect("Should receive a return from completion handler")
     }
 }
 

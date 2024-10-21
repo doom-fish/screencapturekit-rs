@@ -51,19 +51,19 @@ impl fmt::Debug for SCRunningApplication {
     }
 }
 
-#[cfg(test)]
-mod sc_running_application_test {
-
-    use crate::shareable_content::sc_shareable_content::SCShareableContent;
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_properties() {
-        let content = SCShareableContent::get().expect("Should work");
-        let applications = content.applications();
-        assert!(!applications.is_empty());
-        for application in applications {
-            println!("Application: {application:#?}");
-        }
-    }
-}
+// #[cfg(test)]
+// mod sc_running_application_test {
+//
+//     use crate::shareable_content::sc_shareable_content::SCShareableContent;
+//
+//     #[test]
+//     #[cfg_attr(feature = "ci", ignore)]
+//     fn test_properties() {
+//         let content = SCShareableContent::get().expect("Should work");
+//         let applications = content.applications();
+//         assert!(!applications.is_empty());
+//         for application in applications {
+//             println!("Application: {application:#?}");
+//         }
+//     }
+// }

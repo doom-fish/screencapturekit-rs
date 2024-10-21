@@ -10,7 +10,6 @@ mod internal {
         collections::HashMap,
         error::Error,
         ffi::c_void,
-        mem,
         ops::Deref,
         sync::{Once, RwLock},
     };
@@ -40,20 +39,20 @@ mod internal {
         }
     }
 
-    impl Drop for SCStreamDelegate {
-        fn drop(&mut self) {
-            unsafe {
-                if let Some(delegate) = ERROR_DELEGATES
-                    .write()
-                    .expect("could not obtain read lock for ERROR_DELEGATES")
-                    .remove(&hash(self.0))
-                {
-                    mem::drop(delegate);
-                }
-                core_foundation::base::CFRelease(self.0 as *const c_void);
-            }
-        }
-    }
+    // impl Drop for SCStreamDelegate {
+    //     fn drop(&mut self) {
+    //         unsafe {
+    //             if let Some(delegate) = ERROR_DELEGATES
+    //                 .write()
+    //                 .expect("could not obtain read lock for ERROR_DELEGATES")
+    //                 .remove(&hash(self.0))
+    //             {
+    //                 mem::drop(delegate);
+    //             }
+    //             core_foundation::base::CFRelease(self.0 as *const c_void);
+    //         }
+    //     }
+    // }
 
     fn register_objc_class() -> Result<&'static Class, Box<dyn Error>> {
         extern "C" fn stream_error(

@@ -61,7 +61,7 @@ impl SCStreamConfiguration {
     ///
     /// This function will return an error if .
     pub fn set_height(mut self, height: u32) -> Result<Self, CFError> {
-        set_property(&mut self, sel!(setheight:), height)?;
+        set_property(&mut self, sel!(setHeight:), height)?;
         Ok(self)
     }
 

@@ -1,14 +1,13 @@
-use std::sync::mpsc::{channel, Receiver};
+use std::{ffi::c_void, sync::mpsc::Receiver};
 
-use block::{ConcreteBlock, RcBlock};
-use core_foundation::{
-    base::TCFType,
-    error::{CFError, CFErrorRef},
-};
+use block2::StackBlock;
+use core_foundation::{base::TCFType, error::CFError};
 
-pub struct CompletionHandler<Concrete: TCFType>(
-    pub RcBlock<(Concrete::Ref, CFErrorRef), ()>,
-    pub Receiver<Result<Concrete, CFError>>,
+use super::objc::get_concrete_from_void;
+
+pub struct CompletionHandler<'a, ResType, TArgs, TFN>(
+    pub StackBlock<'a, TArgs, (), TFN>,
+    pub Receiver<Result<ResType, CFError>>,
 );
 
 /// .
@@ -16,41 +15,47 @@ pub struct CompletionHandler<Concrete: TCFType>(
 /// # Panics
 ///
 /// Panics if .
-pub fn new_completion_handler<ConcreteCFType>() -> CompletionHandler<ConcreteCFType>
+pub fn new_completion_handler<'a, ConcreteCFType>() -> CompletionHandler<
+    'a,
+    ConcreteCFType,
+    (*const c_void, *const c_void),
+    impl Fn(*const c_void, *const c_void),
+>
 where
-    ConcreteCFType: TCFType + 'static,
+    ConcreteCFType: TCFType + 'a,
 {
-    let (tx, rx) = channel();
-    let handler = ConcreteBlock::new(move |ret: ConcreteCFType::Ref, error: CFErrorRef| {
+    let (sender, receiver) = std::sync::mpsc::sync_channel(0);
+    let c_ptr = Box::into_raw(Box::new(sender));
+    let handler = StackBlock::new(move |ret: *const c_void, error: *const c_void| {
+        let sender = unsafe { Box::from_raw(c_ptr) };
         if error.is_null() {
-            let wrapped = unsafe { ConcreteCFType::wrap_under_get_rule(ret) };
-            tx.send(Ok(wrapped)).expect("should work");
+            let wrapped: ConcreteCFType = unsafe { get_concrete_from_void(ret) };
+            sender.send(Ok(wrapped)).expect("should work");
         } else {
-            let wrapped_error = unsafe { CFError::wrap_under_get_rule(error) };
-            tx.send(Err(wrapped_error)).expect("should work");
+            let wrapped_error: CFError = unsafe { get_concrete_from_void(error) };
+            sender.send(Err(wrapped_error)).expect("should work");
         }
     });
-    CompletionHandler(handler.copy(), rx)
+    CompletionHandler(handler, receiver)
 }
-pub struct VoidCompletionHandler(
-    pub RcBlock<(CFErrorRef,), ()>,
-    pub Receiver<Result<(), CFError>>,
-);
 
 /// .
 ///
 /// # Panics
 ///
 /// Panics if .
-pub fn new_void_completion_handler() -> VoidCompletionHandler {
-    let (tx, rx) = channel();
-    let handler = ConcreteBlock::new(move |error: CFErrorRef| {
+pub fn new_void_completion_handler<'a>(
+) -> CompletionHandler<'a, (), (*const c_void,), impl Fn(*const c_void)> {
+    let (sender, receiver) = std::sync::mpsc::sync_channel(0);
+    let c_ptr = Box::into_raw(Box::new(sender));
+    let handler = StackBlock::new(move |error: *const c_void| {
+        let sender = unsafe { Box::from_raw(c_ptr) };
         if error.is_null() {
-            tx.send(Ok(())).expect("should work");
+            sender.send(Ok(())).expect("should work");
         } else {
-            let wrapped_error = unsafe { CFError::wrap_under_get_rule(error) };
-            tx.send(Err(wrapped_error)).expect("should work");
+            let wrapped_error: CFError = unsafe { get_concrete_from_void(error) };
+            sender.send(Err(wrapped_error)).expect("should work");
         }
     });
-    VoidCompletionHandler(handler.copy(), rx)
+    CompletionHandler(handler, receiver)
 }

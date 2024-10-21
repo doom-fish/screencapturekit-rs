@@ -9,69 +9,77 @@ use screencapturekit::{
     },
 };
 
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
 use std::{
     fs::OpenOptions,
     io::Write,
-    sync::mpsc::{channel, Sender},
-    thread,
+    sync::mpsc::{channel, Sender}, thread, time::Duration,
 };
 
 struct AudioStreamOutput {
-    sender: Sender<(CMSampleBuffer, SCStreamOutputType)>,
+    sender: Sender<CMSampleBuffer>,
 }
 
 impl SCStreamOutputTrait for AudioStreamOutput {
-    fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType) {
+    fn did_output_sample_buffer(
+        &self,
+        sample_buffer: CMSampleBuffer,
+        _of_type: SCStreamOutputType,
+    ) {
         self.sender
-            .send((sample_buffer, of_type))
+            .send(sample_buffer)
             .expect("could not send to output_buffer");
     }
 }
 
 fn main() -> Result<(), CFError> {
+    let _profiler = dhat::Profiler::new_heap();
     let (tx, rx) = channel();
-
-    let stream = {
-        let config = SCStreamConfiguration::new().set_captures_audio(true)?;
-
-        let display = SCShareableContent::get().unwrap().displays().remove(0);
-        let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
-        let mut stream = SCStream::new(&filter, &config);
-        stream.add_output_handler(AudioStreamOutput { sender: tx }, SCStreamOutputType::Audio);
-
-        stream
-    };
+    let stream = get_stream(tx)?;
     stream.start_capture()?;
 
-    let max_number_of_samples: i32 = 100;
+    let max_number_of_samples: i32 = 400;
 
-    for i in 0..max_number_of_samples {
-        let (buf, _) = rx
+    for sample_index in 0..max_number_of_samples {
+        println!("sample_index={}", sample_index);
+
+        let sample = rx
             .recv_timeout(std::time::Duration::from_secs(10))
             .expect("could not receive from output_buffer");
+        let b = sample.get_audio_buffer_list().expect("should work");
+        for buffer_index in 0..b.num_buffers() {
+            let buffer = b.get(buffer_index).expect("should work");
 
-        println!("Number of buffers: {}", i);
-        let b = buf.get_audio_buffer_list().expect("should work");
-        for i in 0..b.number_buffers {
             let mut file = OpenOptions::new()
                 .create(true)
                 .append(true) // Use append mode
-                .open(format!("out_{i}.raw"))
+                .open(format!("out_{buffer_index}.raw"))
                 .expect("failed to open file");
 
-            let buf = b.buffers[i as usize];
             println!(
-                "  {}: channels={}, size={}",
-                i, buf.number_channels, buf.data_bytes_size
+                "{}: channels={}, size={}",
+                buffer_index, buffer.number_channels, buffer.data_bytes_size
             );
-            let s = unsafe { std::slice::from_raw_parts(buf.data, buf.data_bytes_size as usize) };
 
-            if let Err(e) = file.write_all(s) {
+            if let Err(e) = file.write_all(buffer.data()) {
                 eprintln!("failed to write to file: {:?}", e);
             }
         }
     }
-    thread::sleep(std::time::Duration::from_secs(1));
 
-    stream.stop_capture()
+    stream.stop_capture().ok();
+    thread::sleep(Duration::from_secs(1));
+    Ok(())
+}
+
+fn get_stream<'a>(tx: Sender<CMSampleBuffer>) -> Result<SCStream<'a>, CFError> {
+    let config = SCStreamConfiguration::new().set_captures_audio(true)?;
+
+    let display = SCShareableContent::get().unwrap().displays().remove(0);
+    let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
+    let mut stream = SCStream::new(&filter, &config);
+    stream.add_output_handler(AudioStreamOutput { sender: tx }, SCStreamOutputType::Audio);
+
+    Ok(stream)
 }

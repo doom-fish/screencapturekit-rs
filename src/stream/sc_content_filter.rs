@@ -55,7 +55,7 @@ mod internal {
     ) {
         unsafe {
             let windows = CFArray::from_CFTypes(clone_elements(excluding_windows).as_slice());
-            let _: () = msg_send![filter.as_sendable(), initWithDisplay: display.as_CFTypeRef() excludingWindows: windows.as_CFTypeRef()];
+            let _: () = msg_send![filter.as_sendable(), initWithDisplay: display.clone().as_CFTypeRef() excludingWindows: windows.as_CFTypeRef()];
         }
     }
     pub fn init_with_display_including_applications_excepting_windows(
@@ -116,7 +116,7 @@ impl SCContentFilter {
         self
     }
     #[must_use]
-    pub fn with_with_display_excluding_windows(
+    pub fn with_display_excluding_windows(
         self,
         display: &SCDisplay,
         excluding_windows: &[&SCWindow],
@@ -181,6 +181,6 @@ mod test_content_filter {
     fn test_init_with_display() {
         let displays = SCShareableContent::get().expect("Should work").displays();
         let display = displays.first().unwrap();
-        let _ = SCContentFilter::new().with_with_display_excluding_windows(display, &[]);
+        let _ = SCContentFilter::new().with_display_excluding_windows(display, &[]);
     }
 }

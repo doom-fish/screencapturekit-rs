@@ -1,3 +1,4 @@
+
 use core_foundation::error::CFError;
 
 use super::{
@@ -94,7 +95,7 @@ mod stream_test {
             .set_width(100)?
             .set_height(100)?;
         let display = SCShareableContent::get().unwrap().displays().remove(0);
-        let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
+        let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
         let mut stream = SCStream::new(&filter, &config);
         let id = stream.add_output_handler(output_handler, SCStreamOutputType::Screen);
         stream.remove_output_handler(id, SCStreamOutputType::Screen);
@@ -112,7 +113,7 @@ mod stream_test {
                 .set_height(100)?;
 
             let display = SCShareableContent::get().unwrap().displays().remove(0);
-            let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
+            let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
             let mut stream = SCStream::new(&filter, &config);
             stream.add_output_handler(TestStreamOutput { sender: tx }, SCStreamOutputType::Audio);
             stream

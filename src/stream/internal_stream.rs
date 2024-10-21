@@ -1,4 +1,9 @@
-use std::{ffi::c_void, marker::PhantomPinned, ptr, sync::Once};
+use std::{
+    ffi::c_void,
+    ops::{Deref, DerefMut},
+    ptr,
+    sync::Once,
+};
 
 use crate::{
     stream::{
@@ -7,13 +12,12 @@ use crate::{
         sc_stream_delegate::{SCStreamDelegate, SCStreamDelegateTrait},
     },
     utils::{
-        block::{new_void_completion_handler, VoidCompletionHandler},
-        objc::{create_concrete_from_void, get_concrete_from_void},
+        block::{new_void_completion_handler, CompletionHandler},
+        objc::get_concrete_from_void,
     },
 };
 use core_foundation::base::TCFType;
 use core_foundation::error::CFError;
-use core_media_rs::cm_sample_buffer::CMSampleBuffer;
 use dispatch::{Queue, QueuePriority};
 
 use objc::{
@@ -28,18 +32,50 @@ use super::{
     sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
 };
 
-unsafe impl Encode for &mut SCStream<'_> {
+#[repr(transparent)]
+#[derive(Debug)]
+struct TraitTransfer<'a>(*mut Box<dyn SCStreamOutputTrait + 'a>);
+
+impl<'a> TraitTransfer<'a> {
+    pub fn new(handler: impl SCStreamOutputTrait + 'a) -> Self {
+        Self(Box::into_raw(Box::new(Box::new(handler))))
+    }
+    pub fn drop_handler(&self) {
+        unsafe {
+            drop(Box::from_raw(self.0));
+        }
+    }
+}
+
+impl<'a> Deref for TraitTransfer<'a> {
+    type Target = Box<dyn SCStreamOutputTrait>;
+    fn deref(&self) -> &'a Self::Target {
+        unsafe { &*self.0.cast() }
+    }
+}
+
+impl<'a> DerefMut for TraitTransfer<'a> {
+    fn deref_mut(&mut self) -> &'a mut Self::Target {
+        unsafe { &mut *self.0.cast() }
+    }
+}
+
+impl Clone for TraitTransfer<'_> {
+    fn clone(&self) -> Self {
+        Self(self.0)
+    }
+}
+
+unsafe impl Encode for TraitTransfer<'_> {
     fn encode() -> objc::Encoding {
-        unsafe { objc::Encoding::from_str("^v") }
+        unsafe { objc::Encoding::from_str("r^v") }
     }
 }
 
 pub struct SCStream<'a> {
     inner: *mut Object,
-    output_screen: Vec<Box<dyn SCStreamOutputTrait + 'a>>,
-    output_audio: Vec<Box<dyn SCStreamOutputTrait + 'a>>,
-    output_handle: *mut Object,
-    _pin: PhantomPinned,
+    handlers: Vec<TraitTransfer<'a>>,
+    cleanup: Vec<*mut Object>,
     _delegate: Box<dyn SCStreamDelegateTrait + 'static>,
 }
 
@@ -47,26 +83,17 @@ impl Drop for SCStream<'_> {
     fn drop(&mut self) {
         unsafe {
             runtime::objc_release(self.inner);
-            runtime::objc_release(self.output_handle);
         }
+        self.handlers.iter().for_each(|h| {
+            h.drop_handler();
+        });
+        self.cleanup.iter().for_each(|o| unsafe {
+            runtime::objc_release(*o);
+        });
     }
 }
 
 impl<'a> SCStream<'a> {
-    fn call_handlers(&self, sample_buffer: &CMSampleBuffer, of_type: SCStreamOutputType) {
-        match of_type {
-            SCStreamOutputType::Audio => {
-                self.output_audio.iter().for_each(|handler| {
-                    handler.did_output_sample_buffer(sample_buffer.clone(), of_type);
-                });
-            }
-            SCStreamOutputType::Screen => {
-                self.output_screen.iter().for_each(|handler| {
-                    handler.did_output_sample_buffer(sample_buffer.clone(), of_type);
-                });
-            }
-        }
-    }
     pub fn internal_init_with_filter_and_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
@@ -75,18 +102,16 @@ impl<'a> SCStream<'a> {
         Self {
             inner: unsafe {
                 let inner: *mut Object = msg_send![class!(SCStream), alloc];
-                let inner: *mut Object = msg_send![inner, initWithFilter: filter.as_CFTypeRef()  configuration: configuration.as_CFTypeRef() delegate: ptr::null_mut::<SCStreamDelegate>()];
+                let inner: *mut Object = msg_send![inner, initWithFilter: filter.clone().as_CFTypeRef()  configuration: configuration.clone().as_CFTypeRef() delegate: ptr::null_mut::<SCStreamDelegate>()];
                 inner
             },
-            output_handle: ptr::null_mut(),
-            output_audio: vec![],
-            output_screen: vec![],
+            handlers: vec![],
+            cleanup: vec![],
             _delegate: Box::new(delegate),
-            _pin: PhantomPinned,
         }
     }
 
-    fn internal_register_output_handler(&mut self) {
+    fn internal_register_output_handler() {
         type StreamOutputMethod =
             extern "C" fn(&Object, Sel, *mut Object, *const c_void, SCStreamOutputType);
 
@@ -97,51 +122,58 @@ impl<'a> SCStream<'a> {
             sample_buffer_ref: *const c_void,
             of_type: SCStreamOutputType,
         ) {
-            let sc_stream: &&mut SCStream = unsafe { this.get_ivar("super") };
-            let sample_buffer: CMSampleBuffer =
-                unsafe { get_concrete_from_void(sample_buffer_ref) };
-            sc_stream.call_handlers(&sample_buffer, of_type);
+            let stream_output: &TraitTransfer = unsafe { this.get_ivar("rust_handler") };
+            let sample_buffer = unsafe { get_concrete_from_void(sample_buffer_ref) };
+
+            stream_output.did_output_sample_buffer(sample_buffer, of_type);
+            // println!("Output: {stream_output:p}");
         }
         let mut decl =
             ClassDecl::new("StreamOutput", class!(NSObject)).expect("Could not register class");
         unsafe {
             let output_handler: StreamOutputMethod = stream_output;
+            decl.add_ivar::<TraitTransfer>("rust_handler");
             decl.add_method(sel!(stream:didOutputSampleBuffer:ofType:), output_handler);
-            decl.add_ivar::<&mut Self>("super");
             decl.register();
-            self.output_handle = runtime::class_createInstance(class!(StreamOutput), 0);
-            let error = runtime::class_createInstance(class!(NSObject), 0);
-            let _: () = msg_send![self.inner, addStreamOutput: self.output_handle type: SCStreamOutputType::Audio  sampleHandlerQueue: Queue::global(QueuePriority::High) error: error];
-            let _: () = msg_send![self.inner, addStreamOutput: self.output_handle type: SCStreamOutputType::Screen sampleHandlerQueue: Queue::global(QueuePriority::High) error: error];
-            (*self.output_handle).set_ivar("super", self);
         }
     }
     pub fn run_register(&mut self) {
         static REGISTER_ONCE: Once = Once::new();
-        REGISTER_ONCE.call_once(|| Self::internal_register_output_handler(self));
+        REGISTER_ONCE.call_once(|| {
+            Self::internal_register_output_handler();
+        });
     }
-    pub fn internal_remove_output_handler(&mut self, index: usize, of_type: SCStreamOutputType) {
-        match of_type {
-            SCStreamOutputType::Audio => self.output_audio.remove(index),
-            SCStreamOutputType::Screen => self.output_screen.remove(index),
-        };
-    }
+    pub fn internal_remove_output_handler(&mut self, _index: usize, _of_type: SCStreamOutputType) {}
+
     pub fn internal_add_output_handler(
         &mut self,
         handler: impl SCStreamOutputTrait + 'a,
         of_type: SCStreamOutputType,
     ) -> usize {
         self.run_register();
-        match of_type {
-            SCStreamOutputType::Audio => {
-                self.output_audio.push(Box::new(handler));
-                self.output_audio.len() - 1
+
+        unsafe {
+            let error: *mut Object = ptr::null_mut();
+            let sc_handler = runtime::class_createInstance(class!(StreamOutput), 0);
+
+            let inner = TraitTransfer::new(handler);
+
+            (*sc_handler).set_ivar("rust_handler", inner.clone());
+            let stream_queue = Queue::global(QueuePriority::Low);
+
+            match of_type {
+                SCStreamOutputType::Screen => {
+                    let _: () = msg_send![self.inner, addStreamOutput: sc_handler type: SCStreamOutputType::Screen sampleHandlerQueue: stream_queue error: error];
+                }
+                SCStreamOutputType::Audio => {
+                    let _: () = msg_send![self.inner, addStreamOutput: sc_handler type: SCStreamOutputType::Audio sampleHandlerQueue: stream_queue error: error];
+                }
             }
-            SCStreamOutputType::Screen => {
-                self.output_screen.push(Box::new(handler));
-                self.output_screen.len() - 1
-            }
-        }
+            self.handlers.push(inner);
+            self.cleanup.push(sc_handler);
+        };
+
+        0
     }
     /// Returns the internal start capture of this [`SCStream<T>`].
     ///
@@ -154,7 +186,7 @@ impl<'a> SCStream<'a> {
     /// This function will return an error if .
     pub fn internal_start_capture(&self) -> Result<(), CFError> {
         unsafe {
-            let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
+            let CompletionHandler(handler,rx) = new_void_completion_handler();
             let _: () = msg_send![self.inner, startCaptureWithCompletionHandler: handler];
 
             rx.recv()
@@ -172,7 +204,7 @@ impl<'a> SCStream<'a> {
     /// This function will return an error if .
     pub fn internal_stop_capture(&self) -> Result<(), CFError> {
         unsafe {
-            let VoidCompletionHandler(handler, rx) = new_void_completion_handler();
+            let CompletionHandler(handler,rx) = new_void_completion_handler();
 
             let _: () = msg_send![self.inner, stopCaptureWithCompletionHandler: handler];
 
@@ -199,26 +231,10 @@ mod test {
 
     use super::SCStream;
 
-    struct OutputHandler<'a> {
-        pub test_ref: &'a str,
+    struct OutputHandler {
         pub output: String,
     }
-    impl<'a> SCStreamOutputTrait for OutputHandler<'a> {
-        fn did_output_sample_buffer(
-            &self,
-            sample_buffer: core_media_rs::cm_sample_buffer::CMSampleBuffer,
-            of_type: SCStreamOutputType,
-        ) {
-            println!("Output: {}", self.output);
-            println!("Test ref2: {:?}", self.test_ref);
-            println!("Sample buffer: {sample_buffer:?}");
-            println!("Output type: {of_type:?}");
-        }
-    }
-    struct OutputHandler2 {
-        pub output: String,
-    }
-    impl SCStreamOutputTrait for OutputHandler2 {
+    impl SCStreamOutputTrait for OutputHandler {
         fn did_output_sample_buffer(
             &self,
             sample_buffer: core_media_rs::cm_sample_buffer::CMSampleBuffer,
@@ -226,6 +242,7 @@ mod test {
         ) {
             println!("Output 2: {}", self.output);
             println!("Sample buffer 2: {sample_buffer:?}");
+            println!("Sample buffer: {:?}", sample_buffer.get_audio_buffer_list());
             println!("Output type 2: {of_type:?}");
         }
     }
@@ -240,20 +257,12 @@ mod test {
             .set_height(100)?;
         let display = SCShareableContent::get()?.displays().remove(0);
 
-        let filter = SCContentFilter::new().with_with_display_excluding_windows(&display, &[]);
-        let s = String::from("Screen Ref");
+        let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
         let mut stream =
             SCStream::internal_init_with_filter_and_delegate(&filter, &config, NoopDelegate);
 
         stream.internal_add_output_handler(
             OutputHandler {
-                test_ref: &s,
-                output: "Screen".to_string(),
-            },
-            SCStreamOutputType::Screen,
-        );
-        stream.internal_add_output_handler(
-            OutputHandler2 {
                 output: "Audio".to_string(),
             },
             SCStreamOutputType::Audio,
