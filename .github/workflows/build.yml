@@ -23,3 +23,7 @@ jobs:
       - name: see
         run: |
           cargo test
+      - name: Contribute List
+        uses: akhilmhdh/contributors-readme-action@v2.3.10
+        env:
+          GITHUB_TOKEN: ${{ secrets.CONTRIB_JOB }}
