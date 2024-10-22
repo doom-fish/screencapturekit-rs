@@ -1,8 +1,8 @@
-
 use core_foundation::error::CFError;
 
 use super::{
-    sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,  sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType
+    sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
+    sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
 };
 
 pub use super::internal_stream::SCStream;
