@@ -41,7 +41,7 @@ impl SCStream {
         impl SCStreamDelegateTrait for NoopDelegate {}
         Self::internal_init_with_filter_and_delegate(filter, configuration, None::<NoopDelegate>)
     }
-    pub fn internal_init_with_filter_and_delegate< T: SCStreamDelegateTrait>( 
+    pub fn internal_init_with_filter_and_delegate<T: SCStreamDelegateTrait>(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
         delegate: Option<T>,
@@ -126,10 +126,10 @@ mod test {
 
     use super::SCStream;
 
-    struct OutputHandler {
-        pub output: String,
+    struct OutputHandler<'a> {
+        pub output: &'a str,
     }
-    impl SCStreamOutputTrait for OutputHandler {
+    impl SCStreamOutputTrait for OutputHandler<'_> {
         fn did_output_sample_buffer(
             &self,
             sample_buffer: core_media_rs::cm_sample_buffer::CMSampleBuffer,
@@ -151,9 +151,11 @@ mod test {
         let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
         let mut stream = SCStream::internal_init_with_filter(&filter, &config);
 
+        let output = "Audio";
+
         stream.internal_add_output_handler(
             OutputHandler {
-                output: "Audio".to_string(),
+                output,
             },
             SCStreamOutputType::Audio,
         );
