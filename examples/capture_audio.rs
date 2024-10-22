@@ -33,6 +33,7 @@ impl SCStreamOutputTrait for AudioStreamOutput {
     }
 }
 
+
 fn main() -> Result<(), CFError> {
     let (tx, rx) = channel();
     let stream = get_stream(tx)?;
@@ -72,7 +73,7 @@ fn main() -> Result<(), CFError> {
     Ok(())
 }
 
-fn get_stream<'a>(tx: Sender<CMSampleBuffer>) -> Result<SCStream<'a>, CFError> {
+fn get_stream(tx: Sender<CMSampleBuffer>) -> Result<SCStream, CFError> {
     let config = SCStreamConfiguration::new().set_captures_audio(true)?;
 
     let display = SCShareableContent::get().unwrap().displays().remove(0);
