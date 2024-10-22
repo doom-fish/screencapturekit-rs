@@ -1,25 +1,28 @@
 use core_foundation::error::CFError;
 
+use super::sc_stream_delegate_trait::SCStreamDelegateTrait;
 use super::{
     sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
     sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
 };
 
-pub use super::internal_stream::SCStream;
+pub use super::internal::sc_stream::SCStream;
+pub use super::internal::sc_stream::SCStreamRef;
 
-impl<'a> SCStream<'a> {
+impl SCStream {
     pub fn new_with_error_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
+        delegate: impl SCStreamDelegateTrait,
     ) -> Self {
-        Self::internal_init_with_filter_and_delegate(filter, configuration)
+        Self::internal_init_with_filter_and_delegate(filter, configuration, Some(delegate))
     }
 
     pub fn new(filter: &SCContentFilter, configuration: &SCStreamConfiguration) -> Self {
-        Self::internal_init_with_filter_and_delegate(filter, configuration)
+        Self::internal_init_with_filter(filter, configuration)
     }
 
-    pub fn add_output_handler(
+    pub fn add_output_handler<'a>(
         &mut self,
         output_trait: impl SCStreamOutputTrait + 'a,
         of_type: SCStreamOutputType,

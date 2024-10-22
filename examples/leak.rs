@@ -51,9 +51,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             let d = display.unwrap().displays().remove(0);
 
             let filter = SCContentFilter::new().with_display_excluding_windows(&d, &[]);
-            let stream = SCStream::new(&filter, &config);
             // stream.add_output_handler(output, SCStreamOutputType::Audio);
-            stream
+            SCStream::new(&filter, &config)
         };
         // Force drop of sc_stream
         drop(stream);
