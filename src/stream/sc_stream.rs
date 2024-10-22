@@ -22,9 +22,9 @@ impl SCStream {
         Self::internal_init_with_filter(filter, configuration)
     }
 
-    pub fn add_output_handler<'a>(
+    pub fn add_output_handler(
         &mut self,
-        output_trait: impl SCStreamOutputTrait + 'a,
+        output_trait: impl SCStreamOutputTrait,
         of_type: SCStreamOutputType,
     ) -> usize {
         self.internal_add_output_handler(output_trait, of_type)

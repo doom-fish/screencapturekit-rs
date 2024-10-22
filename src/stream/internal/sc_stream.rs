@@ -41,7 +41,7 @@ impl SCStream {
         impl SCStreamDelegateTrait for NoopDelegate {}
         Self::internal_init_with_filter_and_delegate(filter, configuration, None::<NoopDelegate>)
     }
-    pub fn internal_init_with_filter_and_delegate<'a, T: SCStreamDelegateTrait + 'a>(
+    pub fn internal_init_with_filter_and_delegate< T: SCStreamDelegateTrait>( 
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
         delegate: Option<T>,
@@ -57,9 +57,9 @@ impl SCStream {
 
     pub fn internal_remove_output_handler(&mut self, _index: usize, _of_type: SCStreamOutputType) {}
 
-    pub fn internal_add_output_handler<'a>(
+    pub fn internal_add_output_handler(
         &mut self,
-        handler: impl SCStreamOutputTrait + 'a,
+        handler: impl SCStreamOutputTrait,
         of_type: SCStreamOutputType,
     ) -> usize {
         unsafe {
