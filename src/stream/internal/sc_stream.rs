@@ -21,7 +21,10 @@ use dispatch::{Queue, QueuePriority};
 
 use objc::{class, msg_send, runtime::Object, sel, sel_impl};
 
-use super::{output_handler, stream_delegate};
+use super::{
+    output_handler::{self, SCStreamOutput},
+    stream_delegate,
+};
 
 #[repr(C)]
 pub struct __SCStreamRef(c_void);
@@ -50,34 +53,46 @@ impl SCStream {
             let delegate = delegate.map_or(ptr::null_mut(), stream_delegate::get_handler);
             let inner: *mut Object = msg_send![class!(SCStream), alloc];
             let inner: *mut Object = msg_send![inner, initWithFilter: filter.clone().as_CFTypeRef()  configuration: configuration.clone().as_CFTypeRef() delegate: delegate];
-
             get_concrete_from_void(inner.cast())
         }
     }
 
-    pub fn internal_remove_output_handler(&mut self, _index: usize, _of_type: SCStreamOutputType) {}
+    pub fn internal_remove_output_handler(
+        &mut self,
+        handler: SCStreamOutput,
+        of_type: SCStreamOutputType,
+    ) -> bool {
+        let error: *mut Object = ptr::null_mut();
+        unsafe {
+            msg_send![self.as_CFTypeRef().cast::<Object>(), removeStreamOutput: handler type: of_type error: error]
+        }
+    }
 
     pub fn internal_add_output_handler(
         &mut self,
         handler: impl SCStreamOutputTrait,
         of_type: SCStreamOutputType,
-    ) -> usize {
+    ) -> Option<SCStreamOutput> {
         unsafe {
             let error: *mut Object = ptr::null_mut();
             let handler = output_handler::get_handler(handler);
             let stream_queue = Queue::global(QueuePriority::Low);
 
-            match of_type {
+            let success: bool = match of_type {
                 SCStreamOutputType::Screen => {
-                    let _: () = msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Screen sampleHandlerQueue: stream_queue error: error];
+                    msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Screen sampleHandlerQueue: stream_queue error: error]
                 }
                 SCStreamOutputType::Audio => {
-                    let _: () = msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Audio sampleHandlerQueue: stream_queue error: error];
+                    msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Audio sampleHandlerQueue: stream_queue error: error]
                 }
-            }
-        };
+            };
 
-        0
+            if success {
+                Some(handler)
+            } else {
+                None
+            }
+        }
     }
     /// Returns the internal start capture of this [`SCStream`].
     ///
@@ -153,12 +168,7 @@ mod test {
 
         let output = "Audio";
 
-        stream.internal_add_output_handler(
-            OutputHandler {
-                output,
-            },
-            SCStreamOutputType::Audio,
-        );
+        stream.internal_add_output_handler(OutputHandler { output }, SCStreamOutputType::Audio);
 
         stream.internal_start_capture()?;
 

@@ -1,5 +1,6 @@
 use core_foundation::error::CFError;
 
+use super::internal::output_handler::SCStreamOutput;
 use super::sc_stream_delegate_trait::SCStreamDelegateTrait;
 use super::{
     sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
@@ -26,12 +27,16 @@ impl SCStream {
         &mut self,
         output_trait: impl SCStreamOutputTrait,
         of_type: SCStreamOutputType,
-    ) -> usize {
+    ) -> Option<SCStreamOutput> {
         self.internal_add_output_handler(output_trait, of_type)
     }
 
-    pub fn remove_output_handler(&mut self, index: usize, of_type: SCStreamOutputType) {
-        self.internal_remove_output_handler(index, of_type);
+    pub fn remove_output_handler(
+        &mut self,
+        index: SCStreamOutput,
+        of_type: SCStreamOutputType,
+    ) -> bool {
+        self.internal_remove_output_handler(index, of_type)
     }
 
     /// Returns the start capture of this [`SCStream`].
@@ -98,7 +103,9 @@ mod stream_test {
         let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
         let mut stream = SCStream::new(&filter, &config);
         let id = stream.add_output_handler(output_handler, SCStreamOutputType::Screen);
-        stream.remove_output_handler(id, SCStreamOutputType::Screen);
+        assert!(id.is_some());
+        let removed = stream.remove_output_handler(id.unwrap(), SCStreamOutputType::Screen);
+        assert!(removed);
         drop(stream);
         Ok(())
     }

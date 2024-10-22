@@ -41,8 +41,8 @@ fn register() {
         decl.register();
     }
 }
-
-pub fn get_handler<'a>(handler: impl SCStreamOutputTrait + 'a) -> *mut Object {
+pub type SCStreamOutput = *mut Object;
+pub fn get_handler<'a>(handler: impl SCStreamOutputTrait + 'a) -> SCStreamOutput {
     static REGISTER_ONCE: Once = Once::new();
     REGISTER_ONCE.call_once(register);
 
