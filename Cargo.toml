@@ -1,17 +1,18 @@
 [package]
-
+name = "screencapturekit"
 
 keywords = ["screencapture", "screencapturekit", "macos"]
 description = "Rust wrapper for apple's ScreenCaptureKit"
-name = "screencapturekit"
+
 categories = [
   "external-ffi-bindings",
   "multimedia",
   "multimedia::video",
   "os::macos-apis",
 ]
+
 repository = "https://github.com/svtlabs/screencapturekit-rs"
-authors = ["Per Johansson <mail@perjohansson.net>"]
+authors = ["Per Johansson <per@doom.fish>"]
 homepage = "https://github.com/svtlabs"
 edition = "2021"
 rust-version = "1.72"
