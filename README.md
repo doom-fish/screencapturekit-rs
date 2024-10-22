@@ -57,9 +57,79 @@ maintainers' time is limited.
 ## Collaborators
 
 <!-- readme: collaborators -start -->
+<table>
+	<tbody>
+		<tr>
+            <td align="center">
+                <a href="https://github.com/1313">
+                    <img src="https://avatars.githubusercontent.com/u/1427038?v=4" width="100;" alt="1313"/>
+                    <br />
+                    <sub><b>Per Johansson</b></sub>
+                </a>
+            </td>
+		</tr>
+	<tbody>
+</table>
 <!-- readme: collaborators -end -->
 
 ## Contributors
 
 <!-- readme: contributors -start -->
+<table>
+	<tbody>
+		<tr>
+            <td align="center">
+                <a href="https://github.com/1313">
+                    <img src="https://avatars.githubusercontent.com/u/1427038?v=4" width="100;" alt="1313"/>
+                    <br />
+                    <sub><b>Per Johansson</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/krzykro2">
+                    <img src="https://avatars.githubusercontent.com/u/6817875?v=4" width="100;" alt="krzykro2"/>
+                    <br />
+                    <sub><b>Kris Krolak</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/tokuhirom">
+                    <img src="https://avatars.githubusercontent.com/u/21084?v=4" width="100;" alt="tokuhirom"/>
+                    <br />
+                    <sub><b>Tokuhiro Matsuno</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/Pranav2612000">
+                    <img src="https://avatars.githubusercontent.com/u/20909078?v=4" width="100;" alt="Pranav2612000"/>
+                    <br />
+                    <sub><b>Pranav Joglekar</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/uohzxela">
+                    <img src="https://avatars.githubusercontent.com/u/4747352?v=4" width="100;" alt="uohzxela"/>
+                    <br />
+                    <sub><b>Alex Jiao</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/aizcutei">
+                    <img src="https://avatars.githubusercontent.com/u/20311560?v=4" width="100;" alt="aizcutei"/>
+                    <br />
+                    <sub><b>Charles</b></sub>
+                </a>
+            </td>
+		</tr>
+		<tr>
+            <td align="center">
+                <a href="https://github.com/bigduu">
+                    <img src="https://avatars.githubusercontent.com/u/18681616?v=4" width="100;" alt="bigduu"/>
+                    <br />
+                    <sub><b>bigduu</b></sub>
+                </a>
+            </td>
+		</tr>
+	<tbody>
+</table>
 <!-- readme: contributors -end -->
