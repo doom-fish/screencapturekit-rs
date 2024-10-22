@@ -53,3 +53,13 @@ We appreciate contributions in the form of bug reports,
 fixes, feature requests etc, and will review them as time permits.
 Please keep in mind that this project is experimental and the
 maintainers' time is limited.
+
+## Collaborators
+
+<!-- readme: collaborators -start -->
+<!-- readme: collaborators -end -->
+
+## Contributors
+
+<!-- readme: contributors -start -->
+<!-- readme: contributors -end -->
