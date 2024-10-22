@@ -54,23 +54,6 @@ fixes, feature requests etc, and will review them as time permits.
 Please keep in mind that this project is experimental and the
 maintainers' time is limited.
 
-## Collaborators
-
-<!-- readme: collaborators -start -->
-<table>
-	<tbody>
-		<tr>
-            <td align="center">
-                <a href="https://github.com/1313">
-                    <img src="https://avatars.githubusercontent.com/u/1427038?v=4" width="100;" alt="1313"/>
-                    <br />
-                    <sub><b>Per Johansson</b></sub>
-                </a>
-            </td>
-		</tr>
-	<tbody>
-</table>
-<!-- readme: collaborators -end -->
 
 ## Contributors
 
