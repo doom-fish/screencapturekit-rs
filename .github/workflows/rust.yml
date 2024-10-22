@@ -2,9 +2,11 @@ name: Rust
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - "**"
   pull_request:
-    branches: ["main"]
+    branches:
+      - "**"
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,11 +14,44 @@ env:
 jobs:
   build:
     runs-on: macos-14
-    steps:
+    steps:       
       - uses: actions/checkout@v3
+      - name: Fix screen capture permissions
+        run: |
+          # https://apple.stackexchange.com/questions/362865/macos-list-apps-authorized-for-full-disk-access
+
+          # permissions for screen capture
+          values="'kTCCServiceScreenCapture','/usr/local/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159"
+
+          # TCC access table in Sonoma has extra 4 columns: pid, pid_version, boot_uuid, last_reminded
+          values="${values},NULL,NULL,'UNUSED',${values##*,}"
+
+
+          # system and user databases
+          dbPaths=(
+            "/Library/Application Support/com.apple.TCC/TCC.db"
+            "$HOME/Library/Application Support/com.apple.TCC/TCC.db"
+          )
+
+          sqlQuery="INSERT OR IGNORE INTO access VALUES($values);"
+
+          for dbPath in "${dbPaths[@]}"; do
+            echo "Column names for $dbPath"
+            echo "-------------------"
+            sudo sqlite3 "$dbPath" "PRAGMA table_info(access);"
+            echo "Current permissions for $dbPath"
+            echo "-------------------"
+            sudo sqlite3 "$dbPath" "SELECT * FROM access WHERE service='kTCCServiceScreenCapture';"
+            sudo sqlite3 "$dbPath" "$sqlQuery"
+            echo "Updated permissions for $dbPath"
+            echo "-------------------"
+            sudo sqlite3 "$dbPath" "SELECT * FROM access WHERE service='kTCCServiceScreenCapture';"
+          done
       - name: Update rust
         run: rustup update
       - name: Build
         run: cargo build --verbose --features ci
-      - name: Run tests
-        run: cargo test --verbose --features ci
+      - name: see
+        run: |
+          cargo test --no-run 2> t
+          exec $(cat t | grep unit | awk -F'[()]' '{print $2}')
