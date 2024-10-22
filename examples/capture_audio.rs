@@ -9,12 +9,12 @@ use screencapturekit::{
     },
 };
 
-#[global_allocator]
-static ALLOC: dhat::Alloc = dhat::Alloc;
 use std::{
     fs::OpenOptions,
     io::Write,
-    sync::mpsc::{channel, Sender}, thread, time::Duration,
+    sync::mpsc::{channel, Sender},
+    thread,
+    time::Duration,
 };
 
 struct AudioStreamOutput {
@@ -34,7 +34,6 @@ impl SCStreamOutputTrait for AudioStreamOutput {
 }
 
 fn main() -> Result<(), CFError> {
-    let _profiler = dhat::Profiler::new_heap();
     let (tx, rx) = channel();
     let stream = get_stream(tx)?;
     stream.start_capture()?;

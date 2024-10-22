@@ -6,11 +6,7 @@ use std::{
 };
 
 use crate::{
-    stream::{
-        sc_content_filter::SCContentFilter,
-        sc_stream_configuration::SCStreamConfiguration,
-        sc_stream_delegate::{SCStreamDelegate, SCStreamDelegateTrait},
-    },
+    stream::{sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration},
     utils::{
         block::{new_void_completion_handler, CompletionHandler},
         objc::get_concrete_from_void,
@@ -29,7 +25,8 @@ use objc::{
 };
 
 use super::{
-    sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
+    sc_stream_delegate::SCStreamDelegate, sc_stream_output_trait::SCStreamOutputTrait,
+    sc_stream_output_type::SCStreamOutputType,
 };
 
 #[repr(transparent)]
@@ -76,7 +73,6 @@ pub struct SCStream<'a> {
     inner: *mut Object,
     handlers: Vec<TraitTransfer<'a>>,
     cleanup: Vec<*mut Object>,
-    _delegate: Box<dyn SCStreamDelegateTrait + 'static>,
 }
 
 impl Drop for SCStream<'_> {
@@ -97,7 +93,6 @@ impl<'a> SCStream<'a> {
     pub fn internal_init_with_filter_and_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
-        delegate: impl SCStreamDelegateTrait,
     ) -> Self {
         Self {
             inner: unsafe {
@@ -107,7 +102,6 @@ impl<'a> SCStream<'a> {
             },
             handlers: vec![],
             cleanup: vec![],
-            _delegate: Box::new(delegate),
         }
     }
 
@@ -186,7 +180,7 @@ impl<'a> SCStream<'a> {
     /// This function will return an error if .
     pub fn internal_start_capture(&self) -> Result<(), CFError> {
         unsafe {
-            let CompletionHandler(handler,rx) = new_void_completion_handler();
+            let CompletionHandler(handler, rx) = new_void_completion_handler();
             let _: () = msg_send![self.inner, startCaptureWithCompletionHandler: handler];
 
             rx.recv()
@@ -204,7 +198,7 @@ impl<'a> SCStream<'a> {
     /// This function will return an error if .
     pub fn internal_stop_capture(&self) -> Result<(), CFError> {
         unsafe {
-            let CompletionHandler(handler,rx) = new_void_completion_handler();
+            let CompletionHandler(handler, rx) = new_void_completion_handler();
 
             let _: () = msg_send![self.inner, stopCaptureWithCompletionHandler: handler];
 
@@ -224,8 +218,7 @@ mod test {
         shareable_content::sc_shareable_content::SCShareableContent,
         stream::{
             sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
-            sc_stream_delegate::SCStreamDelegateTrait, sc_stream_output_trait::SCStreamOutputTrait,
-            sc_stream_output_type::SCStreamOutputType,
+            sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
         },
     };
 
@@ -246,8 +239,6 @@ mod test {
             println!("Output type 2: {of_type:?}");
         }
     }
-    struct NoopDelegate;
-    impl SCStreamDelegateTrait for NoopDelegate {}
 
     #[test]
     fn create() -> Result<(), CFError> {
@@ -258,8 +249,7 @@ mod test {
         let display = SCShareableContent::get()?.displays().remove(0);
 
         let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
-        let mut stream =
-            SCStream::internal_init_with_filter_and_delegate(&filter, &config, NoopDelegate);
+        let mut stream = SCStream::internal_init_with_filter_and_delegate(&filter, &config);
 
         stream.internal_add_output_handler(
             OutputHandler {

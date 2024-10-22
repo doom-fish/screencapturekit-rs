@@ -25,9 +25,10 @@ where
     ConcreteCFType: TCFType + 'a,
 {
     let (sender, receiver) = std::sync::mpsc::sync_channel(0);
-    let c_ptr = Box::into_raw(Box::new(sender));
+    // Handle memory manually as the block will leak any closed variables
+    let sender_ptr = Box::into_raw(Box::new(sender));
     let handler = StackBlock::new(move |ret: *const c_void, error: *const c_void| {
-        let sender = unsafe { Box::from_raw(c_ptr) };
+        let sender = unsafe { Box::from_raw(sender_ptr) };
         if error.is_null() {
             let wrapped: ConcreteCFType = unsafe { get_concrete_from_void(ret) };
             sender.send(Ok(wrapped)).expect("should work");
@@ -46,6 +47,7 @@ where
 /// Panics if .
 pub fn new_void_completion_handler<'a>(
 ) -> CompletionHandler<'a, (), (*const c_void,), impl Fn(*const c_void)> {
+    // Handle memory manually as the block will leak any closed variables
     let (sender, receiver) = std::sync::mpsc::sync_channel(0);
     let c_ptr = Box::into_raw(Box::new(sender));
     let handler = StackBlock::new(move |error: *const c_void| {

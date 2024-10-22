@@ -2,7 +2,7 @@
 use core_foundation::error::CFError;
 
 use super::{
-    sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration, sc_stream_delegate::SCStreamDelegateTrait, sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType
+    sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,  sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType
 };
 
 pub use super::internal_stream::SCStream;
@@ -11,15 +11,12 @@ impl<'a> SCStream<'a> {
     pub fn new_with_error_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
-        stream_delegate: impl SCStreamDelegateTrait,
     ) -> Self {
-        Self::internal_init_with_filter_and_delegate(filter, configuration, stream_delegate)
+        Self::internal_init_with_filter_and_delegate(filter, configuration)
     }
 
     pub fn new(filter: &SCContentFilter, configuration: &SCStreamConfiguration) -> Self {
-        struct NoopDelegate;
-        impl SCStreamDelegateTrait for NoopDelegate {}
-        Self::internal_init_with_filter_and_delegate(filter, configuration, NoopDelegate)
+        Self::internal_init_with_filter_and_delegate(filter, configuration)
     }
 
     pub fn add_output_handler(
