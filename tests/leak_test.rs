@@ -51,15 +51,15 @@ mod leak_tests {
                 let display = SCShareableContent::get();
 
                 let d = display.unwrap().displays().remove(0);
-
                 let filter = SCContentFilter::new().with_display_excluding_windows(&d, &[]);
-                // stream.add_output_handler(output, SCStreamOutputType::Audio);
-                SCStream::new(&filter, &config)
+                let output = Capturer::new();
+                let mut stream = SCStream::new(&filter, &config);
+                stream.add_output_handler(output, SCStreamOutputType::Audio);
+                stream
             };
             // Force drop of sc_stream
             drop(stream);
         }
-
         // Get the current process ID
         let pid = std::process::id();
 
@@ -73,9 +73,9 @@ mod leak_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
+        println!("stdout: {}", stdout);
+        println!("stderr: {}", stderr);
         if !stdout.contains("0 leaks for 0 total leaked bytes") {
-            println!("stdout: {}", stdout);
-            println!("stderr: {}", stderr);
             panic!("Memory leaks detected");
         }
 
