@@ -33,7 +33,6 @@ impl SCStreamOutputTrait for AudioStreamOutput {
     }
 }
 
-
 fn main() -> Result<(), CFError> {
     let (tx, rx) = channel();
     let stream = get_stream(tx)?;
