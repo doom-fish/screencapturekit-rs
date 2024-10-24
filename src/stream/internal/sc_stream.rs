@@ -9,7 +9,6 @@ use crate::{
     utils::{
         block::{new_void_completion_handler, CompletionHandler},
         error::create_sc_error,
-        objc::get_concrete_from_void,
     },
 };
 use core_foundation::error::CFError;
@@ -52,8 +51,8 @@ impl SCStream {
         unsafe {
             let delegate = delegate.map_or(ptr::null_mut(), stream_delegate::get_handler);
             let inner: *mut Object = msg_send![class!(SCStream), alloc];
-            let inner: *mut Object = msg_send![inner, initWithFilter: filter.clone().as_CFTypeRef()  configuration: configuration.clone().as_CFTypeRef() delegate: delegate];
-            get_concrete_from_void(inner.cast())
+            let inner: SCStreamRef = msg_send![inner, initWithFilter: filter.clone().as_CFTypeRef()  configuration: configuration.clone().as_CFTypeRef() delegate: delegate];
+            Self::wrap_under_create_rule(inner)
         }
     }
 
@@ -135,6 +134,7 @@ mod test {
         shareable_content::sc_shareable_content::SCShareableContent,
         stream::{
             sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
+            sc_stream_delegate_trait::SCStreamDelegateTrait,
             sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
         },
     };
@@ -156,17 +156,22 @@ mod test {
             println!("Output type 2: {of_type:?}");
         }
     }
+    impl SCStreamDelegateTrait for OutputHandler<'_> {}
+
     #[test]
     fn create() -> Result<(), CFError> {
+        let output = "Audio";
         let config = SCStreamConfiguration::new()
             .set_captures_audio(true)?
             .set_width(100)?
             .set_height(100)?;
         let display = SCShareableContent::get()?.displays().remove(0);
         let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
-        let mut stream = SCStream::internal_init_with_filter(&filter, &config);
-
-        let output = "Audio";
+        let mut stream = SCStream::internal_init_with_filter_and_delegate(
+            &filter,
+            &config,
+            Some(OutputHandler { output }),
+        );
 
         stream.internal_add_output_handler(OutputHandler { output }, SCStreamOutputType::Audio);
 
