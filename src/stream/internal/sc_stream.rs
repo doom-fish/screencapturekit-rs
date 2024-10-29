@@ -11,16 +11,17 @@ use crate::{
         error::create_sc_error,
     },
 };
-use core_foundation::error::CFError;
+use core_foundation::{base, error::CFError};
 use core_foundation::{
     base::{CFTypeID, TCFType},
-    declare_TCFType, impl_TCFType,
+    impl_TCFType,
 };
 use dispatch::{Queue, QueuePriority};
 
-use objc::{class, msg_send, runtime::Object, sel, sel_impl};
+use objc::{class, declare::ClassDecl, msg_send, runtime::Object, sel, sel_impl};
 
 use super::{
+    cleanup::Cleanup,
     output_handler::{self, SCStreamOutput},
     stream_delegate,
 };
@@ -32,9 +33,37 @@ extern "C" {
 }
 pub type SCStreamRef = *mut __SCStreamRef;
 
-declare_TCFType! {SCStream, SCStreamRef}
+pub struct SCStream(SCStreamRef);
+
 impl_TCFType!(SCStream, SCStreamRef, SCStreamGetTypeID);
+
+impl Drop for SCStream {
+    fn drop(&mut self) {
+        unsafe {
+            (*self.as_concrete_TypeRef().cast::<Object>())
+                .get_mut_ivar::<Cleanup>("cleanup")
+                .drop_handlers();
+
+            base::CFRelease(self.as_CFTypeRef());
+        }
+    }
+}
+fn register() {
+    let mut decl =
+        ClassDecl::new("SCStreamWithHandlers", class!(SCStream)).expect("Could not register class");
+    decl.add_ivar::<Cleanup>("cleanup");
+    decl.register();
+}
+
 impl SCStream {
+    pub fn store_cleanup(&self, handler: *mut Object) {
+        unsafe {
+            let obj = self.as_concrete_TypeRef().cast::<Object>();
+            (*obj)
+                .get_mut_ivar::<Cleanup>("cleanup")
+                .add_handler(handler);
+        };
+    }
     pub fn internal_init_with_filter(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
@@ -48,9 +77,12 @@ impl SCStream {
         configuration: &SCStreamConfiguration,
         delegate: Option<T>,
     ) -> Self {
+        static REGISTER_ONCE: std::sync::Once = std::sync::Once::new();
+        REGISTER_ONCE.call_once(register);
         unsafe {
             let delegate = delegate.map_or(ptr::null_mut(), stream_delegate::get_handler);
-            let inner: *mut Object = msg_send![class!(SCStream), alloc];
+            let inner: *mut Object = msg_send![class!(SCStreamWithHandlers), alloc];
+            (*inner).set_ivar("cleanup", Cleanup::new(delegate));
             let inner: SCStreamRef = msg_send![inner, initWithFilter: filter.clone().as_CFTypeRef()  configuration: configuration.clone().as_CFTypeRef() delegate: delegate];
             Self::wrap_under_create_rule(inner)
         }
@@ -85,6 +117,8 @@ impl SCStream {
                     msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Audio sampleHandlerQueue: stream_queue error: error]
                 }
             };
+
+            self.store_cleanup(handler);
 
             if success {
                 Some(handler)
@@ -126,7 +160,6 @@ impl SCStream {
 
 #[cfg(test)]
 mod test {
-    use std::{thread, time::Duration};
 
     use core_foundation::error::CFError;
 
@@ -152,7 +185,6 @@ mod test {
         ) {
             println!("Output 2: {}", self.output);
             println!("Sample buffer 2: {sample_buffer:?}");
-            println!("Sample buffer: {:?}", sample_buffer.get_audio_buffer_list());
             println!("Output type 2: {of_type:?}");
         }
     }
@@ -177,7 +209,6 @@ mod test {
 
         stream.internal_start_capture()?;
 
-        thread::sleep(Duration::from_secs(1));
         stream.internal_stop_capture()
     }
 }

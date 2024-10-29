@@ -11,7 +11,7 @@ pub use super::internal::sc_stream::SCStream;
 pub use super::internal::sc_stream::SCStreamRef;
 
 impl SCStream {
-    pub fn new_with_error_delegate(
+    pub fn new_with_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
         delegate: impl SCStreamDelegateTrait,

@@ -7,9 +7,7 @@ mod leak_tests {
     use screencapturekit::{
         shareable_content::sc_shareable_content::SCShareableContent,
         stream::{
-            sc_content_filter::SCContentFilter, sc_stream::SCStream,
-            sc_stream_configuration::SCStreamConfiguration,
-            sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
+            sc_content_filter::SCContentFilter, sc_stream::SCStream, sc_stream_configuration::SCStreamConfiguration, sc_stream_delegate_trait::SCStreamDelegateTrait, sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType
         },
     };
 
@@ -30,6 +28,7 @@ mod leak_tests {
             Self::new()
         }
     }
+    impl SCStreamDelegateTrait for Capturer {}
 
     impl SCStreamOutputTrait for Capturer {
         fn did_output_sample_buffer(&self, _sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
@@ -53,7 +52,7 @@ mod leak_tests {
                 let d = display.unwrap().displays().remove(0);
                 let filter = SCContentFilter::new().with_display_excluding_windows(&d, &[]);
                 let output = Capturer::new();
-                let mut stream = SCStream::new(&filter, &config);
+                let mut stream = SCStream::new_with_delegate(&filter, &config, Capturer::default());
                 stream.add_output_handler(output, SCStreamOutputType::Audio);
                 stream
             };
