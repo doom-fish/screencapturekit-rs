@@ -23,6 +23,12 @@ jobs:
       - name: Run Tests
         run: |
           cargo test
+  contrib:
+    on:
+      push:
+        branches:
+          - "main"
+    steps:
       - name: Update Contribute List
         uses: akhilmhdh/contributors-readme-action@v2.3.10
         env:
