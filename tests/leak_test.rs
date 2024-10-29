@@ -31,7 +31,9 @@ mod leak_tests {
     impl SCStreamDelegateTrait for Capturer {}
 
     impl SCStreamOutputTrait for Capturer {
-        fn did_output_sample_buffer(&self, _sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
+        fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
+            let _ = sample.get_audio_buffer_list();
+            let _ = sample.get_format_description();
             println!("New frame recvd");
         }
     }
