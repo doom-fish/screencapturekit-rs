@@ -3,14 +3,19 @@ macro_rules! declare_trait_wrapper {
     ($name: ident, $t:ident) => {
         #[repr(transparent)]
         #[derive(Debug)]
-        pub struct $name<'a>(*mut Box<dyn $t + 'a>);
+        pub struct $name<'a>(pub *mut Box<dyn $t + 'a>);
 
         impl<'a> $name<'a> {
             pub fn new(handler: impl $t + 'a) -> Self {
                 Self(Box::into_raw(Box::new(Box::new(handler))))
             }
+            #[allow(dead_code)]
+            pub fn drop_trait(&self) {
+                unsafe {
+                    let _ = Box::from_raw(self.0);
+                }
+            }
         }
-
         impl<'a> std::ops::Deref for $name<'a> {
             type Target = Box<dyn $t>;
             fn deref(&self) -> &'a Self::Target {

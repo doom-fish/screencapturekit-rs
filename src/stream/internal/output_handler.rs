@@ -8,14 +8,13 @@ use objc::{
 };
 
 use crate::{
-    declare_trait_wrapper,
-    stream::{
+    declare_trait_wrapper, stream::{
         sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
-    },
-    utils::objc::get_concrete_from_void,
+    }, utils::objc::get_concrete_from_void
 };
 
 declare_trait_wrapper!(OutputTraitWrapper, SCStreamOutputTrait);
+
 
 type StreamOutputMethod =
     extern "C" fn(&Object, Sel, *mut Object, *const c_void, SCStreamOutputType);
@@ -42,7 +41,7 @@ fn register() {
     }
 }
 pub type SCStreamOutput = *mut Object;
-pub fn get_handler<'a>(handler: impl SCStreamOutputTrait + 'a) -> SCStreamOutput {
+pub fn get_handler<T: SCStreamOutputTrait>(handler: T) -> SCStreamOutput {
     static REGISTER_ONCE: Once = Once::new();
     REGISTER_ONCE.call_once(register);
 
