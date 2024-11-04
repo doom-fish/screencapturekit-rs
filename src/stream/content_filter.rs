@@ -4,10 +4,7 @@ mod internal {
     use std::ffi::c_void;
 
     use crate::{
-        shareable_content::{
-            sc_display::SCDisplay, sc_running_application::SCRunningApplication,
-            sc_window::SCWindow,
-        },
+        shareable_content::{SCDisplay, SCRunningApplication, SCWindow},
         utils::objc::MessageForTFType,
     };
     use core_foundation::{
@@ -91,11 +88,11 @@ mod internal {
         }
     }
 }
-pub use internal::{SCContentFilter, SCContentFilterRef};
+pub use internal::SCContentFilterRef;
+#[allow(clippy::module_name_repetitions)]
+pub use internal::SCContentFilter;
 
-use crate::shareable_content::{
-    sc_display::SCDisplay, sc_running_application::SCRunningApplication, sc_window::SCWindow,
-};
+use crate::shareable_content::{SCDisplay, SCRunningApplication, SCWindow};
 
 use self::internal::{
     create, init_with_desktop_independent_window,
@@ -172,10 +169,7 @@ impl Default for SCContentFilter {
 }
 #[cfg(test)]
 mod test_content_filter {
-    use crate::{
-        shareable_content::sc_shareable_content::SCShareableContent,
-        stream::sc_content_filter::SCContentFilter,
-    };
+    use crate::{shareable_content::SCShareableContent, stream::content_filter::SCContentFilter};
 
     #[test]
     fn test_init_with_display() {

@@ -8,13 +8,12 @@ use objc::{
 };
 
 use crate::{
-    declare_trait_wrapper, stream::{
-        sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
-    }, utils::objc::get_concrete_from_void
+    declare_trait_wrapper,
+    stream::{output_trait::SCStreamOutputTrait, output_type::SCStreamOutputType},
+    utils::objc::get_concrete_from_void,
 };
 
 declare_trait_wrapper!(OutputTraitWrapper, SCStreamOutputTrait);
-
 
 type StreamOutputMethod =
     extern "C" fn(&Object, Sel, *mut Object, *const c_void, SCStreamOutputType);

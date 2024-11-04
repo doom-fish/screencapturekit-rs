@@ -2,6 +2,7 @@ use std::fmt::{self, Display};
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 #[repr(C)]
+#[allow(clippy::module_name_repetitions)]
 pub enum SCStreamOutputType {
     Screen,
     Audio,

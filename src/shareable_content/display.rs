@@ -2,6 +2,7 @@ use core::fmt;
 
 use core_foundation::base::UInt32;
 use core_graphics::geometry::CGRect;
+#[allow(clippy::module_name_repetitions)]
 pub use internal::{SCDisplay, SCDisplayRef};
 
 use objc::{sel, sel_impl};
@@ -57,7 +58,7 @@ impl SCDisplay {
 #[cfg(test)]
 mod sc_display_test {
 
-    use crate::shareable_content::sc_shareable_content::SCShareableContent;
+    use crate::shareable_content::SCShareableContent;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
