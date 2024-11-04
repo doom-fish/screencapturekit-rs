@@ -11,3 +11,9 @@ impl SCStreamConfiguration {
         Self::internal_init()
     }
 }
+
+impl Default for SCStreamConfiguration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
