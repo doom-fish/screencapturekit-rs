@@ -1,11 +1,10 @@
 use core_foundation::error::CFError;
 use core_media_rs::cm_sample_buffer::CMSampleBuffer;
 use screencapturekit::{
-    shareable_content::sc_shareable_content::SCShareableContent,
+    shareable_content::SCShareableContent,
     stream::{
-        sc_content_filter::SCContentFilter, sc_stream::SCStream,
-        sc_stream_configuration::SCStreamConfiguration,
-        sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
+        configuration::SCStreamConfiguration, content_filter::SCContentFilter,
+        output_trait::SCStreamOutputTrait, output_type::SCStreamOutputType, SCStream,
     },
 };
 

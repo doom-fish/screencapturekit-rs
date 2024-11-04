@@ -24,6 +24,7 @@ mod internal {
 use core::fmt;
 
 use core_foundation::base::SInt32;
+#[allow(clippy::module_name_repetitions)]
 pub use internal::{SCRunningApplication, SCRunningApplicationRef};
 use objc::{sel, sel_impl};
 

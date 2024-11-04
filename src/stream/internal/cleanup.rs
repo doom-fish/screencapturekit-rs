@@ -3,7 +3,7 @@ use objc::{
     Encoding,
 };
 
-use super::{output_handler::OutputTraitWrapper, stream_delegate::StreamDelegateTraitWrapper};
+use super::{output_handler::OutputTraitWrapper, delegate::StreamDelegateTraitWrapper};
 
 const MAX_HANDLERS: usize = 10;
 

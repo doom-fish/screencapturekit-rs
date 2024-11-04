@@ -2,9 +2,9 @@ use std::{ffi::c_void, ptr};
 
 use crate::{
     stream::{
-        sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
-        sc_stream_delegate_trait::SCStreamDelegateTrait,
-        sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
+        configuration::SCStreamConfiguration, content_filter::SCContentFilter,
+        delegate_trait::SCStreamDelegateTrait, internal::delegate,
+        output_trait::SCStreamOutputTrait, output_type::SCStreamOutputType,
     },
     utils::{
         block::{new_void_completion_handler, CompletionHandler},
@@ -23,7 +23,6 @@ use objc::{class, declare::ClassDecl, msg_send, runtime::Object, sel, sel_impl};
 use super::{
     cleanup::Cleanup,
     output_handler::{self, SCStreamOutput},
-    stream_delegate,
 };
 
 #[repr(C)]
@@ -33,6 +32,7 @@ extern "C" {
 }
 pub type SCStreamRef = *mut __SCStreamRef;
 
+#[allow(clippy::module_name_repetitions)]
 pub struct SCStream(SCStreamRef);
 
 impl_TCFType!(SCStream, SCStreamRef, SCStreamGetTypeID);
@@ -80,7 +80,7 @@ impl SCStream {
         static REGISTER_ONCE: std::sync::Once = std::sync::Once::new();
         REGISTER_ONCE.call_once(register);
         unsafe {
-            let delegate = delegate.map_or(ptr::null_mut(), stream_delegate::get_handler);
+            let delegate = delegate.map_or(ptr::null_mut(), delegate::get_handler);
             let inner: *mut Object = msg_send![class!(SCStreamWithHandlers), alloc];
             (*inner).set_ivar("cleanup", Cleanup::new(delegate));
             let inner: SCStreamRef = msg_send![inner, initWithFilter: filter.clone().as_CFTypeRef()  configuration: configuration.clone().as_CFTypeRef() delegate: delegate];
@@ -164,11 +164,11 @@ mod test {
     use core_foundation::error::CFError;
 
     use crate::{
-        shareable_content::sc_shareable_content::SCShareableContent,
+        shareable_content::SCShareableContent,
         stream::{
-            sc_content_filter::SCContentFilter, sc_stream_configuration::SCStreamConfiguration,
-            sc_stream_delegate_trait::SCStreamDelegateTrait,
-            sc_stream_output_trait::SCStreamOutputTrait, sc_stream_output_type::SCStreamOutputType,
+            configuration::SCStreamConfiguration, content_filter::SCContentFilter,
+            delegate_trait::SCStreamDelegateTrait, output_trait::SCStreamOutputTrait,
+            output_type::SCStreamOutputType,
         },
     };
 

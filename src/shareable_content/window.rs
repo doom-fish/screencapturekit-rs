@@ -17,23 +17,30 @@ mod internal {
     declare_TCFType! {SCWindow, SCWindowRef}
     impl_TCFType!(SCWindow, SCWindowRef, SCWindowGetTypeID);
 }
-pub use internal::{SCWindow, SCWindowRef};
-use std::fmt::{self};
 
-use core_foundation::base::{TCFType, UInt32};
+#[allow(clippy::module_name_repetitions)]
+pub use internal::{SCWindow, SCWindowRef};
+use std::{
+    ffi::c_void,
+    fmt::{self},
+};
+
+use core_foundation::base::UInt32;
 use core_graphics::geometry::CGRect;
 
 use objc::{msg_send, sel, sel_impl};
 
-use crate::utils::objc::{get_bool_property, get_property, get_string_property, MessageForTFType};
+use crate::utils::objc::{
+    get_bool_property, get_concrete_from_void, get_property, get_string_property, MessageForTFType,
+};
 
-use super::sc_running_application::{SCRunningApplication, SCRunningApplicationRef};
+use super::SCRunningApplication;
 
 impl SCWindow {
     pub fn owning_application(&self) -> SCRunningApplication {
         unsafe {
-            let ptr: SCRunningApplicationRef = msg_send![self.as_sendable(), owningApplication];
-            SCRunningApplication::wrap_under_get_rule(ptr)
+            let void_ptr: *const c_void = msg_send![self.as_sendable(), owningApplication];
+            get_concrete_from_void(void_ptr)
         }
     }
     pub fn window_layer(&self) -> UInt32 {
@@ -73,7 +80,7 @@ impl fmt::Debug for SCWindow {
 #[cfg(test)]
 mod sc_window_test {
 
-    use crate::shareable_content::{sc_shareable_content::SCShareableContent, sc_window::SCWindow};
+    use crate::shareable_content::{SCShareableContent, SCWindow};
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]

@@ -9,11 +9,11 @@ use objc::{
 };
 
 use crate::{
-    declare_trait_wrapper, stream::sc_stream_delegate_trait::SCStreamDelegateTrait,
+    declare_trait_wrapper, stream::delegate_trait::SCStreamDelegateTrait,
     utils::objc::get_concrete_from_void,
 };
 
-use super::sc_stream::SCStream;
+use super::stream::SCStream;
 
 declare_trait_wrapper!(StreamDelegateTraitWrapper, SCStreamDelegateTrait);
 
