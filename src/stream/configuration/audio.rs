@@ -47,11 +47,6 @@ impl SCStreamConfiguration {
     }
 }
 
-impl Default for SCStreamConfiguration {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 #[cfg(test)]
 mod sc_stream_configuration_test {

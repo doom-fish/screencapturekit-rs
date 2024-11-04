@@ -27,6 +27,7 @@ ci = []
 
 [dependencies]
 core-media-rs = { git = "https://github.com/doom-fish/core-frameworks.git" }
+core-utils-rs = { git = "https://github.com/doom-fish/core-frameworks.git" }
 objc = { version = "0.2", features = ["exception"] }
 block2 = "0.5"
 dispatch = "0.2"
