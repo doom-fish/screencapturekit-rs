@@ -31,6 +31,8 @@ mod internal {
         string::CFString,
     };
 
+    use core_media_rs::cm_sample_buffer::CMSampleBufferAttachment;
+
     use crate::utils::{error::create_cf_error, objc::MessageForTFType};
 
     use super::SCFrameStatus;
@@ -49,36 +51,51 @@ mod internal {
         SCStreamFrameInfoRef,
         SCStreamFrameInfoGetTypeID
     );
-    pub fn init() -> SCStreamFrameInfo {
-        unsafe {
-            let ptr: *mut Object = msg_send![class!(SCStreamFrameInfo), alloc];
-            let ptr: SCStreamFrameInfoRef = msg_send![ptr, init];
-            SCStreamFrameInfo::wrap_under_create_rule(ptr)
-        }
-    }
-    pub fn status(status_info: &SCStreamFrameInfo) -> Result<SCFrameStatus, CFError> {
-        unsafe {
-            let key = CFString::from("StreamUpdateFrameStatus");
-            let raw_status: CFNumberRef = msg_send![status_info.as_sendable(), objectForKey: key];
 
-            if raw_status.is_null() {
-                return Err(create_cf_error("Could not get StreamUpdateFrameStatus, the CMSampleBuffer does not contain any frame data", 0));
+    unsafe impl CMSampleBufferAttachment for SCStreamFrameInfo {}
+
+    impl SCStreamFrameInfo {
+        pub fn internal_init() -> Self {
+            unsafe {
+                let ptr: *mut Object = msg_send![class!(SCStreamFrameInfo), alloc];
+                let ptr: SCStreamFrameInfoRef = msg_send![ptr, init];
+                Self::wrap_under_create_rule(ptr)
             }
+        }
+        /// Returns the internal status of this [`SCStreamFrameInfo`].
+        ///
+        /// # Panics
+        ///
+        /// Panics if .
+        ///
+        /// # Errors
+        ///
+        /// This function will return an error if .
+        pub fn internal_status(&self) -> Result<SCFrameStatus, CFError> {
+            unsafe {
+                let key = CFString::from("StreamUpdateFrameStatus");
+                let raw_status: CFNumberRef = msg_send![self.as_sendable(), objectForKey: key];
 
-            let status = CFNumber::wrap_under_get_rule(raw_status);
+                if raw_status.is_null() {
+                    return Err(create_cf_error("Could not get StreamUpdateFrameStatus, the CMSampleBuffer does not contain any frame data", 0));
+                }
 
-            Ok(mem::transmute::<i32, SCFrameStatus>(
-                status.to_i32().unwrap() as i32,
-            ))
+                let status = CFNumber::wrap_under_get_rule(raw_status);
+
+                Ok(mem::transmute::<i32, SCFrameStatus>(
+                    status.to_i32().unwrap() as i32,
+                ))
+            }
         }
     }
 }
 use core_foundation::error::CFError;
 pub use internal::SCStreamFrameInfo;
 
+
 impl SCStreamFrameInfo {
     pub fn new() -> Self {
-        internal::init()
+        Self::internal_init()
     }
     /// Returns the status of this [`SCStreamFrameInfo`].
     ///
@@ -86,8 +103,9 @@ impl SCStreamFrameInfo {
     ///
     /// This function will return an error if .
     pub fn status(&self) -> Result<SCFrameStatus, CFError> {
-        internal::status(self)
+        self.internal_status()
     }
+
 }
 
 impl Default for SCStreamFrameInfo {
