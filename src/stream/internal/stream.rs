@@ -161,9 +161,13 @@ impl SCStream {
 #[cfg(test)]
 mod test {
 
+    use std::sync::mpsc::channel;
+
     use core_foundation::error::CFError;
+    use core_media_rs::cm_sample_buffer::CMSampleBuffer;
 
     use crate::{
+        output::sc_stream_frame_info::SCStreamFrameInfo,
         shareable_content::SCShareableContent,
         stream::{
             configuration::SCStreamConfiguration, content_filter::SCContentFilter,
@@ -174,10 +178,13 @@ mod test {
 
     use super::SCStream;
 
-    struct OutputHandler<'a> {
+    struct AudioOutputHandler<'a> {
         pub output: &'a str,
     }
-    impl SCStreamOutputTrait for OutputHandler<'_> {
+    struct ScreenOutputHandler {
+        sender: std::sync::mpsc::Sender<CMSampleBuffer>,
+    }
+    impl SCStreamOutputTrait for AudioOutputHandler<'_> {
         fn did_output_sample_buffer(
             &self,
             sample_buffer: core_media_rs::cm_sample_buffer::CMSampleBuffer,
@@ -188,27 +195,57 @@ mod test {
             println!("Output type 2: {of_type:?}");
         }
     }
-    impl SCStreamDelegateTrait for OutputHandler<'_> {}
+    impl SCStreamDelegateTrait for AudioOutputHandler<'_> {}
+    impl SCStreamOutputTrait for ScreenOutputHandler {
+        fn did_output_sample_buffer(
+            &self,
+            sample_buffer: CMSampleBuffer,
+            _of_type: SCStreamOutputType,
+        ) {
+            self.sender.send(sample_buffer).unwrap();
+        }
+    }
 
     #[test]
-    fn create() -> Result<(), CFError> {
+    fn test_audio() -> Result<(), CFError> {
         let output = "Audio";
+        let mut stream = create_stream(output)?;
+        stream
+            .internal_add_output_handler(AudioOutputHandler { output }, SCStreamOutputType::Audio);
+        stream.internal_start_capture()?;
+        stream.internal_stop_capture()
+    }
+
+    #[test]
+    fn test_video() -> Result<(), CFError> {
+        let output = "Video";
+        let mut stream = create_stream(output)?;
+        let (tx, rx) = channel();
+        stream.internal_add_output_handler(
+            ScreenOutputHandler { sender: tx },
+            SCStreamOutputType::Screen,
+        );
+        stream.internal_start_capture()?;
+        let sample = rx.recv().unwrap();
+        let frame_info = SCStreamFrameInfo::from_buffer(&sample)?;
+
+        println!("{frame_info:?}");
+
+        stream.internal_stop_capture()
+    }
+
+    fn create_stream(output: &str) -> Result<SCStream, CFError> {
         let config = SCStreamConfiguration::new()
             .set_captures_audio(true)?
             .set_width(100)?
             .set_height(100)?;
         let display = SCShareableContent::get()?.displays().remove(0);
         let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
-        let mut stream = SCStream::internal_init_with_filter_and_delegate(
+        let stream = SCStream::internal_init_with_filter_and_delegate(
             &filter,
             &config,
-            Some(OutputHandler { output }),
+            Some(AudioOutputHandler { output }),
         );
-
-        stream.internal_add_output_handler(OutputHandler { output }, SCStreamOutputType::Audio);
-
-        stream.internal_start_capture()?;
-
-        stream.internal_stop_capture()
+        Ok(stream)
     }
 }
