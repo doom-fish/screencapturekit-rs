@@ -45,6 +45,7 @@ fn main() -> Result<(), CFError> {
         let sample = rx
             .recv_timeout(std::time::Duration::from_secs(10))
             .expect("could not receive from output_buffer");
+
         let b = sample.get_audio_buffer_list().expect("should work");
         for buffer_index in 0..b.num_buffers() {
             let buffer = b.get(buffer_index).expect("should work");
