@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod leak_tests {
 
-    use std::{error::Error, process::Command};
+    use std::{error::Error, process::Command, thread};
 
     use core_media_rs::cm_sample_buffer::CMSampleBuffer;
     use screencapturekit::{
@@ -14,14 +14,10 @@ mod leak_tests {
         },
     };
 
-    // #[global_allocator]
-    // static ALLOC: dhat::Alloc = dhat::Alloc;
-
     pub struct Capturer {}
 
     impl Capturer {
         pub fn new() -> Self {
-            println!("Capturer initialized");
             Capturer {}
         }
     }
@@ -38,7 +34,6 @@ mod leak_tests {
             let _ = sample.get_audio_buffer_list();
             let _ = sample.get_format_description();
             let _ = SCStreamFrameInfo::from_buffer(&sample);
-            println!("New frame recvd");
         }
     }
 
@@ -57,11 +52,14 @@ mod leak_tests {
 
                 let d = display.unwrap().displays().remove(0);
                 let filter = SCContentFilter::new().with_display_excluding_windows(&d, &[]);
-                let output = Capturer::new();
                 let mut stream = SCStream::new_with_delegate(&filter, &config, Capturer::default());
-                stream.add_output_handler(output, SCStreamOutputType::Audio);
+                stream.add_output_handler(Capturer::new(), SCStreamOutputType::Audio);
+                stream.add_output_handler(Capturer::new(), SCStreamOutputType::Screen);
                 stream
             };
+            stream.start_capture().ok();
+            thread::sleep(std::time::Duration::from_millis(10));
+            stream.stop_capture().ok();
             // Force drop of sc_stream
             drop(stream);
         }
