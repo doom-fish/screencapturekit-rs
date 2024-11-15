@@ -213,6 +213,7 @@ mod internal {
     }
 }
 use core_foundation::error::CFError;
+use core_graphics::display::CGRect;
 use core_media_rs::cm_sample_buffer::CMSampleBuffer;
 pub use internal::SCFrameStatus;
 pub use internal::SCStreamFrameInfo;
@@ -229,5 +230,26 @@ impl SCStreamFrameInfo {
     /// Returns the status of this [`SCStreamFrameInfo`].
     pub fn status(&self) -> SCFrameStatus {
         self.internal_status()
+    }
+    pub fn display_time(&self) -> u64 {
+        self.internal_display_time()
+    }
+    pub fn scale_factor(&self) -> f64 {
+        self.internal_scale_factor()
+    }
+    pub fn content_scale(&self) -> f64 {
+        self.internal_content_scale()
+    }
+    pub fn bounding_rect(&self) -> CGRect {
+        self.internal_bounding_rect()
+    }
+    pub fn content_rect(&self) -> CGRect {
+        self.internal_content_rect()
+    }
+    pub fn screen_rect(&self) -> CGRect {
+        self.internal_screen_rect()
+    }
+    pub fn dirty_rects(&self) -> Vec<CGRect> {
+        self.internal_dirty_rects()
     }
 }
