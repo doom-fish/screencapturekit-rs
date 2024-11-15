@@ -5,6 +5,7 @@ mod leak_tests {
 
     use core_media_rs::cm_sample_buffer::CMSampleBuffer;
     use screencapturekit::{
+        output::sc_stream_frame_info::SCStreamFrameInfo,
         shareable_content::SCShareableContent,
         stream::{
             configuration::SCStreamConfiguration, content_filter::SCContentFilter,
@@ -36,6 +37,7 @@ mod leak_tests {
         fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
             let _ = sample.get_audio_buffer_list();
             let _ = sample.get_format_description();
+            let _ = SCStreamFrameInfo::from_buffer(&sample);
             println!("New frame recvd");
         }
     }
