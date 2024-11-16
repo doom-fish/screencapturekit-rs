@@ -227,7 +227,7 @@ mod test {
         );
         stream.internal_start_capture()?;
         let sample = rx.recv().unwrap();
-        let frame_info = SCStreamFrameInfo::from_buffer(&sample)?;
+        let frame_info = SCStreamFrameInfo::from_sample_buffer(&sample)?;
 
         println!("{frame_info:?}");
 

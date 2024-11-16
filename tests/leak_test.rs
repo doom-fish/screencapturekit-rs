@@ -5,7 +5,7 @@ mod leak_tests {
 
     use core_media_rs::cm_sample_buffer::CMSampleBuffer;
     use screencapturekit::{
-        output::sc_stream_frame_info::SCStreamFrameInfo,
+        output::sc_stream_frame_info::{SCFrameStatus, SCStreamFrameInfo},
         shareable_content::SCShareableContent,
         stream::{
             configuration::SCStreamConfiguration, content_filter::SCContentFilter,
@@ -31,9 +31,19 @@ mod leak_tests {
 
     impl SCStreamOutputTrait for Capturer {
         fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
-            let _ = sample.get_audio_buffer_list();
-            let _ = sample.get_format_description();
-            let _ = SCStreamFrameInfo::from_buffer(&sample);
+            let audio = sample.get_audio_buffer_list();
+            let desc = sample.get_format_description();
+            let info = SCStreamFrameInfo::from_sample_buffer(&sample);
+            if let Ok(ref inner) = info {
+                if inner.status() == SCFrameStatus::Complete {
+                    println!("sample: {sample:?}");
+                }
+
+            }
+            drop(sample);
+            println!("audio: {audio:?}");
+            println!("desc: {desc:?}");
+            println!("info: {info:?}");
         }
     }
 
@@ -58,7 +68,7 @@ mod leak_tests {
                 stream
             };
             stream.start_capture().ok();
-            thread::sleep(std::time::Duration::from_millis(10));
+            thread::sleep(std::time::Duration::from_millis(100));
             stream.stop_capture().ok();
             // Force drop of sc_stream
             drop(stream);
