@@ -22,4 +22,4 @@ jobs:
         run: cargo build --verbose --features ci
       - name: Run Tests
         run: |
-          cargo test
+          cargo test --verbose --features ci
