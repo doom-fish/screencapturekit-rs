@@ -13,7 +13,7 @@ env:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Update rust
@@ -22,4 +22,4 @@ jobs:
         run: cargo build --verbose --features ci
       - name: Run Tests
         run: |
-          cargo test --verbose --features ci
+          cargo test
