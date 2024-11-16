@@ -7,7 +7,7 @@ mod internal {
 
     use core_foundation::{
         array::{CFArray, CFArrayRef},
-        base::{CFType, ItemRef, TCFType},
+        base::{CFType, FromVoid, ItemRef, TCFType},
         error::CFError,
         number::CFNumber,
         string::{CFString, CFStringRef},
@@ -44,22 +44,36 @@ mod internal {
     pub struct SCStreamFrameInfo {
         data: CFArray<CFDictionary<CFString, CFType>>,
     }
+
     impl fmt::Debug for SCStreamFrameInfo {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("SCStreamFrameInfo")
-                .field("status", &self.internal_status())
-                .field("display_time", &self.internal_display_time())
-                .field("scale_factor", &self.internal_scale_factor())
-                .field("content_scale", &self.internal_content_scale())
-                .field("bounding_rect", &self.internal_bounding_rect())
-                .field("content_rect", &self.internal_content_rect())
-                .field("screen_rect", &self.internal_screen_rect())
-                .field("dirty_rect", &self.internal_dirty_rects())
-                .finish()
+            let mut s = f.debug_struct("SCStreamFrameInfo");
+
+            s.field("status", &self.internal_status());
+            s.field("display_time", &self.internal_display_time());
+            if let Some(ref scale_factor) = self.internal_scale_factor() {
+                s.field("scale_factor", &scale_factor);
+            }
+            if let Some(ref content_scale) = self.internal_content_scale() {
+                s.field("content_scale", &content_scale);
+            }
+            if let Some(ref bounding_rect) = self.internal_bounding_rect() {
+                s.field("bounding_rect", &bounding_rect);
+            }
+            if let Some(ref content_rect) = self.internal_content_rect() {
+                s.field("content_rect", &content_rect);
+            }
+            if let Some(ref screen_rect) = self.internal_screen_rect() {
+                s.field("screen_rect", &screen_rect);
+            }
+            if let Some(ref dirty_rects) = self.internal_dirty_rects() {
+                s.field("dirty_rect", &dirty_rects);
+            }
+            s.finish()
         }
     }
     impl SCStreamFrameInfo {
-        pub(crate) fn internal_from_buffer(
+        pub(crate) fn internal_sample_from_buffer(
             sample_buffer: &CMSampleBuffer,
         ) -> Result<Self, CFError> {
             let data: CFArray<CFDictionary<CFString, CFType>> = unsafe {
@@ -69,13 +83,19 @@ mod internal {
                 ))
             };
 
-            if data.is_empty() {
-                return Err(create_cf_error(
-                    "could not get CMSampleBufferSampleAttachmentsArray",
-                    0,
-                ));
-            };
-            Ok(Self { data })
+            if data.is_empty() {};
+            if let Some(ref dict) = data.get(0) {
+                let KEY_FOR_SC_STREAM_STATUS =
+                    unsafe { CFString::from_void(SCStreamFrameInfoStatus.cast()) };
+
+                if dict.contains_key(&KEY_FOR_SC_STREAM_STATUS) {
+                    return Ok(Self { data });
+                }
+            }
+            Err(create_cf_error(
+                "could not get CMSampleBufferSampleAttachmentsArray",
+                0,
+            ))
         }
         fn data(&self) -> ItemRef<'_, CFDictionary<CFString, CFType>> {
             self.data.get(0).expect("should have data")
@@ -101,47 +121,39 @@ mod internal {
                     .expect("could not get display time")
             }
         }
-        pub(crate) fn internal_scale_factor(&self) -> f64 {
+        pub(crate) fn internal_scale_factor(&self) -> Option<f64> {
             unsafe {
                 self.data()
-                    .get(SCStreamFrameInfoScaleFactor)
-                    .downcast()
+                    .find(SCStreamFrameInfoScaleFactor)
+                    .and_then(|n| n.downcast())
                     .and_then(|n: CFNumber| n.to_f64())
-                    .expect("could not get scale factor")
             }
         }
-        pub(crate) fn internal_content_scale(&self) -> f64 {
+        pub(crate) fn internal_content_scale(&self) -> Option<f64> {
             self.data()
-                .get(unsafe { SCStreamFrameInfoContentScale })
-                .downcast()
+                .find(unsafe { SCStreamFrameInfoContentScale })
+                .and_then(|n| n.downcast())
                 .and_then(|n: CFNumber| n.to_f64())
-                .expect("could not get content scale")
         }
-        pub(crate) fn internal_bounding_rect(&self) -> CGRect {
-            dict_to_cg_rect(
-                self.data()
-                    .get(unsafe { SCStreamFrameInfoBoundingRect })
-                    .downcast()
-                    .expect("should have bounding rect"),
-            )
+        pub(crate) fn internal_bounding_rect(&self) -> Option<CGRect> {
+            self.data()
+                .find(unsafe { SCStreamFrameInfoBoundingRect })
+                .and_then(|n| n.downcast())
+                .map(dict_to_cg_rect)
         }
-        pub(crate) fn internal_content_rect(&self) -> CGRect {
-            dict_to_cg_rect(
-                self.data()
-                    .get(unsafe { SCStreamFrameInfoContentRect })
-                    .downcast()
-                    .expect("should have content rect"),
-            )
+        pub(crate) fn internal_content_rect(&self) -> Option<CGRect> {
+            self.data()
+                .find(unsafe { SCStreamFrameInfoContentRect })
+                .and_then(|n| n.downcast())
+                .map(dict_to_cg_rect)
         }
-        pub(crate) fn internal_screen_rect(&self) -> CGRect {
-            dict_to_cg_rect(
-                self.data()
-                    .get(unsafe { SCStreamFrameInfoScreenRect })
-                    .downcast()
-                    .expect("should have screen rect"),
-            )
+        pub(crate) fn internal_screen_rect(&self) -> Option<CGRect> {
+            self.data()
+                .find(unsafe { SCStreamFrameInfoScreenRect })
+                .and_then(|n| n.downcast())
+                .map(dict_to_cg_rect)
         }
-        pub(crate) fn internal_dirty_rects(&self) -> Vec<CGRect> {
+        pub(crate) fn internal_dirty_rects(&self) -> Option<Vec<CGRect>> {
             unsafe {
                 self.data()
                     .find(SCStreamFrameInfoDirtyRects)
@@ -152,7 +164,6 @@ mod internal {
                             .map(dict_to_cg_rect)
                             .collect()
                     })
-                    .expect("could not get dirty rects")
             }
         }
     }
@@ -193,7 +204,7 @@ mod internal {
         CGRect::new(&CGPoint::new(x, y), &CGSize::new(width, height))
     }
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     #[repr(i64)]
     pub enum SCFrameStatus {
         // A status that indicates the system successfully generated a new frame.
@@ -222,8 +233,8 @@ impl SCStreamFrameInfo {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn from_buffer(sample_buffer: &CMSampleBuffer) -> Result<Self, CFError> {
-        Self::internal_from_buffer(sample_buffer)
+    pub fn from_sample_buffer(sample_buffer: &CMSampleBuffer) -> Result<Self, CFError> {
+        Self::internal_sample_from_buffer(sample_buffer)
     }
     /// Returns the status of this [`SCStreamFrameInfo`].
     pub fn status(&self) -> SCFrameStatus {
@@ -232,22 +243,22 @@ impl SCStreamFrameInfo {
     pub fn display_time(&self) -> u64 {
         self.internal_display_time()
     }
-    pub fn scale_factor(&self) -> f64 {
+    pub fn scale_factor(&self) -> Option<f64> {
         self.internal_scale_factor()
     }
-    pub fn content_scale(&self) -> f64 {
+    pub fn content_scale(&self) -> Option<f64> {
         self.internal_content_scale()
     }
-    pub fn bounding_rect(&self) -> CGRect {
+    pub fn bounding_rect(&self) -> Option<CGRect> {
         self.internal_bounding_rect()
     }
-    pub fn content_rect(&self) -> CGRect {
+    pub fn content_rect(&self) -> Option<CGRect> {
         self.internal_content_rect()
     }
-    pub fn screen_rect(&self) -> CGRect {
+    pub fn screen_rect(&self) -> Option<CGRect> {
         self.internal_screen_rect()
     }
-    pub fn dirty_rects(&self) -> Vec<CGRect> {
+    pub fn dirty_rects(&self) -> Option<Vec<CGRect>> {
         self.internal_dirty_rects()
     }
 }
