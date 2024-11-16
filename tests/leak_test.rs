@@ -38,7 +38,6 @@ mod leak_tests {
                 if inner.status() == SCFrameStatus::Complete {
                     println!("sample: {sample:?}");
                 }
-
             }
             drop(sample);
             println!("audio: {audio:?}");
