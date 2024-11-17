@@ -88,9 +88,9 @@ mod internal {
         }
     }
 }
-pub use internal::SCContentFilterRef;
 #[allow(clippy::module_name_repetitions)]
 pub use internal::SCContentFilter;
+pub use internal::SCContentFilterRef;
 
 use crate::shareable_content::{SCDisplay, SCRunningApplication, SCWindow};
 

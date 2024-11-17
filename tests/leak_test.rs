@@ -38,7 +38,7 @@ mod leak_tests {
     }
 
     #[test]
-    #[cfg_attr(feature = "ci", ignore)]
+    // #[cfg_attr(feature = "ci", ignore)]
     fn test_if_program_leaks() -> Result<(), Box<dyn Error>> {
         for _ in 0..4 {
             // Create and immediately drop streams
