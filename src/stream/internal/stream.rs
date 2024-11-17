@@ -1,5 +1,3 @@
-use std::{ffi::c_void, ptr};
-
 use crate::{
     stream::{
         configuration::SCStreamConfiguration, content_filter::SCContentFilter,
@@ -16,7 +14,8 @@ use core_foundation::{
     base::{CFTypeID, TCFType},
     impl_TCFType,
 };
-use dispatch::{Queue, QueuePriority};
+use dispatch::ffi::{dispatch_get_global_queue, DISPATCH_QUEUE_PRIORITY_DEFAULT};
+use std::{ffi::c_void, ptr};
 
 use objc::{class, declare::ClassDecl, msg_send, runtime::Object, sel, sel_impl};
 
@@ -107,14 +106,13 @@ impl SCStream {
         unsafe {
             let error: *mut Object = ptr::null_mut();
             let handler = output_handler::get_handler(handler);
-            let stream_queue = Queue::global(QueuePriority::Low);
-
+            let queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
             let success: bool = match of_type {
                 SCStreamOutputType::Screen => {
-                    msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Screen sampleHandlerQueue: stream_queue error: error]
+                    msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Screen sampleHandlerQueue: queue error: error]
                 }
                 SCStreamOutputType::Audio => {
-                    msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Audio sampleHandlerQueue: stream_queue error: error]
+                    msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Audio sampleHandlerQueue: queue error: error]
                 }
             };
 
