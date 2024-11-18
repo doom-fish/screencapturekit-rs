@@ -17,9 +17,7 @@ use core_foundation::{
 use dispatch::ffi::{dispatch_get_global_queue, DISPATCH_QUEUE_PRIORITY_DEFAULT};
 use std::{ffi::c_void, ptr};
 
-use objc::{
-    class, declare::ClassDecl, msg_send, rc::autoreleasepool, runtime::Object, sel, sel_impl,
-};
+use objc::{class, declare::ClassDecl, msg_send, runtime::Object, sel, sel_impl};
 
 use super::{
     cleanup::Cleanup,
@@ -106,27 +104,25 @@ impl SCStream {
         of_type: SCStreamOutputType,
     ) -> Option<SCStreamOutput> {
         unsafe {
-            autoreleasepool(|| {
-                let error: *mut Object = ptr::null_mut();
-                let handler = output_handler::get_handler(handler);
-                let queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-                let success: bool = match of_type {
-                    SCStreamOutputType::Screen => {
-                        msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Screen sampleHandlerQueue: queue error: error]
-                    }
-                    SCStreamOutputType::Audio => {
-                        msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Audio sampleHandlerQueue: queue error: error]
-                    }
-                };
-
-                self.store_cleanup(handler);
-
-                if success {
-                    Some(handler)
-                } else {
-                    None
+            let error: *mut Object = ptr::null_mut();
+            let handler = output_handler::get_handler(handler);
+            let queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+            let success: bool = match of_type {
+                SCStreamOutputType::Screen => {
+                    msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Screen sampleHandlerQueue: queue error: error]
                 }
-            })
+                SCStreamOutputType::Audio => {
+                    msg_send![self.as_CFTypeRef().cast::<Object>(), addStreamOutput: handler type: SCStreamOutputType::Audio sampleHandlerQueue: queue error: error]
+                }
+            };
+
+            self.store_cleanup(handler);
+
+            if success {
+                Some(handler)
+            } else {
+                None
+            }
         }
     }
     /// Returns the internal start capture of this [`SCStream`].
@@ -135,13 +131,13 @@ impl SCStream {
     ///
     /// This function will return an error if .
     pub fn internal_start_capture(&self) -> Result<(), CFError> {
-        autoreleasepool(|| unsafe {
+        unsafe {
             let CompletionHandler(handler, rx) = new_void_completion_handler();
             let _: () = msg_send![self.as_CFTypeRef().cast::<Object>(), startCaptureWithCompletionHandler: handler];
 
             rx.recv()
                 .map_err(|_| create_sc_error("Could not receive from completion handler"))?
-        })
+        }
     }
     /// Returns the internal stop capture of this [`SCStream`].
     ///
@@ -149,14 +145,14 @@ impl SCStream {
     ///
     /// This function will return an error if .
     pub fn internal_stop_capture(&self) -> Result<(), CFError> {
-        autoreleasepool(|| unsafe {
+        unsafe {
             let CompletionHandler(handler, rx) = new_void_completion_handler();
 
             let _: () = msg_send![self.as_CFTypeRef().cast::<Object>(), stopCaptureWithCompletionHandler: handler];
 
             rx.recv()
                 .map_err(|_| create_sc_error("Could not receive from completion handler"))?
-        })
+        }
     }
 }
 
