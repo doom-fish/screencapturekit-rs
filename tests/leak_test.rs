@@ -59,7 +59,7 @@ mod leak_tests {
                 stream
             };
             stream.start_capture().ok();
-            thread::sleep(std::time::Duration::from_millis(100));
+            thread::sleep(std::time::Duration::from_millis(5000));
             stream.stop_capture().ok();
             // Force drop of sc_stream
             drop(stream);
