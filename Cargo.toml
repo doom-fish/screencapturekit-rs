@@ -27,8 +27,9 @@ ci = []
 
 
 [dependencies]
-core-media-rs = { version = "0.2.2" }
-core-utils-rs = { version = "0.2.2" }
+core-media-rs = { version = "0.3" }
+core-video-rs = { version = "0.3" }
+core-utils-rs = { version = "0.3" }
 objc = { version = "0.2", features = ["exception"] }
 block2 = "0.5"
 dispatch = "0.2"
