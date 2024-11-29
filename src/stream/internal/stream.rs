@@ -26,15 +26,18 @@ use super::{
 
 #[repr(C)]
 pub struct __SCStreamRef(c_void);
+
 extern "C" {
     pub fn SCStreamGetTypeID() -> CFTypeID;
 }
-pub type SCStreamRef = *mut __SCStreamRef;
 
+pub type SCStreamRef = *mut __SCStreamRef;
 #[allow(clippy::module_name_repetitions)]
 pub struct SCStream(SCStreamRef);
 
 impl_TCFType!(SCStream, SCStreamRef, SCStreamGetTypeID);
+
+unsafe impl Send for SCStream {}
 
 impl Drop for SCStream {
     fn drop(&mut self) {
