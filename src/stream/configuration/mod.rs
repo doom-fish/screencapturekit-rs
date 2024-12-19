@@ -4,8 +4,9 @@ pub mod audio;
 pub mod dimensions;
 pub mod colors;
 pub mod pixel_format;
+pub mod captured_frames;
 
-#[allow(clippy::module_name_repetitions)] 
+#[allow(clippy::module_name_repetitions)]
 pub use internal::SCStreamConfiguration;
 impl SCStreamConfiguration {
     #[must_use]
