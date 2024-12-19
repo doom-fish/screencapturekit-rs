@@ -32,6 +32,7 @@ mod internal {
         SCShareableContentRef,
         SCShareableContentGetTypeID
     );
+    unsafe impl Send for SCShareableContent {}
 }
 
 #[allow(clippy::module_name_repetitions)]
