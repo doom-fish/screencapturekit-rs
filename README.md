@@ -83,17 +83,17 @@ maintainers' time is limited.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/iparaskev">
+                    <img src="https://private-avatars.githubusercontent.com/u/23037402?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MzQ2MTEyODAsIm5iZiI6MTczNDYxMDA4MCwicGF0aCI6Ii91LzIzMDM3NDAyIn0.k0tkts825wSz-YK_1YqHNSsGMC1Ff27SLUlEMxlFEnY&v=4" width="100;" alt="iparaskev"/>
+                    <br />
+                    <sub><b>Iason Paraskevopoulos</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/Pranav2612000">
                     <img src="https://private-avatars.githubusercontent.com/u/20909078?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MzQ2MTExMDAsIm5iZiI6MTczNDYwOTkwMCwicGF0aCI6Ii91LzIwOTA5MDc4In0.x3CY4XDEZ_fNFEfb1sr0vRySnuVYok-pGB2sVDdQ6V8&v=4" width="100;" alt="Pranav2612000"/>
                     <br />
                     <sub><b>Pranav Joglekar</b></sub>
-                </a>
-            </td>
-            <td align="center">
-                <a href="https://github.com/iparaskev">
-                    <img src="https://private-avatars.githubusercontent.com/u/23037402?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MzQ2MTAzODAsIm5iZiI6MTczNDYwOTE4MCwicGF0aCI6Ii91LzIzMDM3NDAyIn0.dDstiPgvbBCDLwzDPB3ed_426SmbNJ06W8VHH3IMXwU&v=4" width="100;" alt="iparaskev"/>
-                    <br />
-                    <sub><b>Iason Paraskevopoulos</b></sub>
                 </a>
             </td>
             <td align="center">
@@ -107,7 +107,7 @@ maintainers' time is limited.
 		<tr>
             <td align="center">
                 <a href="https://github.com/aizcutei">
-                    <img src="https://private-avatars.githubusercontent.com/u/20311560?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MzQ2MTAzODAsIm5iZiI6MTczNDYwOTE4MCwicGF0aCI6Ii91LzIwMzExNTYwIn0.tfurqDYWXcgRkHDRYHB-9O-kzA9Eh9pHc9_g1fX_1l0&v=4" width="100;" alt="aizcutei"/>
+                    <img src="https://private-avatars.githubusercontent.com/u/20311560?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MzQ2MTEyODAsIm5iZiI6MTczNDYxMDA4MCwicGF0aCI6Ii91LzIwMzExNTYwIn0.gb46ynm8VXLO9Vnn0BEIqBkbR2So_WfAP_ZWr60h9Ks&v=4" width="100;" alt="aizcutei"/>
                     <br />
                     <sub><b>Charles</b></sub>
                 </a>
