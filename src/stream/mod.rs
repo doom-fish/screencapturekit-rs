@@ -5,6 +5,7 @@ pub mod configuration;
 pub mod delegate_trait;
 pub mod output_trait;
 pub mod output_type;
+pub mod screenshot_manager;
 use configuration::SCStreamConfiguration;
 use content_filter::SCContentFilter;
 use core_foundation::error::CFError;
