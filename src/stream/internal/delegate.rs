@@ -13,7 +13,7 @@ use crate::{
     utils::objc::get_concrete_from_void,
 };
 
-use super::stream::SCStream;
+use super::stream::get_concrete_stream_from_void;
 
 declare_trait_wrapper!(StreamDelegateTraitWrapper, SCStreamDelegateTrait);
 
@@ -25,7 +25,7 @@ extern "C" fn did_stop_with_error(
     error: *const c_void,
 ) {
     let handler = unsafe { this.get_ivar::<StreamDelegateTraitWrapper>("stream_delegate_wrapper") };
-    let stream = unsafe { get_concrete_from_void::<SCStream>(stream_ref) };
+    let stream = unsafe { get_concrete_stream_from_void(stream_ref) };
     let error: CFError = unsafe { get_concrete_from_void(error) };
     handler.did_stop_with_error(stream, error);
 }
@@ -37,7 +37,7 @@ extern "C" fn output_video_effect_did_start_for_stream(
     stream_ref: *const c_void,
 ) {
     let handler = unsafe { this.get_ivar::<StreamDelegateTraitWrapper>("stream_delegate_wrapper") };
-    let stream = unsafe { get_concrete_from_void::<SCStream>(stream_ref) };
+    let stream = unsafe { get_concrete_stream_from_void(stream_ref) };
     handler.output_video_effect_did_start_for_stream(stream);
 }
 type OutputVideoEffectDidStopForStreamMethod = extern "C" fn(&Object, Sel, *const c_void);
@@ -47,7 +47,7 @@ extern "C" fn output_video_effect_did_stop_for_stream(
     stream_ref: *const c_void,
 ) {
     let handler = unsafe { this.get_ivar::<StreamDelegateTraitWrapper>("stream_delegate_wrapper") };
-    let stream = unsafe { get_concrete_from_void::<SCStream>(stream_ref) };
+    let stream = unsafe { get_concrete_stream_from_void(stream_ref) };
     handler.output_video_effect_did_stop_for_stream(stream);
 }
 

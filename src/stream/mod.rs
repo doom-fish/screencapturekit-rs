@@ -63,6 +63,10 @@ impl SCStream {
     pub fn stop_capture(&self) -> Result<(), CFError> {
         self.internal_stop_capture()
     }
+
+    pub fn clone(&self) -> Self {
+        self.internal_clone()
+    }
 }
 
 #[cfg(test)]
