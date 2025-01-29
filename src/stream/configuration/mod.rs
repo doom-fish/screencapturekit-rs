@@ -1,10 +1,11 @@
 mod internal;
 
 pub mod audio;
-pub mod dimensions;
-pub mod colors;
-pub mod pixel_format;
+pub mod captured_elements;
 pub mod captured_frames;
+pub mod colors;
+pub mod dimensions;
+pub mod pixel_format;
 
 #[allow(clippy::module_name_repetitions)]
 pub use internal::SCStreamConfiguration;
