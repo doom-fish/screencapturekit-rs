@@ -63,6 +63,10 @@ impl SCStream {
     pub fn stop_capture(&self) -> Result<(), CFError> {
         self.internal_stop_capture()
     }
+
+    pub fn clone(&self) -> Self {
+        self.internal_clone()
+    }
 }
 
 #[cfg(test)]
@@ -139,6 +143,27 @@ mod stream_test {
         println!("{b:?}");
 
         stream.stop_capture()?;
+        Ok(())
+    }
+
+    #[test]
+    fn clone_stream() -> Result<(), CFError> {
+        let (tx, _) = channel();
+        let stream = {
+            let config = SCStreamConfiguration::new()
+                .set_captures_audio(true)?
+                .set_width(100)?
+                .set_height(100)?;
+
+            let display = SCShareableContent::get().unwrap().displays().remove(0);
+            let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
+            let mut stream = SCStream::new(&filter, &config);
+            stream.add_output_handler(TestStreamOutput { sender: tx }, SCStreamOutputType::Audio);
+            stream
+        };
+
+        let _stream_clone = stream.clone();
+
         Ok(())
     }
 }

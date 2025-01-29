@@ -11,7 +11,7 @@ use crate::{
 };
 use core_foundation::{base, error::CFError};
 use core_foundation::{
-    base::{CFTypeID, TCFType},
+    base::{CFTypeID, TCFType, TCFTypeRef},
     impl_TCFType,
 };
 use dispatch::ffi::{dispatch_get_global_queue, DISPATCH_QUEUE_PRIORITY_DEFAULT};
@@ -157,6 +157,23 @@ impl SCStream {
                 .map_err(|_| create_sc_error("Could not receive from completion handler"))?
         }
     }
+
+    pub fn internal_clone(&self) -> Self {
+        unsafe {
+            (*self.as_concrete_TypeRef().cast::<Object>())
+                .get_mut_ivar::<Cleanup>("cleanup")
+                .retain();
+        }
+        Clone::clone(&self)
+    }
+}
+
+pub unsafe fn get_concrete_stream_from_void(void_ptr: *const c_void) -> SCStream {
+    let stream = SCStream::wrap_under_get_rule(SCStreamRef::from_void_ptr(void_ptr));
+    (*stream.as_concrete_TypeRef().cast::<Object>())
+        .get_mut_ivar::<Cleanup>("cleanup")
+        .retain();
+    stream
 }
 
 #[cfg(test)]
