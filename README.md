@@ -69,24 +69,17 @@ maintainers' time is limited.
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/krzykro2">
-                    <img src="https://avatars.githubusercontent.com/u/6817875?v=4" width="100;" alt="krzykro2"/>
-                    <br />
-                    <sub><b>Kris Krolak</b></sub>
-                </a>
-            </td>
-            <td align="center">
-                <a href="https://github.com/tokuhirom">
-                    <img src="https://avatars.githubusercontent.com/u/21084?v=4" width="100;" alt="tokuhirom"/>
-                    <br />
-                    <sub><b>Tokuhiro Matsuno</b></sub>
-                </a>
-            </td>
-            <td align="center">
                 <a href="https://github.com/iparaskev">
                     <img src="https://avatars.githubusercontent.com/u/23037402?v=4" width="100;" alt="iparaskev"/>
                     <br />
                     <sub><b>Iason Paraskevopoulos</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/krzykro2">
+                    <img src="https://avatars.githubusercontent.com/u/6817875?v=4" width="100;" alt="krzykro2"/>
+                    <br />
+                    <sub><b>Kris Krolak</b></sub>
                 </a>
             </td>
             <td align="center">
@@ -103,13 +96,20 @@ maintainers' time is limited.
                     <sub><b>Alex Jiao</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/aizcutei">
                     <img src="https://avatars.githubusercontent.com/u/20311560?v=4" width="100;" alt="aizcutei"/>
                     <br />
                     <sub><b>Charles</b></sub>
+                </a>
+            </td>
+		</tr>
+		<tr>
+            <td align="center">
+                <a href="https://github.com/tokuhirom">
+                    <img src="https://avatars.githubusercontent.com/u/21084?v=4" width="100;" alt="tokuhirom"/>
+                    <br />
+                    <sub><b>Tokuhiro Matsuno</b></sub>
                 </a>
             </td>
             <td align="center">
