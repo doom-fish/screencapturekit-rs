@@ -24,7 +24,7 @@ path = "./src/lib.rs"
 
 [features]
 ci = []
-
+cargo-clippy = []
 
 [dependencies]
 core-media-rs = { version = "0.3" }
