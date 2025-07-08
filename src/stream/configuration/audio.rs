@@ -45,6 +45,19 @@ impl SCStreamConfiguration {
     pub fn get_channel_count(&self) -> u8 {
         get_property(self, sel!(channelCount))
     }
+
+    /// Sets the sample rate of this [`SCStreamConfiguration`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if sample rate is not properly set.
+    pub fn set_sample_rate(mut self, sample_rate: u32) -> Result<Self, CFError> {
+        set_property(&mut self, sel!(setSampleRate:), sample_rate)?;
+        Ok(self)
+    }
+    pub fn get_sample_rate(&self) -> u32 {
+        get_property(self, sel!(sampleRate))
+    }
 }
 
 
