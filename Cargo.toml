@@ -34,4 +34,4 @@ objc = { version = "0.2", features = ["exception"] }
 block2 = "0.6"
 dispatch = "0.2"
 core-foundation = { version = "0.10" }
-core-graphics = { version = "0.24" }
+core-graphics = { version = "0.25" }
