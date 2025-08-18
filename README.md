@@ -1,3 +1,7 @@
+# API for desktop recording
+If you’re looking for a hosted desktop recording API, consider checking out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk), an API that lets you record Zoom, Google Meet, Microsoft Teams, In-person meetings, and more.
+
+
 # screencapturekit-rs
 
 ## Introduction
