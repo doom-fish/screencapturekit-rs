@@ -5,6 +5,11 @@
 [![License](https://img.shields.io/crates/l/screencapturekit.svg)](https://github.com/svtlabs/screencapturekit-rs#license)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/svtlabs/screencapturekit-rs/ci.yml?branch=main)](https://github.com/svtlabs/screencapturekit-rs/actions)
 
+> **💼 Looking for a hosted desktop recording API?**  
+> Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk) - an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
+
+---
+
 Safe, idiomatic Rust bindings for macOS ScreenCaptureKit framework.
 
 Capture screen content, windows, and applications with high performance and low overhead on macOS 12.3+.
@@ -18,7 +23,7 @@ Capture screen content, windows, and applications with high performance and low 
 - 🔄 **Async Support** - Runtime-agnostic async API (works with Tokio, async-std, smol, etc.)
 - 🎨 **IOSurface Access** - Zero-copy GPU texture access for Metal/OpenGL
 - 🛡️ **Memory Safe** - Proper reference counting and leak-free by design
-- 📦 **Zero Dependencies** - No external runtime dependencies (uses custom Swift bridge)
+- 📦 **Zero Dependencies** - No runtime dependencies (only dev dependencies for examples)
 
 ## 📦 Installation
 
@@ -313,21 +318,34 @@ let mut config = SCStreamConfiguration::build()
 
 ## 🏃 Examples
 
-See the [`examples/`](examples/) directory:
+The [`examples/`](examples/) directory contains focused API demonstrations:
 
-- **`complete_capture.rs`** - Full video + audio capture
-- **`async_demo.rs`** - Comprehensive async API usage
-- **`builder_pattern.rs`** - Builder pattern examples
-- **`custom_dispatch_queue.rs`** - Custom queue setup
-- **`iosurface_capture.rs`** - IOSurface GPU access
-- **`screen_capture_permissions.rs`** - Permission checking
+### Quick Start (Numbered by Complexity)
+1. **`01_basic_capture.rs`** - Simplest screen capture
+2. **`02_window_capture.rs`** - Capture specific windows
+3. **`03_audio_capture.rs`** - Audio + video capture
+4. **`04_pixel_access.rs`** - Read pixel data with `std::io::Cursor`
+5. **`05_screenshot.rs`** - Single screenshot (macOS 14.0+)
+6. **`06_async.rs`** - Async/await API
+7. **`07_iosurface.rs`** - Zero-copy GPU buffers
+8. **`08_list_content.rs`** - List available content
+
+### Advanced Examples
+- **`async_demo.rs`** - Comprehensive async features
+- **`async_runtime_agnostic.rs`** - Works with any async runtime
+
+See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
 Run an example:
 
 ```bash
-cargo run --example complete_capture
-cargo run --example async_demo --features async
-cargo run --example builder_pattern --features macos_14_0
+# Basic examples
+cargo run --example 01_basic_capture
+cargo run --example 04_pixel_access
+
+# Feature-gated examples
+cargo run --example 05_screenshot --features macos_14_0
+cargo run --example 06_async --features async
 ```
 
 ## 🧪 Testing
@@ -420,7 +438,3 @@ Licensed under either of:
 - MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.
-
-## 🙏 Acknowledgments
-
-Built with [swift-bridge](https://github.com/chinedufn/swift-bridge) for seamless Swift-Rust interop.
