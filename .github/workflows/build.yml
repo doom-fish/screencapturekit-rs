@@ -23,3 +23,7 @@ jobs:
       - name: Run Tests
         run: |
           cargo test --verbose --features ci
+      - name: Run Clippy
+        run: |
+          cargo clippy --features ci -- -D warnings
+
