@@ -1,37 +1,45 @@
 [package]
 name = "screencapturekit"
-
-keywords = ["screencapture", "screencapturekit", "macos"]
-description = "Rust wrapper for apple's ScreenCaptureKit"
-
-categories = [
-  "external-ffi-bindings",
-  "multimedia",
-  "multimedia::video",
-  "os::macos-apis",
-]
-
-repository = "https://github.com/svtlabs/screencapturekit-rs"
-authors = ["Per Johansson <per@doom.fish>"]
-homepage = "https://github.com/svtlabs"
+version = "1.0.0"
 edition = "2021"
-rust-version = "1.72"
-version = "0.3.5"
 license = "MIT OR Apache-2.0"
+homepage = "https://github.com/svtlabs/screencapturekit-rs"
+repository = "https://github.com/svtlabs/screencapturekit-rs"
+description = "ScreenCaptureKit bindings for rust"
+authors = ["Per Johansson <per.johansson@gmail.com>"]
+keywords = ["screencapturekit", "screen", "capture", "macos"]
+categories = ["multimedia", "os::macos-apis"]
+rust-version = "1.70"
+readme = "README.md"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
 
 [lib]
-path = "./src/lib.rs"
+name = "screencapturekit"
+crate-type = ["lib"]
 
 [features]
+default = []
 ci = []
 cargo-clippy = []
 
+# Async support (executor-agnostic, works with any async runtime)
+async = []
+
+# macOS version feature flags
+# Enable features for specific macOS versions
+macos_13_0 = []
+macos_14_0 = ["macos_13_0"]
+macos_14_2 = ["macos_14_0"]
+macos_14_4 = ["macos_14_2"]
+macos_15_0 = ["macos_14_4"]
+
 [dependencies]
-core-media-rs = { version = "0.3" }
-core-video-rs = { version = "0.3" }
-core-utils-rs = { version = "0.3" }
-objc = { version = "0.2", features = ["exception"] }
-block2 = "0.6"
-dispatch = "0.2"
-core-foundation = { version = "0.10" }
-core-graphics = { version = "0.24" }
+thiserror = "2.0.17"
+
+[dev-dependencies]
+png = "0.17"
+tokio = { version = "1.40", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
