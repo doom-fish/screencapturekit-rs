@@ -1,0 +1,289 @@
+//! Swift FFI bridge to `ScreenCaptureKit`
+use std::ffi::c_void;
+
+// MARK: - SCShareableContent
+extern "C" {
+    pub fn sc_shareable_content_get(
+        callback: extern "C" fn(*const c_void, *const i8),
+    );
+    pub fn sc_shareable_content_get_with_options(
+        exclude_desktop_windows: bool,
+        on_screen_windows_only: bool,
+        callback: extern "C" fn(*const c_void, *const i8),
+    );
+    pub fn sc_shareable_content_get_current_process_displays(
+        callback: extern "C" fn(*const c_void, *const i8),
+    );
+    pub fn sc_shareable_content_retain(content: *const c_void) -> *const c_void;
+    pub fn sc_shareable_content_release(content: *const c_void);
+    pub fn sc_shareable_content_get_displays_count(content: *const c_void) -> isize;
+    pub fn sc_shareable_content_get_display_at(content: *const c_void, index: isize) -> *const c_void;
+    pub fn sc_shareable_content_get_windows_count(content: *const c_void) -> isize;
+    pub fn sc_shareable_content_get_window_at(content: *const c_void, index: isize) -> *const c_void;
+    pub fn sc_shareable_content_get_applications_count(content: *const c_void) -> isize;
+    pub fn sc_shareable_content_get_application_at(content: *const c_void, index: isize) -> *const c_void;
+}
+
+// MARK: - SCDisplay
+extern "C" {
+    pub fn sc_display_retain(display: *const c_void) -> *const c_void;
+    pub fn sc_display_release(display: *const c_void);
+    pub fn sc_display_get_display_id(display: *const c_void) -> u32;
+    pub fn sc_display_get_width(display: *const c_void) -> isize;
+    pub fn sc_display_get_height(display: *const c_void) -> isize;
+    pub fn sc_display_get_frame(display: *const c_void, x: *mut f64, y: *mut f64, width: *mut f64, height: *mut f64);
+}
+
+// MARK: - SCWindow
+extern "C" {
+    pub fn sc_window_retain(window: *const c_void) -> *const c_void;
+    pub fn sc_window_release(window: *const c_void);
+    pub fn sc_window_get_window_id(window: *const c_void) -> u32;
+    pub fn sc_window_get_frame(window: *const c_void, x: *mut f64, y: *mut f64, width: *mut f64, height: *mut f64);
+    pub fn sc_window_get_title(window: *const c_void, buffer: *mut i8, buffer_size: isize) -> bool;
+    pub fn sc_window_get_window_layer(window: *const c_void) -> isize;
+    pub fn sc_window_is_on_screen(window: *const c_void) -> bool;
+    pub fn sc_window_get_owning_application(window: *const c_void) -> *const c_void;
+    pub fn sc_window_is_active(window: *const c_void) -> bool;
+}
+
+// MARK: - SCRunningApplication
+extern "C" {
+    pub fn sc_running_application_retain(app: *const c_void) -> *const c_void;
+    pub fn sc_running_application_release(app: *const c_void);
+    pub fn sc_running_application_get_bundle_identifier(app: *const c_void, buffer: *mut i8, buffer_size: isize) -> bool;
+    pub fn sc_running_application_get_application_name(app: *const c_void, buffer: *mut i8, buffer_size: isize) -> bool;
+    pub fn sc_running_application_get_process_id(app: *const c_void) -> i32;
+}
+
+// MARK: - SCStreamConfiguration
+extern "C" {
+    pub fn sc_stream_configuration_create() -> *const c_void;
+    pub fn sc_stream_configuration_retain(config: *const c_void) -> *const c_void;
+    pub fn sc_stream_configuration_release(config: *const c_void);
+    
+    pub fn sc_stream_configuration_set_width(config: *const c_void, width: isize);
+    pub fn sc_stream_configuration_get_width(config: *const c_void) -> isize;
+    
+    pub fn sc_stream_configuration_set_height(config: *const c_void, height: isize);
+    pub fn sc_stream_configuration_get_height(config: *const c_void) -> isize;
+    
+    pub fn sc_stream_configuration_set_shows_cursor(config: *const c_void, shows_cursor: bool);
+    pub fn sc_stream_configuration_get_shows_cursor(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_scales_to_fit(config: *const c_void, scales_to_fit: bool);
+    pub fn sc_stream_configuration_get_scales_to_fit(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_captures_audio(config: *const c_void, captures_audio: bool);
+    pub fn sc_stream_configuration_get_captures_audio(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_sample_rate(config: *const c_void, sample_rate: isize);
+    pub fn sc_stream_configuration_get_sample_rate(config: *const c_void) -> isize;
+    
+    pub fn sc_stream_configuration_set_channel_count(config: *const c_void, channel_count: isize);
+    pub fn sc_stream_configuration_get_channel_count(config: *const c_void) -> isize;
+    
+    pub fn sc_stream_configuration_set_queue_depth(config: *const c_void, queue_depth: isize);
+    pub fn sc_stream_configuration_get_queue_depth(config: *const c_void) -> isize;
+    
+    pub fn sc_stream_configuration_set_pixel_format(config: *const c_void, pixel_format: u32);
+    pub fn sc_stream_configuration_get_pixel_format(config: *const c_void) -> u32;
+    
+    pub fn sc_stream_configuration_set_minimum_frame_interval(config: *const c_void, value: i64, timescale: i32, flags: u32, epoch: i64);
+    pub fn sc_stream_configuration_get_minimum_frame_interval(config: *const c_void, value: *mut i64, timescale: *mut i32, flags: *mut u32, epoch: *mut i64);
+    
+    pub fn sc_stream_configuration_set_source_rect(config: *const c_void, x: f64, y: f64, width: f64, height: f64);
+    pub fn sc_stream_configuration_get_source_rect(config: *const c_void, x: *mut f64, y: *mut f64, width: *mut f64, height: *mut f64);
+    
+    pub fn sc_stream_configuration_set_destination_rect(config: *const c_void, x: f64, y: f64, width: f64, height: f64);
+    pub fn sc_stream_configuration_get_destination_rect(config: *const c_void, x: *mut f64, y: *mut f64, width: *mut f64, height: *mut f64);
+    
+    pub fn sc_stream_configuration_set_preserves_aspect_ratio(config: *const c_void, preserves_aspect_ratio: bool);
+    pub fn sc_stream_configuration_get_preserves_aspect_ratio(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_ignore_fraction_of_screen(config: *const c_void, ignore_fraction: f64);
+    pub fn sc_stream_configuration_get_ignore_fraction_of_screen(config: *const c_void) -> f64;
+    
+    pub fn sc_stream_configuration_set_ignores_shadows_single_window(config: *const c_void, ignores_shadows: bool);
+    pub fn sc_stream_configuration_get_ignores_shadows_single_window(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_should_be_opaque(config: *const c_void, should_be_opaque: bool);
+    pub fn sc_stream_configuration_get_should_be_opaque(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_includes_child_windows(config: *const c_void, includes_child_windows: bool);
+    pub fn sc_stream_configuration_get_includes_child_windows(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_presenter_overlay_privacy_alert_setting(config: *const c_void, setting: i32);
+    pub fn sc_stream_configuration_get_presenter_overlay_privacy_alert_setting(config: *const c_void) -> i32;
+    
+    pub fn sc_stream_configuration_set_background_color(config: *const c_void, r: f32, g: f32, b: f32);
+    pub fn sc_stream_configuration_set_color_space_name(config: *const c_void, name: *const i8);
+    pub fn sc_stream_configuration_set_color_matrix(config: *const c_void, matrix: *const i8);
+    
+    pub fn sc_stream_configuration_set_ignore_global_clipboard(config: *const c_void, ignore: bool);
+    pub fn sc_stream_configuration_get_ignore_global_clipboard(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_capture_resolution(config: *const c_void, width: isize, height: isize);
+    pub fn sc_stream_configuration_get_capture_resolution(config: *const c_void, width: *mut isize, height: *mut isize);
+    
+    pub fn sc_stream_configuration_set_ignores_shadow_display_configuration(config: *const c_void, ignores_shadow: bool);
+    pub fn sc_stream_configuration_get_ignores_shadow_display_configuration(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_preserve_aspect_ratio(config: *const c_void, preserve: bool);
+    pub fn sc_stream_configuration_get_preserve_aspect_ratio(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_increase_resolution_for_retina_displays(config: *const c_void, increase: bool);
+    pub fn sc_stream_configuration_get_increase_resolution_for_retina_displays(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_captures_shadows_only(config: *const c_void, captures_shadows_only: bool);
+    pub fn sc_stream_configuration_get_captures_shadows_only(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_captures_microphone(config: *const c_void, captures_microphone: bool);
+    pub fn sc_stream_configuration_get_captures_microphone(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_excludes_current_process_audio(config: *const c_void, excludes: bool);
+    pub fn sc_stream_configuration_get_excludes_current_process_audio(config: *const c_void) -> bool;
+    
+    pub fn sc_stream_configuration_set_microphone_capture_device_id(config: *const c_void, device_id: *const i8);
+    pub fn sc_stream_configuration_get_microphone_capture_device_id(config: *const c_void, buffer: *mut i8, buffer_size: isize) -> bool;
+    
+    pub fn sc_stream_configuration_set_stream_name(config: *const c_void, name: *const i8);
+    pub fn sc_stream_configuration_get_stream_name(config: *const c_void, buffer: *mut i8, buffer_size: isize) -> bool;
+    
+    pub fn sc_stream_configuration_set_capture_dynamic_range(config: *const c_void, value: i32);
+    pub fn sc_stream_configuration_get_capture_dynamic_range(config: *const c_void) -> i32;
+}
+
+// MARK: - SCContentFilter
+extern "C" {
+    pub fn sc_content_filter_create_with_desktop_independent_window(window: *const c_void) -> *const c_void;
+    pub fn sc_content_filter_create_with_display_excluding_windows(display: *const c_void, windows: *const *const c_void, windows_count: isize) -> *const c_void;
+    pub fn sc_content_filter_create_with_display_including_windows(display: *const c_void, windows: *const *const c_void, windows_count: isize) -> *const c_void;
+    pub fn sc_content_filter_create_with_display_including_applications_excepting_windows(
+        display: *const c_void,
+        apps: *const *const c_void,
+        apps_count: isize,
+        windows: *const *const c_void,
+        windows_count: isize,
+    ) -> *const c_void;
+    pub fn sc_content_filter_retain(filter: *const c_void) -> *const c_void;
+    pub fn sc_content_filter_release(filter: *const c_void);
+    pub fn sc_content_filter_set_content_rect(filter: *const c_void, x: f64, y: f64, width: f64, height: f64);
+    pub fn sc_content_filter_get_content_rect(filter: *const c_void, x: *mut f64, y: *mut f64, width: *mut f64, height: *mut f64);
+}
+
+// MARK: - SCStream
+extern "C" {
+    pub fn sc_stream_create(
+        filter: *const c_void,
+        config: *const c_void,
+        error_callback: extern "C" fn(*const c_void, *const i8),
+    ) -> *const c_void;
+    pub fn sc_stream_add_stream_output(
+        stream: *const c_void,
+        output_type: i32,
+        sample_buffer_callback: extern "C" fn(*const c_void, *const c_void, i32),
+    ) -> bool;
+    pub fn sc_stream_add_stream_output_with_queue(
+        stream: *const c_void,
+        output_type: i32,
+        sample_buffer_callback: extern "C" fn(*const c_void, *const c_void, i32),
+        dispatch_queue: *const c_void,
+    ) -> bool;
+    pub fn sc_stream_start_capture(
+        stream: *const c_void,
+        callback: extern "C" fn(bool, *const i8),
+    );
+    pub fn sc_stream_stop_capture(
+        stream: *const c_void,
+        callback: extern "C" fn(bool, *const i8),
+    );
+    pub fn sc_stream_update_configuration(
+        stream: *const c_void,
+        config: *const c_void,
+        callback: extern "C" fn(bool, *const i8),
+    );
+    pub fn sc_stream_update_content_filter(
+        stream: *const c_void,
+        filter: *const c_void,
+        callback: extern "C" fn(bool, *const i8),
+    );
+    pub fn sc_stream_retain(stream: *const c_void) -> *const c_void;
+    pub fn sc_stream_release(stream: *const c_void);
+}
+
+// MARK: - Dispatch Queue
+extern "C" {
+    pub fn dispatch_queue_create(label: *const i8, qos: i32) -> *const c_void;
+    pub fn dispatch_queue_release(queue: *const c_void);
+}
+
+// MARK: - IOSurface
+extern "C" {
+    pub fn cv_pixel_buffer_get_iosurface(pixel_buffer: *const c_void) -> *const c_void;
+    pub fn cv_pixel_buffer_is_backed_by_iosurface(pixel_buffer: *const c_void) -> bool;
+    pub fn iosurface_get_width(iosurface: *const c_void) -> isize;
+    pub fn iosurface_get_height(iosurface: *const c_void) -> isize;
+    pub fn iosurface_get_bytes_per_row(iosurface: *const c_void) -> isize;
+    pub fn iosurface_get_pixel_format(iosurface: *const c_void) -> u32;
+    pub fn iosurface_get_base_address(iosurface: *const c_void) -> *mut u8;
+    pub fn iosurface_lock(iosurface: *const c_void, options: u32) -> i32;
+    pub fn iosurface_unlock(iosurface: *const c_void, options: u32) -> i32;
+    pub fn iosurface_is_in_use(iosurface: *const c_void) -> bool;
+    pub fn iosurface_release(iosurface: *const c_void);
+}
+
+// MARK: - SCContentSharingPicker (macOS 14.0+)
+extern "C" {
+    pub fn sc_content_sharing_picker_configuration_create() -> *const c_void;
+    pub fn sc_content_sharing_picker_configuration_set_allowed_picker_modes(
+        config: *const c_void,
+        modes: *const i32,
+        count: usize,
+    );
+    pub fn sc_content_sharing_picker_configuration_retain(config: *const c_void) -> *const c_void;
+    pub fn sc_content_sharing_picker_configuration_release(config: *const c_void);
+    pub fn sc_content_sharing_picker_show(
+        config: *const c_void,
+        callback: extern "C" fn(i32, *const c_void, *mut c_void),
+        user_data: *mut c_void,
+    );
+}
+
+// MARK: - SCRecordingOutput (macOS 15.0+)
+extern "C" {
+    pub fn sc_recording_output_configuration_create() -> *const c_void;
+    pub fn sc_recording_output_configuration_set_output_url(config: *const c_void, path: *const i8);
+    pub fn sc_recording_output_configuration_set_video_codec(config: *const c_void, codec: i32);
+    pub fn sc_recording_output_configuration_set_average_bitrate(config: *const c_void, bitrate: i64);
+    pub fn sc_recording_output_configuration_retain(config: *const c_void) -> *const c_void;
+    pub fn sc_recording_output_configuration_release(config: *const c_void);
+    pub fn sc_recording_output_create(config: *const c_void) -> *const c_void;
+    pub fn sc_recording_output_retain(output: *const c_void) -> *const c_void;
+    pub fn sc_recording_output_release(output: *const c_void);
+}
+
+// MARK: - SCScreenshotManager (macOS 14.0+)
+extern "C" {
+    pub fn sc_screenshot_manager_capture_image(
+        content_filter: *const c_void,
+        config: *const c_void,
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
+    );
+    pub fn sc_screenshot_manager_capture_sample_buffer(
+        content_filter: *const c_void,
+        config: *const c_void,
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
+    );
+    pub fn cgimage_get_width(image: *const c_void) -> usize;
+    pub fn cgimage_get_height(image: *const c_void) -> usize;
+    pub fn cgimage_get_data(
+        image: *const c_void,
+        out_ptr: *mut *const u8,
+        out_length: *mut usize,
+    ) -> bool;
+    pub fn cgimage_free_data(ptr: *mut u8);
+    pub fn cgimage_release(image: *const c_void);
+}

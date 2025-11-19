@@ -1,34 +1,84 @@
-#![allow(non_snake_case)]
-use objc::{class, msg_send, runtime::Object, sel, sel_impl};
-
 use std::ffi::c_void;
+use std::fmt;
 
-use core_foundation::{
-    base::{CFTypeID, TCFType},
-    declare_TCFType, impl_TCFType,
-};
+/// Opaque wrapper around SCStreamConfiguration
+///
+/// Configuration for a screen capture stream, including dimensions,
+/// pixel format, audio settings, and other capture parameters.
+///
+/// # Examples
+///
+/// ```
+/// use screencapturekit::stream::configuration::SCStreamConfiguration;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let config = SCStreamConfiguration::build()
+///     .set_width(1920)?
+///     .set_height(1080)?;
+/// # Ok(())
+/// # }
+/// ```
+#[repr(transparent)]
+pub struct SCStreamConfiguration(*const c_void);
 
-#[repr(C)]
-pub struct __SCStreamConfigurationRef(c_void);
-extern "C" {
-    pub fn SCStreamConfigurationGetTypeID() -> CFTypeID;
+impl PartialEq for SCStreamConfiguration {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
 }
 
-pub type SCStreamConfigurationRef = *mut __SCStreamConfigurationRef;
+impl Eq for SCStreamConfiguration {}
 
-declare_TCFType! {SCStreamConfiguration, SCStreamConfigurationRef}
-impl_TCFType!(
-    SCStreamConfiguration,
-    SCStreamConfigurationRef,
-    SCStreamConfigurationGetTypeID
-);
+impl std::hash::Hash for SCStreamConfiguration {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
 
 impl SCStreamConfiguration {
-    pub fn internal_init() -> Self {
+    pub(crate) fn internal_init() -> Self {
         unsafe {
-            let ptr: *mut Object = msg_send![class!(SCStreamConfiguration), alloc];
-            let ptr: SCStreamConfigurationRef = msg_send![ptr, init];
-            Self::wrap_under_create_rule(ptr)
+            let ptr = crate::ffi::sc_stream_configuration_create();
+            Self(ptr)
         }
+    }
+
+    pub(crate) fn as_ptr(&self) -> *const c_void {
+        self.0
+    }
+}
+
+impl Drop for SCStreamConfiguration {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe {
+                crate::ffi::sc_stream_configuration_release(self.0);
+            }
+        }
+    }
+}
+
+impl Clone for SCStreamConfiguration {
+    fn clone(&self) -> Self {
+        unsafe {
+            Self(crate::ffi::sc_stream_configuration_retain(self.0))
+        }
+    }
+}
+
+unsafe impl Send for SCStreamConfiguration {}
+unsafe impl Sync for SCStreamConfiguration {}
+
+impl fmt::Debug for SCStreamConfiguration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SCStreamConfiguration")
+            .field("ptr", &self.0)
+            .finish()
+    }
+}
+
+impl fmt::Display for SCStreamConfiguration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SCStreamConfiguration")
     }
 }
