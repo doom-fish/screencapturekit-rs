@@ -1,11 +1,20 @@
-use core_foundation::error::CFError;
-use core_media_rs::cm_sample_buffer::CMSampleBuffer;
+//! Audio capture example
+//!
+//! Demonstrates how to capture system audio alongside screen content.
+//! 
+//! This example shows:
+//! - Configuring audio capture
+//! - Processing audio buffers
+//! - Writing raw audio data to files
+
 use screencapturekit::{
     shareable_content::SCShareableContent,
     stream::{
         configuration::SCStreamConfiguration, content_filter::SCContentFilter,
         output_trait::SCStreamOutputTrait, output_type::SCStreamOutputType, SCStream,
     },
+    cm::CMSampleBuffer,
+    error::SCError,
 };
 
 use std::{
@@ -32,7 +41,7 @@ impl SCStreamOutputTrait for AudioStreamOutput {
     }
 }
 
-fn main() -> Result<(), CFError> {
+fn main() -> Result<(), SCError> {
     let (tx, rx) = channel();
     let stream = get_stream(tx)?;
     stream.start_capture()?;
@@ -72,10 +81,11 @@ fn main() -> Result<(), CFError> {
     Ok(())
 }
 
-fn get_stream(tx: Sender<CMSampleBuffer>) -> Result<SCStream, CFError> {
-    let config = SCStreamConfiguration::new().set_captures_audio(true)?;
+fn get_stream(tx: Sender<CMSampleBuffer>) -> Result<SCStream, SCError> {
+    let config = SCStreamConfiguration::build().set_captures_audio(true)?;
 
     let display = SCShareableContent::get().unwrap().displays().remove(0);
+    #[allow(deprecated)]
     let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
     let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(AudioStreamOutput { sender: tx }, SCStreamOutputType::Audio);
