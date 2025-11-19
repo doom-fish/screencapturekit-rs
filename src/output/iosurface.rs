@@ -1,10 +1,9 @@
-
-
 //! `IOSurface` wrapper for `ScreenCaptureKit`
 //! 
 //! Provides access to IOSurface-backed pixel buffers for efficient frame processing
 
 use std::ffi::c_void;
+use std::io;
 
 /// Lock options for `IOSurface`
 #[repr(u32)]
@@ -111,18 +110,41 @@ impl IOSurfaceLockGuard<'_> {
         }
     }
 
-    /// Access buffer with a cursor for reading bytes
+    /// Access buffer with a standard `std::io::Cursor`
+    ///
+    /// Returns a cursor over the buffer data that implements `Read` and `Seek` traits.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::io::{Read, Seek, SeekFrom};
+    /// use screencapturekit::output::PixelBufferCursorExt;
+    /// # use screencapturekit::output::IOSurfaceLockOptions;
+    ///
+    /// # fn example(guard: screencapturekit::output::IOSurfaceLockGuard) {
+    /// let mut cursor = guard.cursor();
+    /// 
+    /// // Read a pixel using the extension trait
+    /// let pixel = cursor.read_pixel().unwrap();
+    /// 
+    /// // Or use standard Read trait
+    /// let mut buf = [0u8; 4];
+    /// cursor.read_exact(&mut buf).unwrap();
+    /// # }
+    /// ```
+    pub fn cursor(&self) -> io::Cursor<&[u8]> {
+        io::Cursor::new(self.as_slice())
+    }
+
+    /// Access buffer with a cursor using a closure (for backward compatibility)
+    ///
+    /// This method is provided for backward compatibility. Consider using
+    /// `cursor()` directly for more flexibility.
     pub fn with_cursor<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(super::pixel_buffer::BufferCursor) -> R,
+        F: FnOnce(io::Cursor<&[u8]>) -> R,
     {
-        let cursor = super::pixel_buffer::BufferCursor::new(
-            self.as_slice(),
-            self.width,
-            self.height,
-            self.bytes_per_row,
-        );
-        f(cursor)
+        f(self.cursor())
     }
 }
 

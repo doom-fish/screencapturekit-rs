@@ -31,6 +31,7 @@
 //! ```
 
 use std::ffi::c_void;
+use std::io::{self, Read, Seek, SeekFrom};
 use std::ops::Deref;
 use std::ptr::NonNull;
 
@@ -189,18 +190,48 @@ impl PixelBufferLockGuard<'_> {
     }
 
     /// Access buffer with a cursor for reading bytes
+    ///
+    /// Returns a standard `std::io::Cursor` over the buffer data.
+    /// The cursor implements `Read` and `Seek` traits for convenient data access.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::io::{Read, Seek, SeekFrom};
+    /// use screencapturekit::output::{CVImageBufferLockExt, PixelBufferLockFlags};
+    /// # use screencapturekit::cm::CVPixelBuffer;
+    /// # use screencapturekit::prelude::*;
+    ///
+    /// # fn example() -> SCResult<()> {
+    /// let buffer = CVPixelBuffer::create(100, 100, 0x42475241)
+    ///     .map_err(|_| SCError::internal_error("Failed to create buffer"))?;
+    /// let guard = buffer.lock(PixelBufferLockFlags::ReadOnly)?;
+    ///
+    /// let mut cursor = guard.cursor();
+    /// 
+    /// // Read using standard Read trait
+    /// let mut pixel = [0u8; 4];
+    /// cursor.read_exact(&mut pixel).unwrap();
+    ///
+    /// // Seek using standard Seek trait
+    /// cursor.seek(SeekFrom::Start(0)).unwrap();
+    /// # Ok(())
+    /// # }
+    /// # example().unwrap();
+    /// ```
+    pub fn cursor(&self) -> io::Cursor<&[u8]> {
+        io::Cursor::new(self.as_slice())
+    }
+
+    /// Access buffer with a cursor using a closure (for backward compatibility)
+    ///
+    /// This method is provided for backward compatibility. Consider using
+    /// `cursor()` directly for more flexibility.
     pub fn with_cursor<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(BufferCursor) -> R,
+        F: FnOnce(io::Cursor<&[u8]>) -> R,
     {
-        let cursor = BufferCursor {
-            data: self.as_slice(),
-            position: 0,
-            width: self.width,
-            height: self.height,
-            bytes_per_row: self.bytes_per_row,
-        };
-        f(cursor)
+        f(self.cursor())
     }
 }
 
@@ -220,108 +251,27 @@ impl Deref for PixelBufferLockGuard<'_> {
     }
 }
 
-/// A cursor for reading buffer data
-pub struct BufferCursor<'a> {
-    data: &'a [u8],
-    position: usize,
-    width: usize,
-    height: usize,
-    bytes_per_row: usize,
+/// Extension trait for `io::Cursor` to add pixel buffer specific operations
+pub trait PixelBufferCursorExt {
+    /// Seek to a specific pixel coordinate (x, y)
+    ///
+    /// Assumes 4 bytes per pixel (BGRA format).
+    fn seek_to_pixel(&mut self, x: usize, y: usize, bytes_per_row: usize) -> io::Result<u64>;
+
+    /// Read a single pixel (4 bytes: BGRA)
+    fn read_pixel(&mut self) -> io::Result<[u8; 4]>;
 }
 
-impl<'a> BufferCursor<'a> {
-    /// Create a new buffer cursor
-    pub(crate) fn new(data: &'a [u8], width: usize, height: usize, bytes_per_row: usize) -> Self {
-        Self {
-            data,
-            position: 0,
-            width,
-            height,
-            bytes_per_row,
-        }
+impl<T: AsRef<[u8]>> PixelBufferCursorExt for io::Cursor<T> {
+    fn seek_to_pixel(&mut self, x: usize, y: usize, bytes_per_row: usize) -> io::Result<u64> {
+        let pos = y * bytes_per_row + x * 4; // 4 bytes per pixel (BGRA)
+        self.seek(SeekFrom::Start(pos as u64))
     }
 
-    /// Get current position
-    pub fn position(&self) -> usize {
-        self.position
-    }
-
-    /// Get remaining bytes
-    pub fn remaining(&self) -> usize {
-        self.data.len().saturating_sub(self.position)
-    }
-
-    /// Check if at end
-    pub fn is_empty(&self) -> bool {
-        self.position >= self.data.len()
-    }
-
-    /// Seek to position
-    pub fn seek(&mut self, pos: usize) -> Result<(), &'static str> {
-        if pos > self.data.len() {
-            return Err("Position out of bounds");
-        }
-        self.position = pos;
-        Ok(())
-    }
-
-    /// Seek to specific pixel coordinates
-    pub fn seek_to_pixel(&mut self, x: usize, y: usize) -> Result<(), &'static str> {
-        if y >= self.height {
-            return Err("Y coordinate out of bounds");
-        }
-        if x >= self.width {
-            return Err("X coordinate out of bounds");
-        }
-        self.position = y * self.bytes_per_row + x * 4; // Assuming 4 bytes per pixel
-        Ok(())
-    }
-
-    /// Read a single byte
-    pub fn read_u8(&mut self) -> Option<u8> {
-        if self.position < self.data.len() {
-            let byte = self.data[self.position];
-            self.position += 1;
-            Some(byte)
-        } else {
-            None
-        }
-    }
-
-    /// Read multiple bytes
-    pub fn read_bytes(&mut self, count: usize) -> Option<&'a [u8]> {
-        if self.position + count <= self.data.len() {
-            let slice = &self.data[self.position..self.position + count];
-            self.position += count;
-            Some(slice)
-        } else {
-            None
-        }
-    }
-
-    /// Read a pixel (4 bytes: BGRA)
-    pub fn read_pixel(&mut self) -> Option<[u8; 4]> {
-        self.read_bytes(4).map(|bytes| [bytes[0], bytes[1], bytes[2], bytes[3]])
-    }
-
-    /// Get a specific row without moving cursor
-    pub fn get_row(&self, row: usize) -> Option<&'a [u8]> {
-        if row >= self.height {
-            return None;
-        }
-        let start = row * self.bytes_per_row;
-        let end = start + self.bytes_per_row;
-        self.data.get(start..end)
-    }
-
-    /// Get buffer dimensions
-    pub fn dimensions(&self) -> (usize, usize) {
-        (self.width, self.height)
-    }
-
-    /// Get bytes per row
-    pub fn bytes_per_row(&self) -> usize {
-        self.bytes_per_row
+    fn read_pixel(&mut self) -> io::Result<[u8; 4]> {
+        let mut pixel = [0u8; 4];
+        self.read_exact(&mut pixel)?;
+        Ok(pixel)
     }
 }
 
