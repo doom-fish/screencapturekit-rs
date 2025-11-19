@@ -26,7 +26,7 @@
 //! }
 //! ```
 
-use thiserror::Error;
+use std::fmt;
 
 /// Result type alias for ScreenCaptureKit operations
 ///
@@ -90,109 +90,124 @@ pub type SCResult<T> = Result<T, SCError>;
 ///     }
 /// }
 /// ```
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SCError {
     /// Invalid configuration parameter
-    #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
 
     /// Invalid dimension value (width or height)
-    #[error("Invalid dimension: {field} must be greater than 0 (got {value})")]
     InvalidDimension {
         field: String,
         value: usize,
     },
 
     /// Invalid pixel format
-    #[error("Invalid pixel format: {0}")]
     InvalidPixelFormat(String),
 
     /// No shareable content available
-    #[error("No shareable content available: {0}")]
     NoShareableContent(String),
 
     /// Display not found
-    #[error("Display not found: {0}")]
     DisplayNotFound(String),
 
     /// Window not found
-    #[error("Window not found: {0}")]
     WindowNotFound(String),
 
     /// Application not found
-    #[error("Application not found: {0}")]
     ApplicationNotFound(String),
 
     /// Stream operation error
-    #[error("Stream error: {0}")]
     StreamError(String),
 
     /// Stream already running
-    #[error("Stream is already running")]
     StreamAlreadyRunning,
 
     /// Stream not running
-    #[error("Stream is not running")]
     StreamNotRunning,
 
     /// Failed to start capture
-    #[error("Failed to start capture: {0}")]
     CaptureStartFailed(String),
 
     /// Failed to stop capture
-    #[error("Failed to stop capture: {0}")]
     CaptureStopFailed(String),
 
     /// Buffer lock error
-    #[error("Failed to lock pixel buffer: {0}")]
     BufferLockError(String),
 
     /// Buffer unlock error
-    #[error("Failed to unlock pixel buffer: {0}")]
     BufferUnlockError(String),
 
     /// Invalid buffer
-    #[error("Invalid buffer: {0}")]
     InvalidBuffer(String),
 
     /// Screenshot capture error
-    #[error("Screenshot capture failed: {0}")]
     ScreenshotError(String),
 
     /// Permission denied
-    #[error("Permission denied: {0}. Check System Preferences → Security & Privacy → Screen Recording")]
     PermissionDenied(String),
 
     /// Feature not available on this macOS version
-    #[error("Feature not available: {feature} requires macOS {required_version}+")]
     FeatureNotAvailable {
         feature: String,
         required_version: String,
     },
 
     /// FFI error
-    #[error("FFI error: {0}")]
     FFIError(String),
 
     /// Null pointer encountered
-    #[error("Null pointer: {0}")]
     NullPointer(String),
 
     /// Timeout error
-    #[error("Operation timed out: {0}")]
     Timeout(String),
 
     /// Generic internal error
-    #[error("Internal error: {0}")]
     InternalError(String),
 
     /// OS error with code
-    #[error("OS error {code}: {message}")]
     OSError {
         code: i32,
         message: String,
     },
 }
+
+impl fmt::Display for SCError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidConfiguration(msg) => write!(f, "Invalid configuration: {msg}"),
+            Self::InvalidDimension { field, value } => {
+                write!(f, "Invalid dimension: {field} must be greater than 0 (got {value})")
+            }
+            Self::InvalidPixelFormat(msg) => write!(f, "Invalid pixel format: {msg}"),
+            Self::NoShareableContent(msg) => write!(f, "No shareable content available: {msg}"),
+            Self::DisplayNotFound(msg) => write!(f, "Display not found: {msg}"),
+            Self::WindowNotFound(msg) => write!(f, "Window not found: {msg}"),
+            Self::ApplicationNotFound(msg) => write!(f, "Application not found: {msg}"),
+            Self::StreamError(msg) => write!(f, "Stream error: {msg}"),
+            Self::StreamAlreadyRunning => write!(f, "Stream is already running"),
+            Self::StreamNotRunning => write!(f, "Stream is not running"),
+            Self::CaptureStartFailed(msg) => write!(f, "Failed to start capture: {msg}"),
+            Self::CaptureStopFailed(msg) => write!(f, "Failed to stop capture: {msg}"),
+            Self::BufferLockError(msg) => write!(f, "Failed to lock pixel buffer: {msg}"),
+            Self::BufferUnlockError(msg) => write!(f, "Failed to unlock pixel buffer: {msg}"),
+            Self::InvalidBuffer(msg) => write!(f, "Invalid buffer: {msg}"),
+            Self::ScreenshotError(msg) => write!(f, "Screenshot capture failed: {msg}"),
+            Self::PermissionDenied(msg) => {
+                write!(f, "Permission denied: {msg}. Check System Preferences → Security & Privacy → Screen Recording")
+            }
+            Self::FeatureNotAvailable { feature, required_version } => {
+                write!(f, "Feature not available: {feature} requires macOS {required_version}+")
+            }
+            Self::FFIError(msg) => write!(f, "FFI error: {msg}"),
+            Self::NullPointer(msg) => write!(f, "Null pointer: {msg}"),
+            Self::Timeout(msg) => write!(f, "Operation timed out: {msg}"),
+            Self::InternalError(msg) => write!(f, "Internal error: {msg}"),
+            Self::OSError { code, message } => write!(f, "OS error {code}: {message}"),
+        }
+    }
+}
+
+impl std::error::Error for SCError {}
 
 impl SCError {
     /// Create an invalid configuration error
