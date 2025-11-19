@@ -1,0 +1,932 @@
+#![cfg(feature = "macos_14_0")]
+
+use screencapturekit::{
+    screenshot_manager::SCScreenshotManager,
+    shareable_content::SCShareableContent,
+    stream::{
+        configuration::{PixelFormat, SCStreamConfiguration},
+        content_filter::SCContentFilter,
+    },
+};
+
+#[test]
+fn test_screenshot_manager_exists() {
+    // Verify the type exists and can be referenced
+    let _manager = SCScreenshotManager;
+}
+
+#[test]
+fn test_capture_image_basic() {
+    // Get shareable content
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    // Create filter and configuration
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(1920)
+        .unwrap()
+        .set_height(1080)
+        .unwrap();
+
+    // Capture screenshot
+    match SCScreenshotManager::capture_image(&filter, &config) {
+        Ok(image) => {
+            println!("✅ Successfully captured screenshot");
+            println!("   Width: {}", image.width());
+            println!("   Height: {}", image.height());
+
+            // Verify dimensions are reasonable
+            assert!(image.width() > 0, "Width should be greater than 0");
+            assert!(image.height() > 0, "Height should be greater than 0");
+            assert!(
+                image.width() <= 10000,
+                "Width should be reasonable (< 10000)"
+            );
+            assert!(
+                image.height() <= 10000,
+                "Height should be reasonable (< 10000)"
+            );
+        }
+        Err(e) => {
+            eprintln!("⚠️  Screenshot capture failed: {e}");
+            eprintln!("   This may be due to missing Screen Recording permission");
+        }
+    }
+}
+
+#[test]
+fn test_capture_with_different_pixel_formats() {
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let pixel_formats = [
+        PixelFormat::BGRA,
+        PixelFormat::YCbCr_420v,
+        PixelFormat::YCbCr_420f,
+    ];
+
+    for format in pixel_formats {
+        let config = SCStreamConfiguration::new()
+            .set_width(640)
+            .unwrap()
+            .set_height(480)
+            .unwrap()
+            .set_pixel_format(format)
+            .unwrap();
+
+        match SCScreenshotManager::capture_image(&filter, &config) {
+            Ok(image) => {
+                println!("✅ Captured with pixel format: {format:?}");
+                println!("   Size: {}x{}", image.width(), image.height());
+                assert!(image.width() > 0);
+                assert!(image.height() > 0);
+            }
+            Err(e) => {
+                eprintln!("⚠️  Failed to capture with {format:?}: {e}");
+            }
+        }
+    }
+}
+
+            // Verify dimensions are reasonable
+            assert!(image.width() > 0, "Width should be greater than 0");
+            assert!(image.height() > 0, "Height should be greater than 0");
+            assert!(
+                image.width() <= 10000,
+                "Width should be reasonable (< 10000)"
+            );
+            assert!(
+                image.height() <= 10000,
+                "Height should be reasonable (< 10000)"
+            );
+        }
+        Err(e) => {
+            eprintln!("⚠️  Screenshot capture failed: {e}");
+            eprintln!("   This may be due to missing Screen Recording permission");
+        }
+    }
+}
+
+#[test]
+fn test_capture_image_with_display_resolution() {
+    // Get shareable content
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+    let display_width = display.width();
+    let display_height = display.height();
+
+    println!("Testing with display resolution: {display_width}x{display_height}");
+
+    // Create filter and configuration with display's native resolution
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(display_width)
+        .unwrap()
+        .set_height(display_height)
+        .unwrap();
+
+    // Capture screenshot
+    match SCScreenshotManager::capture_image(&filter, &config) {
+        Ok(image) => {
+            println!("✅ Successfully captured screenshot at native resolution");
+            println!("   Width: {}", image.width());
+            println!("   Height: {}", image.height());
+
+            // The captured dimensions should match what we requested
+            // (within reason - sometimes there's padding)
+            assert!(
+                image.width() >= display_width as usize,
+                "Width should be at least the requested width"
+            );
+            assert!(
+                image.height() == display_height as usize,
+                "Height should match the requested height"
+            );
+        }
+        Err(e) => {
+            eprintln!("⚠️  Screenshot capture failed: {e}");
+            eprintln!("   This may be due to missing Screen Recording permission");
+        }
+    }
+}
+
+#[test]
+fn test_cgimage_get_rgba_data() {
+    // Get shareable content
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    // Create a small screenshot for testing
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(100)
+        .unwrap()
+        .set_height(100)
+        .unwrap();
+
+    // Capture screenshot
+    let image = match SCScreenshotManager::capture_image(&filter, &config) {
+        Ok(img) => img,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - screenshot capture failed: {e}");
+            return;
+        }
+    };
+
+    // Get RGBA data
+    match image.get_rgba_data() {
+        Ok(rgba_data) => {
+            println!("✅ Successfully extracted RGBA data");
+            println!("   Data length: {} bytes", rgba_data.len());
+
+            let width = image.width();
+            let height = image.height();
+            let expected_size = width * height * 4; // RGBA = 4 bytes per pixel
+
+            assert_eq!(
+                rgba_data.len(),
+                expected_size,
+                "RGBA data size should match width * height * 4"
+            );
+
+            // Verify we have actual data (not all zeros)
+            let non_zero_count = rgba_data.iter().filter(|&&b| b != 0).count();
+            assert!(
+                non_zero_count > 0,
+                "RGBA data should contain non-zero values"
+            );
+
+            println!("   Non-zero bytes: {non_zero_count}/{}", rgba_data.len());
+        }
+        Err(e) => {
+            panic!("Failed to get RGBA data: {e}");
+        }
+    }
+}
+
+#[test]
+fn test_cgimage_dimensions() {
+    // Get shareable content
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    // Test various dimensions
+    let test_dimensions = [(320, 240), (640, 480), (1920, 1080)];
+
+    for (width, height) in test_dimensions {
+        #[allow(deprecated)]
+        let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+        let config = SCStreamConfiguration::new()
+            .set_width(width)
+            .unwrap()
+            .set_height(height)
+            .unwrap();
+
+        match SCScreenshotManager::capture_image(&filter, &config) {
+            Ok(image) => {
+                println!("✅ Captured {width}x{height} screenshot");
+                println!("   Actual: {}x{}", image.width(), image.height());
+
+                // Width might have padding, but height should match
+                assert!(
+                    image.width() >= width as usize,
+                    "Width should be at least {width}"
+                );
+                assert_eq!(
+                    image.height(),
+                    height as usize,
+                    "Height should be exactly {height}"
+                );
+            }
+            Err(e) => {
+                eprintln!("⚠️  Failed to capture {width}x{height}: {e}");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_multiple_screenshots() {
+    // Get shareable content
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(800)
+        .unwrap()
+        .set_height(600)
+        .unwrap();
+
+    // Capture multiple screenshots in succession
+    let num_screenshots = 3;
+    let mut successful_captures = 0;
+
+    for i in 0..num_screenshots {
+        match SCScreenshotManager::capture_image(&filter, &config) {
+            Ok(image) => {
+                println!("✅ Screenshot {}: {}x{}", i + 1, image.width(), image.height());
+                successful_captures += 1;
+            }
+            Err(e) => {
+                eprintln!("⚠️  Screenshot {} failed: {e}", i + 1);
+            }
+        }
+    }
+
+    println!(
+        "Successfully captured {successful_captures}/{num_screenshots} screenshots"
+    );
+
+    // We should be able to capture at least some screenshots
+    if successful_captures == 0 {
+        eprintln!("⚠️  No screenshots were captured - may be due to permissions");
+    }
+}
+
+#[test]
+fn test_cgimage_as_ptr() {
+    // Get shareable content
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(100)
+        .unwrap()
+        .set_height(100)
+        .unwrap();
+
+    match SCScreenshotManager::capture_image(&filter, &config) {
+        Ok(image) => {
+            let ptr = image.as_ptr();
+            assert!(!ptr.is_null(), "CGImage pointer should not be null");
+            println!("✅ CGImage has valid pointer: {ptr:?}");
+        }
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - screenshot capture failed: {e}");
+        }
+    }
+}
+
+#[test]
+fn test_error_handling() {
+    // Test that appropriate errors are returned for invalid scenarios
+    // This test doesn't require screen recording permission
+
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            println!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        println!("✅ Test passed - no displays available triggers expected behavior");
+        return;
+    }
+
+    // If we have displays, just verify the API exists and can be called
+    println!("✅ Error handling test completed - API is accessible");
+}
+
+#[test]
+fn test_rgba_to_rgb_conversion() {
+    // Get shareable content
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(100)
+        .unwrap()
+        .set_height(100)
+        .unwrap();
+
+    let image = match SCScreenshotManager::capture_image(&filter, &config) {
+        Ok(img) => img,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - screenshot capture failed: {e}");
+            return;
+        }
+    };
+
+    let rgba_data = match image.get_rgba_data() {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get RGBA data: {e}");
+            return;
+        }
+    };
+
+    // Convert RGBA to RGB (simulating what the CLI does)
+    let mut rgb_data = Vec::with_capacity((rgba_data.len() * 3) / 4);
+    for chunk in rgba_data.chunks_exact(4) {
+        rgb_data.push(chunk[0]); // R
+        rgb_data.push(chunk[1]); // G
+        rgb_data.push(chunk[2]); // B
+                                 // Skip alpha (chunk[3])
+    }
+
+    let width = image.width();
+    let height = image.height();
+    let expected_rgb_size = width * height * 3;
+
+    assert_eq!(
+        rgb_data.len(),
+        expected_rgb_size,
+        "RGB data size should be width * height * 3"
+    );
+
+    println!("✅ Successfully converted RGBA to RGB");
+    println!("   RGBA size: {} bytes", rgba_data.len());
+    println!("   RGB size: {} bytes", rgb_data.len());
+}
+
+#[test]
+fn test_capture_minimum_dimensions() {
+    // Test with very small dimensions
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    // Test with minimum dimensions
+    let min_dimensions = [(1, 1), (2, 2), (10, 10), (32, 32)];
+
+    for (width, height) in min_dimensions {
+        let config = SCStreamConfiguration::new()
+            .set_width(width)
+            .unwrap()
+            .set_height(height)
+            .unwrap();
+
+        match SCScreenshotManager::capture_image(&filter, &config) {
+            Ok(image) => {
+                println!("✅ Captured {width}x{height} screenshot");
+                assert!(image.width() >= width as usize);
+                assert!(image.height() == height as usize);
+            }
+            Err(e) => {
+                eprintln!("⚠️  Failed to capture {width}x{height}: {e}");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_capture_window_filter() {
+    // Test capturing with window filter
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let windows = content.windows();
+    let on_screen_windows: Vec<_> = windows.iter().filter(|w| w.is_on_screen()).collect();
+
+    if on_screen_windows.is_empty() {
+        eprintln!("⚠️  Skipping test - no on-screen windows available");
+        return;
+    }
+
+    let window = on_screen_windows[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_desktop_independent_window(window);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(640)
+        .unwrap()
+        .set_height(480)
+        .unwrap();
+
+    match SCScreenshotManager::capture_image(&filter, &config) {
+        Ok(image) => {
+            println!("✅ Successfully captured window screenshot");
+            println!("   Window: {}", window.title().unwrap_or_else(|| "Untitled".to_string()));
+            println!("   Size: {}x{}", image.width(), image.height());
+            assert!(image.width() > 0);
+            assert!(image.height() > 0);
+        }
+        Err(e) => {
+            eprintln!("⚠️  Window screenshot failed: {e}");
+        }
+    }
+}
+
+#[test]
+fn test_cgimage_data_consistency() {
+    // Test that getting RGBA data multiple times returns consistent results
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(100)
+        .unwrap()
+        .set_height(100)
+        .unwrap();
+
+    let image = match SCScreenshotManager::capture_image(&filter, &config) {
+        Ok(img) => img,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - screenshot capture failed: {e}");
+            return;
+        }
+    };
+
+    // Get RGBA data multiple times
+    let data1 = image.get_rgba_data().expect("First call should succeed");
+    let data2 = image.get_rgba_data().expect("Second call should succeed");
+    let data3 = image.get_rgba_data().expect("Third call should succeed");
+
+    // All calls should return the same data
+    assert_eq!(data1.len(), data2.len(), "Data length should be consistent");
+    assert_eq!(data2.len(), data3.len(), "Data length should be consistent");
+
+    // The content should be identical
+    assert_eq!(data1, data2, "Data content should be identical");
+    assert_eq!(data2, data3, "Data content should be identical");
+
+    println!("✅ RGBA data is consistent across multiple calls");
+}
+
+#[test]
+fn test_concurrent_screenshots() {
+    // Test capturing screenshots concurrently (though API is sync)
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = displays[0].clone();
+    let results = Arc::new(Mutex::new(Vec::new()));
+
+    let mut handles = vec![];
+
+    for i in 0..3 {
+        let display = display.clone();
+        let results = Arc::clone(&results);
+
+        let handle = thread::spawn(move || {
+            #[allow(deprecated)]
+            let filter = SCContentFilter::new().with_display_excluding_windows(&display, &[]);
+
+            let config = SCStreamConfiguration::new()
+                .set_width(400)
+                .unwrap()
+                .set_height(300)
+                .unwrap();
+
+            match SCScreenshotManager::capture_image(&filter, &config) {
+                Ok(image) => {
+                    let size = (image.width(), image.height());
+                    results.lock().unwrap().push(Ok(size));
+                    println!("✅ Thread {i} captured: {size:?}");
+                }
+                Err(e) => {
+                    results.lock().unwrap().push(Err(format!("{e}")));
+                    eprintln!("⚠️  Thread {i} failed: {e}");
+                }
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().expect("Thread should complete");
+    }
+
+    let results = results.lock().unwrap();
+    let successful = results.iter().filter(|r| r.is_ok()).count();
+
+    println!("✅ Concurrent test: {successful}/{} captures succeeded", results.len());
+}
+
+#[test]
+fn test_capture_with_scaling() {
+    // Test different scaling scenarios
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+    let native_width = display.width();
+    let native_height = display.height();
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    // Test upscaling
+    let upscaled = SCStreamConfiguration::new()
+        .set_width(native_width * 2)
+        .unwrap()
+        .set_height(native_height * 2)
+        .unwrap();
+
+    match SCScreenshotManager::capture_image(&filter, &upscaled) {
+        Ok(image) => {
+            println!("✅ Upscaled capture: {}x{}", image.width(), image.height());
+        }
+        Err(e) => {
+            eprintln!("⚠️  Upscaled capture failed: {e}");
+        }
+    }
+
+    // Test downscaling
+    let downscaled = SCStreamConfiguration::new()
+        .set_width(native_width / 2)
+        .unwrap()
+        .set_height(native_height / 2)
+        .unwrap();
+
+    match SCScreenshotManager::capture_image(&filter, &downscaled) {
+        Ok(image) => {
+            println!("✅ Downscaled capture: {}x{}", image.width(), image.height());
+        }
+        Err(e) => {
+            eprintln!("⚠️  Downscaled capture failed: {e}");
+        }
+    }
+}
+
+#[test]
+fn test_rgba_data_bounds() {
+    // Test that RGBA data respects image bounds
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let config = SCStreamConfiguration::new()
+        .set_width(50)
+        .unwrap()
+        .set_height(50)
+        .unwrap();
+
+    let image = match SCScreenshotManager::capture_image(&filter, &config) {
+        Ok(img) => img,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - screenshot capture failed: {e}");
+            return;
+        }
+    };
+
+    let rgba_data = match image.get_rgba_data() {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get RGBA data: {e}");
+            return;
+        }
+    };
+
+    let width = image.width();
+    let height = image.height();
+
+    // Verify we can access all pixels
+    for y in 0..height {
+        for x in 0..width {
+            let offset = (y * width + x) * 4;
+            assert!(
+                offset + 3 < rgba_data.len(),
+                "Pixel ({x}, {y}) should be within bounds"
+            );
+
+            let _r = rgba_data[offset];
+            let _g = rgba_data[offset + 1];
+            let _b = rgba_data[offset + 2];
+            let _a = rgba_data[offset + 3];
+        }
+    }
+
+    println!("✅ All {width}x{height} pixels are within bounds");
+}
+
+#[test]
+fn test_capture_all_displays() {
+    // Test capturing from all available displays
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    println!("Testing {} display(s)", displays.len());
+
+    for (i, display) in displays.iter().enumerate() {
+        #[allow(deprecated)]
+        let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+        let config = SCStreamConfiguration::new()
+            .set_width(640)
+            .unwrap()
+            .set_height(480)
+            .unwrap();
+
+        match SCScreenshotManager::capture_image(&filter, &config) {
+            Ok(image) => {
+                println!(
+                    "✅ Display {i}: {}x{} -> captured {}x{}",
+                    display.width(),
+                    display.height(),
+                    image.width(),
+                    image.height()
+                );
+            }
+            Err(e) => {
+                eprintln!("⚠️  Display {i} failed: {e}");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_capture_with_different_pixel_formats() {
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping test - failed to get shareable content: {e}");
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    if displays.is_empty() {
+        eprintln!("⚠️  Skipping test - no displays available");
+        return;
+    }
+
+    let display = &displays[0];
+
+    #[allow(deprecated)]
+    let filter = SCContentFilter::new().with_display_excluding_windows(display, &[]);
+
+    let pixel_formats = [
+        PixelFormat::BGRA,
+        PixelFormat::YCbCr_420v,
+        PixelFormat::YCbCr_420f,
+    ];
+
+    for format in pixel_formats {
+        let config = SCStreamConfiguration::new()
+            .set_width(640)
+            .unwrap()
+            .set_height(480)
+            .unwrap()
+            .set_pixel_format(format)
+            .unwrap();
+
+        match SCScreenshotManager::capture_image(&filter, &config) {
+            Ok(image) => {
+                println!("✅ Captured with pixel format: {format:?}");
+                println!("   Size: {}x{}", image.width(), image.height());
+                assert!(image.width() > 0);
+                assert!(image.height() > 0);
+            }
+            Err(e) => {
+                eprintln!("⚠️  Failed to capture with {format:?}: {e}");
+            }
+        }
+    }
+}

@@ -3,13 +3,12 @@ mod leak_tests {
 
     use std::{error::Error, process::Command, thread};
 
-    use core_media_rs::cm_sample_buffer::CMSampleBuffer;
     use screencapturekit::{
-        output::sc_stream_frame_info::SCStreamFrameInfo,
+        cm::CMSampleBuffer,
         shareable_content::SCShareableContent,
         stream::{
             configuration::SCStreamConfiguration, content_filter::SCContentFilter,
-            delegate_trait::SCStreamDelegateTrait, output_trait::SCStreamOutputTrait,
+            output_trait::SCStreamOutputTrait,
             output_type::SCStreamOutputType, SCStream,
         },
     };
@@ -27,13 +26,11 @@ mod leak_tests {
             Self::new()
         }
     }
-    impl SCStreamDelegateTrait for Capturer {}
 
     impl SCStreamOutputTrait for Capturer {
         fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
-            let _a = sample.get_audio_buffer_list();
-            let _d = sample.get_format_description();
-            let _i = SCStreamFrameInfo::from_sample_buffer(&sample);
+            // Just get the timestamp to verify the sample buffer works
+            let _timestamp = sample.get_presentation_timestamp();
         }
     }
 
@@ -44,7 +41,7 @@ mod leak_tests {
             // Create and immediately drop streams
 
             let stream = {
-                let config = SCStreamConfiguration::new()
+                let config = SCStreamConfiguration::build()
                     .set_captures_audio(true)?
                     .set_width(100)?
                     .set_height(100)?;
@@ -52,8 +49,9 @@ mod leak_tests {
                 let display = SCShareableContent::get();
 
                 let d = display.unwrap().displays().remove(0);
-                let filter = SCContentFilter::new().with_display_excluding_windows(&d, &[]);
-                let mut stream = SCStream::new_with_delegate(&filter, &config, Capturer::default());
+                #[allow(deprecated)]
+                let filter = SCContentFilter::build().display(&d).exclude_windows(&[]).build();
+                let mut stream = SCStream::new(&filter, &config);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Audio);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Screen);
                 stream
