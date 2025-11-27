@@ -3,13 +3,12 @@ mod leak_tests {
 
     use std::{error::Error, process::Command, thread};
 
-    use core_media_rs::cm_sample_buffer::CMSampleBuffer;
     use screencapturekit::{
-        output::sc_stream_frame_info::SCStreamFrameInfo,
+        cm::CMSampleBuffer,
         shareable_content::SCShareableContent,
         stream::{
             configuration::SCStreamConfiguration, content_filter::SCContentFilter,
-            delegate_trait::SCStreamDelegateTrait, output_trait::SCStreamOutputTrait,
+            output_trait::SCStreamOutputTrait,
             output_type::SCStreamOutputType, SCStream,
         },
     };
@@ -18,7 +17,7 @@ mod leak_tests {
 
     impl Capturer {
         pub fn new() -> Self {
-            Capturer {}
+            Self {}
         }
     }
 
@@ -27,24 +26,21 @@ mod leak_tests {
             Self::new()
         }
     }
-    impl SCStreamDelegateTrait for Capturer {}
 
     impl SCStreamOutputTrait for Capturer {
         fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
-            let _a = sample.get_audio_buffer_list();
-            let _d = sample.get_format_description();
-            let _i = SCStreamFrameInfo::from_sample_buffer(&sample);
+            // Just get the timestamp to verify the sample buffer works
+            let _timestamp = sample.get_presentation_timestamp();
         }
     }
 
     #[test]
-    // #[cfg_attr(feature = "ci", ignore)]
     fn test_if_program_leaks() -> Result<(), Box<dyn Error>> {
         for _ in 0..4 {
             // Create and immediately drop streams
 
             let stream = {
-                let config = SCStreamConfiguration::new()
+                let config = SCStreamConfiguration::build()
                     .set_captures_audio(true)?
                     .set_width(100)?
                     .set_height(100)?;
@@ -52,8 +48,8 @@ mod leak_tests {
                 let display = SCShareableContent::get();
 
                 let d = display.unwrap().displays().remove(0);
-                let filter = SCContentFilter::new().with_display_excluding_windows(&d, &[]);
-                let mut stream = SCStream::new_with_delegate(&filter, &config, Capturer::default());
+                let filter = SCContentFilter::build().display(&d).exclude_windows(&[]).build();
+                let mut stream = SCStream::new(&filter, &config);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Audio);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Screen);
                 stream
@@ -77,11 +73,9 @@ mod leak_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        println!("stdout: {}", stdout);
-        println!("stderr: {}", stderr);
-        if !stdout.contains("0 leaks for 0 total leaked bytes") {
-            panic!("Memory leaks detected");
-        }
+        println!("stdout: {stdout}");
+        println!("stderr: {stderr}");
+        assert!(stdout.contains("0 leaks for 0 total leaked bytes"), "Memory leaks detected");
 
         Ok(())
     }
