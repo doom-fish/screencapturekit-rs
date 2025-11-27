@@ -5,7 +5,7 @@ use std::ffi::c_void;
 
 use super::SCRunningApplication;
 
-/// Wrapper around SCWindow from ScreenCaptureKit
+/// Wrapper around `SCWindow` from `ScreenCaptureKit`
 ///
 /// Represents a window that can be captured.
 ///
@@ -41,7 +41,7 @@ impl std::hash::Hash for SCWindow {
     }
 }
 
-/// Raw pointer type for SCWindow (for FFI compatibility)
+/// Raw pointer type for `SCWindow` (for FFI compatibility)
 pub type SCWindowRef = *const c_void;
 
 impl SCWindow {

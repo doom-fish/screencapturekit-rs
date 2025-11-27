@@ -1,4 +1,4 @@
-//! Error types for ScreenCaptureKit
+//! Error types for `ScreenCaptureKit`
 //!
 //! This module provides comprehensive error types for all operations in the library.
 //! All operations return [`SCResult<T>`] which is an alias for `Result<T, SCError>`.
@@ -28,7 +28,7 @@
 
 use std::fmt;
 
-/// Result type alias for ScreenCaptureKit operations
+/// Result type alias for `ScreenCaptureKit` operations
 ///
 /// This is a convenience alias for `Result<T, SCError>` used throughout the library.
 ///
@@ -52,10 +52,10 @@ use std::fmt;
 /// ```
 pub type SCResult<T> = Result<T, SCError>;
 
-/// Comprehensive error type for ScreenCaptureKit operations
+/// Comprehensive error type for `ScreenCaptureKit` operations
 ///
 /// This enum covers all possible error conditions that can occur when using
-/// the ScreenCaptureKit API. Each variant provides specific context about
+/// the `ScreenCaptureKit` API. Each variant provides specific context about
 /// what went wrong.
 ///
 /// # Examples

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-/// CMTime representation matching Core Media's CMTime
+/// `CMTime` representation matching Core Media's `CMTime`
 ///
 /// Represents a rational time value with a 64-bit numerator and 32-bit denominator.
 ///

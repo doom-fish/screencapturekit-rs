@@ -1,12 +1,12 @@
-//! Minimal FourCharCode implementation for pixel formats and color conversions
+//! Minimal `FourCharCode` implementation for pixel formats and color conversions
 //!
-//! A FourCharCode is a 4-byte code used in Core Video and Core Media to identify
+//! A `FourCharCode` is a 4-byte code used in Core Video and Core Media to identify
 //! pixel formats, codecs, and other media types.
 
 use std::fmt;
 use std::str::FromStr;
 
-/// FourCharCode represents a 4-character code (used in Core Video/Media)
+/// `FourCharCode` represents a 4-character code (used in Core Video/Media)
 ///
 /// # Examples
 ///
@@ -25,7 +25,7 @@ use std::str::FromStr;
 pub struct FourCharCode(u32);
 
 impl FourCharCode {
-    /// Create a FourCharCode from exactly 4 bytes (infallible)
+    /// Create a `FourCharCode` from exactly 4 bytes (infallible)
     ///
     /// # Examples
     ///
@@ -40,7 +40,7 @@ impl FourCharCode {
         Self(u32::from_be_bytes(bytes))
     }
 
-    /// Create a FourCharCode from a byte slice
+    /// Create a `FourCharCode` from a byte slice
     pub fn from_slice(bytes: &[u8]) -> Option<Self> {
         if bytes.len() != 4 {
             return None;
@@ -78,7 +78,7 @@ impl FourCharCode {
         Self(value)
     }
 
-    /// Compare with another FourCharCode at compile time
+    /// Compare with another `FourCharCode` at compile time
     #[inline]
     pub const fn equals(self, other: Self) -> bool {
         self.0 == other.0

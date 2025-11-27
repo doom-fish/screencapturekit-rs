@@ -1,4 +1,4 @@
-//! Error types for ScreenCaptureKit operations
+//! Error types for `ScreenCaptureKit` operations
 //!
 //! This module re-exports error types from [`crate::utils::error`].
 //!

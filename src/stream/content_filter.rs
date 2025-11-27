@@ -1,6 +1,6 @@
-//! Content filter for ScreenCaptureKit streams
+//! Content filter for `ScreenCaptureKit` streams
 //!
-//! This module provides a wrapper around SCContentFilter that uses the Swift bridge.
+//! This module provides a wrapper around `SCContentFilter` that uses the Swift bridge.
 //!
 //! # Examples
 //!
@@ -29,7 +29,7 @@ use crate::{
     shareable_content::{SCDisplay, SCRunningApplication, SCWindow},
 };
 
-/// Content filter for ScreenCaptureKit streams
+/// Content filter for `ScreenCaptureKit` streams
 ///
 /// Defines what content to capture (displays, windows, or applications).
 ///
@@ -197,7 +197,7 @@ impl fmt::Display for SCContentFilter {
 unsafe impl Send for SCContentFilter {}
 unsafe impl Sync for SCContentFilter {}
 
-/// Builder for creating SCContentFilter instances
+/// Builder for creating `SCContentFilter` instances
 /// 
 /// # Examples
 /// 

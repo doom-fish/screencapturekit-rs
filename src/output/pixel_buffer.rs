@@ -1,6 +1,6 @@
 //! Pixel buffer wrapper with RAII lock guards
 //! 
-//! Provides safe access to CVPixelBuffer and IOSurface with automatic locking/unlocking.
+//! Provides safe access to `CVPixelBuffer` and `IOSurface` with automatic locking/unlocking.
 //! The lock guard pattern ensures buffers are always properly unlocked, even in case of panics.
 //!
 //! # Examples
@@ -256,9 +256,17 @@ pub trait PixelBufferCursorExt {
     /// Seek to a specific pixel coordinate (x, y)
     ///
     /// Assumes 4 bytes per pixel (BGRA format).
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the seek operation fails.
     fn seek_to_pixel(&mut self, x: usize, y: usize, bytes_per_row: usize) -> io::Result<u64>;
 
     /// Read a single pixel (4 bytes: BGRA)
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the read operation fails.
     fn read_pixel(&mut self) -> io::Result<[u8; 4]>;
 }
 
@@ -275,10 +283,14 @@ impl<T: AsRef<[u8]>> PixelBufferCursorExt for io::Cursor<T> {
     }
 }
 
-/// Extension trait for CVImageBuffer with lock guards
+/// Extension trait for `CVImageBuffer` with lock guards
 /// Extension trait for locking pixel buffers
 pub trait CVImageBufferLockExt {
     /// Lock the buffer and provide a guard for safe access
+    ///
+    /// # Errors
+    ///
+    /// Returns an `SCError` if the lock operation fails.
     fn lock(&self, flags: PixelBufferLockFlags) -> Result<PixelBufferLockGuard<'_>, crate::error::SCError>;
 }
 

@@ -1,7 +1,7 @@
 //! Shareable content types - displays, windows, and applications
 //!
 //! This module provides access to the system's displays, windows, and running
-//! applications that can be captured by ScreenCaptureKit.
+//! applications that can be captured by `ScreenCaptureKit`.
 //!
 //! # Examples
 //!
@@ -79,7 +79,7 @@ impl SCShareableContent {
     /// Create from raw pointer (used internally)
     /// 
     /// # Safety
-    /// The pointer must be a valid retained SCShareableContent pointer from Swift FFI.
+    /// The pointer must be a valid retained `SCShareableContent` pointer from Swift FFI.
     pub(crate) unsafe fn from_ptr(ptr: *const c_void) -> Self {
         Self(ptr)
     }

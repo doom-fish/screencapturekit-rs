@@ -9,7 +9,7 @@
 //! - [`CVPixelBuffer`] - Pixel buffer containing frame data
 //! - [`IOSurface`] - IOSurface-backed buffer for zero-copy access
 //! - [`PixelBufferLockGuard`] - RAII guard for locked pixel buffer access
-//! - [`IOSurfaceLockGuard`] - RAII guard for locked IOSurface access
+//! - [`IOSurfaceLockGuard`] - RAII guard for locked `IOSurface` access
 //! - [`PixelBufferCursorExt`] - Extension trait for pixel-specific cursor operations
 //!
 //! ## Examples

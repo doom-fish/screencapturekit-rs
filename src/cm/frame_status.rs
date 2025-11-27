@@ -4,7 +4,7 @@ use std::fmt;
 
 /// Frame status for captured screen content
 ///
-/// Indicates the state of a frame captured by ScreenCaptureKit.
+/// Indicates the state of a frame captured by `ScreenCaptureKit`.
 /// This maps to Apple's `SCFrameStatus` enum.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]

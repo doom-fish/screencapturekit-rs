@@ -1,4 +1,4 @@
-//! Builder for SCStreamConfiguration
+//! Builder for `SCStreamConfiguration`
 //!
 //! Provides a fluent builder API for constructing stream configurations.
 
@@ -8,7 +8,7 @@ use super::advanced::SCPresenterOverlayAlertSetting;
 use super::stream_properties::SCCaptureDynamicRange;
 use crate::cg::CGRect;
 
-/// Builder for creating SCStreamConfiguration instances
+/// Builder for creating `SCStreamConfiguration` instances
 ///
 /// Use [`SCStreamConfiguration::builder()`] to create a new builder.
 ///
@@ -38,7 +38,6 @@ impl SCStreamConfigurationBuilder {
     }
 
     /// Build the final configuration
-    #[must_use]
     pub fn build(self) -> SCStreamConfiguration {
         self.config
     }
@@ -248,7 +247,7 @@ impl SCStreamConfigurationBuilder {
 
     // ============ Captured Frames ============
 
-    /// Set minimum frame interval as CMTime
+    /// Set minimum frame interval as `CMTime`
     #[must_use]
     pub fn minimum_frame_interval(self, value: i64, timescale: i32) -> Self {
         unsafe {

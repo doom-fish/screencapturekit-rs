@@ -3,8 +3,6 @@
 //! Methods for configuring which elements are included in the capture
 //! (cursor, shadows, etc.).
 
-use crate::error::SCError;
-
 use super::internal::SCStreamConfiguration;
 
 impl SCStreamConfiguration {
@@ -16,15 +14,14 @@ impl SCStreamConfiguration {
     /// use screencapturekit::prelude::*;
     ///
     /// let config = SCStreamConfiguration::build()
-    ///     .set_shows_cursor(true)?;
+    ///     .set_shows_cursor(true);
     /// assert!(config.get_shows_cursor());
-    /// # Ok::<(), screencapturekit::error::SCError>(())
     /// ```
-    pub fn set_shows_cursor(self, shows_cursor: bool) -> Result<Self, SCError> {
+    pub fn set_shows_cursor(self, shows_cursor: bool) -> Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_shows_cursor(self.as_ptr(), shows_cursor);
         }
-        Ok(self)
+        self
     }
 
     /// Check if cursor is shown in capture
@@ -48,16 +45,15 @@ impl SCStreamConfiguration {
     /// use screencapturekit::prelude::*;
     /// 
     /// let config = SCStreamConfiguration::build()
-    ///     .set_width(1920)?
-    ///     .set_height(1080)?
-    ///     .set_captures_shadows_only(true)?; // Only capture shadows
-    /// # Ok::<(), screencapturekit::error::SCError>(())
+    ///     .set_width(1920)
+    ///     .set_height(1080)
+    ///     .set_captures_shadows_only(true); // Only capture shadows
     /// ```
-    pub fn set_captures_shadows_only(self, captures_shadows_only: bool) -> Result<Self, SCError> {
+    pub fn set_captures_shadows_only(self, captures_shadows_only: bool) -> Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_captures_shadows_only(self.as_ptr(), captures_shadows_only);
         }
-        Ok(self)
+        self
     }
 
     /// Get whether only window shadows are captured (macOS 14.0+).
@@ -67,4 +63,3 @@ impl SCStreamConfiguration {
         }
     }
 }
-

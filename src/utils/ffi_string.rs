@@ -20,7 +20,7 @@ pub const SMALL_BUFFER_SIZE: usize = 256;
 ///
 /// # Arguments
 /// * `buffer_size` - Size of the buffer to allocate
-/// * `ffi_call` - A closure that takes (buffer_ptr, buffer_len) and returns success bool
+/// * `ffi_call` - A closure that takes (`buffer_ptr`, `buffer_len`) and returns success bool
 ///
 /// # Returns
 /// * `Some(String)` if the FFI call succeeded and the string was valid UTF-8

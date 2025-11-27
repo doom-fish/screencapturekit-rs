@@ -3,10 +3,6 @@
 //! This is the primary (and only) implementation in v1.0+.
 //! All `ScreenCaptureKit` operations use direct Swift FFI bindings.
 
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::doc_markdown)]
-
 use std::ffi::{c_void, CStr};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -62,11 +58,11 @@ extern "C" fn sample_handler(_stream: *const c_void, sample_buffer: *const c_voi
     }
 }
 
-/// SCStream is a lightweight wrapper around the Swift SCStream instance.
-/// It provides direct FFI access to ScreenCaptureKit functionality.
+/// `SCStream` is a lightweight wrapper around the Swift `SCStream` instance.
+/// It provides direct FFI access to `ScreenCaptureKit` functionality.
 ///
-/// This is the primary and only implementation of SCStream in v1.0+.
-/// All ScreenCaptureKit operations go through Swift FFI bindings.
+/// This is the primary and only implementation of `SCStream` in v1.0+.
+/// All `ScreenCaptureKit` operations go through Swift FFI bindings.
 ///
 /// # Examples
 ///
@@ -106,6 +102,10 @@ unsafe impl Sync for SCStream {}
 
 impl SCStream {
     /// Create a new stream with a content filter and configuration
+    ///
+    /// # Panics
+    ///
+    /// Panics if the Swift bridge returns a null stream pointer.
     ///
     /// # Examples
     ///
@@ -212,6 +212,10 @@ impl SCStream {
     /// * `of_type` - The type of output to receive
     /// * `queue` - Optional custom dispatch queue for callbacks
     ///
+    /// # Panics
+    ///
+    /// Panics if the internal handler registry mutex is poisoned.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -290,6 +294,10 @@ impl SCStream {
     /// * `id` - The handler ID returned from [`add_output_handler`](Self::add_output_handler)
     /// * `of_type` - The type of output the handler was registered for
     ///
+    /// # Panics
+    ///
+    /// Panics if the internal handler registry mutex is poisoned.
+    ///
     /// # Returns
     ///
     /// Returns `true` if the handler was found and removed, `false` otherwise.
@@ -301,6 +309,11 @@ impl SCStream {
             .is_some()
     }
 
+    /// Start capturing screen content
+    ///
+    /// # Errors
+    ///
+    /// This method currently does not fail and always returns `Ok`.
     pub fn start_capture(&self) -> Result<(), SCError> {
         extern "C" fn completion(success: bool, msg: *const i8) {
             if !success && !msg.is_null() {
@@ -311,6 +324,11 @@ impl SCStream {
         Ok(())
     }
 
+    /// Stop capturing screen content
+    ///
+    /// # Errors
+    ///
+    /// This method currently does not fail and always returns `Ok`.
     pub fn stop_capture(&self) -> Result<(), SCError> {
         extern "C" fn completion(success: bool, msg: *const i8) {
             if !success && !msg.is_null() {
@@ -321,6 +339,11 @@ impl SCStream {
         Ok(())
     }
 
+    /// Update the stream configuration
+    ///
+    /// # Errors
+    ///
+    /// This method currently does not fail and always returns `Ok`.
     pub fn update_configuration(&self, configuration: &SCStreamConfiguration) -> Result<(), SCError> {
         extern "C" fn completion(success: bool, msg: *const i8) {
             if !success && !msg.is_null() {
@@ -331,6 +354,11 @@ impl SCStream {
         Ok(())
     }
 
+    /// Update the content filter
+    ///
+    /// # Errors
+    ///
+    /// This method currently does not fail and always returns `Ok`.
     pub fn update_content_filter(&self, filter: &SCContentFilter) -> Result<(), SCError> {
         extern "C" fn completion(success: bool, msg: *const i8) {
             if !success && !msg.is_null() {

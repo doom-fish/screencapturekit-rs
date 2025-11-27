@@ -2,7 +2,7 @@ use core::fmt;
 use crate::cg::CGRect;
 use std::ffi::c_void;
 
-/// Opaque wrapper around SCDisplay from ScreenCaptureKit
+/// Opaque wrapper around `SCDisplay` from `ScreenCaptureKit`
 ///
 /// Represents a physical or virtual display that can be captured.
 ///
@@ -40,7 +40,7 @@ impl std::hash::Hash for SCDisplay {
     }
 }
 
-/// Raw pointer type for SCDisplay (for FFI compatibility)
+/// Raw pointer type for `SCDisplay` (for FFI compatibility)
 pub type SCDisplayRef = *const c_void;
 
 impl SCDisplay {
