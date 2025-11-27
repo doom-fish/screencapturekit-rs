@@ -63,7 +63,7 @@ pub trait SCStreamDelegateTrait: Send {
 /// # let content = SCShareableContent::get()?;
 /// # let display = &content.displays()[0];
 /// # let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
-/// # let config = SCStreamConfiguration::build();
+/// # let config = SCStreamConfiguration::default();
 ///
 /// let error_handler = ErrorHandler::new(|error| {
 ///     eprintln!("Stream error: {}", error);
