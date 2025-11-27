@@ -45,11 +45,7 @@ pub use window::SCWindow;
 
 use core::fmt;
 use crate::error::SCError;
-use std::ffi::{c_void, CStr};
-use std::sync::{Mutex, Arc, Condvar};
-use std::time::Duration;
-
-static CALLBACK_DATA: Mutex<Option<usize>> = Mutex::new(None);
+use std::ffi::c_void;
 
 #[repr(transparent)]
 pub struct SCShareableContent(*const c_void);
@@ -249,53 +245,13 @@ impl fmt::Display for SCShareableContent {
     }
 }
 
-extern "C" fn shareable_content_callback(content: *const c_void, error: *const i8) {
-    let arc_ptr = {
-        let Ok(mut guard) = CALLBACK_DATA.lock() else {
-            eprintln!("Failed to lock CALLBACK_DATA");
-            return;
-        };
-        guard.take()
-    };
-
-    if let Some(ptr) = arc_ptr {
-        let arc = unsafe { Arc::from_raw(ptr as *const (Mutex<Option<Result<SCShareableContent, SCError>>>, Condvar)) };
-        let (lock, cvar) = &*arc;
-        let Ok(mut result) = lock.lock() else {
-            eprintln!("Failed to lock result");
-            return;
-        };
-        
-        *result = Some(if content.is_null() {
-            let error_msg = if error.is_null() {
-                "Unknown error".to_string()
-            } else {
-                unsafe { CStr::from_ptr(error).to_string_lossy().to_string() }
-            };
-            Err(io_error_to_cferror(std::io::Error::new(std::io::ErrorKind::Other, error_msg)))
-        } else {
-            Ok(unsafe { SCShareableContent::from_ptr(content) })
-        });
-        
-        cvar.notify_one();
-    }
-}
-
 #[derive(Default)]
 pub struct SCShareableContentOptions {
-    timeout: Option<Duration>,
     exclude_desktop_windows: bool,
     on_screen_windows_only: bool,
-    current_process_only: bool,
 }
 
 impl SCShareableContentOptions {
-    #[must_use]
-    pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = Some(timeout);
-        self
-    }
-
     /// Exclude desktop windows from the shareable content.
     /// 
     /// When set to `true`, desktop-level windows (like the desktop background)
@@ -316,86 +272,35 @@ impl SCShareableContentOptions {
         self
     }
 
-    /// Get shareable content for the current process only (macOS 14.0+).
-    /// 
-    /// When set to `true`, only displays and windows accessible to the current
-    /// process are returned. On macOS versions prior to 14.0, this falls back
-    /// to the standard shareable content retrieval.
-    #[must_use]
-    pub fn current_process_only(mut self, current_process: bool) -> Self {
-        self.current_process_only = current_process;
-        self
-    }
-
+    /// Get shareable content synchronously
+    ///
+    /// This blocks until the content is retrieved (uses Swift semaphore internally).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if screen recording permission is not granted or retrieval fails.
     pub fn get(self) -> Result<SCShareableContent, SCError> {
-        let pair = Arc::new((
-            Mutex::new(None::<Result<SCShareableContent, SCError>>),
-            Condvar::new(),
-        ));
+        let mut error_buffer = vec![0i8; 1024];
         
-        let arc_ptr = Arc::into_raw(pair.clone()) as usize;
-        {
-            let mut guard = CALLBACK_DATA.lock().map_err(|_| {
-                io_error_to_cferror(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Failed to lock callback data",
-                ))
-            })?;
-            *guard = Some(arc_ptr);
-        }
-
-        unsafe {
-            if self.current_process_only {
-                crate::ffi::sc_shareable_content_get_current_process_displays(shareable_content_callback);
-            } else {
-                crate::ffi::sc_shareable_content_get_with_options(
-                    self.exclude_desktop_windows,
-                    self.on_screen_windows_only,
-                    shareable_content_callback,
-                );
-            }
-        }
-
-        let (lock, cvar) = &*pair;
-        
-        let timeout = self.timeout.unwrap_or(Duration::from_secs(5));
-        let mut wait_result = {
-            let result = lock.lock().map_err(|_| {
-                io_error_to_cferror(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Failed to lock result",
-                ))
-            })?;
-            
-            cvar.wait_timeout_while(
-                result,
-                timeout,
-                |r| r.is_none(),
-            ).map_err(|_| {
-                io_error_to_cferror(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Wait condition error",
-                ))
-            })?
+        #[allow(clippy::cast_possible_wrap)]
+        let ptr = unsafe {
+            crate::ffi::sc_shareable_content_get_sync(
+                self.exclude_desktop_windows,
+                self.on_screen_windows_only,
+                error_buffer.as_mut_ptr(),
+                error_buffer.len() as isize,
+            )
         };
         
-        if wait_result.1.timed_out() {
-            return Err(io_error_to_cferror(std::io::Error::new(
-                std::io::ErrorKind::TimedOut,
-                "Timeout waiting for shareable content",
-            )));
+        if ptr.is_null() {
+            let error_msg = unsafe {
+                std::ffi::CStr::from_ptr(error_buffer.as_ptr())
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            return Err(crate::utils::error::create_sc_error(&error_msg));
         }
-
-        wait_result.0.take().ok_or_else(|| {
-            io_error_to_cferror(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "No result received",
-            ))
-        })?
+        
+        Ok(unsafe { SCShareableContent::from_ptr(ptr) })
     }
-}
-
-// Helper to convert errors  
-fn io_error_to_cferror(_err: std::io::Error) -> SCError {
-    crate::utils::error::create_sc_error("IO Error")
 }
