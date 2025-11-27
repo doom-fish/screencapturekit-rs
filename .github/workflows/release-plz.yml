@@ -1,9 +1,11 @@
 name: Release-plz
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Rust"]
+    branches: [main]
+    types:
+      - completed
 
 jobs:
   # Release unpublished packages.
@@ -11,6 +13,7 @@ jobs:
     name: Release-plz release
     runs-on: macos-latest
     environment: release
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: write
     steps:
@@ -43,6 +46,7 @@ jobs:
     name: Release-plz PR
     runs-on: macos-latest
     environment: release
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     concurrency:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
