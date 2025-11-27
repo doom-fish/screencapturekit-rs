@@ -1,0 +1,38 @@
+# SwiftLint Configuration for FFI Bridge
+# Relaxed for FFI code that needs to match Rust naming conventions
+
+# Opt-in rules
+opt_in_rules:
+  - closure_spacing
+  - empty_count
+  - empty_string
+  - implicit_return
+  - sorted_imports
+
+# Disabled rules - necessary for FFI bridge code
+disabled_rules:
+  - identifier_name           # FFI uses snake_case to match Rust
+  - function_parameter_count  # FFI functions often have many parameters
+  - file_length               # Bridge files are necessarily large
+  - force_cast                # FFI requires force casts
+  - force_unwrapping          # FFI requires force unwrapping
+  - line_length               # Long FFI function signatures
+  - multiline_arguments_brackets
+  - multiline_parameters_brackets
+  - function_body_length      # FFI handlers can be long
+  - type_body_length          # Bridge classes are large
+  - cyclomatic_complexity     # FFI code can be complex
+  - todo
+
+# Rule configurations
+trailing_whitespace:
+  ignores_empty_lines: true
+  ignores_comments: true
+
+vertical_whitespace:
+  max_empty_lines: 2
+
+# Excluded paths
+excluded:
+  - .build
+  - Package.swift
