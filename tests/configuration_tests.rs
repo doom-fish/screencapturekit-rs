@@ -1,7 +1,6 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 //! Stream configuration tests
 //!
-//! Tests for SCStreamConfiguration and related types
+//! Tests for `SCStreamConfiguration` and related types
 
 use screencapturekit::stream::configuration::{PixelFormat, SCStreamConfiguration};
 
@@ -42,7 +41,7 @@ fn test_set_pixel_format() {
     
     for format in formats {
         let result = SCStreamConfiguration::build().set_pixel_format(format);
-        assert!(result.is_ok(), "Failed to set pixel format {:?}", format);
+        assert!(result.is_ok(), "Failed to set pixel format {format:?}");
     }
 }
 
@@ -110,7 +109,7 @@ fn test_various_resolutions() {
             .set_width(width)
             .and_then(|c| c.set_height(height));
         
-        assert!(result.is_ok(), "Failed to set resolution {}x{}", width, height);
+        assert!(result.is_ok(), "Failed to set resolution {width}x{height}");
     }
 }
 
@@ -123,7 +122,7 @@ fn test_common_sample_rates() {
             .set_captures_audio(true)
             .and_then(|c| c.set_sample_rate(rate));
         
-        assert!(result.is_ok(), "Failed to set sample rate {}", rate);
+        assert!(result.is_ok(), "Failed to set sample rate {rate}");
     }
 }
 
@@ -136,7 +135,7 @@ fn test_channel_counts() {
             .set_captures_audio(true)
             .and_then(|c| c.set_channel_count(count));
         
-        assert!(result.is_ok(), "Failed to set channel count {}", count);
+        assert!(result.is_ok(), "Failed to set channel count {count}");
     }
 }
 

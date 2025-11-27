@@ -1,4 +1,3 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 //! Error handling tests
 //!
 //! Tests for error types and error handling
@@ -8,16 +7,16 @@ use screencapturekit::error::SCError;
 #[test]
 fn test_invalid_dimension_error() {
     let err = SCError::invalid_dimension("width", 0);
-    let display = format!("{}", err);
+    let display = format!("{err}");
     
     assert!(display.contains("width"));
-    assert!(display.contains("0"));
+    assert!(display.contains('0'));
 }
 
 #[test]
 fn test_permission_denied_error() {
     let err = SCError::permission_denied("Screen Recording");
-    let display = format!("{}", err);
+    let display = format!("{err}");
     
     // Just verify it has content
     assert!(!display.is_empty());
@@ -27,7 +26,7 @@ fn test_permission_denied_error() {
 #[test]
 fn test_internal_error() {
     let err = SCError::internal_error("Something went wrong");
-    let display = format!("{}", err);
+    let display = format!("{err}");
     
     assert!(display.contains("Something went wrong"));
 }
@@ -45,7 +44,7 @@ fn test_error_equality() {
 #[test]
 fn test_error_debug() {
     let err = SCError::permission_denied("Screen Recording");
-    let debug = format!("{:?}", err);
+    let debug = format!("{err:?}");
     
     assert!(debug.contains("Screen Recording"));
 }
@@ -54,8 +53,8 @@ fn test_error_debug() {
 fn test_error_display_vs_debug() {
     let err = SCError::internal_error("Test error");
     
-    let display = format!("{}", err);
-    let debug = format!("{:?}", err);
+    let display = format!("{err}");
+    let debug = format!("{err:?}");
     
     // Both should contain error information
     assert!(!display.is_empty());
@@ -80,7 +79,7 @@ fn test_error_in_result() {
     assert!(result.is_err());
     
     if let Err(err) = result {
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Test"));
     }
 }
@@ -112,7 +111,7 @@ fn test_multiple_error_messages() {
     ];
     
     for err in errors {
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(!display.is_empty());
     }
 }

@@ -31,7 +31,6 @@ use crate::error::SCError;
 ///     }
 /// }
 /// ```
-#[allow(clippy::module_name_repetitions)]
 pub trait SCStreamDelegateTrait: Send {
     /// Called when video effects start
     fn output_video_effect_did_start_for_stream(&self) {}

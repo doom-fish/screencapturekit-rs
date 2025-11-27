@@ -32,7 +32,6 @@ impl Cleanup {
         self.handlers.iter().take_while(|&&x| !x.is_null())
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn drop_handlers(&mut self) {
         if self.rc.fetch_sub(1, Ordering::Release) != 1 {
             return;

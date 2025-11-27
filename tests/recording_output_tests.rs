@@ -1,7 +1,6 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 //! Recording output tests
 //!
-//! Tests for SCRecordingOutput and SCRecordingOutputConfiguration (macOS 15.0+).
+//! Tests for `SCRecordingOutput` and `SCRecordingOutputConfiguration` (macOS 15.0+).
 
 #![cfg(feature = "macos_15_0")]
 

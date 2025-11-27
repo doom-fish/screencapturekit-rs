@@ -1,4 +1,3 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 //! Tests for dispatch queue functionality
 
 use screencapturekit::dispatch_queue::{DispatchQueue, DispatchQoS};

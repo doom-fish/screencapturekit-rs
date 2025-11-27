@@ -1,19 +1,18 @@
-#![allow(clippy::pedantic, clippy::nursery)]
-//! FourCharCode tests
+//! `FourCharCode` tests
 //!
-//! Tests for FourCharCode type and codec/media type constants
+//! Tests for `FourCharCode` type and codec/media type constants
 
 use screencapturekit::{codec_types, media_types, FourCharCode};
 
 #[test]
 fn test_fourcharcode_from_bytes() {
     let code = FourCharCode::from_bytes(*b"avc1");
-    assert_eq!(code.as_u32(), 0x61766331);
+    assert_eq!(code.as_u32(), 0x6176_6331);
 }
 
 #[test]
 fn test_fourcharcode_from_u32() {
-    let code = FourCharCode::from_u32(0x61766331);
+    let code = FourCharCode::from_u32(0x6176_6331);
     assert_eq!(code, FourCharCode::from_bytes(*b"avc1"));
 }
 
@@ -35,7 +34,7 @@ fn test_fourcharcode_parse_invalid() {
 #[test]
 fn test_fourcharcode_display() {
     let code = codec_types::H264;
-    let display = format!("{}", code);
+    let display = format!("{code}");
     assert_eq!(display, "avc1");
 }
 
@@ -76,7 +75,7 @@ fn test_audio_codec_constants() {
 fn test_fourcharcode_special_characters() {
     // Test with space character
     let aac = codec_types::AAC;
-    let string = format!("{}", aac);
+    let string = format!("{aac}");
     assert_eq!(string, "aac ");
 }
 

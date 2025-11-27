@@ -1,18 +1,14 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 //! Stream lifecycle tests
 //!
-//! Tests for SCStream lifecycle and operations.
+//! Tests for `SCStream` lifecycle and operations.
 
 use screencapturekit::prelude::*;
 
 #[test]
 fn test_stream_creation() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
+    let Ok(content) = SCShareableContent::get() else {
+        println!("⚠ Skipping - no screen recording permission");
+        return;
     };
     
     if content.displays().is_empty() {
@@ -32,12 +28,9 @@ fn test_stream_creation() {
 
 #[test]
 fn test_stream_with_custom_config() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
+    let Ok(content) = SCShareableContent::get() else {
+        println!("⚠ Skipping - no screen recording permission");
+        return;
     };
     
     if content.displays().is_empty() {
@@ -60,12 +53,9 @@ fn test_stream_with_custom_config() {
 
 #[test]
 fn test_stream_multiple_instances() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
+    let Ok(content) = SCShareableContent::get() else {
+        println!("⚠ Skipping - no screen recording permission");
+        return;
     };
     
     if content.displays().is_empty() {
@@ -87,12 +77,9 @@ fn test_stream_multiple_instances() {
 
 #[test]
 fn test_stream_clone() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
+    let Ok(content) = SCShareableContent::get() else {
+        println!("⚠ Skipping - no screen recording permission");
+        return;
     };
     
     if content.displays().is_empty() {
@@ -125,12 +112,9 @@ fn test_stream_send_sync() {
 
 #[test]
 fn test_stream_update_configuration() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
+    let Ok(content) = SCShareableContent::get() else {
+        println!("⚠ Skipping - no screen recording permission");
+        return;
     };
     
     if content.displays().is_empty() {
@@ -152,18 +136,15 @@ fn test_stream_update_configuration() {
     
     match result {
         Ok(()) => println!("✓ Configuration updated successfully"),
-        Err(e) => println!("⚠ Configuration update failed (expected): {}", e),
+        Err(e) => println!("⚠ Configuration update failed (expected): {e}"),
     }
 }
 
 #[test]
 fn test_stream_update_filter() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
+    let Ok(content) = SCShareableContent::get() else {
+        println!("⚠ Skipping - no screen recording permission");
+        return;
     };
     
     if content.displays().is_empty() {
@@ -183,15 +164,19 @@ fn test_stream_update_filter() {
     
     match result {
         Ok(()) => println!("✓ Filter updated successfully"),
-        Err(e) => println!("⚠ Filter update failed (expected): {}", e),
+        Err(e) => println!("⚠ Filter update failed (expected): {e}"),
     }
 }
 
 #[test]
 fn test_stream_output_types() {
     // Test that output types are accessible
-    let _screen = SCStreamOutputType::Screen;
-    let _audio = SCStreamOutputType::Audio;
+    let screen = SCStreamOutputType::Screen;
+    let audio = SCStreamOutputType::Audio;
+    
+    // Use the variables to avoid unused variable warning
+    assert!(matches!(screen, SCStreamOutputType::Screen));
+    assert!(matches!(audio, SCStreamOutputType::Audio));
     
     println!("✓ Stream output types accessible");
 }
@@ -211,12 +196,9 @@ fn test_stream_output_type_clone() {
 
 #[test]
 fn test_stream_lifecycle() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
+    let Ok(content) = SCShareableContent::get() else {
+        println!("⚠ Skipping - no screen recording permission");
+        return;
     };
     
     if content.displays().is_empty() {
@@ -239,12 +221,9 @@ fn test_stream_lifecycle() {
 
 #[test]
 fn test_stream_different_displays() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
+    let Ok(content) = SCShareableContent::get() else {
+        println!("⚠ Skipping - no screen recording permission");
+        return;
     };
     
     if content.displays().len() < 2 {
