@@ -2,7 +2,7 @@
 //!
 //! Demonstrates taking a single screenshot.
 //! This example shows:
-//! - Using SCScreenshotManager (macOS 14.0+)
+//! - Using `SCScreenshotManager` (macOS 14.0+)
 //! - Capturing a screenshot
 //! - Saving as PNG
 
@@ -43,12 +43,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Capturing...");
     let image = SCScreenshotManager::capture_image(&filter, &config)?;
     
-    println!("Captured: {}x{}", image.width(), image.height());
+    let width = image.width();
+    let height = image.height();
+    println!("Captured: {width}x{height}");
 
-    // 5. Save as PNG
+    // 5. Save as PNG using png crate
     let filename = "screenshot.png";
-    image.save_to_png(filename)?;
+    let rgba_data = image.get_rgba_data()?;
     
-    println!("✅ Saved to {}", filename);
+    let file = std::fs::File::create(filename)?;
+    let buf_writer = std::io::BufWriter::new(file);
+    #[allow(clippy::cast_possible_truncation)]
+    let mut encoder = png::Encoder::new(buf_writer, width as u32, height as u32);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(&rgba_data)?;
+    
+    println!("✅ Saved to {filename}");
     Ok(())
 }
