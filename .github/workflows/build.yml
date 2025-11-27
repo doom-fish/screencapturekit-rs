@@ -19,11 +19,11 @@ jobs:
       - name: Update rust
         run: rustup update
       - name: Build
-        run: cargo build --verbose --features ci
+        run: cargo build --verbose
       - name: Run Tests
         run: |
-          cargo test --verbose --features ci
+          cargo test --verbose
       - name: Run Clippy
         run: |
-          cargo clippy --features ci -- -D warnings
+          cargo clippy -- -D warnings
 

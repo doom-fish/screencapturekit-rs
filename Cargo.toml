@@ -23,7 +23,6 @@ crate-type = ["lib"]
 
 [features]
 default = []
-ci = []
 cargo-clippy = []
 
 # Async support (executor-agnostic, works with any async runtime)
