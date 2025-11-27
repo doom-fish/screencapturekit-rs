@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-11-28
+
+### Changed
+
+- **BREAKING**: `SCContentFilter::build()` renamed to `builder()` for consistency
+- **BREAKING**: Config setters now return `Self` directly instead of `&mut Self` for cleaner builder pattern
+
+### Fixed
+
+- Documentation fixes for builder pattern API
+
 ## [1.0.0] - 2025-11-27
 
 ### Added
