@@ -166,7 +166,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Builder Pattern
 
-All types use a consistent builder pattern with `::builder()` and final `.build()`:
+All types use a consistent builder pattern with a final `.build()` call:
 
 ```rust
 // Content filters
