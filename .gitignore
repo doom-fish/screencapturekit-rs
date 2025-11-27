@@ -68,3 +68,4 @@ coverage/
 .project
 .classpath
 .settings/
+.github/copilot-instructions.md
