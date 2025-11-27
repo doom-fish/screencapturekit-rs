@@ -8,7 +8,6 @@
 
 use screencapturekit::prelude::*;
 use screencapturekit::output::{CVPixelBufferIOSurface, IOSurfaceLockOptions, PixelBufferCursorExt};
-use std::io::Read;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
