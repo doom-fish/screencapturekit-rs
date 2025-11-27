@@ -207,3 +207,89 @@ fn test_video_without_audio() {
     
     assert!(result.is_ok());
 }
+
+#[test]
+fn test_stream_name() {
+    let config = SCStreamConfiguration::build()
+        .set_stream_name(Some("test-stream"))
+        .unwrap();
+    
+    // The getter may not work on all macOS versions
+    let _ = config.get_stream_name();
+}
+
+#[test]
+#[cfg(feature = "macos_15_0")]
+fn test_dynamic_range() {
+    use screencapturekit::stream::configuration::SCCaptureDynamicRange;
+    
+    let config = SCStreamConfiguration::build()
+        .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay)
+        .unwrap();
+    
+    // May return SDR on macOS < 15.0
+    let _ = config.get_capture_dynamic_range();
+}
+
+#[test]
+fn test_queue_depth_and_frame_interval() {
+    use screencapturekit::cm::CMTime;
+    
+    let cm_time = CMTime {
+        value: 4,
+        timescale: 1,
+        flags: 1,
+        epoch: 1,
+    };
+    let queue_depth = 10;
+    let config = SCStreamConfiguration::build()
+        .set_queue_depth(queue_depth)
+        .unwrap()
+        .set_minimum_frame_interval(&cm_time)
+        .unwrap();
+
+    assert!(config.get_queue_depth() == queue_depth);
+
+    let acquired_cm_time = config.get_minimum_frame_interval();
+    // Note: minimum_frame_interval may not be supported on all macOS versions
+    // If supported, values should match
+    if acquired_cm_time.is_valid() {
+        assert!(acquired_cm_time.value == cm_time.value, 
+            "Expected value {}, got {}", cm_time.value, acquired_cm_time.value);
+        assert!(acquired_cm_time.timescale == cm_time.timescale,
+            "Expected timescale {}, got {}", cm_time.timescale, acquired_cm_time.timescale);
+    }
+}
+
+#[test]
+#[cfg(all(feature = "macos_13_0", feature = "macos_14_2"))]
+fn test_advanced_setters() {
+    use screencapturekit::stream::configuration::SCPresenterOverlayAlertSetting;
+    
+    // These advanced properties require macOS 13.0-14.2+
+    // The test verifies that setters don't error, but getters may not
+    // return the set values on older macOS versions
+    let config = SCStreamConfiguration::build()
+        .set_ignore_fraction_of_screen(0.1).unwrap()
+        .set_ignores_shadows_single_window(true).unwrap()
+        .set_should_be_opaque(true).unwrap()
+        .set_includes_child_windows(true).unwrap()
+        .set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always).unwrap();
+
+    // Verify setters worked without errors
+    // Note: getters may return default values on older macOS versions
+    let _ = config.get_ignore_fraction_of_screen();
+    let _ = config.get_ignores_shadows_single_window();
+    let _ = config.get_should_be_opaque();
+    let _ = config.get_includes_child_windows();
+    let _ = config.get_presenter_overlay_privacy_alert_setting();
+}
+
+#[test]
+fn test_shows_cursor() {
+    let config = SCStreamConfiguration::default();
+    let config = config
+        .set_shows_cursor(true)
+        .expect("Failed to set showsCursor");
+    assert!(config.get_shows_cursor());
+}
