@@ -211,13 +211,6 @@ pub struct AsyncSCShareableContentOptions {
 }
 
 impl AsyncSCShareableContentOptions {
-    /// Set a timeout for the operation
-    #[must_use]
-    pub fn timeout(mut self, timeout: std::time::Duration) -> Self {
-        self.options = self.options.timeout(timeout);
-        self
-    }
-
     /// Exclude desktop windows from the shareable content
     #[must_use]
     pub fn exclude_desktop_windows(mut self, exclude: bool) -> Self {
@@ -232,20 +225,12 @@ impl AsyncSCShareableContentOptions {
         self
     }
 
-    /// Get shareable content for the current process only (macOS 14.0+)
-    #[must_use]
-    pub fn current_process_only(mut self, current_process: bool) -> Self {
-        self.options = self.options.current_process_only(current_process);
-        self
-    }
-
     /// Asynchronously get the shareable content with these options
     ///
     /// # Errors
     ///
     /// Returns an error if:
     /// - Screen recording permission is not granted
-    /// - The timeout is exceeded
     /// - The system fails to retrieve content
     pub async fn get_async(self) -> Result<SCShareableContent, SCError> {
         let options = self.options;

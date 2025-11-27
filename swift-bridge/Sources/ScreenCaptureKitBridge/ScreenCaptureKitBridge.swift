@@ -44,6 +44,63 @@ private func release(_ ptr: OpaquePointer) {
 
 // MARK: - ShareableContent: Content Discovery
 
+/// Synchronous blocking call to get shareable content
+/// Uses DispatchSemaphore to block until async completes
+/// Returns content pointer on success, or writes error message to errorBuffer
+@_cdecl("sc_shareable_content_get_sync")
+public func getShareableContentSync(
+    excludeDesktopWindows: Bool,
+    onScreenWindowsOnly: Bool,
+    errorBuffer: UnsafeMutablePointer<CChar>,
+    errorBufferSize: Int
+) -> OpaquePointer? {
+    let semaphore = DispatchSemaphore(value: 0)
+    var resultContent: SCShareableContent?
+    var resultError: String?
+    
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(
+                excludeDesktopWindows,
+                onScreenWindowsOnly: onScreenWindowsOnly
+            )
+            resultContent = content
+        } catch {
+            resultError = error.localizedDescription
+        }
+        semaphore.signal()
+    }
+    
+    // Wait with timeout (5 seconds)
+    let timeout = semaphore.wait(timeout: .now() + 5.0)
+    
+    if timeout == .timedOut {
+        "Timeout waiting for shareable content".withCString { ptr in
+            strncpy(errorBuffer, ptr, errorBufferSize - 1)
+            errorBuffer[errorBufferSize - 1] = 0
+        }
+        return nil
+    }
+    
+    if let error = resultError {
+        error.withCString { ptr in
+            strncpy(errorBuffer, ptr, errorBufferSize - 1)
+            errorBuffer[errorBufferSize - 1] = 0
+        }
+        return nil
+    }
+    
+    if let content = resultContent {
+        return retain(content)
+    }
+    
+    "Unknown error".withCString { ptr in
+        strncpy(errorBuffer, ptr, errorBufferSize - 1)
+        errorBuffer[errorBufferSize - 1] = 0
+    }
+    return nil
+}
+
 @_cdecl("sc_shareable_content_get")
 public func getShareableContent(
     callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
