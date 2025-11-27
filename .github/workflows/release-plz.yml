@@ -10,6 +10,7 @@ jobs:
   release-plz-release:
     name: Release-plz release
     runs-on: macos-latest
+    environment: release
     permissions:
       contents: write
     steps:
@@ -41,6 +42,7 @@ jobs:
   release-plz-pr:
     name: Release-plz PR
     runs-on: macos-latest
+    environment: release
     concurrency:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
