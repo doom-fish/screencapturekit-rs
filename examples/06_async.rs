@@ -49,19 +49,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .set_height(1080)?;
         
         // Create async stream with 30-frame buffer
-        let (stream, frames) = AsyncSCStream::new(
-            &filter, 
-            &config, 
-            30, 
-            SCStreamOutputType::Screen
-        );
-        
+        let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
         stream.start_capture().await?;
         
         // Capture 10 frames
         let mut count = 0;
         while count < 10 {
-            if let Some(_frame) = frames.next().await {
+            if let Some(_frame) = stream.next().await {
                 count += 1;
                 println!("  Frame {}", count);
             }
