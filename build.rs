@@ -1,3 +1,4 @@
+use std::env;
 use std::process::Command;
 
 fn main() {
@@ -5,6 +6,8 @@ fn main() {
     
     // Build the Swift bridge
     let swift_dir = "swift-bridge";
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let swift_build_dir = format!("{}/swift-build", out_dir);
     
     println!("cargo:rerun-if-changed={swift_dir}");
     
@@ -19,9 +22,14 @@ fn main() {
         }
     }
     
-    // Build Swift package
+    // Build Swift package with build directory in OUT_DIR
     let output = Command::new("swift")
-        .args(["build", "-c", "release", "--package-path", swift_dir])
+        .args([
+            "build",
+            "-c", "release",
+            "--package-path", swift_dir,
+            "--scratch-path", &swift_build_dir,
+        ])
         .output()
         .expect("Failed to build Swift bridge");
     
@@ -32,8 +40,8 @@ fn main() {
         panic!("Swift build failed with exit code: {:?}", output.status.code());
     }
     
-    // Link the Swift library
-    println!("cargo:rustc-link-search=native={swift_dir}/.build/release");
+    // Link the Swift library from OUT_DIR
+    println!("cargo:rustc-link-search=native={}/release", swift_build_dir);
     println!("cargo:rustc-link-lib=static=ScreenCaptureKitBridge");
     
     // Link required frameworks
