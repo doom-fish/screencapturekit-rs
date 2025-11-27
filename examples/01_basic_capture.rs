@@ -43,10 +43,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     // 3. Configure stream (how to capture)
-    let config = SCStreamConfiguration::build()
-        .set_width(1920)?
-        .set_height(1080)?
-        .set_pixel_format(PixelFormat::BGRA)?;
+    let config = SCStreamConfiguration::builder()
+        .width(1920)
+        .height(1080)
+        .pixel_format(PixelFormat::BGRA)
+        .build();
 
     // 4. Create stream
     let mut stream = SCStream::new(&filter, &config);
