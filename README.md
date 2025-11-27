@@ -93,10 +93,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Async Screenshot
+### Async Capture
 
 ```rust
-use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCScreenshotManager};
+use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
 use screencapturekit::prelude::*;
 
 #[tokio::main]
@@ -112,17 +112,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
     
     let config = SCStreamConfiguration::build()
-        .set_width(3840)?
-        .set_height(2160)?;
+        .set_width(1920)?
+        .set_height(1080)?;
     
-    // Capture screenshot
-    let image = AsyncSCScreenshotManager::capture_image(&filter, &config).await?;
+    // Create async stream with frame buffer
+    let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+    stream.start_capture()?;
     
-    println!("📸 Captured {}x{}", image.width(), image.height());
+    // Capture frames asynchronously
+    for _ in 0..10 {
+        if let Some(frame) = stream.next().await {
+            println!("📹 Got frame!");
+        }
+    }
     
-    // Save as PNG
-    image.save_to_png("screenshot.png")?;
-    
+    stream.stop_capture()?;
     Ok(())
 }
 ```
@@ -292,9 +296,7 @@ let mut config = SCStreamConfiguration::build()
 ### Async API (requires `async` feature)
 
 - **`AsyncSCShareableContent`** - Async content queries
-- **`AsyncSCScreenshotManager`** - Async screenshot capture
-- **`AsyncSCStream`** - Async stream control wrapper
-- **`utils`** - Async utility functions
+- **`AsyncSCStream`** - Async stream with frame iteration
 
 ### Display & Window Types
 
@@ -326,13 +328,9 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 3. **`03_audio_capture.rs`** - Audio + video capture
 4. **`04_pixel_access.rs`** - Read pixel data with `std::io::Cursor`
 5. **`05_screenshot.rs`** - Single screenshot (macOS 14.0+)
-6. **`06_async.rs`** - Async/await API
-7. **`07_iosurface.rs`** - Zero-copy GPU buffers
-8. **`08_list_content.rs`** - List available content
-
-### Advanced Examples
-- **`async_demo.rs`** - Comprehensive async features
-- **`async_runtime_agnostic.rs`** - Works with any async runtime
+6. **`06_iosurface.rs`** - Zero-copy GPU buffers
+7. **`07_list_content.rs`** - List available content
+8. **`08_async.rs`** - Async/await API with multiple examples
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -345,7 +343,7 @@ cargo run --example 04_pixel_access
 
 # Feature-gated examples
 cargo run --example 05_screenshot --features macos_14_0
-cargo run --example 06_async --features async
+cargo run --example 08_async --features async
 ```
 
 ## 🧪 Testing
@@ -362,21 +360,6 @@ cargo test --all-features
 
 # Specific test
 cargo test test_stream_configuration
-```
-
-### Memory Leak Testing
-
-Comprehensive leak detection:
-
-```bash
-# All leak tests
-./run_leak_tests.sh
-
-# With async
-./run_leak_tests.sh --async
-
-# Verbose output
-./run_leak_tests.sh --verbose
 ```
 
 ### Linting
@@ -428,7 +411,6 @@ Contributions welcome! Please:
 2. Add tests for new functionality
 3. Run `cargo test` and `cargo clippy`
 4. Update documentation
-5. Check for memory leaks with `./run_leak_tests.sh`
 
 ## 📄 License
 
