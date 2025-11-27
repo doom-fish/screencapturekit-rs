@@ -13,13 +13,31 @@ let package = Package(
             targets: ["ScreenCaptureKitBridge"])
     ],
     targets: [
+        // Main ScreenCaptureKit bindings
         .target(
             name: "ScreenCaptureKitBridge",
-            dependencies: ["SwiftBridge"],
+            dependencies: ["CoreMediaBridge", "CoreVideoBridge", "CoreGraphicsBridge", "IOSurfaceBridge", "DispatchBridge"],
             path: "Sources/ScreenCaptureKitBridge",
             publicHeadersPath: "include"),
+        // CoreMedia framework bindings (CMSampleBuffer, CMTime, CMFormatDescription)
         .target(
-            name: "SwiftBridge",
-            path: "Sources/SwiftBridge")
+            name: "CoreMediaBridge",
+            path: "Sources/CoreMedia"),
+        // CoreVideo framework bindings (CVPixelBuffer, CVPixelBufferPool)
+        .target(
+            name: "CoreVideoBridge",
+            path: "Sources/CoreVideo"),
+        // CoreGraphics framework bindings (CGRect, CGSize, CGPoint, CGImage)
+        .target(
+            name: "CoreGraphicsBridge",
+            path: "Sources/CoreGraphics"),
+        // IOSurface framework bindings
+        .target(
+            name: "IOSurfaceBridge",
+            path: "Sources/IOSurface"),
+        // Dispatch framework bindings (DispatchQueue)
+        .target(
+            name: "DispatchBridge",
+            path: "Sources/Dispatch")
     ]
 )
