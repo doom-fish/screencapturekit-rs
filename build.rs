@@ -8,6 +8,19 @@ fn main() {
     
     println!("cargo:rerun-if-changed={swift_dir}");
     
+    // Run swiftlint if available
+    if let Ok(output) = Command::new("swiftlint")
+        .args(["lint", "--strict"])
+        .current_dir(swift_dir)
+        .output()
+    {
+        if !output.status.success() {
+            eprintln!("SwiftLint output:\n{}", String::from_utf8_lossy(&output.stdout));
+            eprintln!("SwiftLint errors:\n{}", String::from_utf8_lossy(&output.stderr));
+            panic!("SwiftLint found violations");
+        }
+    }
+    
     // Build Swift package
     let output = Command::new("swift")
         .args(["build", "-c", "release", "--package-path", swift_dir])
