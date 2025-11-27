@@ -100,6 +100,28 @@ cargo run --example 09_closure_handlers
 - `ErrorHandler` for delegate callbacks
 - Multiple handlers on the same stream
 
+### 10. Recording Output (`10_recording_output.rs`)
+Direct video file recording (macOS 15.0+).
+```bash
+cargo run --example 10_recording_output --features macos_15_0
+```
+**Demonstrates:**
+- `SCRecordingOutput` API
+- Recording configuration
+- Video codec selection (H.264/HEVC)
+- Bitrate settings
+
+### 11. Content Sharing Picker (`11_content_picker.rs`)
+System UI for selecting content to share (macOS 14.0+).
+```bash
+cargo run --example 11_content_picker --features macos_14_0
+```
+**Demonstrates:**
+- `SCContentSharingPicker` API
+- Picker configuration
+- Picker modes (SingleWindow, SingleDisplay, Multiple)
+- Handling picker results
+
 ## Running Examples
 
 All examples:
@@ -113,6 +135,8 @@ cargo run --example 06_iosurface
 cargo run --example 07_list_content
 cargo run --example 08_async --features async
 cargo run --example 09_closure_handlers
+cargo run --example 10_recording_output --features macos_15_0
+cargo run --example 11_content_picker --features macos_14_0
 ```
 
 With all features:
