@@ -69,10 +69,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .exclude_windows(&[])
         .build();
     
-    let config = SCStreamConfiguration::build()
-        .set_width(1920)?
-        .set_height(1080)?
-        .set_pixel_format(PixelFormat::BGRA)?;
+    let config = SCStreamConfiguration::builder()
+        .width(1920)
+        .height(1080)
+        .pixel_format(PixelFormat::BGRA)
+        .build();
     
     // Start streaming
     let mut stream = SCStream::new(&filter, &config);
@@ -105,9 +106,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .exclude_windows(&[])
         .build();
     
-    let config = SCStreamConfiguration::build()
-        .set_width(1920)?
-        .set_height(1080)?;
+    let config = SCStreamConfiguration::builder()
+        .width(1920)
+        .height(1080)
+        .build();
     
     // Create async stream with frame buffer
     let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
@@ -144,12 +146,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .window(window)
         .build();
     
-    let config = SCStreamConfiguration::build()
-        .set_width(1920)?
-        .set_height(1080)?
-        .set_captures_audio(true)?
-        .set_sample_rate(48000)?
-        .set_channel_count(2)?;
+    let config = SCStreamConfiguration::builder()
+        .width(1920)
+        .height(1080)
+        .captures_audio(true)
+        .sample_rate(48000)
+        .channel_count(2)
+        .build();
     
     let mut stream = SCStream::new(&filter, &config);
     // Add handlers...
@@ -163,22 +166,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Builder Pattern
 
-Types use builder patterns with `::build()`:
+All types use a consistent builder pattern with `::builder()` and final `.build()`:
 
 ```rust
-// Content filters - builder pattern with final .build()
+// Content filters
 let filter = SCContentFilter::build()
     .display(&display)
     .exclude_windows(&windows)
     .build();
 
-// Stream configuration - fluent interface returning Result
-// Each method returns Result<Self, SCError>, no final .build() needed
-let config = SCStreamConfiguration::build()
-    .set_width(1920)?
-    .set_height(1080)?
-    .set_pixel_format(PixelFormat::BGRA)?
-    .set_captures_audio(true)?;
+// Stream configuration
+let config = SCStreamConfiguration::builder()
+    .width(1920)
+    .height(1080)
+    .pixel_format(PixelFormat::BGRA)
+    .captures_audio(true)
+    .build();
 
 // Options for content retrieval
 let content = SCShareableContent::with_options()
@@ -254,27 +257,13 @@ Feature flags enable APIs for specific macOS versions. They are cumulative (enab
 ### Version-Specific Example
 
 ```rust
-let mut config = SCStreamConfiguration::build()
-    .set_width(1920)?
-    .set_height(1080)?;
-
-#[cfg(feature = "macos_13_0")]
-{
-    config = config.set_should_be_opaque(true)?;
-}
-
-#[cfg(feature = "macos_14_2")]
-{
-    config = config
-        .set_ignores_shadows_single_window(true)?
-        .set_includes_child_windows(false)?;
-}
-
-#[cfg(feature = "macos_15_0")]
-{
-    use screencapturekit::stream::configuration::stream_properties::SCCaptureDynamicRange;
-    config = config.set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay)?;
-}
+let config = SCStreamConfiguration::builder()
+    .width(1920)
+    .height(1080)
+    .should_be_opaque(true)  // macOS 13.0+
+    .ignores_shadows_single_window(true)  // macOS 14.2+
+    .includes_child_windows(false)  // macOS 14.2+
+    .build();
 ```
 
 ## 📚 API Overview

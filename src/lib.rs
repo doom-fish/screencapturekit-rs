@@ -91,7 +91,7 @@ pub mod prelude {
     pub use crate::error::{SCError, SCResult};
     pub use crate::shareable_content::{SCDisplay, SCRunningApplication, SCShareableContent, SCWindow};
     pub use crate::stream::{
-        configuration::{PixelFormat, SCStreamConfiguration},
+        configuration::{PixelFormat, SCStreamConfiguration, SCStreamConfigurationBuilder},
         content_filter::SCContentFilter,
         output_type::SCStreamOutputType,
         output_trait::SCStreamOutputTrait,
