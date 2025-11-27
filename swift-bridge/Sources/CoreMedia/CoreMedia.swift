@@ -1,7 +1,8 @@
+// CoreMedia Bridge - CMSampleBuffer, CMTime, CMFormatDescription, CMBlockBuffer
+
 import CoreMedia
 import CoreVideo
 import Foundation
-import IOSurface
 import ScreenCaptureKit
 
 // MARK: - Audio Buffer List Bridge Types
@@ -33,11 +34,10 @@ public func cm_sample_buffer_get_image_buffer(_ sampleBuffer: UnsafeMutableRawPo
 public func cm_sample_buffer_get_frame_status(_ sampleBuffer: UnsafeMutableRawPointer) -> Int32 {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
-    // Get the SCFrameStatus attachment
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
           let firstAttachment = attachments.first,
           let status = firstAttachment[SCStreamFrameInfo.status.rawValue as CFString] as? SCFrameStatus else {
-        return -1  // No status available
+        return -1
     }
 
     return Int32(status.rawValue)
@@ -79,6 +79,51 @@ public func cm_sample_buffer_get_presentation_timestamp(_ sampleBuffer: UnsafeMu
     outTimescale.pointee = time.timescale
     outFlags.pointee = time.flags.rawValue
     outEpoch.pointee = time.epoch
+}
+
+@_cdecl("cm_sample_buffer_get_decode_timestamp")
+public func cm_sample_buffer_get_decode_timestamp(
+    _ sampleBuffer: UnsafeMutableRawPointer,
+    _ value: UnsafeMutablePointer<Int64>,
+    _ timescale: UnsafeMutablePointer<Int32>,
+    _ flags: UnsafeMutablePointer<UInt32>,
+    _ epoch: UnsafeMutablePointer<Int64>
+) {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+    let time = CMSampleBufferGetDecodeTimeStamp(buffer)
+    value.pointee = time.value
+    timescale.pointee = time.timescale
+    flags.pointee = time.flags.rawValue
+    epoch.pointee = time.epoch
+}
+
+@_cdecl("cm_sample_buffer_get_output_presentation_timestamp")
+public func cm_sample_buffer_get_output_presentation_timestamp(
+    _ sampleBuffer: UnsafeMutableRawPointer,
+    _ value: UnsafeMutablePointer<Int64>,
+    _ timescale: UnsafeMutablePointer<Int32>,
+    _ flags: UnsafeMutablePointer<UInt32>,
+    _ epoch: UnsafeMutablePointer<Int64>
+) {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+    let time = CMSampleBufferGetOutputPresentationTimeStamp(buffer)
+    value.pointee = time.value
+    timescale.pointee = time.timescale
+    flags.pointee = time.flags.rawValue
+    epoch.pointee = time.epoch
+}
+
+@_cdecl("cm_sample_buffer_set_output_presentation_timestamp")
+public func cm_sample_buffer_set_output_presentation_timestamp(
+    _ sampleBuffer: UnsafeMutableRawPointer,
+    _ value: Int64,
+    _ timescale: Int32,
+    _ flags: UInt32,
+    _ epoch: Int64
+) -> Int32 {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+    let time = CMTime(value: CMTimeValue(value), timescale: timescale, flags: CMTimeFlags(rawValue: flags), epoch: epoch)
+    return CMSampleBufferSetOutputPresentationTimeStamp(buffer, newValue: time)
 }
 
 @_cdecl("cm_sample_buffer_get_duration_value")
@@ -126,7 +171,7 @@ public func cm_sample_buffer_release(_ sampleBuffer: UnsafeMutableRawPointer) {
 
 @_cdecl("cm_sample_buffer_retain")
 public func cm_sample_buffer_retain(_ sampleBuffer: UnsafeMutableRawPointer) {
-    Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).retain()
+    _ = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).retain()
 }
 
 @_cdecl("cm_sample_buffer_is_valid")
@@ -139,6 +184,30 @@ public func cm_sample_buffer_is_valid(_ sampleBuffer: UnsafeMutableRawPointer) -
 public func cm_sample_buffer_get_num_samples(_ sampleBuffer: UnsafeMutableRawPointer) -> Int {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
     return CMSampleBufferGetNumSamples(buffer)
+}
+
+@_cdecl("cm_sample_buffer_get_sample_size")
+public func cm_sample_buffer_get_sample_size(_ sampleBuffer: UnsafeMutableRawPointer, _ sampleIndex: Int) -> Int {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+    return CMSampleBufferGetSampleSize(buffer, at: sampleIndex)
+}
+
+@_cdecl("cm_sample_buffer_get_total_sample_size")
+public func cm_sample_buffer_get_total_sample_size(_ sampleBuffer: UnsafeMutableRawPointer) -> Int {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+    return CMSampleBufferGetTotalSampleSize(buffer)
+}
+
+@_cdecl("cm_sample_buffer_is_ready_for_data_access")
+public func cm_sample_buffer_is_ready_for_data_access(_ sampleBuffer: UnsafeMutableRawPointer) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+    return CMSampleBufferDataIsReady(buffer)
+}
+
+@_cdecl("cm_sample_buffer_make_data_ready")
+public func cm_sample_buffer_make_data_ready(_ sampleBuffer: UnsafeMutableRawPointer) -> Int32 {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+    return CMSampleBufferMakeDataReady(buffer)
 }
 
 // MARK: - Audio Buffer List Bridge
@@ -301,7 +370,7 @@ public func cm_sample_buffer_get_data_buffer(_ sampleBuffer: UnsafeMutableRawPoi
     return Unmanaged.passRetained(dataBuffer).toOpaque()
 }
 
-// MARK: - New CMSampleBuffer APIs
+// MARK: - CMFormatDescription APIs
 
 @_cdecl("cm_sample_buffer_get_format_description")
 public func cm_sample_buffer_get_format_description(_ sampleBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
@@ -409,8 +478,6 @@ public func cm_sample_buffer_copy_pcm_data_into_audio_buffer_list(
     return status
 }
 
-// MARK: - CMFormatDescription APIs
-
 @_cdecl("cm_format_description_get_media_type")
 public func cm_format_description_get_media_type(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
     let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
@@ -443,279 +510,53 @@ public func cm_format_description_release(_ formatDescription: UnsafeMutableRawP
     Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).release()
 }
 
-// MARK: - CVPixelBuffer Bridge
+// MARK: - CMSampleBuffer Creation
 
-@_cdecl("cv_pixel_buffer_get_width")
-public func cv_pixel_buffer_get_width(_ pixelBuffer: UnsafeMutableRawPointer) -> Int {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return CVPixelBufferGetWidth(buffer)
-}
-
-@_cdecl("cv_pixel_buffer_get_height")
-public func cv_pixel_buffer_get_height(_ pixelBuffer: UnsafeMutableRawPointer) -> Int {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return CVPixelBufferGetHeight(buffer)
-}
-
-@_cdecl("cv_pixel_buffer_get_pixel_format_type")
-public func cv_pixel_buffer_get_pixel_format_type(_ pixelBuffer: UnsafeMutableRawPointer) -> UInt32 {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return CVPixelBufferGetPixelFormatType(buffer)
-}
-
-@_cdecl("cv_pixel_buffer_get_bytes_per_row")
-public func cv_pixel_buffer_get_bytes_per_row(_ pixelBuffer: UnsafeMutableRawPointer) -> Int {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return CVPixelBufferGetBytesPerRow(buffer)
-}
-
-@_cdecl("cv_pixel_buffer_lock_base_address")
-public func cv_pixel_buffer_lock_base_address(_ pixelBuffer: UnsafeMutableRawPointer, flags: UInt32) -> Int32 {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return CVPixelBufferLockBaseAddress(buffer, CVPixelBufferLockFlags(rawValue: CVOptionFlags(flags)))
-}
-
-@_cdecl("cv_pixel_buffer_unlock_base_address")
-public func cv_pixel_buffer_unlock_base_address(_ pixelBuffer: UnsafeMutableRawPointer, flags: UInt32) -> Int32 {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return CVPixelBufferUnlockBaseAddress(buffer, CVPixelBufferLockFlags(rawValue: CVOptionFlags(flags)))
-}
-
-@_cdecl("cv_pixel_buffer_get_base_address")
-public func cv_pixel_buffer_get_base_address(_ pixelBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return CVPixelBufferGetBaseAddress(buffer)
-}
-
-@_cdecl("cv_pixel_buffer_get_io_surface")
-public func cv_pixel_buffer_get_io_surface(_ pixelBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    guard let ioSurface = CVPixelBufferGetIOSurface(buffer) else {
-        return nil
-    }
-    return Unmanaged.passRetained(ioSurface.takeUnretainedValue()).toOpaque()
-}
-
-@_cdecl("cv_pixel_buffer_release")
-public func cv_pixel_buffer_release(_ pixelBuffer: UnsafeMutableRawPointer) {
-    Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).release()
-}
-
-@_cdecl("cv_pixel_buffer_retain")
-public func cv_pixel_buffer_retain(_ pixelBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return Unmanaged.passRetained(buffer).toOpaque()
-}
-
-// MARK: - New CVPixelBuffer APIs
-
-@_cdecl("cv_pixel_buffer_create_with_planar_bytes")
-public func cv_pixel_buffer_create_with_planar_bytes(
-    _ width: Int,
-    _ height: Int,
-    _ pixelFormatType: UInt32,
-    _ numPlanes: Int,
-    _ planeBaseAddresses: UnsafePointer<UnsafeMutableRawPointer?>,
-    _ planeWidths: UnsafePointer<Int>,
-    _ planeHeights: UnsafePointer<Int>,
-    _ planeBytesPerRow: UnsafePointer<Int>,
-    _ pixelBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
+@_cdecl("cm_sample_buffer_create_for_image_buffer")
+public func cm_sample_buffer_create_for_image_buffer(
+    _ imageBuffer: UnsafeMutableRawPointer,
+    _ presentationTimeValue: Int64,
+    _ presentationTimeScale: Int32,
+    _ durationValue: Int64,
+    _ durationScale: Int32,
+    _ sampleBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
 ) -> Int32 {
-    var pixelBuffer: CVPixelBuffer?
+    let pixelBuffer = Unmanaged<CVPixelBuffer>.fromOpaque(imageBuffer).takeUnretainedValue()
 
-    // Create temporary mutable copies for the API
-    var planeBaseAddressesCopy = Array(UnsafeBufferPointer(start: planeBaseAddresses, count: numPlanes))
-    var planeWidthsCopy = Array(UnsafeBufferPointer(start: planeWidths, count: numPlanes))
-    var planeHeightsCopy = Array(UnsafeBufferPointer(start: planeHeights, count: numPlanes))
-    var planeBytesPerRowCopy = Array(UnsafeBufferPointer(start: planeBytesPerRow, count: numPlanes))
-
-    let status = CVPixelBufferCreateWithPlanarBytes(
-        kCFAllocatorDefault,
-        width,
-        height,
-        OSType(pixelFormatType),
-        nil,
-        0,
-        numPlanes,
-        &planeBaseAddressesCopy,
-        &planeWidthsCopy,
-        &planeHeightsCopy,
-        &planeBytesPerRowCopy,
-        nil,
-        nil,
-        nil,
-        &pixelBuffer
+    var sampleBuffer: CMSampleBuffer?
+    var timingInfo = CMSampleTimingInfo(
+        duration: CMTime(value: CMTimeValue(durationValue), timescale: durationScale, flags: .valid, epoch: 0),
+        presentationTimeStamp: CMTime(value: CMTimeValue(presentationTimeValue), timescale: presentationTimeScale, flags: .valid, epoch: 0),
+        decodeTimeStamp: .invalid
     )
 
-    if status == kCVReturnSuccess, let buffer = pixelBuffer {
-        pixelBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
+    var formatDescription: CMFormatDescription?
+    let descStatus = CMVideoFormatDescriptionCreateForImageBuffer(
+        allocator: kCFAllocatorDefault,
+        imageBuffer: pixelBuffer,
+        formatDescriptionOut: &formatDescription
+    )
+
+    guard descStatus == noErr, let format = formatDescription else {
+        sampleBufferOut.pointee = nil
+        return descStatus
+    }
+
+    let status = CMSampleBufferCreateReadyWithImageBuffer(
+        allocator: kCFAllocatorDefault,
+        imageBuffer: pixelBuffer,
+        formatDescription: format,
+        sampleTiming: &timingInfo,
+        sampleBufferOut: &sampleBuffer
+    )
+
+    if status == noErr, let buffer = sampleBuffer {
+        sampleBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
     } else {
-        pixelBufferOut.pointee = nil
+        sampleBufferOut.pointee = nil
     }
 
     return status
-}
-
-@_cdecl("cv_pixel_buffer_create_with_io_surface")
-public func cv_pixel_buffer_create_with_io_surface(
-    _ ioSurface: UnsafeMutableRawPointer,
-    _ pixelBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
-) -> Int32 {
-    let surface = Unmanaged<IOSurface>.fromOpaque(ioSurface).takeUnretainedValue()
-    var pixelBuffer: Unmanaged<CVPixelBuffer>?
-
-    let status = CVPixelBufferCreateWithIOSurface(
-        kCFAllocatorDefault,
-        surface,
-        nil,
-        &pixelBuffer
-    )
-
-    if status == kCVReturnSuccess, let buffer = pixelBuffer {
-        pixelBufferOut.pointee = buffer.toOpaque()
-    } else {
-        pixelBufferOut.pointee = nil
-    }
-
-    return status
-}
-
-@_cdecl("cv_pixel_buffer_get_type_id")
-public func cv_pixel_buffer_get_type_id() -> Int {
-    Int(CVPixelBufferGetTypeID())
-}
-
-// MARK: - CVPixelBufferPool APIs
-
-@_cdecl("cv_pixel_buffer_pool_create")
-public func cv_pixel_buffer_pool_create(
-    _ width: Int,
-    _ height: Int,
-    _ pixelFormatType: UInt32,
-    _ maxBuffers: Int,
-    _ poolOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
-) -> Int32 {
-    var poolAttributes: [String: Any] = [:]
-    if maxBuffers > 0 {
-        poolAttributes[kCVPixelBufferPoolMinimumBufferCountKey as String] = maxBuffers
-    }
-
-    let pixelBufferAttributes: [String: Any] = [
-        kCVPixelBufferWidthKey as String: width,
-        kCVPixelBufferHeightKey as String: height,
-        kCVPixelBufferPixelFormatTypeKey as String: pixelFormatType,
-        kCVPixelBufferIOSurfacePropertiesKey as String: [:]
-    ]
-
-    var pool: CVPixelBufferPool?
-    let status = CVPixelBufferPoolCreate(
-        kCFAllocatorDefault,
-        poolAttributes as CFDictionary,
-        pixelBufferAttributes as CFDictionary,
-        &pool
-    )
-
-    if status == kCVReturnSuccess, let bufferPool = pool {
-        poolOut.pointee = Unmanaged.passRetained(bufferPool).toOpaque()
-    } else {
-        poolOut.pointee = nil
-    }
-
-    return status
-}
-
-@_cdecl("cv_pixel_buffer_pool_create_pixel_buffer")
-public func cv_pixel_buffer_pool_create_pixel_buffer(
-    _ pool: UnsafeMutableRawPointer,
-    _ pixelBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
-) -> Int32 {
-    let bufferPool = Unmanaged<CVPixelBufferPool>.fromOpaque(pool).takeUnretainedValue()
-    var pixelBuffer: CVPixelBuffer?
-
-    let status = CVPixelBufferPoolCreatePixelBuffer(
-        kCFAllocatorDefault,
-        bufferPool,
-        &pixelBuffer
-    )
-
-    if status == kCVReturnSuccess, let buffer = pixelBuffer {
-        pixelBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
-    } else {
-        pixelBufferOut.pointee = nil
-    }
-
-    return status
-}
-
-@_cdecl("cv_pixel_buffer_pool_flush")
-public func cv_pixel_buffer_pool_flush(_ pool: UnsafeMutableRawPointer) {
-    let bufferPool = Unmanaged<CVPixelBufferPool>.fromOpaque(pool).takeUnretainedValue()
-    CVPixelBufferPoolFlush(bufferPool, [])
-}
-
-@_cdecl("cv_pixel_buffer_pool_get_type_id")
-public func cv_pixel_buffer_pool_get_type_id() -> Int {
-    Int(CVPixelBufferPoolGetTypeID())
-}
-
-@_cdecl("cv_pixel_buffer_pool_retain")
-public func cv_pixel_buffer_pool_retain(_ pool: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
-    let bufferPool = Unmanaged<CVPixelBufferPool>.fromOpaque(pool).takeUnretainedValue()
-    return Unmanaged.passRetained(bufferPool).toOpaque()
-}
-
-@_cdecl("cv_pixel_buffer_pool_release")
-public func cv_pixel_buffer_pool_release(_ pool: UnsafeMutableRawPointer) {
-    Unmanaged<CVPixelBufferPool>.fromOpaque(pool).release()
-}
-
-@_cdecl("cv_pixel_buffer_pool_get_attributes")
-public func cv_pixel_buffer_pool_get_attributes(_ pool: UnsafeMutableRawPointer) -> UnsafeRawPointer? {
-    let bufferPool = Unmanaged<CVPixelBufferPool>.fromOpaque(pool).takeUnretainedValue()
-    guard let attributes = CVPixelBufferPoolGetAttributes(bufferPool) else {
-        return nil
-    }
-    return UnsafeRawPointer(Unmanaged.passUnretained(attributes).toOpaque())
-}
-
-@_cdecl("cv_pixel_buffer_pool_get_pixel_buffer_attributes")
-public func cv_pixel_buffer_pool_get_pixel_buffer_attributes(_ pool: UnsafeMutableRawPointer) -> UnsafeRawPointer? {
-    let bufferPool = Unmanaged<CVPixelBufferPool>.fromOpaque(pool).takeUnretainedValue()
-    guard let attributes = CVPixelBufferPoolGetPixelBufferAttributes(bufferPool) else {
-        return nil
-    }
-    return UnsafeRawPointer(Unmanaged.passUnretained(attributes).toOpaque())
-}
-
-// MARK: - IOSurface Bridge
-
-@_cdecl("io_surface_get_width")
-public func io_surface_get_width(_ surface: UnsafeMutableRawPointer) -> Int {
-    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
-    return IOSurfaceGetWidth(ioSurface)
-}
-
-@_cdecl("io_surface_get_height")
-public func io_surface_get_height(_ surface: UnsafeMutableRawPointer) -> Int {
-    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
-    return IOSurfaceGetHeight(ioSurface)
-}
-
-@_cdecl("io_surface_get_bytes_per_row")
-public func io_surface_get_bytes_per_row(_ surface: UnsafeMutableRawPointer) -> Int {
-    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
-    return IOSurfaceGetBytesPerRow(ioSurface)
-}
-
-@_cdecl("io_surface_release")
-public func io_surface_release(_ surface: UnsafeMutableRawPointer) {
-    Unmanaged<IOSurface>.fromOpaque(surface).release()
-}
-
-@_cdecl("io_surface_retain")
-public func io_surface_retain(_ surface: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
-    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
-    return Unmanaged.passRetained(ioSurface).toOpaque()
 }
 
 // MARK: - Hash Functions
@@ -724,18 +565,6 @@ public func io_surface_retain(_ surface: UnsafeMutableRawPointer) -> UnsafeMutab
 public func cm_sample_buffer_hash(_ sampleBuffer: UnsafeMutableRawPointer) -> Int {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
     return buffer.hashValue
-}
-
-@_cdecl("cv_pixel_buffer_hash")
-public func cv_pixel_buffer_hash(_ pixelBuffer: UnsafeMutableRawPointer) -> Int {
-    let buffer = Unmanaged<CVPixelBuffer>.fromOpaque(pixelBuffer).takeUnretainedValue()
-    return buffer.hashValue
-}
-
-@_cdecl("cv_pixel_buffer_pool_hash")
-public func cv_pixel_buffer_pool_hash(_ pool: UnsafeMutableRawPointer) -> Int {
-    let bufferPool = Unmanaged<CVPixelBufferPool>.fromOpaque(pool).takeUnretainedValue()
-    return bufferPool.hashValue
 }
 
 @_cdecl("cm_block_buffer_hash")
@@ -748,10 +577,4 @@ public func cm_block_buffer_hash(_ blockBuffer: UnsafeMutableRawPointer) -> Int 
 public func cm_format_description_hash(_ formatDescription: UnsafeMutableRawPointer) -> Int {
     let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
     return desc.hashValue
-}
-
-@_cdecl("io_surface_hash")
-public func io_surface_hash(_ surface: UnsafeMutableRawPointer) -> Int {
-    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
-    return ioSurface.hashValue
 }
