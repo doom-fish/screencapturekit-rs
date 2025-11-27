@@ -8,30 +8,23 @@ This bridge provides clean FFI exports from Swift to Rust using the `@_cdecl` at
 
 ### Module Organization
 
-The single `ScreenCaptureKitBridge.swift` file is organized into logical modules using `// MARK:` comments:
+The bridge is organized into modular Swift files:
 
 ```
-ScreenCaptureKitBridge.swift (844 lines → Professional modular structure)
-├── Core: Memory Management (retain/unretained/release helpers)
-├── ShareableContent: Content Discovery
-│   ├── SCShareableContent API
-│   ├── SCDisplay API
-│   ├── SCWindow API
-│   └── SCRunningApplication API
-├── Configuration: Stream Configuration
-│   ├── Basic settings (width, height, cursor)
-│   ├── Audio configuration
-│   ├── Advanced settings (frame interval, queue depth, pixel format)
-│   └── Color and display settings
-├── Stream: Stream Control
-│   ├── SCContentFilter creation
-│   ├── Stream delegates and output handlers
-│   └── Stream lifecycle (create, start, stop, update)
-├── Media: Buffer Management
-│   ├── CMSampleBuffer API
-│   └── CVPixelBuffer API
-└── Output: IOSurface Support
-    └── IOSurface locking and properties
+Sources/ScreenCaptureKitBridge/
+├── Core.swift                  (26 lines)  - Memory management helpers
+├── ShareableContent.swift      (381 lines) - Content discovery APIs
+├── StreamConfiguration.swift   (467 lines) - Stream configuration
+├── Stream.swift                (390 lines) - Stream control & delegates
+├── ScreenshotManager.swift     (59 lines)  - Screenshot capture
+├── RecordingOutput.swift       (131 lines) - Video recording (macOS 15+)
+└── ContentSharingPicker.swift  (60 lines)  - System picker (macOS 14+)
+
+Sources/CoreGraphics/           - CGImage, CGRect utilities
+Sources/CoreMedia/              - CMSampleBuffer, CMTime utilities
+Sources/CoreVideo/              - CVPixelBuffer utilities
+Sources/IOSurface/              - IOSurface utilities
+Sources/Dispatch/               - DispatchQueue utilities
 ```
 
 ## Design Principles
@@ -81,9 +74,9 @@ let outputType: SCStreamOutputType = type == 0 ? .screen : .audio
 
 | Metric | Value |
 |--------|-------|
-| Total Lines | ~1,000 |
+| Total Lines | ~1,500 |
+| Swift Files | 12 |
 | FFI Functions | 80+ |
-| Modules | 6 |
 | Memory Helpers | 3 |
 | Delegate Classes | 2 |
 
@@ -106,8 +99,8 @@ Follows semantic versioning aligned with parent crate:
 
 ## Future Improvements
 
-1. **Multi-file modules** - Split into separate `.swift` files when complexity grows
-2. **Documentation comments** - Add inline Swift documentation
+1. ~~**Multi-file modules**~~ ✅ Already split into 7 Swift files
+2. **Documentation comments** - Add inline Swift documentation (currently minimal)
 3. **Error types** - Strongly typed error enum instead of strings
 4. **Testing** - Swift unit tests for FFI layer
 5. **Performance** - Profile and optimize hot paths
