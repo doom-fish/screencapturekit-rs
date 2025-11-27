@@ -391,6 +391,7 @@ public func getStreamConfigurationStreamName(_ config: OpaquePointer, _ buffer: 
     return false
 }
 
+#if compiler(>=6.0)
 @_cdecl("sc_stream_configuration_set_capture_dynamic_range")
 public func setStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer, _ value: Int32) {
     let cfg: SCStreamConfiguration = unretained(config)
@@ -398,19 +399,23 @@ public func setStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer, _
         switch value {
         case 0:
             cfg.captureDynamicRange = .SDR
-
         case 1:
             cfg.captureDynamicRange = .hdrLocalDisplay
-
         case 2:
             cfg.captureDynamicRange = .hdrCanonicalDisplay
-
         default:
             cfg.captureDynamicRange = .SDR
         }
     }
 }
+#else
+@_cdecl("sc_stream_configuration_set_capture_dynamic_range")
+public func setStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer, _ value: Int32) {
+    // Not available on macOS < 15.0
+}
+#endif
 
+#if compiler(>=6.0)
 @_cdecl("sc_stream_configuration_get_capture_dynamic_range")
 public func getStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer) -> Int32 {
     let cfg: SCStreamConfiguration = unretained(config)
@@ -418,16 +423,19 @@ public func getStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer) -
         switch cfg.captureDynamicRange {
         case .SDR:
             return 0
-
         case .hdrLocalDisplay:
             return 1
-
         case .hdrCanonicalDisplay:
             return 2
-
         @unknown default:
             return 0
         }
     }
     return 0
 }
+#else
+@_cdecl("sc_stream_configuration_get_capture_dynamic_range")
+public func getStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer) -> Int32 {
+    return 0  // Not available on macOS < 15.0
+}
+#endif
