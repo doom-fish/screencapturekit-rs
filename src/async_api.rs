@@ -325,7 +325,7 @@ impl AsyncSCContentSharingPicker {
     }
 }
 
-/// Async wrapper for `SCStream` with async frame iteration
+/// Async wrapper for `SCStream` with integrated frame iteration
 ///
 /// Provides async methods for stream lifecycle and frame iteration.
 /// **Executor-agnostic** - works with any async runtime.
@@ -344,11 +344,11 @@ impl AsyncSCContentSharingPicker {
 /// let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
 /// let config = SCStreamConfiguration::build();
 ///
-/// let (mut stream, frames) = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+/// let mut stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
 /// stream.start_capture().await?;
 ///
 /// // Process frames asynchronously
-/// while let Some(frame) = frames.next().await {
+/// while let Some(frame) = stream.next().await {
 ///     println!("Got frame!");
 /// }
 /// # Ok(())
@@ -356,29 +356,30 @@ impl AsyncSCContentSharingPicker {
 /// ```
 pub struct AsyncSCStream {
     stream: crate::stream::SCStream,
+    iterator: AsyncSampleIterator,
 }
 
-/// Async stream of sample buffers
+/// Async iterator over sample buffers
 ///
 /// Provides async iteration over captured frames.
-/// Created by [`AsyncSCStream::new`].
-pub struct SampleBufferStream {
-    inner: Arc<Mutex<SampleBufferStreamState>>,
+/// Access via [`AsyncSCStream::next()`].
+pub struct AsyncSampleIterator {
+    inner: Arc<Mutex<AsyncSampleIteratorState>>,
 }
 
-struct SampleBufferStreamState {
+struct AsyncSampleIteratorState {
     buffer: std::collections::VecDeque<crate::cm::CMSampleBuffer>,
     waker: Option<Waker>,
     closed: bool,
     capacity: usize,
 }
 
-/// Internal sender for sample buffer stream
-struct SampleBufferSender {
-    inner: Arc<Mutex<SampleBufferStreamState>>,
+/// Internal sender for async sample iterator
+struct AsyncSampleSender {
+    inner: Arc<Mutex<AsyncSampleIteratorState>>,
 }
 
-impl crate::stream::output_trait::SCStreamOutputTrait for SampleBufferSender {
+impl crate::stream::output_trait::SCStreamOutputTrait for AsyncSampleSender {
     fn did_output_sample_buffer(
         &self,
         sample_buffer: crate::cm::CMSampleBuffer,
@@ -401,7 +402,7 @@ impl crate::stream::output_trait::SCStreamOutputTrait for SampleBufferSender {
     }
 }
 
-impl Drop for SampleBufferSender {
+impl Drop for AsyncSampleSender {
     fn drop(&mut self) {
         if let Ok(mut state) = self.inner.lock() {
             state.closed = true;
@@ -412,56 +413,16 @@ impl Drop for SampleBufferSender {
     }
 }
 
-impl SampleBufferStream {
-    /// Get the next sample buffer asynchronously
-    ///
-    /// Returns `None` when the stream is closed.
-    pub fn next(&self) -> SampleBufferNext<'_> {
-        SampleBufferNext { stream: self }
-    }
-
-    /// Try to get a sample without waiting
-    #[must_use]
-    pub fn try_next(&self) -> Option<crate::cm::CMSampleBuffer> {
-        self.inner.lock().ok()?.buffer.pop_front()
-    }
-
-    /// Check if the stream has been closed
-    #[must_use]
-    pub fn is_closed(&self) -> bool {
-        self.inner.lock().map(|s| s.closed).unwrap_or(true)
-    }
-
-    /// Get the number of buffered samples
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.inner.lock().map(|s| s.buffer.len()).unwrap_or(0)
-    }
-
-    /// Check if the buffer is empty
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Clear all buffered samples
-    pub fn clear(&self) {
-        if let Ok(mut state) = self.inner.lock() {
-            state.buffer.clear();
-        }
-    }
-}
-
 /// Future for getting the next sample buffer
-pub struct SampleBufferNext<'a> {
-    stream: &'a SampleBufferStream,
+pub struct NextSample<'a> {
+    iterator: &'a AsyncSampleIterator,
 }
 
-impl Future for SampleBufferNext<'_> {
+impl Future for NextSample<'_> {
     type Output = Option<crate::cm::CMSampleBuffer>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Ok(mut state) = self.stream.inner.lock() else {
+        let Ok(mut state) = self.iterator.inner.lock() else {
             return Poll::Ready(None);
         };
 
@@ -478,15 +439,13 @@ impl Future for SampleBufferNext<'_> {
     }
 }
 
-unsafe impl Send for SampleBufferStream {}
-unsafe impl Sync for SampleBufferStream {}
-unsafe impl Send for SampleBufferSender {}
-unsafe impl Sync for SampleBufferSender {}
+unsafe impl Send for AsyncSampleIterator {}
+unsafe impl Sync for AsyncSampleIterator {}
+unsafe impl Send for AsyncSampleSender {}
+unsafe impl Sync for AsyncSampleSender {}
 
 impl AsyncSCStream {
-    /// Create a new async stream with frame iteration
-    ///
-    /// Returns both the stream and an async iterator for frames.
+    /// Create a new async stream
     ///
     /// # Arguments
     ///
@@ -500,24 +459,56 @@ impl AsyncSCStream {
         config: &SCStreamConfiguration,
         buffer_capacity: usize,
         output_type: crate::stream::output_type::SCStreamOutputType,
-    ) -> (Self, SampleBufferStream) {
-        let state = Arc::new(Mutex::new(SampleBufferStreamState {
+    ) -> Self {
+        let state = Arc::new(Mutex::new(AsyncSampleIteratorState {
             buffer: std::collections::VecDeque::with_capacity(buffer_capacity),
             waker: None,
             closed: false,
             capacity: buffer_capacity,
         }));
 
-        let sender = SampleBufferSender {
+        let sender = AsyncSampleSender {
             inner: Arc::clone(&state),
         };
 
         let mut stream = crate::stream::SCStream::new(filter, config);
         stream.add_output_handler(sender, output_type);
 
-        let receiver = SampleBufferStream { inner: state };
+        let iterator = AsyncSampleIterator { inner: state };
 
-        (Self { stream }, receiver)
+        Self { stream, iterator }
+    }
+
+    /// Get the next sample buffer asynchronously
+    ///
+    /// Returns `None` when the stream is closed.
+    pub fn next(&self) -> NextSample<'_> {
+        NextSample { iterator: &self.iterator }
+    }
+
+    /// Try to get a sample without waiting
+    #[must_use]
+    pub fn try_next(&self) -> Option<crate::cm::CMSampleBuffer> {
+        self.iterator.inner.lock().ok()?.buffer.pop_front()
+    }
+
+    /// Check if the stream has been closed
+    #[must_use]
+    pub fn is_closed(&self) -> bool {
+        self.iterator.inner.lock().map(|s| s.closed).unwrap_or(true)
+    }
+
+    /// Get the number of buffered samples
+    #[must_use]
+    pub fn buffered_count(&self) -> usize {
+        self.iterator.inner.lock().map(|s| s.buffer.len()).unwrap_or(0)
+    }
+
+    /// Clear all buffered samples
+    pub fn clear_buffer(&self) {
+        if let Ok(mut state) = self.iterator.inner.lock() {
+            state.buffer.clear();
+        }
     }
 
     /// Start capture asynchronously
