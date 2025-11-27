@@ -3,6 +3,7 @@
 //! Methods for configuring audio capture, sample rate, and channel count.
 
 use crate::error::SCError;
+use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 
 use super::internal::SCStreamConfiguration;
 
@@ -195,21 +196,14 @@ impl SCStreamConfiguration {
 
     /// Get microphone capture device ID (macOS 15.0+).
     pub fn get_microphone_capture_device_id(&self) -> Option<String> {
-        let mut buffer = vec![0i8; 256];
         unsafe {
-            #[allow(clippy::cast_possible_wrap)]
-            if crate::ffi::sc_stream_configuration_get_microphone_capture_device_id(
-                self.as_ptr(),
-                buffer.as_mut_ptr(),
-                buffer.len() as isize,
-            ) {
-                std::ffi::CStr::from_ptr(buffer.as_ptr())
-                    .to_str()
-                    .ok()
-                    .map(String::from)
-            } else {
-                None
-            }
+            ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
+                crate::ffi::sc_stream_configuration_get_microphone_capture_device_id(
+                    self.as_ptr(),
+                    buf,
+                    len,
+                )
+            })
         }
     }
 }

@@ -1,6 +1,8 @@
 use core::fmt;
 use std::ffi::c_void;
 
+use crate::utils::ffi_string::{ffi_string_from_buffer_or_empty, DEFAULT_BUFFER_SIZE};
+
 /// Wrapper around SCRunningApplication from ScreenCaptureKit
 ///
 /// Represents a running application that can be captured.
@@ -60,40 +62,18 @@ impl SCRunningApplication {
     /// Get application name
     pub fn application_name(&self) -> String {
         unsafe {
-            let mut buffer = vec![0i8; 1024];
-            // FFI expects isize for buffer length (Objective-C NSInteger)
-            #[allow(clippy::cast_possible_wrap)]
-            let success = crate::ffi::sc_running_application_get_application_name(
-                self.0,
-                buffer.as_mut_ptr(),
-                buffer.len() as isize,
-            );
-            if success {
-                let c_str = std::ffi::CStr::from_ptr(buffer.as_ptr());
-                c_str.to_string_lossy().to_string()
-            } else {
-                String::new()
-            }
+            ffi_string_from_buffer_or_empty(DEFAULT_BUFFER_SIZE, |buf, len| {
+                crate::ffi::sc_running_application_get_application_name(self.0, buf, len)
+            })
         }
     }
 
     /// Get bundle identifier
     pub fn bundle_identifier(&self) -> String {
         unsafe {
-            let mut buffer = vec![0i8; 1024];
-            // FFI expects isize for buffer length (Objective-C NSInteger)
-            #[allow(clippy::cast_possible_wrap)]
-            let success = crate::ffi::sc_running_application_get_bundle_identifier(
-                self.0,
-                buffer.as_mut_ptr(),
-                buffer.len() as isize,
-            );
-            if success {
-                let c_str = std::ffi::CStr::from_ptr(buffer.as_ptr());
-                c_str.to_string_lossy().to_string()
-            } else {
-                String::new()
-            }
+            ffi_string_from_buffer_or_empty(DEFAULT_BUFFER_SIZE, |buf, len| {
+                crate::ffi::sc_running_application_get_bundle_identifier(self.0, buf, len)
+            })
         }
     }
 }

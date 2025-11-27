@@ -3,6 +3,7 @@
 //! This module provides methods to configure stream identification and HDR capture settings.
 
 use crate::error::SCError;
+use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 use super::internal::SCStreamConfiguration;
 
 /// Dynamic range mode for capture (macOS 15.0+)
@@ -55,21 +56,10 @@ impl SCStreamConfiguration {
     ///
     /// Returns the name assigned to this stream, if any.
     pub fn get_stream_name(&self) -> Option<String> {
-        let mut buffer = vec![0i8; 256];
         unsafe {
-            #[allow(clippy::cast_possible_wrap)]
-            if crate::ffi::sc_stream_configuration_get_stream_name(
-                self.as_ptr(),
-                buffer.as_mut_ptr(),
-                buffer.len() as isize,
-            ) {
-                std::ffi::CStr::from_ptr(buffer.as_ptr())
-                    .to_str()
-                    .ok()
-                    .map(String::from)
-            } else {
-                None
-            }
+            ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
+                crate::ffi::sc_stream_configuration_get_stream_name(self.as_ptr(), buf, len)
+            })
         }
     }
 
