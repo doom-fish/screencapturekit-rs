@@ -1,6 +1,10 @@
 //! Screenshot manager tests (macOS 14.0+)
+//!
+//! These tests require screen recording permissions and display access.
+//! They are disabled in CI environments where no display is available.
 
 #![cfg(feature = "macos_14_0")]
+#![cfg(not(feature = "ci"))]
 
 use screencapturekit::screenshot_manager::{CGImage, SCScreenshotManager};
 use screencapturekit::shareable_content::SCShareableContent;
