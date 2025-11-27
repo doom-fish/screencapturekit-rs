@@ -91,13 +91,20 @@ impl SCContentFilter {
     /// let content = SCShareableContent::get()?;
     /// let display = &content.displays()[0];
     /// 
-    /// let filter = SCContentFilter::build()
+    /// let filter = SCContentFilter::builder()
     ///     .display(display)
     ///     .exclude_windows(&[])
     ///     .build();
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
+    pub fn builder() -> SCContentFilterBuilder {
+        SCContentFilterBuilder::new()
+    }
+
+    /// Creates a new content filter builder (deprecated alias)
+    #[deprecated(since = "1.0.0", note = "Use `builder()` instead")]
     #[must_use]
     pub fn build() -> SCContentFilterBuilder {
         SCContentFilterBuilder::new()

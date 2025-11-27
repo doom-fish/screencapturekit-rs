@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nCapturing: {}\n", window.title().unwrap_or_default());
 
     // 4. Create window filter
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .window(window)
         .build();
 

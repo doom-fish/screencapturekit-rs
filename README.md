@@ -17,7 +17,7 @@ Capture screen content, windows, and applications with high performance and low 
 - 🎥 **Screen & Window Capture** - Capture displays, windows, or specific applications
 - 🔊 **Audio Capture** - Capture system audio and microphone input
 - ⚡ **Real-time Processing** - High-performance frame callbacks with custom dispatch queues
-- 🏗️ **Builder Pattern API** - Clean, type-safe configuration with `::builder()` and `::build()`
+- 🏗️ **Builder Pattern API** - Clean, type-safe configuration with `::builder()`
 - 🔄 **Async Support** - Runtime-agnostic async API (works with Tokio, async-std, smol, etc.)
 - 🎨 **IOSurface Access** - Zero-copy GPU texture access for Metal/OpenGL
 - 🛡️ **Memory Safe** - Proper reference counting and leak-free by design
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
     
     // Configure capture
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
     
     // Create filter and config
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Safari window not found")?;
     
     // Capture window with audio
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .window(window)
         .build();
     
@@ -173,7 +173,7 @@ All types use a consistent builder pattern with a final `.build()` call:
 
 ```rust
 // Content filters
-let filter = SCContentFilter::build()
+let filter = SCContentFilter::builder()
     .display(&display)
     .exclude_windows(&windows)
     .build();
@@ -401,7 +401,7 @@ screencapturekit/
 
 Contributions welcome! Please:
 
-1. Follow existing code patterns (builder pattern with `::builder()` and `::build()`)
+1. Follow existing code patterns (builder pattern with `::builder()`)
 2. Add tests for new functionality
 3. Run `cargo test` and `cargo clippy`
 4. Update documentation
