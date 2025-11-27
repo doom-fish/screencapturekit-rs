@@ -60,7 +60,7 @@ struct Handler;
 
 impl SCStreamOutputTrait for Handler {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
-        println!("📹 Received frame at {} pts", sample.sys_time());
+        println!("📹 Received frame at {} pts", sample.get_presentation_timestamp());
     }
 }
 
@@ -222,15 +222,14 @@ Zero-copy GPU texture access:
 ```rust
 impl SCStreamOutputTrait for Handler {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
-        if let Some(surface) = sample.get_iosurface() {
-            let width = surface.get_width();
-            let height = surface.get_height();
-            let pixel_format = surface.get_pixel_format();
-            
-            // Use with Metal/OpenGL...
-            unsafe {
-                let texture_id = surface.io_surface_ref();
-                // Bind to GPU...
+        if let Some(pixel_buffer) = sample.get_image_buffer() {
+            if let Some(surface) = pixel_buffer.get_iosurface() {
+                let width = surface.get_width();
+                let height = surface.get_height();
+                let pixel_format = surface.get_pixel_format();
+                
+                // Use with Metal/OpenGL...
+                println!("IOSurface: {}x{} format: {}", width, height, pixel_format);
             }
         }
     }
@@ -332,6 +331,8 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 7. **`07_list_content.rs`** - List available content
 8. **`08_async.rs`** - Async/await API with multiple examples
 9. **`09_closure_handlers.rs`** - Closure-based handlers and delegates
+10. **`10_recording_output.rs`** - Direct video file recording (macOS 15.0+)
+11. **`11_content_picker.rs`** - System UI for content selection (macOS 14.0+)
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -345,6 +346,8 @@ cargo run --example 09_closure_handlers
 # Feature-gated examples
 cargo run --example 05_screenshot --features macos_14_0
 cargo run --example 08_async --features async
+cargo run --example 10_recording_output --features macos_15_0
+cargo run --example 11_content_picker --features macos_14_0
 ```
 
 ## 🧪 Testing
@@ -376,18 +379,22 @@ cargo fmt --check
 
 ```
 screencapturekit/
-├── cm/              # Core Media (CMSampleBuffer, CMTime)
-├── cg/              # Core Graphics (CGRect, CGImage)
-├── stream/          # Stream management
-│   ├── configuration/  # SCStreamConfiguration
-│   ├── content_filter/ # SCContentFilter
-│   └── sc_stream/      # SCStream
-├── shareable_content/  # SCShareableContent, SCDisplay, SCWindow
-├── output/          # Frame buffers and pixel data
-├── dispatch_queue/  # Custom dispatch queues
-├── error/           # Error types
-├── async_api/       # Async wrappers (feature = "async")
-└── prelude/         # Convenience re-exports
+├── cm/                     # Core Media (CMSampleBuffer, CMTime, CVPixelBuffer)
+├── cg/                     # Core Graphics (CGRect, CGImage)
+├── stream/                 # Stream management
+│   ├── configuration/      # SCStreamConfiguration
+│   ├── content_filter/     # SCContentFilter
+│   └── sc_stream/          # SCStream
+├── shareable_content/      # SCShareableContent, SCDisplay, SCWindow
+├── output/                 # Frame buffers and pixel data
+├── dispatch_queue/         # Custom dispatch queues
+├── error/                  # Error types
+├── screenshot_manager/     # SCScreenshotManager (macOS 14.0+)
+├── content_sharing_picker/ # SCContentSharingPicker (macOS 14.0+)
+├── recording_output/       # SCRecordingOutput (macOS 15.0+)
+├── async_api/              # Async wrappers (feature = "async")
+├── utils/                  # FFI strings, FourCharCode utilities
+└── prelude/                # Convenience re-exports
 ```
 
 ### Memory Management
