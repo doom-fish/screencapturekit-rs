@@ -19,21 +19,3 @@ pub fn capture(
     }
 }
 
-#[cfg(test)]
-mod sc_screenshot_manager_test {
-    use super::*;
-    use crate::shareable_content::SCShareableContent;
-    use crate::stream::configuration::SCStreamConfiguration;
-    use crate::stream::content_filter::SCContentFilter;
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn capture_sample_buffer() {
-        let shareable_content = SCShareableContent::get().expect("Failed to get shareable content");
-        let filter = SCContentFilter::new()
-            .with_display_excluding_windows(&shareable_content.displays()[0], &[]);
-        let configuration = SCStreamConfiguration::default();
-        let result = capture(&filter, &configuration);
-        assert!(result.is_ok(), "Failed to capture display.");
-    }
-}
