@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2025-11-27
+
+### Added
+
+- **New Builder API** - `SCStreamConfiguration::builder()` with fluent chainable methods
+- **Async API** - Runtime-agnostic async support with `AsyncSCStream` and `AsyncSCShareableContent`
+- **Closure Handlers** - Support for closure-based output handlers in addition to trait implementations
+- **Recording Output** - Direct video file recording with `SCRecordingOutput` (macOS 15.0+)
+- **Content Sharing Picker** - System UI for content selection with `SCContentSharingPicker` (macOS 14.0+)
+- **Screenshot Manager** - Single-frame capture with `SCScreenshotManager` (macOS 14.0+)
+- **IOSurface Access** - Zero-copy GPU texture access for Metal/OpenGL integration
+- **Custom Dispatch Queues** - Control callback threading with QoS levels
+- **HDR Capture** - `SCCaptureDynamicRange` for HDR/SDR modes (macOS 15.0+)
+- **Microphone Capture** - Audio input capture support (macOS 15.0+)
+- **Feature Flags** - Granular macOS version feature gates (`macos_13_0` through `macos_15_0`)
+
+### Changed
+
+- **BREAKING**: `SCStreamConfiguration::build()` is now deprecated, use `builder()` instead
+- Improved memory management with proper reference counting
+- Swift bridge build output now goes to `OUT_DIR` for clean `cargo publish`
+- Comprehensive documentation and examples
+
+### Fixed
+
+- Memory leaks in stream lifecycle
+- Double-free issues in SCStream
+- Thread safety improvements
+
 ## [0.3.6](https://github.com/doom-fish/screencapturekit-rs/compare/v0.3.5...v0.3.6) - 2025-08-04
 
 ### Added
