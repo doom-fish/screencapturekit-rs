@@ -3,7 +3,7 @@
 //! Demonstrates accessing pixel data from captured frames.
 //! This example shows:
 //! - Locking pixel buffers
-//! - Using std::io::Cursor to read pixels
+//! - Using `std::io::Cursor` to read pixels
 //! - Reading specific pixel coordinates
 //! - Direct slice access
 
@@ -26,14 +26,14 @@ impl SCStreamOutputTrait for Handler {
             if n % 60 == 0 {
                 if let Some(pixel_buffer) = sample.get_image_buffer() {
                     if let Ok(guard) = pixel_buffer.lock(PixelBufferLockFlags::ReadOnly) {
-                        println!("\n📹 Frame {}", n);
+                        println!("\n📹 Frame {n}");
                         println!("   Size: {}x{}", guard.width(), guard.height());
                         println!("   Bytes per row: {}", guard.bytes_per_row());
                         
                         // Method 1: Use cursor with extension trait
                         let mut cursor = guard.cursor();
                         if let Ok(pixel) = cursor.read_pixel() {
-                            println!("   First pixel (BGRA): {:?}", pixel);
+                            println!("   First pixel (BGRA): {pixel:?}");
                         }
                         
                         // Method 2: Seek to specific coordinates
@@ -41,7 +41,7 @@ impl SCStreamOutputTrait for Handler {
                         let center_y = guard.height() / 2;
                         if cursor.seek_to_pixel(center_x, center_y, guard.bytes_per_row()).is_ok() {
                             if let Ok(pixel) = cursor.read_pixel() {
-                                println!("   Center pixel: {:?}", pixel);
+                                println!("   Center pixel: {pixel:?}");
                             }
                         }
                         
@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .set_pixel_format(PixelFormat::BGRA)?;
 
     let count = Arc::new(AtomicUsize::new(0));
-    let handler = Handler { count: count.clone() };
+    let handler = Handler { count };
     
     let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(handler, SCStreamOutputType::Screen);

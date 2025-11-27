@@ -54,8 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .filter(|w| {
             w.owning_application()
-                .map(|app| app.application_name().contains("Safari"))
-                .unwrap_or(false)
+                .is_some_and(|app| app.application_name().contains("Safari"))
         })
         .collect();
     

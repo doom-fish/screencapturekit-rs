@@ -1,10 +1,10 @@
-//! IOSurface Access
+//! `IOSurface` Access
 //!
-//! Demonstrates zero-copy GPU buffer access via IOSurface.
+//! Demonstrates zero-copy GPU buffer access via `IOSurface`.
 //! This example shows:
-//! - Checking if buffer is IOSurface-backed
-//! - Accessing IOSurface properties
-//! - Locking and reading IOSurface data
+//! - Checking if buffer is `IOSurface`-backed
+//! - Accessing `IOSurface` properties
+//! - Locking and reading `IOSurface` data
 
 use screencapturekit::prelude::*;
 use screencapturekit::output::{CVPixelBufferIOSurface, IOSurfaceLockOptions, PixelBufferCursorExt};
@@ -25,7 +25,7 @@ impl SCStreamOutputTrait for Handler {
                     // Check if IOSurface-backed
                     if pixel_buffer.is_backed_by_iosurface() {
                         if let Some(iosurface) = pixel_buffer.iosurface() {
-                            println!("\n📹 Frame {} - IOSurface", n);
+                            println!("\n📹 Frame {n} - IOSurface");
                             println!("   Dimensions: {}x{}", iosurface.width(), iosurface.height());
                             println!("   Pixel format: 0x{:08X}", iosurface.pixel_format());
                             println!("   Bytes per row: {}", iosurface.bytes_per_row());
@@ -37,14 +37,14 @@ impl SCStreamOutputTrait for Handler {
                                 
                                 // Read first pixel
                                 if let Ok(pixel) = cursor.read_pixel() {
-                                    println!("   First pixel: {:?}", pixel);
+                                    println!("   First pixel: {pixel:?}");
                                 }
                                 
                                 println!("   ✅ IOSurface access successful");
                             }
                         }
                     } else {
-                        println!("⚠️  Frame {} - Not IOSurface-backed", n);
+                        println!("⚠️  Frame {n} - Not IOSurface-backed");
                     }
                 }
             }

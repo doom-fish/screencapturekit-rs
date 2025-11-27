@@ -19,7 +19,7 @@ impl SCStreamOutputTrait for FrameHandler {
     fn did_output_sample_buffer(&self, _sample: CMSampleBuffer, _type: SCStreamOutputType) {
         let n = self.count.fetch_add(1, Ordering::Relaxed);
         if n % 30 == 0 {
-            println!("📹 Frame {}", n);
+            println!("📹 Frame {n}");
         }
     }
 }

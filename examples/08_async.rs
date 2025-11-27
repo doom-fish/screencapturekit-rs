@@ -102,7 +102,7 @@ async fn concurrent_operations() -> Result<(), Box<dyn std::error::Error>> {
 
     let elapsed = start.elapsed();
 
-    println!("   ✅ 3 concurrent operations completed in {:?}", elapsed);
+    println!("   ✅ 3 concurrent operations completed in {elapsed:?}");
 
     if let Ok(content) = result1 {
         println!("      • All content: {} windows", content.windows().len());
@@ -162,13 +162,13 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(_frame) = stream.next().await {
                 count += 1;
                 if count % 5 == 0 {
-                    println!("      Frame {}", count);
+                    println!("      Frame {count}");
                 }
             }
         }
 
         stream.stop_capture()?;
-        println!("   ✅ Captured {} frames", count);
+        println!("   ✅ Captured {count} frames");
     } else {
         println!("   ⚠️  No displays available");
     }
