@@ -6,11 +6,13 @@
 //! - Creating a content filter
 //! - Configuring stream settings
 //! - Starting and stopping capture
+//! - Using both struct handlers and closure handlers
 
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+// Method 1: Struct-based handler
 struct FrameHandler {
     count: Arc<AtomicUsize>,
 }
@@ -46,12 +48,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .set_height(1080)?
         .set_pixel_format(PixelFormat::BGRA)?;
 
-    // 4. Create and start stream
+    // 4. Create stream
+    let mut stream = SCStream::new(&filter, &config);
+    
+    // Method 1: Struct-based handler
     let count = Arc::new(AtomicUsize::new(0));
     let handler = FrameHandler { count: count.clone() };
-    
-    let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
+    
+    // Method 2: Closure-based handler (alternative approach)
+    // Uncomment to use instead of struct handler:
+    // let count = Arc::new(AtomicUsize::new(0));
+    // let count_clone = count.clone();
+    // stream.add_output_handler(
+    //     move |_sample: CMSampleBuffer, _type: SCStreamOutputType| {
+    //         let n = count_clone.fetch_add(1, Ordering::Relaxed);
+    //         if n % 30 == 0 {
+    //             println!("📹 Frame {n}");
+    //         }
+    //     },
+    //     SCStreamOutputType::Screen
+    // );
     
     println!("Starting capture...\n");
     stream.start_capture()?;

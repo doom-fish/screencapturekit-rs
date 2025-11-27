@@ -331,6 +331,7 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 6. **`06_iosurface.rs`** - Zero-copy GPU buffers
 7. **`07_list_content.rs`** - List available content
 8. **`08_async.rs`** - Async/await API with multiple examples
+9. **`09_closure_handlers.rs`** - Closure-based handlers and delegates
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -339,7 +340,7 @@ Run an example:
 ```bash
 # Basic examples
 cargo run --example 01_basic_capture
-cargo run --example 04_pixel_access
+cargo run --example 09_closure_handlers
 
 # Feature-gated examples
 cargo run --example 05_screenshot --features macos_14_0

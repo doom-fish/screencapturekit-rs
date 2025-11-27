@@ -89,6 +89,17 @@ cargo run --example 08_async --features async
 - Async stream frame iteration
 - Runtime-agnostic design (works with Tokio, async-std, smol, etc.)
 
+### 9. Closure Handlers (`09_closure_handlers.rs`)
+Using closures instead of structs for handlers.
+```bash
+cargo run --example 09_closure_handlers
+```
+**Demonstrates:**
+- Using closures as output handlers
+- Custom dispatch queues with closures
+- `ErrorHandler` for delegate callbacks
+- Multiple handlers on the same stream
+
 ## Running Examples
 
 All examples:
@@ -101,6 +112,7 @@ cargo run --example 05_screenshot --features macos_14_0
 cargo run --example 06_iosurface
 cargo run --example 07_list_content
 cargo run --example 08_async --features async
+cargo run --example 09_closure_handlers
 ```
 
 With all features:
