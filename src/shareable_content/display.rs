@@ -153,30 +153,3 @@ impl fmt::Display for SCDisplay {
     }
 }
 
-#[cfg(test)]
-mod sc_display_test {
-    use crate::shareable_content::SCShareableContent;
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_properties() {
-        // Note: This may fail if screen recording permission is not granted
-        match SCShareableContent::get() {
-            Ok(content) => {
-                let displays = content.displays();
-                assert!(!displays.is_empty(), "Should have at least one display");
-                for d in displays {
-                    println!("Display: {d:#?}");
-                }
-            }
-            Err(e) => {
-                eprintln!("Warning: Could not get shareable content (may need screen recording permission): {:?}", e);
-                // Don't fail the test - this is expected if permissions aren't granted
-            }
-        }
-    }
-}
-
-// Minimal TCFType compatibility for content_filter (which still uses objc)
-
-

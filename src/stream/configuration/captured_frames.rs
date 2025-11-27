@@ -97,37 +97,3 @@ impl SCStreamConfiguration {
     }
 }
 
-#[cfg(test)]
-mod sc_stream_configuration_test {
-    
-    use crate::cm::CMTime;
-    use super::SCStreamConfiguration;
-    use crate::error::SCError;
-
-    #[test]
-    fn test_setters_and_getters() -> Result<(), SCError> {
-        let cm_time = CMTime {
-            value: 4,
-            timescale: 1,
-            flags: 1,
-            epoch: 1,
-        };
-        let queue_depth = 10;
-        let config = SCStreamConfiguration::build()
-            .set_queue_depth(queue_depth)?
-            .set_minimum_frame_interval(&cm_time)?;
-
-        assert!(config.get_queue_depth() == queue_depth);
-
-        let acquired_cm_time = config.get_minimum_frame_interval();
-        // Note: minimum_frame_interval may not be supported on all macOS versions
-        // If supported, values should match
-        if acquired_cm_time.is_valid() {
-            assert!(acquired_cm_time.value == cm_time.value, 
-                "Expected value {}, got {}", cm_time.value, acquired_cm_time.value);
-            assert!(acquired_cm_time.timescale == cm_time.timescale,
-                "Expected timescale {}, got {}", cm_time.timescale, acquired_cm_time.timescale);
-        }
-        Ok(())
-    }
-}

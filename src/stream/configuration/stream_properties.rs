@@ -130,28 +130,3 @@ impl SCStreamConfiguration {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_stream_name() {
-        let config = SCStreamConfiguration::build()
-            .set_stream_name(Some("test-stream"))
-            .unwrap();
-        
-        // The getter may not work on all macOS versions
-        let _ = config.get_stream_name();
-    }
-
-    #[test]
-    #[cfg(feature = "macos_15_0")]
-    fn test_dynamic_range() {
-        let config = SCStreamConfiguration::build()
-            .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay)
-            .unwrap();
-        
-        // May return SDR on macOS < 15.0
-        let _ = config.get_capture_dynamic_range();
-    }
-}

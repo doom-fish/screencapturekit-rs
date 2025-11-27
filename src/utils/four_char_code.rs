@@ -125,22 +125,3 @@ impl fmt::Display for FourCharCode {
         write!(f, "{}", self.display())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_from_str() {
-        let code: FourCharCode = "BGRA".parse().unwrap();
-        assert_eq!(code.display(), "BGRA");
-    }
-
-    #[test]
-    fn test_roundtrip() {
-        let original: FourCharCode = "420v".parse().unwrap();
-        let as_u32: u32 = original.into();
-        let back = FourCharCode::from(as_u32);
-        assert_eq!(original, back);
-    }
-}

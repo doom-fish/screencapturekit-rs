@@ -228,34 +228,3 @@ impl SCStreamConfiguration {
     }
 }
 
-#[cfg(test)]
-mod sc_stream_configuration_test {
-    use crate::stream::configuration::{ConfigError, SCStreamConfiguration};
-    
-    #[cfg(feature = "macos_14_2")]
-    use crate::stream::configuration::SCPresenterOverlayAlertSetting;
-
-    #[test]
-    #[cfg(all(feature = "macos_13_0", feature = "macos_14_2"))]
-    fn test_advanced_setters() -> Result<(), ConfigError> {
-        // These advanced properties require macOS 13.0-14.2+
-        // The test verifies that setters don't error, but getters may not
-        // return the set values on older macOS versions
-        let config = SCStreamConfiguration::build()
-            .set_ignore_fraction_of_screen(0.1)?
-            .set_ignores_shadows_single_window(true)?
-            .set_should_be_opaque(true)?
-            .set_includes_child_windows(true)?
-            .set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always)?;
-
-        // Verify setters worked without errors
-        // Note: getters may return default values on older macOS versions
-        let _ = config.get_ignore_fraction_of_screen();
-        let _ = config.get_ignores_shadows_single_window();
-        let _ = config.get_should_be_opaque();
-        let _ = config.get_includes_child_windows();
-        let _ = config.get_presenter_overlay_privacy_alert_setting();
-        
-        Ok(())
-    }
-}

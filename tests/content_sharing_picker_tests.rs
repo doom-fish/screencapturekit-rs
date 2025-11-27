@@ -137,3 +137,16 @@ fn test_picker_api_availability() {
     
     println!("✓ Content sharing picker API available on macOS 14.0+");
 }
+
+#[test]
+fn test_picker_configuration_modes() {
+    use screencapturekit::content_sharing_picker::SCContentSharingPickerMode;
+    
+    let mut config = SCContentSharingPickerConfiguration::new();
+    config.set_allowed_picker_modes(&[
+        SCContentSharingPickerMode::SingleWindow,
+        SCContentSharingPickerMode::SingleDisplay,
+    ]);
+    // Just verify it doesn't crash
+    assert!(!config.as_ptr().is_null());
+}
