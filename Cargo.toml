@@ -5,6 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/screencapturekit-rs"
 repository = "https://github.com/doom-fish/screencapturekit-rs"
+documentation = "https://doom-fish.github.io/screencapturekit-rs/screencapturekit/"
 description = "ScreenCaptureKit bindings for rust"
 authors = ["Per Johansson <per.johansson@gmail.com>"]
 keywords = ["screencapturekit", "screen", "capture", "macos"]
@@ -41,3 +42,9 @@ macos_15_0 = ["macos_14_4"]
 [dev-dependencies]
 png = "0.17"
 tokio = { version = "1.40", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+
+[package.metadata.docs.rs]
+# docs.rs builds on Linux, but this crate only works on macOS
+# Documentation is hosted on GitHub Pages instead
+default-target = "x86_64-apple-darwin"
+targets = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
