@@ -21,13 +21,13 @@ impl SCStreamOutputTrait for Handler {
             SCStreamOutputType::Screen => {
                 let n = self.video_count.fetch_add(1, Ordering::Relaxed);
                 if n % 60 == 0 {
-                    println!("📹 Video: {} frames", n);
+                    println!("📹 Video: {n} frames");
                 }
             }
             SCStreamOutputType::Audio => {
                 let n = self.audio_count.fetch_add(1, Ordering::Relaxed);
                 if n % 100 == 0 {
-                    println!("🔊 Audio: {} buffers", n);
+                    println!("🔊 Audio: {n} buffers");
                 }
             }
             SCStreamOutputType::Microphone => {

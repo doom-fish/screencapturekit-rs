@@ -48,8 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .find(|w| {
             w.owning_application()
-                .map(|app| app.application_name().contains("Safari"))
-                .unwrap_or(false)
+                .is_some_and(|app| app.application_name().contains("Safari"))
         })
         .ok_or("Safari window not found. Try another app.")?;
     
