@@ -12,6 +12,7 @@ keywords = ["screencapturekit", "screen", "capture", "macos"]
 categories = ["multimedia", "os::macos-apis"]
 rust-version = "1.70"
 readme = "README.md"
+exclude = ["swift-bridge/.build/"]
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
