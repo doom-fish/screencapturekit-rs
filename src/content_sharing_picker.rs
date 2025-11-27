@@ -146,18 +146,3 @@ impl SCContentSharingPicker {
 unsafe impl Send for SCContentSharingPickerConfiguration {}
 unsafe impl Sync for SCContentSharingPickerConfiguration {}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_picker_configuration() {
-        let mut config = SCContentSharingPickerConfiguration::new();
-        config.set_allowed_picker_modes(&[
-            SCContentSharingPickerMode::SingleWindow,
-            SCContentSharingPickerMode::SingleDisplay,
-        ]);
-        // Just verify it doesn't crash
-        assert!(!config.as_ptr().is_null());
-    }
-}

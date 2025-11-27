@@ -144,19 +144,3 @@ unsafe impl Sync for SCRecordingOutput {}
 unsafe impl Send for SCRecordingOutputConfiguration {}
 unsafe impl Sync for SCRecordingOutputConfiguration {}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_recording_configuration() {
-        let mut config = SCRecordingOutputConfiguration::new();
-        let path = PathBuf::from("/tmp/test_recording.mp4");
-        config.set_output_url(&path);
-        config.set_video_codec(SCRecordingOutputCodec::H264);
-        config.set_average_bitrate(5_000_000);
-        // Just verify it doesn't crash
-        assert!(!config.as_ptr().is_null());
-    }
-}

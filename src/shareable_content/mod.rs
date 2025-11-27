@@ -76,7 +76,11 @@ impl Clone for SCShareableContent {
 }
 
 impl SCShareableContent {
-    unsafe fn from_ptr(ptr: *const c_void) -> Self {
+    /// Create from raw pointer (used internally)
+    /// 
+    /// # Safety
+    /// The pointer must be a valid retained SCShareableContent pointer from Swift FFI.
+    pub(crate) unsafe fn from_ptr(ptr: *const c_void) -> Self {
         Self(ptr)
     }
 

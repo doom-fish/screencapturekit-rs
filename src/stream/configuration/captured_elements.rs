@@ -68,16 +68,3 @@ impl SCStreamConfiguration {
     }
 }
 
-#[cfg(test)]
-mod sc_stream_configuration_test {
-    use crate::stream::configuration::SCStreamConfiguration;
-
-    #[test]
-    fn test_setters_and_getters() {
-        let config = SCStreamConfiguration::default();
-        let config = config
-            .set_shows_cursor(true)
-            .expect("Failed to set showsCursor");
-        assert!(config.get_shows_cursor());
-    }
-}

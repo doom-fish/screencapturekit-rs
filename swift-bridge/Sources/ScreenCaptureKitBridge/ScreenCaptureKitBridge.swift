@@ -119,6 +119,28 @@ public func getShareableContent(
     }
 }
 
+/// Async callback-based shareable content retrieval with user_data
+@_cdecl("sc_shareable_content_get_async")
+public func getShareableContentAsync(
+    excludeDesktopWindows: Bool,
+    onScreenWindowsOnly: Bool,
+    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    userData: UnsafeMutableRawPointer?
+) {
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(
+                excludeDesktopWindows,
+                onScreenWindowsOnly: onScreenWindowsOnly
+            )
+            callback(retain(content), nil, userData)
+        } catch {
+            let errorMsg = error.localizedDescription
+            errorMsg.withCString { callback(nil, $0, userData) }
+        }
+    }
+}
+
 @_cdecl("sc_shareable_content_get_with_options")
 public func getShareableContentWithOptions(
     excludeDesktopWindows: Bool,

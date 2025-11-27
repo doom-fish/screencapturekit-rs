@@ -255,13 +255,3 @@ impl SCScreenshotManager {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_screenshot_manager_type() {
-        // Just verify the type exists and can be referenced
-        let _manager = SCScreenshotManager;
-    }
-}

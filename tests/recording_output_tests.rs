@@ -105,3 +105,17 @@ fn test_recording_output_api_availability() {
     
     println!("✓ Recording output API is available on macOS 15.0+");
 }
+
+#[test]
+fn test_recording_configuration() {
+    use screencapturekit::recording_output::SCRecordingOutputCodec;
+    use std::path::PathBuf;
+
+    let mut config = SCRecordingOutputConfiguration::new();
+    let path = PathBuf::from("/tmp/test_recording.mp4");
+    config.set_output_url(&path);
+    config.set_video_codec(SCRecordingOutputCodec::H264);
+    config.set_average_bitrate(5_000_000);
+    // Just verify it doesn't crash
+    assert!(!config.as_ptr().is_null());
+}

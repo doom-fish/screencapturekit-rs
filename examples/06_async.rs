@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("⚡ Async API Demo\n");
 
-    // 1. Get content asynchronously
+    // 1. Get content asynchronously (true async - no blocking)
     println!("Fetching content...");
     let content = AsyncSCShareableContent::get().await?;
     
@@ -50,9 +50,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         // Create async stream with 30-frame buffer
         let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
-        stream.start_capture().await?;
+        stream.start_capture()?;
         
-        // Capture 10 frames
+        // Capture 10 frames asynchronously
         let mut count = 0;
         while count < 10 {
             if let Some(_frame) = stream.next().await {
@@ -61,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         
-        stream.stop_capture().await?;
+        stream.stop_capture()?;
         println!("✅ Captured {} frames", count);
     }
 
