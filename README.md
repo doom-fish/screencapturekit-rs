@@ -415,6 +415,19 @@ Contributions welcome! Please:
 3. Run `cargo test` and `cargo clippy`
 4. Update documentation
 
+## 👥 Contributors
+
+Thanks to everyone who has contributed to this project!
+
+- [Per Johansson](https://github.com/doom-fish) - Maintainer
+- [Iason Paraskevopoulos](https://github.com/iasparaskev)
+- [Kris Krolak](https://github.com/kriskrolak)
+- [Tokuhiro Matsuno](https://github.com/tokuhirom)
+- [Pranav Joglekar](https://github.com/pranavj1001)
+- [Alex Jiao](https://github.com/uohzxela)
+- [Charles](https://github.com/aizukanne)
+- [bigduu](https://github.com/bigduu)
+
 ## 📄 License
 
 Licensed under either of:
