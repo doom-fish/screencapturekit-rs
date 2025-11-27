@@ -1,5 +1,4 @@
 #![allow(clippy::pedantic, clippy::nursery)]
-// Integration tests must run serially due to shared ScreenCaptureKit resources
 
 use screencapturekit::{
     shareable_content::SCShareableContent,
@@ -12,7 +11,6 @@ use screencapturekit::{
     },
     CMSampleBuffer,
 };
-use serial_test::serial;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -47,7 +45,6 @@ impl SCStreamOutputTrait for AudioTestOutput {
 }
 
 #[test]
-#[serial]
 fn test_video_capture() {
     // Get shareable content
     let content = match SCShareableContent::get() {
@@ -125,7 +122,6 @@ fn test_video_capture() {
 }
 
 #[test]
-#[serial]
 fn test_audio_capture() {
     // Get shareable content
     let content = match SCShareableContent::get() {
@@ -205,7 +201,6 @@ fn test_audio_capture() {
 }
 
 #[test]
-#[serial]
 fn test_video_and_audio_capture() {
     // Get shareable content
     let content = match SCShareableContent::get() {
@@ -282,7 +277,6 @@ fn test_video_and_audio_capture() {
 }
 
 #[test]
-#[serial]
 fn test_pixel_buffer_locking() {
     // Get shareable content
     let content = match SCShareableContent::get() {
@@ -369,7 +363,6 @@ fn test_pixel_buffer_locking() {
 }
 
 #[test]
-#[serial]
 fn test_iosurface_backed_buffer() {
     // Get shareable content
     let content = match SCShareableContent::get() {
