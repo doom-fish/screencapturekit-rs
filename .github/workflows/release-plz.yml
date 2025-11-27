@@ -23,8 +23,18 @@ jobs:
           fetch-depth: 0
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo registry and release-plz
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/release-plz
+          key: ${{ runner.os }}-cargo-release-plz-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-plz-
       - name: Install release-plz
-        run: cargo install release-plz
+        run: command -v release-plz || cargo install release-plz
       - name: Run release-plz
         run: release-plz release
         env:
@@ -48,8 +58,18 @@ jobs:
           fetch-depth: 0
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo registry and release-plz
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/release-plz
+          key: ${{ runner.os }}-cargo-release-plz-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-plz-
       - name: Install release-plz
-        run: cargo install release-plz
+        run: command -v release-plz || cargo install release-plz
       - name: Run release-plz
         run: release-plz release-pr
         env:
