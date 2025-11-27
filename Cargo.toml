@@ -6,13 +6,23 @@ license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/screencapturekit-rs"
 repository = "https://github.com/doom-fish/screencapturekit-rs"
 documentation = "https://doom-fish.github.io/screencapturekit-rs/screencapturekit/"
-description = "ScreenCaptureKit bindings for rust"
-authors = ["Per Johansson <per.johansson@gmail.com>"]
-keywords = ["screencapturekit", "screen", "capture", "macos"]
-categories = ["multimedia", "os::macos-apis"]
+description = "Safe Rust bindings for Apple's ScreenCaptureKit framework - screen and audio capture on macOS"
+authors = ["Per Johansson <per@doom.fish>"]
+keywords = ["screencapturekit", "screen-capture", "macos", "video", "audio"]
+categories = ["multimedia", "os::macos-apis", "api-bindings"]
 rust-version = "1.70"
 readme = "README.md"
-exclude = ["swift-bridge/.build/"]
+build = "build.rs"
+include = [
+    "src/**/*",
+    "swift-bridge/Package.swift",
+    "swift-bridge/Sources/**/*",
+    "build.rs",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE-*",
+    "CHANGELOG.md",
+]
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
