@@ -35,9 +35,10 @@ extern "C" fn picker_callback(
 
 /// Picker style determines what content types can be selected
 #[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SCContentSharingPickerMode {
     /// Allow selection of both displays and windows
+    #[default]
     SingleWindow = 0,
     /// Allow selection of multiple items
     Multiple = 1,
@@ -96,6 +97,14 @@ impl Drop for SCContentSharingPickerConfiguration {
                 crate::ffi::sc_content_sharing_picker_configuration_release(self.ptr);
             }
         }
+    }
+}
+
+impl std::fmt::Debug for SCContentSharingPickerConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SCContentSharingPickerConfiguration")
+            .field("ptr", &self.ptr)
+            .finish()
     }
 }
 

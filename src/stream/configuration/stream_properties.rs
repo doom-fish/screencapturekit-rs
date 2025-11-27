@@ -8,9 +8,10 @@ use super::internal::SCStreamConfiguration;
 
 /// Dynamic range mode for capture (macOS 15.0+)
 #[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SCCaptureDynamicRange {
     /// Standard Dynamic Range (SDR) - default mode
+    #[default]
     SDR = 0,
     /// HDR with local display tone mapping
     HDRLocalDisplay = 1,

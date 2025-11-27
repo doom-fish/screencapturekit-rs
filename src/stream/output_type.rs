@@ -22,10 +22,11 @@ use std::fmt::{self, Display};
 ///     }
 /// }
 /// ```
-#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash, Default)]
 #[repr(C)]
 pub enum SCStreamOutputType {
     /// Video frame output
+    #[default]
     Screen,
     /// System audio output
     Audio,

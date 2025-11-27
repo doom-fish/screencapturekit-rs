@@ -3,8 +3,9 @@ use super::internal::SCStreamConfiguration;
 use super::types::ConfigError;
 
 #[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SCPresenterOverlayAlertSetting {
+    #[default]
     Never = 0,
     Once = 1,
     Always = 2,

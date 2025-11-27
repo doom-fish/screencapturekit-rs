@@ -20,9 +20,10 @@ use crate::utils::four_char_code::FourCharCode;
 /// println!("Format: {}", format); // Prints "BGRA"
 /// ```
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PixelFormat {
     /// Packed little endian ARGB8888 (most common)
+    #[default]
     BGRA,
     /// Packed little endian ARGB2101010 (10-bit color)
     l10r,

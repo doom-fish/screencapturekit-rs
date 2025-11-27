@@ -10,9 +10,10 @@ use std::path::Path;
 
 /// Video codec for recording
 #[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SCRecordingOutputCodec {
     /// H.264 codec
+    #[default]
     H264 = 0,
     /// H.265/HEVC codec
     HEVC = 1,
@@ -88,6 +89,14 @@ impl Drop for SCRecordingOutputConfiguration {
                 crate::ffi::sc_recording_output_configuration_release(self.ptr);
             }
         }
+    }
+}
+
+impl std::fmt::Debug for SCRecordingOutputConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SCRecordingOutputConfiguration")
+            .field("ptr", &self.ptr)
+            .finish()
     }
 }
 

@@ -7,9 +7,10 @@ use std::fmt;
 /// Indicates the state of a frame captured by ScreenCaptureKit.
 /// This maps to Apple's `SCFrameStatus` enum.
 #[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SCFrameStatus {
     /// Frame contains complete content
+    #[default]
     Complete = 0,
     /// Frame is idle (no changes)
     Idle = 1,
