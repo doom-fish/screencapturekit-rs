@@ -25,7 +25,9 @@ impl SCStreamOutputTrait for VideoTestOutput {
         sample_buffer: CMSampleBuffer,
         _of_type: SCStreamOutputType,
     ) {
-        self.samples.lock().unwrap().push(sample_buffer);
+        if let Ok(mut guard) = self.samples.lock() {
+            guard.push(sample_buffer);
+        }
     }
 }
 
@@ -40,7 +42,9 @@ impl SCStreamOutputTrait for AudioTestOutput {
         sample_buffer: CMSampleBuffer,
         _of_type: SCStreamOutputType,
     ) {
-        self.samples.lock().unwrap().push(sample_buffer);
+        if let Ok(mut guard) = self.samples.lock() {
+            guard.push(sample_buffer);
+        }
     }
 }
 
