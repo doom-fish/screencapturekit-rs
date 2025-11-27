@@ -210,32 +210,6 @@ fn test_stream_output_type_clone() {
 }
 
 #[test]
-#[ignore = "Window filter causes CGS_REQUIRE_INIT assertion in test environment"]
-fn test_stream_with_window_filter() {
-    let content = match SCShareableContent::get() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("⚠ Skipping - no screen recording permission");
-            return;
-        }
-    };
-    
-    if content.windows().is_empty() {
-        println!("⚠ No windows available");
-        return;
-    }
-    
-    let window = &content.windows()[0];
-    let filter = SCContentFilter::build().window(window).build();
-    let config = SCStreamConfiguration::build();
-    
-    let stream = SCStream::new(&filter, &config);
-    
-    println!("✓ Stream with window filter created");
-    drop(stream);
-}
-
-#[test]
 fn test_stream_lifecycle() {
     let content = match SCShareableContent::get() {
         Ok(c) => c,

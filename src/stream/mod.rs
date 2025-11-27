@@ -40,4 +40,5 @@ pub mod output_type;
 pub use sc_stream::SCStream;
 pub use output_trait::SCStreamOutputTrait as SCStreamOutput;
 pub use delegate_trait::SCStreamDelegateTrait as SCStreamDelegate;
+pub use delegate_trait::ErrorHandler;
 
