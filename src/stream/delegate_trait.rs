@@ -49,3 +49,53 @@ pub trait SCStreamDelegateTrait: Send {
     /// - `error`: Optional error message if the stream stopped due to an error
     fn stream_did_stop(&self, _error: Option<String>) {}
 }
+
+/// A simple error handler wrapper for closures
+///
+/// Allows using a closure as a stream delegate that only handles errors.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use screencapturekit::prelude::*;
+/// use screencapturekit::stream::delegate_trait::ErrorHandler;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let content = SCShareableContent::get()?;
+/// # let display = &content.displays()[0];
+/// # let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+/// # let config = SCStreamConfiguration::build();
+///
+/// let error_handler = ErrorHandler::new(|error| {
+///     eprintln!("Stream error: {}", error);
+/// });
+///
+/// let stream = SCStream::new_with_delegate(&filter, &config, error_handler);
+/// # Ok(())
+/// # }
+/// ```
+pub struct ErrorHandler<F>
+where
+    F: Fn(SCError) + Send + 'static,
+{
+    handler: F,
+}
+
+impl<F> ErrorHandler<F>
+where
+    F: Fn(SCError) + Send + 'static,
+{
+    /// Create a new error handler from a closure
+    pub fn new(handler: F) -> Self {
+        Self { handler }
+    }
+}
+
+impl<F> SCStreamDelegateTrait for ErrorHandler<F>
+where
+    F: Fn(SCError) + Send + 'static,
+{
+    fn did_stop_with_error(&self, error: SCError) {
+        (self.handler)(error);
+    }
+}

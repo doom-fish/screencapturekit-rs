@@ -141,15 +141,102 @@ impl SCStream {
         Self::new(filter, configuration)
     }
 
-    pub fn add_output_handler(&mut self, output_trait: impl SCStreamOutputTrait + 'static, of_type: SCStreamOutputType) -> Option<usize> {
-        self.add_output_handler_with_queue(output_trait, of_type, None)
+    /// Add an output handler to receive captured frames
+    ///
+    /// # Arguments
+    ///
+    /// * `handler` - The handler to receive callbacks. Can be:
+    ///   - A struct implementing [`SCStreamOutputTrait`]
+    ///   - A closure `|CMSampleBuffer, SCStreamOutputType| { ... }`
+    /// * `of_type` - The type of output to receive (Screen, Audio, or Microphone)
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(handler_id)` on success, `None` on failure.
+    /// The handler ID can be used with [`remove_output_handler`](Self::remove_output_handler).
+    ///
+    /// # Examples
+    ///
+    /// Using a struct:
+    /// ```rust,no_run
+    /// use screencapturekit::prelude::*;
+    ///
+    /// struct MyHandler;
+    /// impl SCStreamOutputTrait for MyHandler {
+    ///     fn did_output_sample_buffer(&self, _sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
+    ///         println!("Got frame!");
+    ///     }
+    /// }
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::build();
+    /// let mut stream = SCStream::new(&filter, &config);
+    /// stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// Using a closure:
+    /// ```rust,no_run
+    /// use screencapturekit::prelude::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::build();
+    /// let mut stream = SCStream::new(&filter, &config);
+    /// stream.add_output_handler(
+    ///     |_sample, _type| println!("Got frame!"),
+    ///     SCStreamOutputType::Screen
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn add_output_handler(&mut self, handler: impl SCStreamOutputTrait + 'static, of_type: SCStreamOutputType) -> Option<usize> {
+        self.add_output_handler_with_queue(handler, of_type, None)
     }
 
+    /// Add an output handler with a custom dispatch queue
+    ///
+    /// This allows controlling which thread/queue the handler is called on.
+    ///
+    /// # Arguments
+    ///
+    /// * `handler` - The handler to receive callbacks
+    /// * `of_type` - The type of output to receive
+    /// * `queue` - Optional custom dispatch queue for callbacks
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use screencapturekit::prelude::*;
+    /// use screencapturekit::dispatch_queue::{DispatchQueue, DispatchQoS};
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::build();
+    /// let mut stream = SCStream::new(&filter, &config);
+    /// let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
+    ///
+    /// stream.add_output_handler_with_queue(
+    ///     |_sample, _type| println!("Got frame on custom queue!"),
+    ///     SCStreamOutputType::Screen,
+    ///     Some(&queue)
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn add_output_handler_with_queue(
         &mut self, 
-        output_trait: impl SCStreamOutputTrait + 'static, 
+        handler: impl SCStreamOutputTrait + 'static, 
         of_type: SCStreamOutputType,
-        dispatch_queue: Option<&DispatchQueue>
+        queue: Option<&DispatchQueue>
     ) -> Option<usize> {
         // Get next handler ID
         let handler_id = {
@@ -168,7 +255,7 @@ impl SCStream {
                 *registry = Some(HashMap::new());
             }
             // We just ensured registry is Some above
-            registry.as_mut().unwrap().insert(handler_id, Box::new(output_trait));
+            registry.as_mut().unwrap().insert(handler_id, Box::new(handler));
         }
 
         // Convert output type to int for Swift
@@ -178,13 +265,13 @@ impl SCStream {
             SCStreamOutputType::Microphone => 2,
         };
 
-        let ok = if let Some(queue) = dispatch_queue {
+        let ok = if let Some(q) = queue {
             unsafe { 
                 ffi::sc_stream_add_stream_output_with_queue(
                     self.ptr, 
                     output_type_int, 
                     sample_handler,
-                    queue.as_ptr()
+                    q.as_ptr()
                 ) 
             }
         } else {
@@ -194,6 +281,16 @@ impl SCStream {
         if ok { Some(handler_id) } else { None }
     }
 
+    /// Remove an output handler
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The handler ID returned from [`add_output_handler`](Self::add_output_handler)
+    /// * `of_type` - The type of output the handler was registered for
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the handler was found and removed, `false` otherwise.
     pub fn remove_output_handler(&mut self, id: usize, _of_type: SCStreamOutputType) -> bool {
         // Mutex poisoning is unrecoverable; unwrap is appropriate
         let mut registry = HANDLER_REGISTRY.lock().unwrap();

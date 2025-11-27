@@ -12,6 +12,8 @@ use super::output_type::SCStreamOutputType;
 ///
 /// # Examples
 ///
+/// ## Using a struct
+///
 /// ```
 /// use screencapturekit::stream::{
 ///     output_trait::SCStreamOutputTrait,
@@ -37,6 +39,29 @@ use super::output_type::SCStreamOutputType;
 ///     }
 /// }
 /// ```
+///
+/// ## Using a closure
+///
+/// Closures that match `Fn(CMSampleBuffer, SCStreamOutputType)` automatically
+/// implement this trait:
+///
+/// ```rust,no_run
+/// use screencapturekit::prelude::*;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let content = SCShareableContent::get()?;
+/// # let display = &content.displays()[0];
+/// # let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+/// # let config = SCStreamConfiguration::build();
+/// let mut stream = SCStream::new(&filter, &config);
+///
+/// stream.add_output_handler(
+///     |_sample, _output_type| println!("Got frame!"),
+///     SCStreamOutputType::Screen
+/// );
+/// # Ok(())
+/// # }
+/// ```
 #[allow(clippy::module_name_repetitions)]
 pub trait SCStreamOutputTrait: Send {
     /// Called when a new sample buffer is available
@@ -46,4 +71,17 @@ pub trait SCStreamOutputTrait: Send {
     /// - `sample_buffer`: The captured sample (video frame or audio buffer)
     /// - `of_type`: Type of output (Screen, Audio, or Microphone)
     fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType);
+}
+
+/// Blanket implementation for closures
+///
+/// Any closure matching `Fn(CMSampleBuffer, SCStreamOutputType) + Send + 'static`
+/// can be used directly as an output handler.
+impl<F> SCStreamOutputTrait for F
+where
+    F: Fn(CMSampleBuffer, SCStreamOutputType) + Send + 'static,
+{
+    fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType) {
+        self(sample_buffer, of_type);
+    }
 }
