@@ -249,7 +249,7 @@ impl fmt::Display for SCShareableContent {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SCShareableContentOptions {
     exclude_desktop_windows: bool,
     on_screen_windows_only: bool,

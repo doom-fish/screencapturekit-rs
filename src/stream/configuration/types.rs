@@ -5,7 +5,7 @@
 use std::fmt;
 
 /// Simple error type for configuration operations
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigError {
     pub message: String,
 }
@@ -27,7 +27,7 @@ impl fmt::Display for ConfigError {
 impl std::error::Error for ConfigError {}
 
 /// A point in 2D coordinate space
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
@@ -55,7 +55,7 @@ impl fmt::Display for Point {
 }
 
 /// A size in 2D coordinate space
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Size {
     pub width: f64,
     pub height: f64,
@@ -83,7 +83,7 @@ impl fmt::Display for Size {
 }
 
 /// A rectangle in 2D coordinate space
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Rect {
     pub origin: Point,
     pub size: Size,
@@ -108,12 +108,6 @@ impl Rect {
             origin: Point { x: 0.0, y: 0.0 },
             size: Size { width: 0.0, height: 0.0 },
         }
-    }
-}
-
-impl Default for Rect {
-    fn default() -> Self {
-        Self::zero()
     }
 }
 

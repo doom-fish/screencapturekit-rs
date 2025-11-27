@@ -21,13 +21,14 @@ use std::fmt;
 /// // Lower priority for background tasks
 /// let bg_queue = DispatchQueue::new("com.myapp.background", DispatchQoS::Background);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum DispatchQoS {
     /// Background QoS - for maintenance or cleanup tasks
     Background = 0,
     /// Utility QoS - for tasks that may take some time
     Utility = 1,
     /// Default QoS - standard priority
+    #[default]
     Default = 2,
     /// User Initiated QoS - for tasks initiated by the user
     UserInitiated = 3,

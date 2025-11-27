@@ -119,7 +119,7 @@ impl AsyncSCShareableContent {
 }
 
 /// Options for async shareable content retrieval
-#[derive(Default)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct AsyncSCShareableContentOptions {
     exclude_desktop_windows: bool,
     on_screen_windows_only: bool,
