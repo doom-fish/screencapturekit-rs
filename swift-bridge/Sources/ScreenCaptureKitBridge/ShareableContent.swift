@@ -2,7 +2,7 @@
 
 import CoreGraphics
 import Foundation
-import ScreenCaptureKit
+@preconcurrency import ScreenCaptureKit
 
 // MARK: - CoreGraphics Initialization
 
