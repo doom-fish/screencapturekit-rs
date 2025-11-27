@@ -5,6 +5,9 @@
 [![License](https://img.shields.io/crates/l/screencapturekit.svg)](https://github.com/doom-fish/screencapturekit-rs#license)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/doom-fish/screencapturekit-rs/build.yml?branch=main)](https://github.com/doom-fish/screencapturekit-rs/actions)
 
+> **💼 Looking for a hosted desktop recording API?**  
+> Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) - an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
+
 Safe, idiomatic Rust bindings for macOS ScreenCaptureKit framework.
 
 Capture screen content, windows, and applications with high performance and low overhead on macOS 12.3+.
