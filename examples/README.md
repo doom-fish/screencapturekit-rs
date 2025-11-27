@@ -57,30 +57,20 @@ cargo run --example 05_screenshot --features macos_14_0
 - `SCScreenshotManager` API
 - Saving as PNG
 
-### 6. Async API (`06_async.rs`)
-Async/await API with any runtime.
-```bash
-cargo run --example 06_async --features async
-```
-**Demonstrates:**
-- Async content retrieval
-- Async screenshot capture
-- Works with Tokio, async-std, smol, etc.
-
-### 7. IOSurface (`07_iosurface.rs`)
+### 6. IOSurface (`06_iosurface.rs`)
 Zero-copy GPU buffer access.
 ```bash
-cargo run --example 07_iosurface
+cargo run --example 06_iosurface
 ```
 **Demonstrates:**
 - IOSurface detection
 - IOSurface properties
 - Locking and accessing IOSurface data
 
-### 8. List Content (`08_list_content.rs`)
+### 7. List Content (`07_list_content.rs`)
 List all available shareable content.
 ```bash
-cargo run --example 08_list_content
+cargo run --example 07_list_content
 ```
 **Demonstrates:**
 - Listing displays
@@ -88,21 +78,16 @@ cargo run --example 08_list_content
 - Listing applications
 - Filtering content
 
-## Advanced Examples
-
-These examples show more complex usage patterns:
-
-### `async_demo.rs`
-Comprehensive async API demonstration with multiple features.
+### 8. Async API (`08_async.rs`)
+Async/await API with any runtime.
 ```bash
-cargo run --example async_demo --features async
+cargo run --example 08_async --features async
 ```
-
-### `async_runtime_agnostic.rs`
-Shows async API works with any runtime.
-```bash
-cargo run --example async_runtime_agnostic --features async
-```
+**Demonstrates:**
+- Async content retrieval
+- Concurrent async operations
+- Async stream frame iteration
+- Runtime-agnostic design (works with Tokio, async-std, smol, etc.)
 
 ## Running Examples
 
@@ -113,14 +98,14 @@ cargo run --example 02_window_capture
 cargo run --example 03_audio_capture
 cargo run --example 04_pixel_access
 cargo run --example 05_screenshot --features macos_14_0
-cargo run --example 06_async --features async
-cargo run --example 07_iosurface
-cargo run --example 08_list_content
+cargo run --example 06_iosurface
+cargo run --example 07_list_content
+cargo run --example 08_async --features async
 ```
 
 With all features:
 ```bash
-cargo run --example 06_async --all-features
+cargo run --example 08_async --all-features
 ```
 
 ## Example Structure
