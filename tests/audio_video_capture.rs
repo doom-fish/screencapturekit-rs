@@ -1,10 +1,3 @@
-//! Audio and video capture tests
-//!
-//! These tests require screen recording permissions and display access.
-//! They are disabled in CI environments where no display is available.
-
-#![cfg(not(feature = "ci"))]
-
 use screencapturekit::stream::content_filter::SCContentFilter;
 use screencapturekit::stream::SCStreamOutput;
 use screencapturekit::shareable_content::SCShareableContent;
