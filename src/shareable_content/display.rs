@@ -1,73 +1,155 @@
 use core::fmt;
+use crate::cg::CGRect;
+use std::ffi::c_void;
 
-use core_foundation::base::UInt32;
-use core_graphics::geometry::CGRect;
-#[allow(clippy::module_name_repetitions)]
-pub use internal::{SCDisplay, SCDisplayRef};
+/// Opaque wrapper around SCDisplay from ScreenCaptureKit
+///
+/// Represents a physical or virtual display that can be captured.
+///
+/// # Examples
+///
+/// ```no_run
+/// use screencapturekit::shareable_content::SCShareableContent;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let content = SCShareableContent::get()?;
+/// for display in content.displays() {
+///     println!("Display {}: {}x{}", 
+///         display.display_id(), 
+///         display.width(), 
+///         display.height()
+///     );
+/// }
+/// # Ok(())
+/// # }
+/// ```
+#[repr(transparent)]
+pub struct SCDisplay(*const c_void);
 
-use objc::{sel, sel_impl};
-
-use crate::utils::objc::get_property;
-
-mod internal {
-
-    #![allow(non_snake_case)]
-    use std::os::raw::c_void;
-
-    use core_foundation::{
-        base::{CFTypeID, TCFType},
-        declare_TCFType, impl_TCFType,
-    };
-
-    #[repr(C)]
-    pub struct __SCDisplayRef(c_void);
-    extern "C" {
-        pub fn SCDisplayGetTypeID() -> CFTypeID;
+impl PartialEq for SCDisplay {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
-    pub type SCDisplayRef = *mut __SCDisplayRef;
-
-    declare_TCFType! {SCDisplay, SCDisplayRef}
-    impl_TCFType!(SCDisplay, SCDisplayRef, SCDisplayGetTypeID);
 }
+
+impl Eq for SCDisplay {}
+
+impl std::hash::Hash for SCDisplay {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+/// Raw pointer type for SCDisplay (for FFI compatibility)
+pub type SCDisplayRef = *const c_void;
+
+impl SCDisplay {
+    /// Create from raw pointer (used internally by shareable content)
+    pub(crate) unsafe fn from_ptr(ptr: *const c_void) -> Self {
+        Self(ptr)
+    }
+
+    /// Get the raw pointer (used internally)
+    pub(crate) fn as_ptr(&self) -> *const c_void {
+        self.0
+    }
+
+    /// Get display ID
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use screencapturekit::shareable_content::SCShareableContent;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let content = SCShareableContent::get()?;
+    /// if let Some(display) = content.displays().first() {
+    ///     println!("Display ID: {}", display.display_id());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn display_id(&self) -> u32 {
+        unsafe { crate::ffi::sc_display_get_display_id(self.0) }
+    }
+
+    /// Get display frame (position and size)
+    pub fn frame(&self) -> CGRect {
+        unsafe {
+            let mut x = 0.0;
+            let mut y = 0.0;
+            let mut width = 0.0;
+            let mut height = 0.0;
+            crate::ffi::sc_display_get_frame(self.0, &mut x, &mut y, &mut width, &mut height);
+            CGRect::new(x, y, width, height)
+        }
+    }
+
+    /// Get display height in pixels
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use screencapturekit::shareable_content::SCShareableContent;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let content = SCShareableContent::get()?;
+    /// if let Some(display) = content.displays().first() {
+    ///     println!("Display resolution: {}x{}", display.width(), display.height());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn height(&self) -> u32 {
+        // FFI returns isize but display dimensions are always positive and fit in u32
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+        unsafe { crate::ffi::sc_display_get_height(self.0) as u32 }
+    }
+
+    /// Get display width in pixels
+    pub fn width(&self) -> u32 {
+        // FFI returns isize but display dimensions are always positive and fit in u32
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+        unsafe { crate::ffi::sc_display_get_width(self.0) as u32 }
+    }
+}
+
+impl Drop for SCDisplay {
+    fn drop(&mut self) {
+        unsafe {
+            crate::ffi::sc_display_release(self.0);
+        }
+    }
+}
+
+impl Clone for SCDisplay {
+    fn clone(&self) -> Self {
+        unsafe {
+            Self(crate::ffi::sc_display_retain(self.0))
+        }
+    }
+}
+
+unsafe impl Send for SCDisplay {}
+unsafe impl Sync for SCDisplay {}
 
 impl fmt::Debug for SCDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SCDisplay")
             .field("display_id", &self.display_id())
-            .field("frame", &self.frame())
             .field("width", &self.width())
             .field("height", &self.height())
             .finish()
     }
 }
 
-impl SCDisplay {
-    pub fn display_id(&self) -> UInt32 {
-        get_property(self, sel!(displayID))
-    }
-    pub fn frame(&self) -> CGRect {
-        get_property(self, sel!(frame))
-    }
-    pub fn height(&self) -> UInt32 {
-        get_property(self, sel!(height))
-    }
-    pub fn width(&self) -> UInt32 {
-        get_property(self, sel!(width))
+impl fmt::Display for SCDisplay {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Display {} ({}x{})",
+            self.display_id(),
+            self.width(),
+            self.height()
+        )
     }
 }
-#[cfg(test)]
-mod sc_display_test {
 
-    use crate::shareable_content::SCShareableContent;
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_properties() {
-        let content = SCShareableContent::get().expect("Should work");
-        let displays = content.displays();
-        assert!(!displays.is_empty());
-        for d in displays {
-            println!("Display: {d:#?}");
-        }
-    }
-}

@@ -13,13 +13,17 @@ env:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Update rust
         run: rustup update
       - name: Build
-        run: cargo build --verbose --features ci
+        run: cargo build --verbose
       - name: Run Tests
         run: |
-          cargo test --verbose --features ci
+          cargo test --verbose
+      - name: Run Clippy
+        run: |
+          cargo clippy -- -D warnings
+
