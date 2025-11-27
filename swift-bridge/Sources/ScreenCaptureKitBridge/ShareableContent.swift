@@ -200,7 +200,7 @@ public func getShareableContentDisplaysCount(_ content: OpaquePointer) -> Int {
     return sc.displays.count
 }
 
-@_cdecl("sc_shareable_content_get_display")
+@_cdecl("sc_shareable_content_get_display_at")
 public func getShareableContentDisplay(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
     guard index >= 0 && index < sc.displays.count else { return nil }
@@ -213,7 +213,7 @@ public func getShareableContentWindowsCount(_ content: OpaquePointer) -> Int {
     return sc.windows.count
 }
 
-@_cdecl("sc_shareable_content_get_window")
+@_cdecl("sc_shareable_content_get_window_at")
 public func getShareableContentWindow(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
     guard index >= 0 && index < sc.windows.count else { return nil }
@@ -226,7 +226,7 @@ public func getShareableContentApplicationsCount(_ content: OpaquePointer) -> In
     return sc.applications.count
 }
 
-@_cdecl("sc_shareable_content_get_application")
+@_cdecl("sc_shareable_content_get_application_at")
 public func getShareableContentApplication(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
     guard index >= 0 && index < sc.applications.count else { return nil }
@@ -246,7 +246,7 @@ public func releaseDisplay(_ display: OpaquePointer) {
     release(display)
 }
 
-@_cdecl("sc_display_get_id")
+@_cdecl("sc_display_get_display_id")
 public func getDisplayId(_ display: OpaquePointer) -> UInt32 {
     let d: SCDisplay = unretained(display)
     return d.displayID
@@ -287,7 +287,7 @@ public func releaseWindow(_ window: OpaquePointer) {
     release(window)
 }
 
-@_cdecl("sc_window_get_id")
+@_cdecl("sc_window_get_window_id")
 public func getWindowId(_ window: OpaquePointer) -> UInt32 {
     let w: SCWindow = unretained(window)
     return w.windowID
@@ -314,13 +314,13 @@ public func getWindowFrame(_ window: OpaquePointer, _ outX: UnsafeMutablePointer
     outH.pointee = frame.size.height
 }
 
-@_cdecl("sc_window_get_is_on_screen")
+@_cdecl("sc_window_is_on_screen")
 public func getWindowIsOnScreen(_ window: OpaquePointer) -> Bool {
     let w: SCWindow = unretained(window)
     return w.isOnScreen
 }
 
-@_cdecl("sc_window_get_is_active")
+@_cdecl("sc_window_is_active")
 public func getWindowIsActive(_ window: OpaquePointer) -> Bool {
     let w: SCWindow = unretained(window)
     if #available(macOS 13.1, *) { return w.isActive } else { return false }
