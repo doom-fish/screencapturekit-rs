@@ -36,9 +36,8 @@ jobs:
       - name: Install release-plz
         run: command -v release-plz || cargo install release-plz
       - name: Run release-plz
-        run: release-plz release
+        run: release-plz release --git-token ${{ secrets.GITHUB_TOKEN }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   # Create a PR with the new versions and changelog, preparing the next release.
@@ -71,6 +70,4 @@ jobs:
       - name: Install release-plz
         run: command -v release-plz || cargo install release-plz
       - name: Run release-plz
-        run: release-plz release-pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: release-plz release-pr --git-token ${{ secrets.GITHUB_TOKEN }}
