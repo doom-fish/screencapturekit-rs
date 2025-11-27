@@ -42,3 +42,4 @@ macos_15_0 = ["macos_14_4"]
 [dev-dependencies]
 png = "0.17"
 tokio = { version = "1.40", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+serial_test = "3"
