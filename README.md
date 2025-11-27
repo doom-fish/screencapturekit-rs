@@ -49,7 +49,6 @@ screencapturekit = { version = "1.0", features = ["macos_15_0"] }
 
 ```rust
 use screencapturekit::prelude::*;
-use std::sync::Arc;
 
 struct Handler;
 
@@ -73,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SCStreamConfiguration::build()
         .set_width(1920)?
         .set_height(1080)?
-        .set_pixel_format(PixelFormat::ARGB8)?;
+        .set_pixel_format(PixelFormat::BGRA)?;
     
     // Start streaming
     let mut stream = SCStream::new(&filter, &config);
@@ -164,20 +163,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Builder Pattern
 
-All main types use a consistent builder pattern with `::build()`:
+Types use builder patterns with `::build()`:
 
 ```rust
-// Content filters
+// Content filters - builder pattern with final .build()
 let filter = SCContentFilter::build()
     .display(&display)
     .exclude_windows(&windows)
     .build();
 
-// Stream configuration
+// Stream configuration - fluent interface returning Result
+// Each method returns Result<Self, SCError>, no final .build() needed
 let config = SCStreamConfiguration::build()
     .set_width(1920)?
     .set_height(1080)?
-    .set_pixel_format(PixelFormat::ARGB8)?
+    .set_pixel_format(PixelFormat::BGRA)?
     .set_captures_audio(true)?;
 
 // Options for content retrieval
@@ -307,8 +307,7 @@ let mut config = SCStreamConfiguration::build()
 
 ### Configuration Types
 
-- **`PixelFormat`** - ARGB8, YCbCr420, etc.
-- **`ColorSpace`** - sRGB, DisplayP3, etc.
+- **`PixelFormat`** - BGRA, YCbCr420v, YCbCr420f, l10r (10-bit)
 - **`SCPresenterOverlayAlertSetting`** - Privacy alert behavior
 - **`SCCaptureDynamicRange`** - HDR/SDR modes (macOS 15.0+)
 
