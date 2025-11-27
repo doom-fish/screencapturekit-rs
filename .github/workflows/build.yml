@@ -13,17 +13,34 @@ env:
 
 jobs:
   build:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple Silicon (ARM64)
+          - os: macos-14
+            name: macOS 14 (Sonoma) ARM64
+          - os: macos-15
+            name: macOS 15 (Sequoia) ARM64
+          # Intel (x86_64)
+          - os: macos-13
+            name: macOS 13 (Ventura) Intel
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
       - name: Update rust
         run: rustup update
+      - name: Show system info
+        run: |
+          uname -a
+          sw_vers
+          rustc --version
       - name: Build
         run: cargo build --verbose
+      - name: Build with all features
+        run: cargo build --verbose --all-features
       - name: Run Tests
-        run: |
-          cargo test --verbose
+        run: cargo test --verbose
       - name: Run Clippy
-        run: |
-          cargo clippy -- -D warnings
-
+        run: cargo clippy -- -D warnings
