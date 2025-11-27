@@ -95,7 +95,9 @@ pub mod prelude {
         content_filter::SCContentFilter,
         output_type::SCStreamOutputType,
         output_trait::SCStreamOutputTrait,
+        delegate_trait::SCStreamDelegateTrait,
         sc_stream::SCStream,
+        ErrorHandler,
     };
 }
 
