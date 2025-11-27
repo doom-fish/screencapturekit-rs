@@ -325,86 +325,206 @@ impl AsyncSCContentSharingPicker {
     }
 }
 
-/// Async wrapper for `SCStream`
+/// Async wrapper for `SCStream` with async frame iteration
 ///
-/// Provides async methods for stream lifecycle operations.
+/// Provides async methods for stream lifecycle and frame iteration.
 /// **Executor-agnostic** - works with any async runtime.
 ///
-/// Note: Stream handlers still use callbacks and are not awaitable.
-/// This wrapper provides async start/stop/update operations.
+/// # Examples
+///
+/// ```rust,no_run
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
+/// use screencapturekit::stream::configuration::SCStreamConfiguration;
+/// use screencapturekit::stream::content_filter::SCContentFilter;
+/// use screencapturekit::stream::output_type::SCStreamOutputType;
+///
+/// let content = AsyncSCShareableContent::get().await?;
+/// let display = &content.displays()[0];
+/// let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+/// let config = SCStreamConfiguration::build();
+///
+/// let (mut stream, frames) = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+/// stream.start_capture().await?;
+///
+/// // Process frames asynchronously
+/// while let Some(frame) = frames.next().await {
+///     println!("Got frame!");
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct AsyncSCStream {
     stream: crate::stream::SCStream,
 }
 
-impl AsyncSCStream {
-    /// Create a new async stream
-    ///
-    /// This is synchronous - the stream is created immediately.
-    #[must_use]
-    pub fn new(filter: &SCContentFilter, config: &SCStreamConfiguration) -> Self {
-        Self {
-            stream: crate::stream::SCStream::new(filter, config),
+/// Async stream of sample buffers
+///
+/// Provides async iteration over captured frames.
+/// Created by [`AsyncSCStream::new`].
+pub struct SampleBufferStream {
+    inner: Arc<Mutex<SampleBufferStreamState>>,
+}
+
+struct SampleBufferStreamState {
+    buffer: std::collections::VecDeque<crate::cm::CMSampleBuffer>,
+    waker: Option<Waker>,
+    closed: bool,
+    capacity: usize,
+}
+
+/// Internal sender for sample buffer stream
+struct SampleBufferSender {
+    inner: Arc<Mutex<SampleBufferStreamState>>,
+}
+
+impl crate::stream::output_trait::SCStreamOutputTrait for SampleBufferSender {
+    fn did_output_sample_buffer(
+        &self,
+        sample_buffer: crate::cm::CMSampleBuffer,
+        _of_type: crate::stream::output_type::SCStreamOutputType,
+    ) {
+        let Ok(mut state) = self.inner.lock() else {
+            return;
+        };
+
+        // Drop oldest if at capacity
+        if state.buffer.len() >= state.capacity {
+            state.buffer.pop_front();
+        }
+
+        state.buffer.push_back(sample_buffer);
+
+        if let Some(waker) = state.waker.take() {
+            waker.wake();
         }
     }
+}
 
-    /// Add an output handler (synchronous)
+impl Drop for SampleBufferSender {
+    fn drop(&mut self) {
+        if let Ok(mut state) = self.inner.lock() {
+            state.closed = true;
+            if let Some(waker) = state.waker.take() {
+                waker.wake();
+            }
+        }
+    }
+}
+
+impl SampleBufferStream {
+    /// Get the next sample buffer asynchronously
     ///
-    /// Handlers use callbacks and cannot be made async.
-    pub fn add_output_handler(
-        &mut self,
-        handler: impl crate::stream::output_trait::SCStreamOutputTrait + 'static,
-        of_type: crate::stream::output_type::SCStreamOutputType,
-    ) -> Option<usize> {
-        self.stream.add_output_handler(handler, of_type)
+    /// Returns `None` when the stream is closed.
+    pub fn next(&self) -> SampleBufferNext<'_> {
+        SampleBufferNext { stream: self }
     }
 
-    /// Add an output handler with a specific dispatch queue (synchronous)
-    pub fn add_output_handler_with_queue(
-        &mut self,
-        handler: impl crate::stream::output_trait::SCStreamOutputTrait + 'static,
-        of_type: crate::stream::output_type::SCStreamOutputType,
-        queue: Option<&crate::dispatch_queue::DispatchQueue>,
-    ) -> Option<usize> {
-        self.stream
-            .add_output_handler_with_queue(handler, of_type, queue)
+    /// Try to get a sample without waiting
+    #[must_use]
+    pub fn try_next(&self) -> Option<crate::cm::CMSampleBuffer> {
+        self.inner.lock().ok()?.buffer.pop_front()
     }
 
-    /// Remove an output handler (synchronous)
-    pub fn remove_output_handler(
-        &mut self,
-        id: usize,
-        of_type: crate::stream::output_type::SCStreamOutputType,
-    ) -> bool {
-        self.stream.remove_output_handler(id, of_type)
+    /// Check if the stream has been closed
+    #[must_use]
+    pub fn is_closed(&self) -> bool {
+        self.inner.lock().map(|s| s.closed).unwrap_or(true)
     }
 
-    /// Asynchronously start capture
+    /// Get the number of buffered samples
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.inner.lock().map(|s| s.buffer.len()).unwrap_or(0)
+    }
+
+    /// Check if the buffer is empty
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Clear all buffered samples
+    pub fn clear(&self) {
+        if let Ok(mut state) = self.inner.lock() {
+            state.buffer.clear();
+        }
+    }
+}
+
+/// Future for getting the next sample buffer
+pub struct SampleBufferNext<'a> {
+    stream: &'a SampleBufferStream,
+}
+
+impl Future for SampleBufferNext<'_> {
+    type Output = Option<crate::cm::CMSampleBuffer>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let Ok(mut state) = self.stream.inner.lock() else {
+            return Poll::Ready(None);
+        };
+
+        if let Some(sample) = state.buffer.pop_front() {
+            return Poll::Ready(Some(sample));
+        }
+
+        if state.closed {
+            Poll::Ready(None)
+        } else {
+            state.waker = Some(cx.waker().clone());
+            Poll::Pending
+        }
+    }
+}
+
+unsafe impl Send for SampleBufferStream {}
+unsafe impl Sync for SampleBufferStream {}
+unsafe impl Send for SampleBufferSender {}
+unsafe impl Sync for SampleBufferSender {}
+
+impl AsyncSCStream {
+    /// Create a new async stream with frame iteration
     ///
-    /// Runs the start operation on a separate thread to avoid blocking the async runtime.
-    /// **Executor-agnostic** - works with any async runtime.
+    /// Returns both the stream and an async iterator for frames.
+    ///
+    /// # Arguments
+    ///
+    /// * `filter` - Content filter specifying what to capture
+    /// * `config` - Stream configuration
+    /// * `buffer_capacity` - Max frames to buffer (oldest dropped when full)
+    /// * `output_type` - Type of output (Screen, Audio, Microphone)
+    #[must_use]
+    pub fn new(
+        filter: &SCContentFilter,
+        config: &SCStreamConfiguration,
+        buffer_capacity: usize,
+        output_type: crate::stream::output_type::SCStreamOutputType,
+    ) -> (Self, SampleBufferStream) {
+        let state = Arc::new(Mutex::new(SampleBufferStreamState {
+            buffer: std::collections::VecDeque::with_capacity(buffer_capacity),
+            waker: None,
+            closed: false,
+            capacity: buffer_capacity,
+        }));
+
+        let sender = SampleBufferSender {
+            inner: Arc::clone(&state),
+        };
+
+        let mut stream = crate::stream::SCStream::new(filter, config);
+        stream.add_output_handler(sender, output_type);
+
+        let receiver = SampleBufferStream { inner: state };
+
+        (Self { stream }, receiver)
+    }
+
+    /// Start capture asynchronously
     ///
     /// # Errors
     ///
-    /// Returns an error if the capture fails to start.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
-    /// use screencapturekit::stream::configuration::SCStreamConfiguration;
-    /// use screencapturekit::stream::content_filter::SCContentFilter;
-    ///
-    /// let content = AsyncSCShareableContent::get().await?;
-    /// let display = &content.displays()[0];
-    /// let filter = SCContentFilter::build().display(display).build();
-    /// let config = SCStreamConfiguration::build();
-    ///
-    /// let mut stream = AsyncSCStream::new(&filter, &config);
-    /// stream.start_capture().await?;
-    /// # Ok(())
-    /// # }
-    /// ```
+    /// Returns an error if capture fails to start.
     pub async fn start_capture(&self) -> Result<(), SCError> {
         let stream_ptr = std::ptr::addr_of!(self.stream) as usize;
         BlockingFuture::new(move || {
@@ -413,14 +533,11 @@ impl AsyncSCStream {
         }).await
     }
 
-    /// Asynchronously stop capture
-    ///
-    /// Runs the stop operation on a separate thread to avoid blocking the async runtime.
-    /// **Executor-agnostic** - works with any async runtime.
+    /// Stop capture asynchronously
     ///
     /// # Errors
     ///
-    /// Returns an error if the capture fails to stop.
+    /// Returns an error if capture fails to stop.
     pub async fn stop_capture(&self) -> Result<(), SCError> {
         let stream_ptr = std::ptr::addr_of!(self.stream) as usize;
         BlockingFuture::new(move || {
@@ -429,9 +546,7 @@ impl AsyncSCStream {
         }).await
     }
 
-    /// Asynchronously update the stream configuration
-    ///
-    /// **Executor-agnostic** - works with any async runtime.
+    /// Update stream configuration asynchronously
     ///
     /// # Errors
     ///
@@ -445,9 +560,7 @@ impl AsyncSCStream {
         }).await
     }
 
-    /// Asynchronously update the content filter
-    ///
-    /// **Executor-agnostic** - works with any async runtime.
+    /// Update content filter asynchronously
     ///
     /// # Errors
     ///
@@ -465,17 +578,6 @@ impl AsyncSCStream {
     #[must_use]
     pub fn inner(&self) -> &crate::stream::SCStream {
         &self.stream
-    }
-
-    /// Get a mutable reference to the underlying stream
-    pub fn inner_mut(&mut self) -> &mut crate::stream::SCStream {
-        &mut self.stream
-    }
-
-    /// Consume this wrapper and return the underlying stream
-    #[must_use]
-    pub fn into_inner(self) -> crate::stream::SCStream {
-        self.stream
     }
 }
 

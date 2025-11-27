@@ -3,7 +3,7 @@
 //! Demonstrates async/await API (requires "async" feature).
 //! This example shows:
 //! - Async content retrieval
-//! - Async screenshot capture
+//! - Async stream with frame iteration
 //! - Works with any async runtime (Tokio shown here)
 
 #[cfg(not(feature = "async"))]
@@ -15,7 +15,7 @@ fn main() {
 #[cfg(feature = "async")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCScreenshotManager};
+    use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
     use screencapturekit::prelude::*;
 
     println!("⚡ Async API Demo\n");
@@ -35,9 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // 2. Capture screenshot asynchronously
+    // 2. Capture frames asynchronously
     if let Some(display) = displays.first() {
-        println!("\nCapturing screenshot...");
+        println!("\nStarting async capture...");
         
         let filter = SCContentFilter::build()
             .display(display)
@@ -48,13 +48,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .set_width(1920)?
             .set_height(1080)?;
         
-        let image = AsyncSCScreenshotManager::capture_image(&filter, &config).await?;
+        // Create async stream with 30-frame buffer
+        let (stream, frames) = AsyncSCStream::new(
+            &filter, 
+            &config, 
+            30, 
+            SCStreamOutputType::Screen
+        );
         
-        println!("Captured: {}x{}", image.width(), image.height());
+        stream.start_capture().await?;
         
-        // Save screenshot
-        image.save_to_png("async_screenshot.png")?;
-        println!("✅ Saved to async_screenshot.png");
+        // Capture 10 frames
+        let mut count = 0;
+        while count < 10 {
+            if let Some(_frame) = frames.next().await {
+                count += 1;
+                println!("  Frame {}", count);
+            }
+        }
+        
+        stream.stop_capture().await?;
+        println!("✅ Captured {} frames", count);
     }
 
     Ok(())
