@@ -2,7 +2,7 @@
 
 import CoreGraphics
 import Foundation
-@preconcurrency import ScreenCaptureKit
+import ScreenCaptureKit
 
 // MARK: - CoreGraphics Initialization
 
@@ -10,6 +10,24 @@ import Foundation
 /// This prevents CGS_REQUIRE_INIT crashes on headless systems
 private func ensureCoreGraphicsInitialized() {
     _ = CGMainDisplayID()
+}
+
+// MARK: - Thread-safe result holder
+
+private class ResultHolder<T> {
+    private let lock = NSLock()
+    private var _value: T?
+    private var _error: String?
+    
+    var value: T? {
+        get { lock.lock(); defer { lock.unlock() }; return _value }
+        set { lock.lock(); defer { lock.unlock() }; _value = newValue }
+    }
+    
+    var error: String? {
+        get { lock.lock(); defer { lock.unlock() }; return _error }
+        set { lock.lock(); defer { lock.unlock() }; _error = newValue }
+    }
 }
 
 // MARK: - ShareableContent: Content Discovery
@@ -28,8 +46,7 @@ public func getShareableContentSync(
     ensureCoreGraphicsInitialized()
     
     let semaphore = DispatchSemaphore(value: 0)
-    var resultContent: SCShareableContent?
-    var resultError: String?
+    let holder = ResultHolder<SCShareableContent>()
 
     Task {
         do {
@@ -37,9 +54,9 @@ public func getShareableContentSync(
                 excludeDesktopWindows,
                 onScreenWindowsOnly: onScreenWindowsOnly
             )
-            resultContent = content
+            holder.value = content
         } catch {
-            resultError = error.localizedDescription
+            holder.error = error.localizedDescription
         }
         semaphore.signal()
     }
@@ -55,7 +72,7 @@ public func getShareableContentSync(
         return nil
     }
 
-    if let error = resultError {
+    if let error = holder.error {
         error.withCString { ptr in
             strncpy(errorBuffer, ptr, errorBufferSize - 1)
             errorBuffer[errorBufferSize - 1] = 0
@@ -63,7 +80,7 @@ public func getShareableContentSync(
         return nil
     }
 
-    if let content = resultContent {
+    if let content = holder.value {
         return retain(content)
     }
 
@@ -82,34 +99,12 @@ public func getShareableContent(
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(
                 false,
-                onScreenWindowsOnly: true
+                onScreenWindowsOnly: false
             )
             callback(retain(content), nil)
         } catch {
             let errorMsg = error.localizedDescription
             errorMsg.withCString { callback(nil, $0) }
-        }
-    }
-}
-
-/// Async callback-based shareable content retrieval with user_data
-@_cdecl("sc_shareable_content_get_async")
-public func getShareableContentAsync(
-    excludeDesktopWindows: Bool,
-    onScreenWindowsOnly: Bool,
-    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
-    userData: UnsafeMutableRawPointer?
-) {
-    Task {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                excludeDesktopWindows,
-                onScreenWindowsOnly: onScreenWindowsOnly
-            )
-            callback(retain(content), nil, userData)
-        } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(nil, $0, userData) }
         }
     }
 }
@@ -118,22 +113,26 @@ public func getShareableContentAsync(
 public func getShareableContentWithOptions(
     excludeDesktopWindows: Bool,
     onScreenWindowsOnly: Bool,
-    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
+    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    userData: UnsafeMutableRawPointer?
 ) {
+    // Capture userData as a raw value to avoid Sendable issues
+    let userDataValue = userData
     Task {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(
                 excludeDesktopWindows,
                 onScreenWindowsOnly: onScreenWindowsOnly
             )
-            callback(retain(content), nil)
+            callback(retain(content), nil, userDataValue)
         } catch {
             let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(nil, $0) }
+            errorMsg.withCString { callback(nil, $0, userDataValue) }
         }
     }
 }
 
+#if compiler(>=6.0)
 @_cdecl("sc_shareable_content_get_current_process_displays")
 public func getShareableContentCurrentProcessDisplays(
     callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
@@ -163,6 +162,26 @@ public func getShareableContentCurrentProcessDisplays(
         }
     }
 }
+#else
+@_cdecl("sc_shareable_content_get_current_process_displays")
+public func getShareableContentCurrentProcessDisplays(
+    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
+) {
+    // Fallback for older compilers (macOS < 14.4 SDK)
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(
+                false,
+                onScreenWindowsOnly: true
+            )
+            callback(retain(content), nil)
+        } catch {
+            let errorMsg = error.localizedDescription
+            errorMsg.withCString { callback(nil, $0) }
+        }
+    }
+}
+#endif
 
 @_cdecl("sc_shareable_content_retain")
 public func retainShareableContent(_ content: OpaquePointer) -> OpaquePointer {
@@ -181,9 +200,10 @@ public func getShareableContentDisplaysCount(_ content: OpaquePointer) -> Int {
     return sc.displays.count
 }
 
-@_cdecl("sc_shareable_content_get_display_at")
-public func getShareableContentDisplayAt(_ content: OpaquePointer, _ index: Int) -> OpaquePointer {
+@_cdecl("sc_shareable_content_get_display")
+public func getShareableContentDisplay(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
+    guard index >= 0 && index < sc.displays.count else { return nil }
     return retain(sc.displays[index])
 }
 
@@ -193,9 +213,10 @@ public func getShareableContentWindowsCount(_ content: OpaquePointer) -> Int {
     return sc.windows.count
 }
 
-@_cdecl("sc_shareable_content_get_window_at")
-public func getShareableContentWindowAt(_ content: OpaquePointer, _ index: Int) -> OpaquePointer {
+@_cdecl("sc_shareable_content_get_window")
+public func getShareableContentWindow(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
+    guard index >= 0 && index < sc.windows.count else { return nil }
     return retain(sc.windows[index])
 }
 
@@ -205,13 +226,14 @@ public func getShareableContentApplicationsCount(_ content: OpaquePointer) -> In
     return sc.applications.count
 }
 
-@_cdecl("sc_shareable_content_get_application_at")
-public func getShareableContentApplicationAt(_ content: OpaquePointer, _ index: Int) -> OpaquePointer {
+@_cdecl("sc_shareable_content_get_application")
+public func getShareableContentApplication(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
+    guard index >= 0 && index < sc.applications.count else { return nil }
     return retain(sc.applications[index])
 }
 
-// MARK: - ShareableContent: SCDisplay
+// MARK: - SCDisplay
 
 @_cdecl("sc_display_retain")
 public func retainDisplay(_ display: OpaquePointer) -> OpaquePointer {
@@ -224,41 +246,35 @@ public func releaseDisplay(_ display: OpaquePointer) {
     release(display)
 }
 
-@_cdecl("sc_display_get_display_id")
-public func getDisplayID(_ display: OpaquePointer) -> UInt32 {
-    let scDisplay: SCDisplay = unretained(display)
-    return scDisplay.displayID
+@_cdecl("sc_display_get_id")
+public func getDisplayId(_ display: OpaquePointer) -> UInt32 {
+    let d: SCDisplay = unretained(display)
+    return d.displayID
 }
 
 @_cdecl("sc_display_get_width")
 public func getDisplayWidth(_ display: OpaquePointer) -> Int {
-    let scDisplay: SCDisplay = unretained(display)
-    return scDisplay.width
+    let d: SCDisplay = unretained(display)
+    return d.width
 }
 
 @_cdecl("sc_display_get_height")
 public func getDisplayHeight(_ display: OpaquePointer) -> Int {
-    let scDisplay: SCDisplay = unretained(display)
-    return scDisplay.height
+    let d: SCDisplay = unretained(display)
+    return d.height
 }
 
 @_cdecl("sc_display_get_frame")
-public func getDisplayFrame(
-    _ display: OpaquePointer,
-    _ x: UnsafeMutablePointer<Double>,
-    _ y: UnsafeMutablePointer<Double>,
-    _ width: UnsafeMutablePointer<Double>,
-    _ height: UnsafeMutablePointer<Double>
-) {
-    let scDisplay: SCDisplay = unretained(display)
-    let frame = scDisplay.frame
-    x.pointee = frame.origin.x
-    y.pointee = frame.origin.y
-    width.pointee = frame.size.width
-    height.pointee = frame.size.height
+public func getDisplayFrame(_ display: OpaquePointer, _ outX: UnsafeMutablePointer<Double>, _ outY: UnsafeMutablePointer<Double>, _ outW: UnsafeMutablePointer<Double>, _ outH: UnsafeMutablePointer<Double>) {
+    let d: SCDisplay = unretained(display)
+    let frame = d.frame
+    outX.pointee = frame.origin.x
+    outY.pointee = frame.origin.y
+    outW.pointee = frame.size.width
+    outH.pointee = frame.size.height
 }
 
-// MARK: - ShareableContent: SCWindow
+// MARK: - SCWindow
 
 @_cdecl("sc_window_retain")
 public func retainWindow(_ window: OpaquePointer) -> OpaquePointer {
@@ -271,72 +287,59 @@ public func releaseWindow(_ window: OpaquePointer) {
     release(window)
 }
 
-@_cdecl("sc_window_get_window_id")
-public func getWindowID(_ window: OpaquePointer) -> UInt32 {
-    let scWindow: SCWindow = unretained(window)
-    return scWindow.windowID
-}
-
-@_cdecl("sc_window_get_frame")
-public func getWindowFrame(
-    _ window: OpaquePointer,
-    _ x: UnsafeMutablePointer<Double>,
-    _ y: UnsafeMutablePointer<Double>,
-    _ width: UnsafeMutablePointer<Double>,
-    _ height: UnsafeMutablePointer<Double>
-) {
-    let scWindow: SCWindow = unretained(window)
-    let frame = scWindow.frame
-    x.pointee = frame.origin.x
-    y.pointee = frame.origin.y
-    width.pointee = frame.size.width
-    height.pointee = frame.size.height
+@_cdecl("sc_window_get_id")
+public func getWindowId(_ window: OpaquePointer) -> UInt32 {
+    let w: SCWindow = unretained(window)
+    return w.windowID
 }
 
 @_cdecl("sc_window_get_title")
-public func getWindowTitle(
-    _ window: OpaquePointer,
-    _ buffer: UnsafeMutablePointer<CChar>,
-    _ bufferSize: Int
-) -> Bool {
-    let scWindow: SCWindow = unretained(window)
-    guard let title = scWindow.title else { return false }
-    guard let cString = title.cString(using: .utf8), cString.count < bufferSize else { return false }
-    cString.withUnsafeBufferPointer { ptr in
-        buffer.update(from: ptr.baseAddress!, count: ptr.count)
+public func getWindowTitle(_ window: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+    let w: SCWindow = unretained(window)
+    guard let title = w.title, let cString = title.cString(using: .utf8) else {
+        return false
     }
+    strncpy(buffer, cString, bufferSize - 1)
+    buffer[bufferSize - 1] = 0
     return true
+}
+
+@_cdecl("sc_window_get_frame")
+public func getWindowFrame(_ window: OpaquePointer, _ outX: UnsafeMutablePointer<Double>, _ outY: UnsafeMutablePointer<Double>, _ outW: UnsafeMutablePointer<Double>, _ outH: UnsafeMutablePointer<Double>) {
+    let w: SCWindow = unretained(window)
+    let frame = w.frame
+    outX.pointee = frame.origin.x
+    outY.pointee = frame.origin.y
+    outW.pointee = frame.size.width
+    outH.pointee = frame.size.height
+}
+
+@_cdecl("sc_window_get_is_on_screen")
+public func getWindowIsOnScreen(_ window: OpaquePointer) -> Bool {
+    let w: SCWindow = unretained(window)
+    return w.isOnScreen
+}
+
+@_cdecl("sc_window_get_is_active")
+public func getWindowIsActive(_ window: OpaquePointer) -> Bool {
+    let w: SCWindow = unretained(window)
+    if #available(macOS 13.1, *) { return w.isActive } else { return false }
 }
 
 @_cdecl("sc_window_get_window_layer")
 public func getWindowLayer(_ window: OpaquePointer) -> Int {
-    let scWindow: SCWindow = unretained(window)
-    return scWindow.windowLayer
-}
-
-@_cdecl("sc_window_is_on_screen")
-public func getWindowIsOnScreen(_ window: OpaquePointer) -> Bool {
-    let scWindow: SCWindow = unretained(window)
-    return scWindow.isOnScreen
+    let w: SCWindow = unretained(window)
+    return w.windowLayer
 }
 
 @_cdecl("sc_window_get_owning_application")
 public func getWindowOwningApplication(_ window: OpaquePointer) -> OpaquePointer? {
-    let scWindow: SCWindow = unretained(window)
-    guard let app = scWindow.owningApplication else { return nil }
+    let w: SCWindow = unretained(window)
+    guard let app = w.owningApplication else { return nil }
     return retain(app)
 }
 
-@_cdecl("sc_window_is_active")
-public func getWindowIsActive(_ window: OpaquePointer) -> Bool {
-    let scWindow: SCWindow = unretained(window)
-    if #available(macOS 14.0, *) {
-        return scWindow.isActive
-    }
-    return false
-}
-
-// MARK: - ShareableContent: SCRunningApplication
+// MARK: - SCRunningApplication
 
 @_cdecl("sc_running_application_retain")
 public func retainRunningApplication(_ app: OpaquePointer) -> OpaquePointer {
@@ -349,36 +352,30 @@ public func releaseRunningApplication(_ app: OpaquePointer) {
     release(app)
 }
 
+@_cdecl("sc_running_application_get_process_id")
+public func getRunningApplicationProcessId(_ app: OpaquePointer) -> Int32 {
+    let a: SCRunningApplication = unretained(app)
+    return a.processID
+}
+
 @_cdecl("sc_running_application_get_bundle_identifier")
-public func getRunningApplicationBundleIdentifier(
-    _ app: OpaquePointer,
-    _ buffer: UnsafeMutablePointer<CChar>,
-    _ bufferSize: Int
-) -> Bool {
-    let scApp: SCRunningApplication = unretained(app)
-    guard let cString = scApp.bundleIdentifier.cString(using: .utf8), cString.count < bufferSize else { return false }
-    cString.withUnsafeBufferPointer { ptr in
-        buffer.update(from: ptr.baseAddress!, count: ptr.count)
+public func getRunningApplicationBundleIdentifier(_ app: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+    let a: SCRunningApplication = unretained(app)
+    let bundleId = a.bundleIdentifier; guard let cString = bundleId.cString(using: .utf8) else {
+        return false
     }
+    strncpy(buffer, cString, bufferSize - 1)
+    buffer[bufferSize - 1] = 0
     return true
 }
 
 @_cdecl("sc_running_application_get_application_name")
-public func getRunningApplicationName(
-    _ app: OpaquePointer,
-    _ buffer: UnsafeMutablePointer<CChar>,
-    _ bufferSize: Int
-) -> Bool {
-    let scApp: SCRunningApplication = unretained(app)
-    guard let cString = scApp.applicationName.cString(using: .utf8), cString.count < bufferSize else { return false }
-    cString.withUnsafeBufferPointer { ptr in
-        buffer.update(from: ptr.baseAddress!, count: ptr.count)
+public func getRunningApplicationName(_ app: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+    let a: SCRunningApplication = unretained(app)
+    let name = a.applicationName; guard let cString = name.cString(using: .utf8) else {
+        return false
     }
+    strncpy(buffer, cString, bufferSize - 1)
+    buffer[bufferSize - 1] = 0
     return true
-}
-
-@_cdecl("sc_running_application_get_process_id")
-public func getRunningApplicationProcessID(_ app: OpaquePointer) -> Int32 {
-    let scApp: SCRunningApplication = unretained(app)
-    return scApp.processID
 }
