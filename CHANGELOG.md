@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.0.0...v2.0.0) - 2025-11-27
+
+### Added
+
+- [**breaking**] add SCStreamConfigurationBuilder for consistent builder pattern
+
+### Fixed
+
+- redirect Swift build output to OUT_DIR for cargo publish
+- revert manual version bump, let release-plz handle versioning
+- bump version to 1.0.2
+- exclude swift-bridge/.build from cargo package
+- update preserves_aspect_ratio doctest for macOS 13 compatibility
+- ignore Apple framework leaks in leak test
+- correct Swift FFI function names to match Rust declarations
+- rewrite ShareableContent.swift for Swift 5 concurrency
+- add compiler guards for macOS 15 microphone APIs
+- add compiler guards for macOS 15.0+ APIs
+- update repository URLs to doom-fish/screencapturekit-rs
+
+### Other
+
+- fix clippy format string warnings
+- reset version to 1.0.0 for release-plz
+- *(examples)* use new builder() API instead of deprecated build()
+- fix builder pattern description in README
+- fix README inconsistencies with actual API
+- add contributors section to README
+- improve Cargo.toml metadata
+- update README badges for doom-fish repo and GitHub Pages docs
+- add GitHub Pages documentation hosting
+- add --git-token flag to release-plz commands
+- cache cargo registry and release-plz binary
+- add macOS 26 to build matrix
+- add build matrix for macOS 13/14/15 (Intel + ARM64)
+- use macos-latest for release-plz (requires macOS frameworks)
+- use CARGO_REGISTRY_TOKEN for publishing
+- bump version to 1.0.1
+- add release environment for trusted publishing
+
 ## [0.3.6](https://github.com/doom-fish/screencapturekit-rs/compare/v0.3.5...v0.3.6) - 2025-08-04
 
 ### Added
