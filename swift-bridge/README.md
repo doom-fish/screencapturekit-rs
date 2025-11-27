@@ -100,10 +100,10 @@ Follows semantic versioning aligned with parent crate:
 ## Future Improvements
 
 1. ~~**Multi-file modules**~~ ✅ Already split into 7 Swift files
-2. **Documentation comments** - Add inline Swift documentation (currently minimal)
-3. **Error types** - Strongly typed error enum instead of strings
+2. ~~**Documentation comments**~~ ✅ Added inline Swift documentation
+3. ~~**Error types**~~ ✅ Added `SCBridgeError` enum with strongly typed errors
 4. **Testing** - Swift unit tests for FFI layer
-5. **Performance** - Profile and optimize hot paths
+5. ~~**Performance**~~ - Skipped (not a priority)
 
 ## Related Documentation
 

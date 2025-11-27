@@ -56,7 +56,7 @@ public func getShareableContentSync(
             )
             holder.value = content
         } catch {
-            holder.error = error.localizedDescription
+            holder.error = SCBridgeError.contentUnavailable(error.localizedDescription).description
         }
         semaphore.signal()
     }
@@ -91,6 +91,8 @@ public func getShareableContentSync(
     return nil
 }
 
+/// Gets shareable content asynchronously
+/// - Parameter callback: Called with content pointer or error message
 @_cdecl("sc_shareable_content_get")
 public func getShareableContent(
     callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
@@ -103,12 +105,18 @@ public func getShareableContent(
             )
             callback(retain(content), nil)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(nil, $0) }
+            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
+            bridgeError.description.withCString { callback(nil, $0) }
         }
     }
 }
 
+/// Gets shareable content with options asynchronously
+/// - Parameters:
+///   - excludeDesktopWindows: Whether to exclude desktop windows
+///   - onScreenWindowsOnly: Whether to only include on-screen windows
+///   - callback: Called with content pointer or error message
+///   - userData: User data passed through to callback
 @_cdecl("sc_shareable_content_get_with_options")
 public func getShareableContentWithOptions(
     excludeDesktopWindows: Bool,
@@ -126,13 +134,15 @@ public func getShareableContentWithOptions(
             )
             callback(retain(content), nil, userDataValue)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(nil, $0, userDataValue) }
+            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
+            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
         }
     }
 }
 
 #if compiler(>=6.0)
+/// Gets shareable content for the current process (macOS 14.4+)
+/// - Parameter callback: Called with content pointer or error message
 @_cdecl("sc_shareable_content_get_current_process_displays")
 public func getShareableContentCurrentProcessDisplays(
     callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
@@ -142,8 +152,8 @@ public func getShareableContentCurrentProcessDisplays(
             if let content = content {
                 callback(retain(content), nil)
             } else {
-                let errorMsg = error?.localizedDescription ?? "Unknown error"
-                errorMsg.withCString { callback(nil, $0) }
+                let bridgeError = SCBridgeError.contentUnavailable(error?.localizedDescription ?? "Unknown error")
+                bridgeError.description.withCString { callback(nil, $0) }
             }
         }
     } else {
@@ -156,13 +166,15 @@ public func getShareableContentCurrentProcessDisplays(
                 )
                 callback(retain(content), nil)
             } catch {
-                let errorMsg = error.localizedDescription
-                errorMsg.withCString { callback(nil, $0) }
+                let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
+                bridgeError.description.withCString { callback(nil, $0) }
             }
         }
     }
 }
 #else
+/// Gets shareable content for the current process (fallback for older compilers)
+/// - Parameter callback: Called with content pointer or error message
 @_cdecl("sc_shareable_content_get_current_process_displays")
 public func getShareableContentCurrentProcessDisplays(
     callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
@@ -176,8 +188,8 @@ public func getShareableContentCurrentProcessDisplays(
             )
             callback(retain(content), nil)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(nil, $0) }
+            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
+            bridgeError.description.withCString { callback(nil, $0) }
         }
     }
 }
