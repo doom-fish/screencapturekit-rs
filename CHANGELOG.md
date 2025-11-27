@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/doom-fish/screencapturekit-rs/compare/v0.4.0...v0.5.0) - 2025-11-27
+
+### Added
+
+- *(swift-bridge)* add SCBridgeError enum and documentation
+
+### Other
+
+- *(swift-bridge)* update README to reflect modular structure
+- [**breaking**] add 1.0.0 changelog
+- restore Recall.ai sponsor banner
+
 ## [1.0.0] - 2025-11-27
 
 ### Added
