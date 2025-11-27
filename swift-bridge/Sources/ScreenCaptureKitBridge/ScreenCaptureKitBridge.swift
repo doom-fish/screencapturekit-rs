@@ -57,7 +57,7 @@ public func getShareableContentSync(
     let semaphore = DispatchSemaphore(value: 0)
     var resultContent: SCShareableContent?
     var resultError: String?
-    
+
     Task {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(
@@ -70,10 +70,10 @@ public func getShareableContentSync(
         }
         semaphore.signal()
     }
-    
+
     // Wait with timeout (5 seconds)
     let timeout = semaphore.wait(timeout: .now() + 5.0)
-    
+
     if timeout == .timedOut {
         "Timeout waiting for shareable content".withCString { ptr in
             strncpy(errorBuffer, ptr, errorBufferSize - 1)
@@ -81,7 +81,7 @@ public func getShareableContentSync(
         }
         return nil
     }
-    
+
     if let error = resultError {
         error.withCString { ptr in
             strncpy(errorBuffer, ptr, errorBufferSize - 1)
@@ -89,11 +89,11 @@ public func getShareableContentSync(
         }
         return nil
     }
-    
+
     if let content = resultContent {
         return retain(content)
     }
-    
+
     "Unknown error".withCString { ptr in
         strncpy(errorBuffer, ptr, errorBufferSize - 1)
         errorBuffer[errorBufferSize - 1] = 0
@@ -803,10 +803,13 @@ public func setStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer, _
         switch value {
         case 0:
             cfg.captureDynamicRange = .SDR
+
         case 1:
             cfg.captureDynamicRange = .hdrLocalDisplay
+
         case 2:
             cfg.captureDynamicRange = .hdrCanonicalDisplay
+
         default:
             cfg.captureDynamicRange = .SDR
         }
@@ -820,10 +823,13 @@ public func getStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer) -
         switch cfg.captureDynamicRange {
         case .SDR:
             return 0
+
         case .hdrLocalDisplay:
             return 1
+
         case .hdrCanonicalDisplay:
             return 2
+
         @unknown default:
             return 0
         }
@@ -969,9 +975,9 @@ private class StreamOutputHandler: NSObject, SCStreamOutput {
 private class HandlerRegistry {
     private var handlers: [String: StreamOutputHandler] = [:]
     private let lock = NSLock()
-    
+
     private func key(for stream: OpaquePointer, type: Int32) -> String {
-        return "\(UInt(bitPattern: stream))_\(type)"
+        "\(UInt(bitPattern: stream))_\(type)"
     }
 
     func store(_ handler: StreamOutputHandler, for stream: OpaquePointer, type: Int32) {
@@ -1124,7 +1130,7 @@ public func removeStreamOutput(
 public func createDispatchQueue(_ label: UnsafePointer<CChar>, _ qos: Int32) -> OpaquePointer {
     let labelStr = String(cString: label)
     let qosClass: DispatchQoS
-    
+
     switch qos {
     case 0: qosClass = .background
     case 1: qosClass = .utility
@@ -1133,7 +1139,7 @@ public func createDispatchQueue(_ label: UnsafePointer<CChar>, _ qos: Int32) -> 
     case 4: qosClass = .userInteractive
     default: qosClass = .default
     }
-    
+
     let queue = DispatchQueue(label: labelStr, qos: qosClass)
     return retain(queue)
 }
@@ -1839,17 +1845,17 @@ public func releaseCGImage(_ image: OpaquePointer) {
 @_cdecl("cgimage_get_data")
 public func getCGImageData(_ image: OpaquePointer, _ outPtr: UnsafeMutablePointer<UnsafeRawPointer?>, _ outLength: UnsafeMutablePointer<Int>) -> Bool {
     let cgImage = Unmanaged<CGImage>.fromOpaque(UnsafeRawPointer(image)).takeUnretainedValue()
-    
+
     let width = cgImage.width
     let height = cgImage.height
     let bytesPerPixel = 4  // RGBA
     let bytesPerRow = width * bytesPerPixel
     let totalBytes = height * bytesPerRow
-    
+
     // Create a bitmap context to draw the image
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
-    
+
     guard let context = CGContext(
         data: nil,
         width: width,
@@ -1861,22 +1867,22 @@ public func getCGImageData(_ image: OpaquePointer, _ outPtr: UnsafeMutablePointe
     ) else {
         return false
     }
-    
+
     // Draw the image into the context
     context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-    
+
     // Get the data
     guard let data = context.data else {
         return false
     }
-    
+
     // Allocate memory for the data and copy it
     let buffer = UnsafeMutableRawPointer.allocate(byteCount: totalBytes, alignment: 1)
     buffer.copyMemory(from: data, byteCount: totalBytes)
-    
+
     outPtr.pointee = UnsafeRawPointer(buffer)
     outLength.pointee = totalBytes
-    
+
     return true
 }
 

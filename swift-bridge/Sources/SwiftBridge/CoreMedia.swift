@@ -32,14 +32,14 @@ public func cm_sample_buffer_get_image_buffer(_ sampleBuffer: UnsafeMutableRawPo
 @_cdecl("cm_sample_buffer_get_frame_status")
 public func cm_sample_buffer_get_frame_status(_ sampleBuffer: UnsafeMutableRawPointer) -> Int32 {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    
+
     // Get the SCFrameStatus attachment
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
           let firstAttachment = attachments.first,
           let status = firstAttachment[SCStreamFrameInfo.status.rawValue as CFString] as? SCFrameStatus else {
         return -1  // No status available
     }
-    
+
     return Int32(status.rawValue)
 }
 
@@ -332,24 +332,24 @@ public func cm_sample_buffer_get_sample_timing_info(
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
     var timingInfo = CMSampleTimingInfo()
     let status = CMSampleBufferGetSampleTimingInfo(buffer, at: sampleIndex, timingInfoOut: &timingInfo)
-    
+
     if status == noErr {
         outDurationValue.pointee = timingInfo.duration.value
         outDurationTimescale.pointee = timingInfo.duration.timescale
         outDurationFlags.pointee = timingInfo.duration.flags.rawValue
         outDurationEpoch.pointee = timingInfo.duration.epoch
-        
+
         outPtsValue.pointee = timingInfo.presentationTimeStamp.value
         outPtsTimescale.pointee = timingInfo.presentationTimeStamp.timescale
         outPtsFlags.pointee = timingInfo.presentationTimeStamp.flags.rawValue
         outPtsEpoch.pointee = timingInfo.presentationTimeStamp.epoch
-        
+
         outDtsValue.pointee = timingInfo.decodeTimeStamp.value
         outDtsTimescale.pointee = timingInfo.decodeTimeStamp.timescale
         outDtsFlags.pointee = timingInfo.decodeTimeStamp.flags.rawValue
         outDtsEpoch.pointee = timingInfo.decodeTimeStamp.epoch
     }
-    
+
     return status
 }
 
@@ -370,7 +370,7 @@ public func cm_sample_buffer_create_copy_with_new_timing(
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
     let timingInfos = timingInfoArray.bindMemory(to: CMSampleTimingInfo.self, capacity: numTimingInfos)
     let timingArray = Array(UnsafeBufferPointer(start: timingInfos, count: numTimingInfos))
-    
+
     var newBuffer: CMSampleBuffer?
     let status = CMSampleBufferCreateCopyWithNewTiming(
         allocator: kCFAllocatorDefault,
@@ -379,13 +379,13 @@ public func cm_sample_buffer_create_copy_with_new_timing(
         sampleTimingArray: timingArray,
         sampleBufferOut: &newBuffer
     )
-    
+
     if status == noErr, let newBuf = newBuffer {
         sampleBufferOut.pointee = Unmanaged.passRetained(newBuf).toOpaque()
     } else {
         sampleBufferOut.pointee = nil
     }
-    
+
     return status
 }
 
@@ -398,14 +398,14 @@ public func cm_sample_buffer_copy_pcm_data_into_audio_buffer_list(
 ) -> Int32 {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
     let audioBufferList = bufferList.bindMemory(to: AudioBufferList.self, capacity: 1)
-    
+
     let status = CMSampleBufferCopyPCMDataIntoAudioBufferList(
         buffer,
         at: frameOffset,
         frameCount: numFrames,
         into: audioBufferList
     )
-    
+
     return status
 }
 
@@ -442,7 +442,6 @@ public func cm_format_description_retain(_ formatDescription: UnsafeMutableRawPo
 public func cm_format_description_release(_ formatDescription: UnsafeMutableRawPointer) {
     Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).release()
 }
-
 
 // MARK: - CVPixelBuffer Bridge
 
@@ -523,13 +522,13 @@ public func cv_pixel_buffer_create_with_planar_bytes(
     _ pixelBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
 ) -> Int32 {
     var pixelBuffer: CVPixelBuffer?
-    
+
     // Create temporary mutable copies for the API
     var planeBaseAddressesCopy = Array(UnsafeBufferPointer(start: planeBaseAddresses, count: numPlanes))
     var planeWidthsCopy = Array(UnsafeBufferPointer(start: planeWidths, count: numPlanes))
     var planeHeightsCopy = Array(UnsafeBufferPointer(start: planeHeights, count: numPlanes))
     var planeBytesPerRowCopy = Array(UnsafeBufferPointer(start: planeBytesPerRow, count: numPlanes))
-    
+
     let status = CVPixelBufferCreateWithPlanarBytes(
         kCFAllocatorDefault,
         width,
@@ -547,13 +546,13 @@ public func cv_pixel_buffer_create_with_planar_bytes(
         nil,
         &pixelBuffer
     )
-    
+
     if status == kCVReturnSuccess, let buffer = pixelBuffer {
         pixelBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
     } else {
         pixelBufferOut.pointee = nil
     }
-    
+
     return status
 }
 
@@ -564,26 +563,26 @@ public func cv_pixel_buffer_create_with_io_surface(
 ) -> Int32 {
     let surface = Unmanaged<IOSurface>.fromOpaque(ioSurface).takeUnretainedValue()
     var pixelBuffer: Unmanaged<CVPixelBuffer>?
-    
+
     let status = CVPixelBufferCreateWithIOSurface(
         kCFAllocatorDefault,
         surface,
         nil,
         &pixelBuffer
     )
-    
+
     if status == kCVReturnSuccess, let buffer = pixelBuffer {
         pixelBufferOut.pointee = buffer.toOpaque()
     } else {
         pixelBufferOut.pointee = nil
     }
-    
+
     return status
 }
 
 @_cdecl("cv_pixel_buffer_get_type_id")
 public func cv_pixel_buffer_get_type_id() -> Int {
-    return Int(CVPixelBufferGetTypeID())
+    Int(CVPixelBufferGetTypeID())
 }
 
 // MARK: - CVPixelBufferPool APIs
@@ -600,14 +599,14 @@ public func cv_pixel_buffer_pool_create(
     if maxBuffers > 0 {
         poolAttributes[kCVPixelBufferPoolMinimumBufferCountKey as String] = maxBuffers
     }
-    
+
     let pixelBufferAttributes: [String: Any] = [
         kCVPixelBufferWidthKey as String: width,
         kCVPixelBufferHeightKey as String: height,
         kCVPixelBufferPixelFormatTypeKey as String: pixelFormatType,
         kCVPixelBufferIOSurfacePropertiesKey as String: [:]
     ]
-    
+
     var pool: CVPixelBufferPool?
     let status = CVPixelBufferPoolCreate(
         kCFAllocatorDefault,
@@ -615,13 +614,13 @@ public func cv_pixel_buffer_pool_create(
         pixelBufferAttributes as CFDictionary,
         &pool
     )
-    
+
     if status == kCVReturnSuccess, let bufferPool = pool {
         poolOut.pointee = Unmanaged.passRetained(bufferPool).toOpaque()
     } else {
         poolOut.pointee = nil
     }
-    
+
     return status
 }
 
@@ -632,19 +631,19 @@ public func cv_pixel_buffer_pool_create_pixel_buffer(
 ) -> Int32 {
     let bufferPool = Unmanaged<CVPixelBufferPool>.fromOpaque(pool).takeUnretainedValue()
     var pixelBuffer: CVPixelBuffer?
-    
+
     let status = CVPixelBufferPoolCreatePixelBuffer(
         kCFAllocatorDefault,
         bufferPool,
         &pixelBuffer
     )
-    
+
     if status == kCVReturnSuccess, let buffer = pixelBuffer {
         pixelBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
     } else {
         pixelBufferOut.pointee = nil
     }
-    
+
     return status
 }
 
@@ -656,7 +655,7 @@ public func cv_pixel_buffer_pool_flush(_ pool: UnsafeMutableRawPointer) {
 
 @_cdecl("cv_pixel_buffer_pool_get_type_id")
 public func cv_pixel_buffer_pool_get_type_id() -> Int {
-    return Int(CVPixelBufferPoolGetTypeID())
+    Int(CVPixelBufferPoolGetTypeID())
 }
 
 @_cdecl("cv_pixel_buffer_pool_retain")
@@ -687,7 +686,6 @@ public func cv_pixel_buffer_pool_get_pixel_buffer_attributes(_ pool: UnsafeMutab
     }
     return UnsafeRawPointer(Unmanaged.passUnretained(attributes).toOpaque())
 }
-
 
 // MARK: - IOSurface Bridge
 
@@ -757,4 +755,3 @@ public func io_surface_hash(_ surface: UnsafeMutableRawPointer) -> Int {
     let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
     return ioSurface.hashValue
 }
-
