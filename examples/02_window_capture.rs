@@ -31,15 +31,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Available windows:");
     for (i, window) in windows.iter().take(10).enumerate() {
         let app_name = window.owning_application()
-            .as_ref()
             .map(|app| app.application_name())
-            .unwrap_or_else(|| "Unknown".to_string());
-        let title = window.title().as_deref().unwrap_or("Untitled").to_string();
+            .unwrap_or_default();
         
         println!("  {}. {} - {} ({}x{})",
             i + 1,
             app_name,
-            title,
+            window.title().unwrap_or_default(),
             window.frame().width,
             window.frame().height
         );
@@ -50,14 +48,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .find(|w| {
             w.owning_application()
-                .as_ref()
                 .map(|app| app.application_name().contains("Safari"))
                 .unwrap_or(false)
         })
         .ok_or("Safari window not found. Try another app.")?;
     
-    let window_title = window.title().as_deref().unwrap_or("Untitled").to_string();
-    println!("\nCapturing: {}\n", window_title);
+    println!("\nCapturing: {}\n", window.title().unwrap_or_default());
 
     // 4. Create window filter
     let filter = SCContentFilter::build()

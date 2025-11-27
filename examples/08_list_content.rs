@@ -30,12 +30,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🪟 Windows (showing first 10 of {}):", windows.len());
     for window in windows.iter().take(10) {
         let app_name = window.owning_application()
-            .as_ref()
             .map(|app| app.application_name())
-            .unwrap_or_else(|| "Unknown".to_string());
-        let title = window.title().as_deref().unwrap_or("Untitled").to_string();
+            .unwrap_or_default();
         
-        println!("  - {} - {}", app_name, title);
+        println!("  - {} - {}", app_name, window.title().unwrap_or_default());
         println!("    Window ID: {}", window.window_id());
         println!("    Size: {}x{}", window.frame().width, window.frame().height);
         println!("    Layer: {}", window.window_layer());
@@ -56,7 +54,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .filter(|w| {
             w.owning_application()
-                .as_ref()
                 .map(|app| app.application_name().contains("Safari"))
                 .unwrap_or(false)
         })
@@ -64,8 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("Found {} Safari windows", safari_windows.len());
     for window in safari_windows {
-        let title = window.title().as_deref().unwrap_or("Untitled").to_string();
-        println!("  - {}", title);
+        println!("  - {}", window.title().unwrap_or_default());
     }
 
     // Custom filtering options
