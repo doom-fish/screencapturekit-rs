@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 //! Content sharing picker tests
 //!
 //! Tests for SCContentSharingPickerConfiguration (macOS 14.0+).

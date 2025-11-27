@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 use screencapturekit::{
     shareable_content::SCShareableContent,
     stream::{

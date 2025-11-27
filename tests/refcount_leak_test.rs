@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 #[cfg(test)]
 mod refcount_leak_tests {
     use std::{error::Error, process::Command, thread, time::Duration};
@@ -253,11 +254,7 @@ mod refcount_leak_tests {
                 .flat_map(|w| vec![w.clone(), w.clone()])
                 .collect();
             
-            let apps: Vec<_> = content
-                .applications()
-                .iter()
-                .map(|a| a.clone())
-                .collect();
+            let apps: Vec<_> = content.applications().to_vec();
             
             // Use the cloned objects
             for d in &displays {

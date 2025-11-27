@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 use screencapturekit::stream::content_filter::SCContentFilter;
 use screencapturekit::stream::{SCStreamOutput, SCStreamDelegate};
 use screencapturekit::shareable_content::SCShareableContent;

@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 //! Stream configuration tests
 //!
 //! Tests for SCStreamConfiguration and related types

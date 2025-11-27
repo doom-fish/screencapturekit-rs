@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 //! Tests for SCFrameStatus
 
 use screencapturekit::cm::SCFrameStatus;
@@ -87,7 +88,7 @@ fn test_frame_status_copy() {
 #[test]
 fn test_frame_status_clone() {
     let status1 = SCFrameStatus::Idle;
-    let status2 = status1.clone();
+    let status2 = status1;
     assert_eq!(status1, status2);
 }
 
@@ -96,11 +97,9 @@ fn test_frame_status_const() {
     const STATUS: SCFrameStatus = SCFrameStatus::Complete;
     assert_eq!(STATUS, SCFrameStatus::Complete);
     
-    const HAS_CONTENT: bool = STATUS.has_content();
-    assert!(HAS_CONTENT);
-    
-    const IS_COMPLETE: bool = STATUS.is_complete();
-    assert!(IS_COMPLETE);
+    // Verify const methods work
+    assert!(STATUS.has_content());
+    assert!(STATUS.is_complete());
 }
 
 #[test]
@@ -141,7 +140,7 @@ fn test_frame_status_all_variants() {
 #[test]
 fn test_frame_status_logic() {
     // Test filtering logic commonly used in applications
-    let statuses = vec![
+    let statuses = [
         SCFrameStatus::Complete,
         SCFrameStatus::Idle,
         SCFrameStatus::Blank,
@@ -191,7 +190,9 @@ fn test_frame_status_option_usage() {
     let status: Option<SCFrameStatus> = Some(SCFrameStatus::Complete);
     
     assert!(status.is_some());
-    assert_eq!(status.unwrap(), SCFrameStatus::Complete);
+    if let Some(s) = status {
+        assert_eq!(s, SCFrameStatus::Complete);
+    }
     
     let no_status: Option<SCFrameStatus> = None;
     assert!(no_status.is_none());

@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 //! Error handling tests
 //!
 //! Tests for error types and error handling
