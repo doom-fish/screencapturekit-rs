@@ -17,7 +17,7 @@ Capture screen content, windows, and applications with high performance and low 
 - 🎥 **Screen & Window Capture** - Capture displays, windows, or specific applications
 - 🔊 **Audio Capture** - Capture system audio and microphone input
 - ⚡ **Real-time Processing** - High-performance frame callbacks with custom dispatch queues
-- 🏗️ **Builder Pattern API** - Clean, type-safe configuration with `::build()`
+- 🏗️ **Builder Pattern API** - Clean, type-safe configuration with `::builder()` and `::build()`
 - 🔄 **Async Support** - Runtime-agnostic async API (works with Tokio, async-std, smol, etc.)
 - 🎨 **IOSurface Access** - Zero-copy GPU texture access for Metal/OpenGL
 - 🛡️ **Memory Safe** - Proper reference counting and leak-free by design
@@ -401,7 +401,7 @@ screencapturekit/
 
 Contributions welcome! Please:
 
-1. Follow existing code patterns (builder pattern with `::build()`)
+1. Follow existing code patterns (builder pattern with `::builder()` and `::build()`)
 2. Add tests for new functionality
 3. Run `cargo test` and `cargo clippy`
 4. Update documentation
