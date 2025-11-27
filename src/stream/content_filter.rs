@@ -13,7 +13,7 @@
 //! let display = &content.displays()[0];
 //!
 //! // Capture entire display
-//! let filter = SCContentFilter::build()
+//! let filter = SCContentFilter::builder()
 //!     .display(display)
 //!     .exclude_windows(&[])
 //!     .build();
@@ -44,14 +44,14 @@ use crate::{
 /// let display = &content.displays()[0];
 ///
 /// // Capture entire display
-/// let filter = SCContentFilter::build()
+/// let filter = SCContentFilter::builder()
 ///     .display(display)
 ///     .exclude_windows(&[])
 ///     .build();
 ///
 /// // Or capture a specific window
 /// let window = &content.windows()[0];
-/// let filter = SCContentFilter::build()
+/// let filter = SCContentFilter::builder()
 ///     .window(window)
 ///     .build();
 /// # Ok(())
@@ -209,20 +209,20 @@ unsafe impl Sync for SCContentFilter {}
 /// let display = &content.displays()[0];
 /// 
 /// // Capture entire display
-/// let filter = SCContentFilter::build()
+/// let filter = SCContentFilter::builder()
 ///     .display(display)
 ///     .exclude_windows(&[])
 ///     .build();
 /// 
 /// // Capture with specific windows excluded
 /// let window = &content.windows()[0];
-/// let filter = SCContentFilter::build()
+/// let filter = SCContentFilter::builder()
 ///     .display(display)
 ///     .exclude_windows(&[window])
 ///     .build();
 /// 
 /// // Capture specific window
-/// let filter = SCContentFilter::build()
+/// let filter = SCContentFilter::builder()
 ///     .window(window)
 ///     .build();
 /// # Ok(())

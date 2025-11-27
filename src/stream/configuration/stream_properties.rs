@@ -29,7 +29,7 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_stream_name(Some("MyApp-MainCapture"));
     /// ```
     pub fn set_stream_name(self, name: Option<&str>) -> Self {
@@ -81,7 +81,7 @@ impl SCStreamConfiguration {
     /// use screencapturekit::prelude::*;
     /// use screencapturekit::stream::configuration::stream_properties::SCCaptureDynamicRange;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_width(1920)
     ///     .set_height(1080)
     ///     .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);

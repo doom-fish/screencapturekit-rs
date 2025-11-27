@@ -17,7 +17,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_width(1920);
     /// assert_eq!(config.get_width(), 1920);
     /// ```
@@ -37,7 +37,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_width(1920);
     /// assert_eq!(config.get_width(), 1920);
     /// ```
@@ -58,7 +58,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_height(1080);
     /// assert_eq!(config.get_height(), 1080);
     /// ```
@@ -78,7 +78,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_height(1080);
     /// assert_eq!(config.get_height(), 1080);
     /// ```
@@ -100,7 +100,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_scales_to_fit(true);
     /// assert!(config.get_scales_to_fit());
     /// ```
@@ -131,7 +131,7 @@ impl SCStreamConfiguration {
     ///
     /// // Capture only top-left quarter of screen
     /// let rect = CGRect::new(0.0, 0.0, 960.0, 540.0);
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_source_rect(rect);
     /// ```
     pub fn set_source_rect(self, source_rect: CGRect) -> Self {
@@ -178,7 +178,7 @@ impl SCStreamConfiguration {
     ///
     /// // Place captured content in top-left corner
     /// let rect = CGRect::new(0.0, 0.0, 640.0, 480.0);
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_destination_rect(rect);
     /// ```
     pub fn set_destination_rect(self, destination_rect: CGRect) -> Self {
@@ -225,7 +225,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_preserves_aspect_ratio(true);
     /// // Returns true on macOS 14.0+, false on older versions
     /// let _ = config.get_preserves_aspect_ratio();
@@ -272,7 +272,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_increase_resolution_for_retina_displays(true);
     /// // Note: Getter may not return the set value on all macOS versions
     /// let _ = config.get_increase_resolution_for_retina_displays();

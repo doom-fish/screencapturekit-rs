@@ -9,10 +9,11 @@
 //! use screencapturekit::prelude::*;
 //!
 //! fn setup_capture() -> SCResult<()> {
-//!     // Errors automatically propagate with ?
-//!     let config = SCStreamConfiguration::build()
-//!         .set_width(1920)?
-//!         .set_height(1080)?;
+//!     // Build configuration with the builder pattern
+//!     let config = SCStreamConfiguration::builder()
+//!         .width(1920)
+//!         .height(1080)
+//!         .build();
 //!     Ok(())
 //! }
 //!

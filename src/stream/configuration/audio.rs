@@ -14,7 +14,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_captures_audio(true);
     /// assert!(config.get_captures_audio());
     /// ```
@@ -41,7 +41,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_sample_rate(48000);
     /// assert_eq!(config.get_sample_rate(), 48000);
     /// ```
@@ -70,7 +70,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_channel_count(2); // Stereo
     /// assert_eq!(config.get_channel_count(), 2);
     /// ```
@@ -105,7 +105,7 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     /// 
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_captures_audio(true)       // System audio
     ///     .set_captures_microphone(true)  // Microphone audio (macOS 15.0+)
     ///     .set_sample_rate(48000)
@@ -134,7 +134,7 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     /// 
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_captures_audio(true)
     ///     .set_excludes_current_process_audio(true); // Prevent feedback
     /// ```
@@ -164,7 +164,7 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     /// 
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_captures_microphone(true)
     ///     .set_microphone_capture_device_id(Some("AppleHDAEngineInput:1B,0,1,0:1"));
     /// ```

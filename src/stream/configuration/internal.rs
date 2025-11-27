@@ -11,7 +11,7 @@ use std::fmt;
 /// ```
 /// use screencapturekit::stream::configuration::SCStreamConfiguration;
 ///
-/// let config = SCStreamConfiguration::build()
+/// let config = SCStreamConfiguration::default()
 ///     .set_width(1920)
 ///     .set_height(1080);
 /// ```

@@ -13,7 +13,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_shows_cursor(true);
     /// assert!(config.get_shows_cursor());
     /// ```
@@ -44,7 +44,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     /// 
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_width(1920)
     ///     .set_height(1080)
     ///     .set_captures_shadows_only(true); // Only capture shadows

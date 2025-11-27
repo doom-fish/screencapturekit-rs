@@ -17,13 +17,14 @@
 //!
 //! # let content = SCShareableContent::get().unwrap();
 //! # let display = &content.displays()[0];
-//! let filter = SCContentFilter::build()
+//! let filter = SCContentFilter::builder()
 //!     .display(display)
 //!     .exclude_windows(&[])
 //!     .build();
-//! let config = SCStreamConfiguration::build()
-//!     .set_width(1920)?
-//!     .set_height(1080)?;
+//! let config = SCStreamConfiguration::builder()
+//!     .width(1920)
+//!     .height(1080)
+//!     .build();
 //!
 //! let mut stream = SCStream::new(&filter, &config);
 //! stream.start_capture()?;

@@ -14,7 +14,7 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::stream::configuration::{SCStreamConfiguration, PixelFormat};
     ///
-    /// let config = SCStreamConfiguration::build()
+    /// let config = SCStreamConfiguration::default()
     ///     .set_pixel_format(PixelFormat::BGRA);
     /// ```
     pub fn set_pixel_format(self, pixel_format: PixelFormat) -> Self {

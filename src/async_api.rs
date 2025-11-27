@@ -1,4 +1,4 @@
-//! Async API for ScreenCaptureKit
+//! Async API for `ScreenCaptureKit`
 //!
 //! This module provides async versions of operations when the `async` feature is enabled.
 //! The async API is **executor-agnostic** and works with any async runtime (Tokio, async-std, smol, etc.).
@@ -258,8 +258,11 @@ unsafe impl Sync for AsyncSampleSender {}
 ///
 /// let content = AsyncSCShareableContent::get().await?;
 /// let display = &content.displays()[0];
-/// let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
-/// let config = SCStreamConfiguration::build();
+/// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+/// let config = SCStreamConfiguration::builder()
+///     .width(1920)
+///     .height(1080)
+///     .build();
 ///
 /// let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
 /// stream.start_capture()?;

@@ -1,4 +1,4 @@
-//! SCRecordingOutput - Direct video file recording
+//! `SCRecordingOutput` - Direct video file recording
 //!
 //! Available on macOS 15.0+
 //! Provides direct encoding of screen capture to video files.
