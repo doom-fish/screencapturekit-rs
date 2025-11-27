@@ -306,6 +306,10 @@ public func removeStreamOutput(
 
 // MARK: - Stream Lifecycle
 
+/// Starts capturing from the stream
+/// - Parameters:
+///   - stream: The stream to start
+///   - callback: Called with success/failure and optional error message
 @_cdecl("sc_stream_start_capture")
 public func startStreamCapture(
     _ stream: OpaquePointer,
@@ -317,12 +321,16 @@ public func startStreamCapture(
             try await scStream.startCapture()
             callback(true, nil)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(false, $0) }
+            let bridgeError = SCBridgeError.streamError(error.localizedDescription)
+            bridgeError.description.withCString { callback(false, $0) }
         }
     }
 }
 
+/// Stops capturing from the stream
+/// - Parameters:
+///   - stream: The stream to stop
+///   - callback: Called with success/failure and optional error message
 @_cdecl("sc_stream_stop_capture")
 public func stopStreamCapture(
     _ stream: OpaquePointer,
@@ -334,12 +342,17 @@ public func stopStreamCapture(
             try await scStream.stopCapture()
             callback(true, nil)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(false, $0) }
+            let bridgeError = SCBridgeError.streamError(error.localizedDescription)
+            bridgeError.description.withCString { callback(false, $0) }
         }
     }
 }
 
+/// Updates the content filter for the stream
+/// - Parameters:
+///   - stream: The stream to update
+///   - filter: The new content filter
+///   - callback: Called with success/failure and optional error message
 @_cdecl("sc_stream_update_content_filter")
 public func updateStreamContentFilter(
     _ stream: OpaquePointer,
@@ -353,12 +366,17 @@ public func updateStreamContentFilter(
             try await scStream.updateContentFilter(scFilter)
             callback(true, nil)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(false, $0) }
+            let bridgeError = SCBridgeError.streamError(error.localizedDescription)
+            bridgeError.description.withCString { callback(false, $0) }
         }
     }
 }
 
+/// Updates the configuration for the stream
+/// - Parameters:
+///   - stream: The stream to update
+///   - config: The new configuration
+///   - callback: Called with success/failure and optional error message
 @_cdecl("sc_stream_update_configuration")
 public func updateStreamConfiguration(
     _ stream: OpaquePointer,
@@ -372,8 +390,8 @@ public func updateStreamConfiguration(
             try await scStream.updateConfiguration(scConfig)
             callback(true, nil)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(false, $0) }
+            let bridgeError = SCBridgeError.configurationError(error.localizedDescription)
+            bridgeError.description.withCString { callback(false, $0) }
         }
     }
 }
