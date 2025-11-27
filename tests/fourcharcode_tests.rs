@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 //! FourCharCode tests
 //!
 //! Tests for FourCharCode type and codec/media type constants

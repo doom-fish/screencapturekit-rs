@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 //! Core Media types tests
 //!
 //! Tests for CMTime, CMSampleTimingInfo, and related types

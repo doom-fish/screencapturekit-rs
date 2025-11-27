@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 //! Reference counting and memory leak tests
 //!
 //! These tests verify that:

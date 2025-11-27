@@ -1,14 +1,15 @@
-/// End-to-end audio capture test with audio processing
-/// 
-/// This test verifies that audio capture works from start to finish:
-/// 1. Get shareable content (displays)
-/// 2. Create a content filter
-/// 3. Configure stream for audio capture
-/// 4. Start capture
-/// 5. Receive audio samples
-/// 6. Process audio data (calculate levels, detect silence, analyze format)
-/// 7. Verify audio buffer data
-/// 8. Stop capture
+#![allow(clippy::pedantic, clippy::nursery)]
+//! End-to-end audio capture test with audio processing
+//!
+//! This test verifies that audio capture works from start to finish:
+//! 1. Get shareable content (displays)
+//! 2. Create a content filter
+//! 3. Configure stream for audio capture
+//! 4. Start capture
+//! 5. Receive audio samples
+//! 6. Process audio data (calculate levels, detect silence, analyze format)
+//! 7. Verify audio buffer data
+//! 8. Stop capture
 
 use screencapturekit::{
     shareable_content::SCShareableContent,

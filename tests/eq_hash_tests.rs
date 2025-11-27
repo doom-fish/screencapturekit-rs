@@ -1,3 +1,4 @@
+#![allow(clippy::pedantic, clippy::nursery)]
 //! Comprehensive tests for Eq, PartialEq, and Hash implementations
 //!
 //! Tests all types that implement these traits to ensure correctness.
