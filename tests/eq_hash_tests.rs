@@ -1,5 +1,4 @@
-#![allow(clippy::pedantic, clippy::nursery)]
-//! Comprehensive tests for Eq, PartialEq, and Hash implementations
+//! Comprehensive tests for Eq, `PartialEq`, and Hash implementations
 //!
 //! Tests all types that implement these traits to ensure correctness.
 
@@ -348,11 +347,11 @@ fn test_iosurface_lock_options_eq_and_hash() {
     assert_eq!(opt1, opt2);
     assert_ne!(opt1, opt3);
 
-    let mut opts = HashSet::new();
-    opts.insert(IOSurfaceLockOptions::ReadOnly);
-    opts.insert(IOSurfaceLockOptions::AvoidSync);
-    opts.insert(IOSurfaceLockOptions::ReadOnly); // Duplicate
-    assert_eq!(opts.len(), 2);
+    let mut options_set = HashSet::new();
+    options_set.insert(IOSurfaceLockOptions::ReadOnly);
+    options_set.insert(IOSurfaceLockOptions::AvoidSync);
+    options_set.insert(IOSurfaceLockOptions::ReadOnly); // Duplicate
+    assert_eq!(options_set.len(), 2);
 }
 
 #[test]

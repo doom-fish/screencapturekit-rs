@@ -1,4 +1,3 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 
 use screencapturekit::{
     shareable_content::SCShareableContent,
@@ -56,7 +55,7 @@ fn test_video_capture() {
         Err(e) => {
             println!("⚠️  Screen recording permission required!");
             println!("   Go to: System Settings → Privacy & Security → Screen Recording");
-            println!("   Error: {:?}", e);
+            println!("   Error: {e:?}");
             return; // Skip test gracefully
         }
     };
@@ -80,7 +79,6 @@ fn test_video_capture() {
         .unwrap();
     
     // Create filter for the display
-    #[allow(deprecated)]
     let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
     
     // Create stream
@@ -119,7 +117,7 @@ fn test_video_capture() {
         let width = image_buffer.get_width();
         let height = image_buffer.get_height();
         
-        println!("Video frame size: {}x{}", width, height);
+        println!("Video frame size: {width}x{height}");
         assert!(width > 0, "Invalid video width");
         assert!(height > 0, "Invalid video height");
     }
@@ -132,7 +130,7 @@ fn test_audio_capture() {
         Ok(c) => c,
         Err(e) => {
             println!("⚠️  Screen recording permission required!");
-            println!("   Error: {:?}", e);
+            println!("   Error: {e:?}");
             return;
         }
     };
@@ -152,7 +150,6 @@ fn test_audio_capture() {
         .unwrap();
     
     // Create filter for the display
-    #[allow(deprecated)]
     let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
     
     // Create stream
@@ -194,13 +191,16 @@ fn test_audio_capture() {
                 samples_with_data += 1;
                 if let Some(buffer) = audio_buffer_list.get_buffer(0) {
                     let data_size = buffer.get_data_byte_size();
-                    println!("Audio buffer: {} buffers, {} bytes", num_buffers, data_size);
+                    println!("Audio buffer: {num_buffers} buffers, {data_size} bytes");
                 }
             }
         }
     }
     
-    println!("Audio samples with buffer data: {}/{}", samples_with_data, collected_samples.len());
+    let total_samples = collected_samples.len();
+    drop(collected_samples);
+    
+    println!("Audio samples with buffer data: {samples_with_data}/{total_samples}");
     // Note: samples_with_data may be 0 if no audio was playing during capture
 }
 
@@ -211,7 +211,7 @@ fn test_video_and_audio_capture() {
         Ok(c) => c,
         Err(e) => {
             println!("⚠️  Screen recording permission required!");
-            println!("   Error: {:?}", e);
+            println!("   Error: {e:?}");
             return;
         }
     };
@@ -235,7 +235,6 @@ fn test_video_and_audio_capture() {
         .unwrap();
     
     // Create filter for the display
-    #[allow(deprecated)]
     let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
     
     // Create stream
@@ -268,7 +267,7 @@ fn test_video_and_audio_capture() {
     let video_count = video_samples.lock().unwrap().len();
     let audio_count = audio_samples.lock().unwrap().len();
     
-    println!("Captured {} video samples and {} audio samples", video_count, audio_count);
+    println!("Captured {video_count} video samples and {audio_count} audio samples");
     
     if video_count == 0 {
         println!("⚠️  No video samples captured - may be due to permissions");
@@ -287,7 +286,7 @@ fn test_pixel_buffer_locking() {
         Ok(c) => c,
         Err(e) => {
             println!("⚠️  Screen recording permission required!");
-            println!("   Error: {:?}", e);
+            println!("   Error: {e:?}");
             return;
         }
     };
@@ -309,7 +308,6 @@ fn test_pixel_buffer_locking() {
         .unwrap();
     
     // Create filter and stream
-    #[allow(deprecated)]
     let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
     let mut stream = SCStream::new(&filter, &config);
     
@@ -346,7 +344,7 @@ fn test_pixel_buffer_locking() {
             let height = pixel_buffer.get_height();
             let bytes_per_row = pixel_buffer.get_bytes_per_row();
             
-            println!("Locked pixel buffer: {}x{}, {} bytes/row", width, height, bytes_per_row);
+            println!("Locked pixel buffer: {width}x{height}, {bytes_per_row} bytes/row");
             
             // Lock guard automatically unlocks when dropped
         }
@@ -373,7 +371,7 @@ fn test_iosurface_backed_buffer() {
         Ok(c) => c,
         Err(e) => {
             println!("⚠️  Screen recording permission required!");
-            println!("   Error: {:?}", e);
+            println!("   Error: {e:?}");
             return;
         }
     };
@@ -391,7 +389,6 @@ fn test_iosurface_backed_buffer() {
         .unwrap();
     
     // Create filter and stream
-    #[allow(deprecated)]
     let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
     let mut stream = SCStream::new(&filter, &config);
     
@@ -425,7 +422,7 @@ fn test_iosurface_backed_buffer() {
             let height = surface.get_height();
             let bytes_per_row = surface.get_bytes_per_row();
             
-            println!("IOSurface: {}x{}, {} bytes/row", width, height, bytes_per_row);
+            println!("IOSurface: {width}x{height}, {bytes_per_row} bytes/row");
             assert!(width > 0, "Invalid IOSurface width");
             assert!(height > 0, "Invalid IOSurface height");
             assert!(bytes_per_row > 0, "Invalid IOSurface bytes per row");

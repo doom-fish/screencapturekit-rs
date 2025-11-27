@@ -79,9 +79,10 @@ extern "C" fn sample_handler(_stream: *const c_void, sample_buffer: *const c_voi
 /// let display = &content.displays()[0];
 ///
 /// // Create filter and configuration
-/// # #[allow(deprecated)]
-/// let filter = SCContentFilter::new()
-///     .with_display_excluding_windows(display, &[]);
+/// let filter = SCContentFilter::build()
+///     .display(display)
+///     .exclude_windows(&[])
+///     .build();
 /// let config = SCStreamConfiguration::build()
 ///     .set_width(1920)?
 ///     .set_height(1080)?;
@@ -114,9 +115,10 @@ impl SCStream {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let content = SCShareableContent::get()?;
     /// let display = &content.displays()[0];
-    /// # #[allow(deprecated)]
-    /// let filter = SCContentFilter::new()
-    ///     .with_display_excluding_windows(display, &[]);
+    /// let filter = SCContentFilter::build()
+    ///     .display(display)
+    ///     .exclude_windows(&[])
+    ///     .build();
     /// let config = SCStreamConfiguration::build();
     ///
     /// let stream = SCStream::new(&filter, &config);
@@ -339,8 +341,6 @@ impl SCStream {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn as_ptr(&self) -> *const c_void { self.ptr }
 }
 
 impl Drop for SCStream {

@@ -32,7 +32,7 @@ extern "C" {
 }
 
 pub type SCStreamRef = *mut __SCStreamRef;
-#[allow(clippy::module_name_repetitions)]
+
 pub struct SCStream(SCStreamRef);
 
 impl_TCFType!(SCStream, SCStreamRef, SCStreamGetTypeID);

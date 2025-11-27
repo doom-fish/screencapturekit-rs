@@ -1,5 +1,4 @@
-#![allow(clippy::pedantic, clippy::nursery)]
-//! Tests for SCFrameStatus
+//! Tests for `SCFrameStatus`
 
 use screencapturekit::cm::SCFrameStatus;
 use std::collections::HashSet;
@@ -50,7 +49,7 @@ fn test_frame_status_display() {
 #[test]
 fn test_frame_status_debug() {
     let status = SCFrameStatus::Complete;
-    let debug_str = format!("{:?}", status);
+    let debug_str = format!("{status:?}");
     assert!(debug_str.contains("Complete"));
 }
 

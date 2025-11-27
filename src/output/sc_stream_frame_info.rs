@@ -173,8 +173,6 @@ mod internal {
     /// # Panics
     ///
     /// Panics if .
-    ///
-    #[allow(clippy::needless_pass_by_value)]
     fn dict_to_cg_rect(cf_rect_raw: CFDictionary) -> CGRect {
         let cf_rect = unsafe {
             CFDictionary::<CFString, CFNumber>::wrap_under_get_rule(

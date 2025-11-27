@@ -1,4 +1,3 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 //! Screenshot manager tests (macOS 14.0+)
 
 #![cfg(feature = "macos_14_0")]

@@ -194,12 +194,6 @@ impl IOSurface {
         }
     }
 
-    /// Get the raw pointer
-    #[allow(dead_code)]
-    pub(crate) const fn as_ptr(&self) -> *const c_void {
-        self.0
-    }
-
     /// Get the width of the IOSurface in pixels
     pub fn width(&self) -> usize {
         // FFI returns isize but dimensions are always positive

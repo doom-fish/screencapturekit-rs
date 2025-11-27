@@ -1,4 +1,3 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 #[cfg(test)]
 mod leak_tests {
 
@@ -18,7 +17,7 @@ mod leak_tests {
 
     impl Capturer {
         pub fn new() -> Self {
-            Capturer {}
+            Self {}
         }
     }
 
@@ -49,7 +48,6 @@ mod leak_tests {
                 let display = SCShareableContent::get();
 
                 let d = display.unwrap().displays().remove(0);
-                #[allow(deprecated)]
                 let filter = SCContentFilter::build().display(&d).exclude_windows(&[]).build();
                 let mut stream = SCStream::new(&filter, &config);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Audio);
@@ -75,11 +73,9 @@ mod leak_tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        println!("stdout: {}", stdout);
-        println!("stderr: {}", stderr);
-        if !stdout.contains("0 leaks for 0 total leaked bytes") {
-            panic!("Memory leaks detected");
-        }
+        println!("stdout: {stdout}");
+        println!("stderr: {stderr}");
+        assert!(stdout.contains("0 leaks for 0 total leaked bytes"), "Memory leaks detected");
 
         Ok(())
     }

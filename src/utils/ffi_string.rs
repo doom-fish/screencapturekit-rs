@@ -31,12 +31,22 @@ pub const SMALL_BUFFER_SIZE: usize = 256;
 /// string to the provided buffer and does not write beyond the buffer length.
 ///
 /// # Example
-/// ```ignore
-/// let name = unsafe {
-///     ffi_string_from_buffer(DEFAULT_BUFFER_SIZE, |buf, len| {
-///         ffi::get_name(ptr, buf, len)
+/// ```
+/// use screencapturekit::utils::ffi_string::ffi_string_from_buffer;
+///
+/// let result = unsafe {
+///     ffi_string_from_buffer(64, |buf, len| {
+///         // Simulate FFI call that writes "hello" to buffer
+///         let src = b"hello\0";
+///         if len >= src.len() as isize {
+///             std::ptr::copy_nonoverlapping(src.as_ptr(), buf as *mut u8, src.len());
+///             true
+///         } else {
+///             false
+///         }
 ///     })
 /// };
+/// assert_eq!(result, Some("hello".to_string()));
 /// ```
 #[allow(clippy::cast_possible_wrap)]
 pub unsafe fn ffi_string_from_buffer<F>(buffer_size: usize, ffi_call: F) -> Option<String>
@@ -82,7 +92,7 @@ mod tests {
         let result = unsafe {
             ffi_string_from_buffer(64, |buf, _len| {
                 let test_str = b"hello\0";
-                std::ptr::copy_nonoverlapping(test_str.as_ptr(), buf as *mut u8, test_str.len());
+                std::ptr::copy_nonoverlapping(test_str.as_ptr(), buf.cast::<u8>(), test_str.len());
                 true
             })
         };
@@ -99,7 +109,7 @@ mod tests {
     fn test_ffi_string_from_buffer_empty() {
         let result = unsafe {
             ffi_string_from_buffer(64, |buf, _len| {
-                unsafe { *buf = 0 }; // empty string
+                *buf = 0; // empty string
                 true
             })
         };

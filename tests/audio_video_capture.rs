@@ -1,6 +1,5 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 use screencapturekit::stream::content_filter::SCContentFilter;
-use screencapturekit::stream::{SCStreamOutput, SCStreamDelegate};
+use screencapturekit::stream::SCStreamOutput;
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::SCStream;
 use screencapturekit::stream::configuration::SCStreamConfiguration;
@@ -57,19 +56,6 @@ impl SCStreamOutput for TestAudioOutput {
     }
 }
 
-#[allow(dead_code)]
-struct TestErrorHandler;
-
-impl SCStreamDelegate for TestErrorHandler {
-    fn stream_did_stop(&self, error: Option<String>) {
-        if let Some(err) = error {
-            println!("Stream stopped with error: {}", err);
-        } else {
-            println!("Stream stopped");
-        }
-    }
-}
-
 #[test]
 fn test_screen_capture_with_audio() {
     println!("=== Starting Screen Capture with Audio Test ===");
@@ -79,7 +65,7 @@ fn test_screen_capture_with_audio() {
         Err(e) => {
             println!("⚠️  Screen recording permission required!");
             println!("   Go to: System Settings → Privacy & Security → Screen Recording");
-            println!("   Error: {:?}", e);
+            println!("   Error: {e:?}");
             return; // Skip test gracefully
         }
     };
@@ -93,9 +79,10 @@ fn test_screen_capture_with_audio() {
     let display = &displays[0];
     println!("Using display: {}", display.display_id());
     
-    #[allow(deprecated)]
-    let filter = SCContentFilter::new()
-        .with_display_excluding_windows(display, &[]);
+    let filter = SCContentFilter::build()
+        .display(display)
+        .exclude_windows(&[])
+        .build();
     
     let config = SCStreamConfiguration::build()
         .set_width(1920).expect("set width")
@@ -134,8 +121,8 @@ fn test_screen_capture_with_audio() {
     let video_count = video_frame_count.load(Ordering::SeqCst);
     let audio_samples = audio_count.load(Ordering::SeqCst);
     
-    println!("Received {} video frames", video_count);
-    println!("Received {} audio samples", audio_samples);
+    println!("Received {video_count} video frames");
+    println!("Received {audio_samples} audio samples");
     
     // Note: Test may not receive frames if screen recording permissions are not granted
     // or if the test environment doesn't allow screen capture
@@ -166,7 +153,7 @@ fn test_combined_video_audio_capture() {
         Err(e) => {
             println!("⚠️  Screen recording permission required!");
             println!("   Go to: System Settings → Privacy & Security → Screen Recording");
-            println!("   Error: {:?}", e);
+            println!("   Error: {e:?}");
             return; // Skip test gracefully
         }
     };
@@ -180,9 +167,10 @@ fn test_combined_video_audio_capture() {
     let display = &displays[0];
     println!("Capturing display: {}", display.display_id());
     
-    #[allow(deprecated)]
-    let filter = SCContentFilter::new()
-        .with_display_excluding_windows(display, &[]);
+    let filter = SCContentFilter::build()
+        .display(display)
+        .exclude_windows(&[])
+        .build();
     
     let config = SCStreamConfiguration::build()
         .set_width(1920).expect("set width")
@@ -203,7 +191,7 @@ fn test_combined_video_audio_capture() {
     
     let audio_output = TestAudioOutput {
         audio_count: audio_count.clone(),
-        received_audio: audio_received.clone(),
+        received_audio: audio_received,
     };
     
     let mut stream = SCStream::new(&filter, &config);
@@ -221,8 +209,8 @@ fn test_combined_video_audio_capture() {
     let v_count = video_count.load(Ordering::SeqCst);
     let a_count = audio_count.load(Ordering::SeqCst);
     
-    println!("Video frames: {}", v_count);
-    println!("Audio samples: {}", a_count);
+    println!("Video frames: {v_count}");
+    println!("Audio samples: {a_count}");
     
     // Note: Test may not receive frames if screen recording permissions are not granted
     if video_received.load(Ordering::SeqCst) {

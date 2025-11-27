@@ -1,7 +1,6 @@
-#![allow(clippy::pedantic, clippy::nursery)]
 //! Core Media types tests
 //!
-//! Tests for CMTime, CMSampleTimingInfo, and related types
+//! Tests for `CMTime`, `CMSampleTimingInfo`, and related types
 
 use screencapturekit::cm::{CMSampleTimingInfo, CMTime};
 
@@ -58,12 +57,12 @@ fn test_cmtime_const_equality() {
 #[test]
 fn test_cmtime_display() {
     let time = CMTime::new(1, 30);
-    let display = format!("{:?}", time);
+    let display = format!("{time:?}");
     // Just verify it doesn't crash
     assert!(!display.is_empty());
     
     let zero = CMTime::ZERO;
-    let zero_display = format!("{:?}", zero);
+    let zero_display = format!("{zero:?}");
     assert!(!zero_display.is_empty());
 }
 
@@ -100,7 +99,7 @@ fn test_cmsample_timing_info_display() {
         CMTime::new(1, 30),
     );
     
-    let display = format!("{:?}", timing);
+    let display = format!("{timing:?}");
     // Just verify it doesn't crash
     assert!(!display.is_empty());
 }

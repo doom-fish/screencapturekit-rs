@@ -24,7 +24,6 @@ use std::fmt::{self, Display};
 /// ```
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
 #[repr(C)]
-#[allow(clippy::module_name_repetitions)]
 pub enum SCStreamOutputType {
     /// Video frame output
     Screen,

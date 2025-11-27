@@ -62,7 +62,6 @@ use super::output_type::SCStreamOutputType;
 /// # Ok(())
 /// # }
 /// ```
-#[allow(clippy::module_name_repetitions)]
 pub trait SCStreamOutputTrait: Send {
     /// Called when a new sample buffer is available
     ///
