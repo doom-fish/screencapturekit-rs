@@ -22,6 +22,8 @@ jobs:
             name: macOS 14 (Sonoma) ARM64
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
+          - os: macos-26
+            name: macOS 26 ARM64
           # Intel (x86_64)
           - os: macos-13
             name: macOS 13 (Ventura) Intel
