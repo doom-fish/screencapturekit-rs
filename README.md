@@ -1,14 +1,9 @@
 # ScreenCaptureKit-rs
 
 [![Crates.io](https://img.shields.io/crates/v/screencapturekit.svg)](https://crates.io/crates/screencapturekit)
-[![Documentation](https://docs.rs/screencapturekit/badge.svg)](https://docs.rs/screencapturekit)
-[![License](https://img.shields.io/crates/l/screencapturekit.svg)](https://github.com/svtlabs/screencapturekit-rs#license)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/svtlabs/screencapturekit-rs/ci.yml?branch=main)](https://github.com/svtlabs/screencapturekit-rs/actions)
-
-> **💼 Looking for a hosted desktop recording API?**  
-> Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk) - an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
-
----
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://doom-fish.github.io/screencapturekit-rs/screencapturekit/)
+[![License](https://img.shields.io/crates/l/screencapturekit.svg)](https://github.com/doom-fish/screencapturekit-rs#license)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/doom-fish/screencapturekit-rs/build.yml?branch=main)](https://github.com/doom-fish/screencapturekit-rs/actions)
 
 Safe, idiomatic Rust bindings for macOS ScreenCaptureKit framework.
 
