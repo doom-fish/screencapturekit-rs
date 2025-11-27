@@ -194,7 +194,7 @@ impl IOSurface {
         }
     }
 
-    /// Get the width of the IOSurface in pixels
+    /// Get the width of the `IOSurface` in pixels
     pub fn width(&self) -> usize {
         // FFI returns isize but dimensions are always positive
         #[allow(clippy::cast_sign_loss)]
@@ -203,7 +203,7 @@ impl IOSurface {
         }
     }
 
-    /// Get the height of the IOSurface in pixels
+    /// Get the height of the `IOSurface` in pixels
     pub fn height(&self) -> usize {
         // FFI returns isize but dimensions are always positive
         #[allow(clippy::cast_sign_loss)]
@@ -226,21 +226,25 @@ impl IOSurface {
         unsafe { crate::ffi::iosurface_get_pixel_format(self.0) }
     }
 
-    /// Get the base address of the IOSurface buffer
+    /// Get the base address of the `IOSurface` buffer
     /// 
-    /// **Important:** You must lock the IOSurface before accessing memory!
+    /// **Important:** You must lock the `IOSurface` before accessing memory!
     /// 
     /// # Safety
     /// 
-    /// The returned pointer is only valid while the IOSurface is locked.
+    /// The returned pointer is only valid while the `IOSurface` is locked.
     /// Accessing unlocked memory or after unlock is undefined behavior.
     pub unsafe fn base_address(&self) -> *mut u8 {
         crate::ffi::iosurface_get_base_address(self.0)
     }
 
-    /// Lock the IOSurface and get a guard for safe access
+    /// Lock the `IOSurface` and get a guard for safe access
     /// 
     /// The surface will be automatically unlocked when the guard is dropped.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an `IOSurface` error code if the lock operation fails.
     /// 
     /// # Example
     /// 
@@ -266,7 +270,7 @@ impl IOSurface {
         }
     }
 
-    /// Check if the IOSurface is currently in use
+    /// Check if the `IOSurface` is currently in use
     pub fn is_in_use(&self) -> bool {
         unsafe { crate::ffi::iosurface_is_in_use(self.0) }
     }
@@ -297,12 +301,12 @@ impl std::fmt::Debug for IOSurface {
     }
 }
 
-/// Extension trait for CVPixelBuffer to access IOSurface
+/// Extension trait for `CVPixelBuffer` to access `IOSurface`
 pub trait CVPixelBufferIOSurface {
-    /// Get the underlying IOSurface if the pixel buffer is backed by one
+    /// Get the underlying `IOSurface` if the pixel buffer is backed by one
     fn iosurface(&self) -> Option<IOSurface>;
     
-    /// Check if this pixel buffer is backed by an IOSurface
+    /// Check if this pixel buffer is backed by an `IOSurface`
     fn is_backed_by_iosurface(&self) -> bool;
 }
 

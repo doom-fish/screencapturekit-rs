@@ -4,7 +4,7 @@ use std::ffi::c_void;
 // MARK: - SCShareableContent
 extern "C" {
     /// Synchronous blocking call to get shareable content
-    /// Returns content pointer on success, or writes error to error_buffer
+    /// Returns content pointer on success, or writes error to `error_buffer`
     pub fn sc_shareable_content_get_sync(
         exclude_desktop_windows: bool,
         on_screen_windows_only: bool,

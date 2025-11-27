@@ -1,4 +1,4 @@
-//! SCScreenshotManager - Single-shot screenshot capture
+//! `SCScreenshotManager` - Single-shot screenshot capture
 //!
 //! Available on macOS 14.0+
 //! Provides high-quality screenshot capture without the overhead of setting up a stream.
@@ -51,7 +51,7 @@ extern "C" fn buffer_callback(
     }
 }
 
-/// CGImage wrapper for screenshots
+/// `CGImage` wrapper for screenshots
 ///
 /// Represents a Core Graphics image returned from screenshot capture.
 ///
@@ -168,7 +168,7 @@ unsafe impl Sync for CGImage {}
 
 /// Manager for capturing single screenshots
 ///
-/// Available on macOS 14.0+. Provides a simpler API than SCStream for one-time captures.
+/// Available on macOS 14.0+. Provides a simpler API than `SCStream` for one-time captures.
 ///
 /// # Examples
 ///
@@ -193,7 +193,7 @@ unsafe impl Sync for CGImage {}
 pub struct SCScreenshotManager;
 
 impl SCScreenshotManager {
-    /// Capture a single screenshot as a CGImage
+    /// Capture a single screenshot as a `CGImage`
     ///
     /// # Errors
     /// Returns an error if:
@@ -221,7 +221,7 @@ impl SCScreenshotManager {
             .map_err(|e| crate::utils::error::create_sc_error(&format!("Channel receive error: {e}")))?
     }
 
-    /// Capture a single screenshot as a CMSampleBuffer
+    /// Capture a single screenshot as a `CMSampleBuffer`
     ///
     /// Returns the sample buffer for advanced processing.
     ///

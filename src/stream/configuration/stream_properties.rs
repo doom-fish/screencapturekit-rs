@@ -2,7 +2,6 @@
 //!
 //! This module provides methods to configure stream identification and HDR capture settings.
 
-use crate::error::SCError;
 use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 use super::internal::SCStreamConfiguration;
 
@@ -31,10 +30,9 @@ impl SCStreamConfiguration {
     /// use screencapturekit::prelude::*;
     ///
     /// let config = SCStreamConfiguration::build()
-    ///     .set_stream_name(Some("MyApp-MainCapture"))?;
-    /// # Ok::<(), screencapturekit::error::SCError>(())
+    ///     .set_stream_name(Some("MyApp-MainCapture"));
     /// ```
-    pub fn set_stream_name(self, name: Option<&str>) -> Result<Self, SCError> {
+    pub fn set_stream_name(self, name: Option<&str>) -> Self {
         unsafe {
             if let Some(stream_name) = name {
                 if let Ok(c_name) = std::ffi::CString::new(stream_name) {
@@ -50,7 +48,7 @@ impl SCStreamConfiguration {
                 );
             }
         }
-        Ok(self)
+        self
     }
 
     /// Get the configured stream name
@@ -84,23 +82,19 @@ impl SCStreamConfiguration {
     /// use screencapturekit::stream::configuration::stream_properties::SCCaptureDynamicRange;
     ///
     /// let config = SCStreamConfiguration::build()
-    ///     .set_width(1920)?
-    ///     .set_height(1080)?
-    ///     .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay)?;
-    /// # Ok::<(), screencapturekit::error::SCError>(())
+    ///     .set_width(1920)
+    ///     .set_height(1080)
+    ///     .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
     /// ```
     #[cfg(feature = "macos_15_0")]
-    pub fn set_capture_dynamic_range(
-        self,
-        dynamic_range: SCCaptureDynamicRange,
-    ) -> Result<Self, SCError> {
+    pub fn set_capture_dynamic_range(self, dynamic_range: SCCaptureDynamicRange) -> Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_capture_dynamic_range(
                 self.as_ptr(),
                 dynamic_range as i32,
             );
         }
-        Ok(self)
+        self
     }
 
     /// Get the configured dynamic range mode (macOS 15.0+)
@@ -120,4 +114,3 @@ impl SCStreamConfiguration {
         }
     }
 }
-

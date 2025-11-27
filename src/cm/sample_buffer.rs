@@ -1,10 +1,10 @@
-//! CMSampleBuffer - Container for media samples
+//! `CMSampleBuffer` - Container for media samples
 
 use std::fmt;
 use super::ffi;
 use super::{CMTime, CMSampleTimingInfo, CVPixelBuffer, AudioBuffer, AudioBufferList, AudioBufferListRaw, CMBlockBuffer, CMFormatDescription, SCFrameStatus};
 
-/// Opaque handle to CMSampleBuffer
+/// Opaque handle to `CMSampleBuffer`
 #[repr(transparent)]
 #[derive(Debug)]
 pub struct CMSampleBuffer(*mut std::ffi::c_void);
@@ -52,6 +52,10 @@ impl CMSampleBuffer {
     /// * `image_buffer` - The pixel buffer containing the video frame
     /// * `presentation_time` - When the frame should be presented
     /// * `duration` - How long the frame should be displayed
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Media error code if the sample buffer creation fails.
     ///
     /// # Examples
     ///
@@ -258,6 +262,10 @@ impl CMSampleBuffer {
     }
 
     /// Set the output presentation timestamp
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Media error code if the operation fails.
     pub fn set_output_presentation_timestamp(&self, time: CMTime) -> Result<(), i32> {
         unsafe {
             let status = ffi::cm_sample_buffer_set_output_presentation_timestamp(
@@ -291,6 +299,10 @@ impl CMSampleBuffer {
     }
 
     /// Make the sample buffer data ready for access
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Media error code if the operation fails.
     pub fn make_data_ready(&self) -> Result<(), i32> {
         unsafe {
             let status = ffi::cm_sample_buffer_make_data_ready(self.0);
@@ -311,6 +323,10 @@ impl CMSampleBuffer {
     }
 
     /// Get sample timing info for a specific sample
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Media error code if the timing info cannot be retrieved.
     pub fn get_sample_timing_info(&self, index: usize) -> Result<CMSampleTimingInfo, i32> {
         unsafe {
             let mut timing_info = CMSampleTimingInfo {
@@ -343,6 +359,10 @@ impl CMSampleBuffer {
     }
 
     /// Get all sample timing info as a vector
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Media error code if any timing info cannot be retrieved.
     pub fn get_sample_timing_info_array(&self) -> Result<Vec<CMSampleTimingInfo>, i32> {
         let num_samples = self.get_num_samples();
         let mut result = Vec::with_capacity(num_samples);
@@ -353,6 +373,10 @@ impl CMSampleBuffer {
     }
 
     /// Invalidate the sample buffer
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Media error code if the invalidation fails.
     pub fn invalidate(&self) -> Result<(), i32> {
         unsafe {
             let status = ffi::cm_sample_buffer_invalidate(self.0);
@@ -365,6 +389,10 @@ impl CMSampleBuffer {
     }
 
     /// Create a copy with new timing information
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Media error code if the copy cannot be created.
     pub fn create_copy_with_new_timing(&self, timing_info: &[CMSampleTimingInfo]) -> Result<Self, i32> {
         unsafe {
             let mut new_buffer_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
@@ -383,6 +411,10 @@ impl CMSampleBuffer {
     }
 
     /// Copy PCM audio data into an audio buffer list
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Media error code if the copy operation fails.
     pub fn copy_pcm_data_into_audio_buffer_list(&self, frame_offset: i32, num_frames: i32, buffer_list: &mut AudioBufferList) -> Result<(), i32> {
         unsafe {
             let status = ffi::cm_sample_buffer_copy_pcm_data_into_audio_buffer_list(

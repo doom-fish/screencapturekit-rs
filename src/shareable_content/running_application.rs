@@ -3,7 +3,7 @@ use std::ffi::c_void;
 
 use crate::utils::ffi_string::{ffi_string_from_buffer_or_empty, DEFAULT_BUFFER_SIZE};
 
-/// Wrapper around SCRunningApplication from ScreenCaptureKit
+/// Wrapper around `SCRunningApplication` from `ScreenCaptureKit`
 ///
 /// Represents a running application that can be captured.
 ///
@@ -40,7 +40,7 @@ impl std::hash::Hash for SCRunningApplication {
     }
 }
 
-/// Raw pointer type for SCRunningApplication (for FFI compatibility)
+/// Raw pointer type for `SCRunningApplication` (for FFI compatibility)
 pub type SCRunningApplicationRef = *const c_void;
 
 impl SCRunningApplication {

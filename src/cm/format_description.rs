@@ -1,4 +1,4 @@
-//! CMFormatDescription - Media format description
+//! `CMFormatDescription` - Media format description
 
 #![allow(dead_code)]
 
@@ -57,9 +57,9 @@ pub mod codec_types {
     pub const HEVC_2: FourCharCode = FourCharCode::from_bytes(*b"hev1");
     /// JPEG ('jpeg')
     pub const JPEG: FourCharCode = FourCharCode::from_bytes(*b"jpeg");
-    /// Apple ProRes 422 ('apcn')
+    /// Apple `ProRes` 422 ('apcn')
     pub const PRORES_422: FourCharCode = FourCharCode::from_bytes(*b"apcn");
-    /// Apple ProRes 4444 ('ap4h')
+    /// Apple `ProRes` 4444 ('ap4h')
     pub const PRORES_4444: FourCharCode = FourCharCode::from_bytes(*b"ap4h");
     
     // Audio codecs
@@ -99,7 +99,7 @@ impl CMFormatDescription {
         unsafe { ffi::cm_format_description_get_media_type(self.0) }
     }
 
-    /// Get the media type as FourCharCode
+    /// Get the media type as `FourCharCode`
     pub fn media_type(&self) -> crate::utils::four_char_code::FourCharCode {
         crate::utils::four_char_code::FourCharCode::from(self.get_media_type())
     }
@@ -109,7 +109,7 @@ impl CMFormatDescription {
         unsafe { ffi::cm_format_description_get_media_subtype(self.0) }
     }
 
-    /// Get the media subtype as FourCharCode
+    /// Get the media subtype as `FourCharCode`
     pub fn media_subtype(&self) -> crate::utils::four_char_code::FourCharCode {
         crate::utils::four_char_code::FourCharCode::from(self.get_media_subtype())
     }
@@ -192,7 +192,7 @@ impl CMFormatDescription {
         self.media_subtype() == codec_types::LPCM
     }
 
-    /// Check if the codec is ProRes
+    /// Check if the codec is `ProRes`
     pub fn is_prores(&self) -> bool {
         let subtype = self.media_subtype();
         subtype == codec_types::PRORES_422 || subtype == codec_types::PRORES_4444

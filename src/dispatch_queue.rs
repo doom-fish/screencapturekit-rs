@@ -1,14 +1,14 @@
 //! Dispatch Queue wrapper for custom queue management
 //!
 //! This module provides a safe Rust wrapper around GCD (Grand Central Dispatch) queues
-//! that can be used with ScreenCaptureKit streams.
+//! that can be used with `ScreenCaptureKit` streams.
 
 use std::ffi::{c_void, CString};
 use std::fmt;
 
 /// Quality of Service levels for dispatch queues
 ///
-/// These QoS levels help the system prioritize work appropriately.
+/// These `QoS` levels help the system prioritize work appropriately.
 ///
 /// # Examples
 ///
@@ -23,20 +23,20 @@ use std::fmt;
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum DispatchQoS {
-    /// Background QoS - for maintenance or cleanup tasks
+    /// Background `QoS` - for maintenance or cleanup tasks
     Background = 0,
-    /// Utility QoS - for tasks that may take some time
+    /// Utility `QoS` - for tasks that may take some time
     Utility = 1,
-    /// Default QoS - standard priority
+    /// Default `QoS` - standard priority
     #[default]
     Default = 2,
-    /// User Initiated QoS - for tasks initiated by the user
+    /// User Initiated `QoS` - for tasks initiated by the user
     UserInitiated = 3,
-    /// User Interactive QoS - for tasks that affect the UI
+    /// User Interactive `QoS` - for tasks that affect the UI
     UserInteractive = 4,
 }
 
-/// A wrapper around GCD DispatchQueue
+/// A wrapper around GCD `DispatchQueue`
 ///
 /// This allows you to provide a custom dispatch queue for stream output handling
 /// instead of using the default queue.
@@ -56,7 +56,7 @@ unsafe impl Send for DispatchQueue {}
 unsafe impl Sync for DispatchQueue {}
 
 impl DispatchQueue {
-    /// Creates a new dispatch queue with the specified label and QoS
+    /// Creates a new dispatch queue with the specified label and `QoS`
     ///
     /// # Arguments
     ///

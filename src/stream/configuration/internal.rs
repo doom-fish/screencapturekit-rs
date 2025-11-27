@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::fmt;
 
-/// Opaque wrapper around SCStreamConfiguration
+/// Opaque wrapper around `SCStreamConfiguration`
 ///
 /// Configuration for a screen capture stream, including dimensions,
 /// pixel format, audio settings, and other capture parameters.
@@ -11,14 +11,12 @@ use std::fmt;
 /// ```
 /// use screencapturekit::stream::configuration::SCStreamConfiguration;
 ///
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let config = SCStreamConfiguration::build()
-///     .set_width(1920)?
-///     .set_height(1080)?;
-/// # Ok(())
-/// # }
+///     .set_width(1920)
+///     .set_height(1080);
 /// ```
 #[repr(transparent)]
+#[must_use]
 pub struct SCStreamConfiguration(*const c_void);
 
 impl PartialEq for SCStreamConfiguration {

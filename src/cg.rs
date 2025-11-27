@@ -1,11 +1,11 @@
 //! Core Graphics types for screen coordinates and dimensions
 //!
 //! This module provides Rust equivalents of Core Graphics types used in
-//! ScreenCaptureKit for representing screen coordinates, sizes, and rectangles.
+//! `ScreenCaptureKit` for representing screen coordinates, sizes, and rectangles.
 
 use std::fmt;
 
-/// CGRect representation
+/// `CGRect` representation
 ///
 /// Represents a rectangle with origin (x, y) and dimensions (width, height).
 ///
@@ -148,7 +148,7 @@ impl fmt::Display for CGRect {
     }
 }
 
-/// CGSize representation
+/// `CGSize` representation
 ///
 /// Represents a 2D size with width and height.
 ///
@@ -249,7 +249,7 @@ impl fmt::Display for CGSize {
     }
 }
 
-/// CGPoint representation
+/// `CGPoint` representation
 ///
 /// Represents a point in 2D space.
 ///
@@ -319,7 +319,7 @@ impl CGPoint {
         dx.hypot(dy)
     }
 
-    /// Calculate squared distance to another point (faster than distance_to)
+    /// Calculate squared distance to another point (faster than `distance_to`)
     pub const fn distance_squared_to(&self, other: &Self) -> f64 {
         let dx = self.x - other.x;
         let dy = self.y - other.y;
@@ -339,5 +339,5 @@ impl fmt::Display for CGPoint {
     }
 }
 
-/// CGDisplayID type alias
+/// `CGDisplayID` type alias
 pub type CGDisplayID = u32;

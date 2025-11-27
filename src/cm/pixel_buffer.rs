@@ -1,4 +1,4 @@
-//! CVPixelBuffer - Video pixel buffer
+//! `CVPixelBuffer` - Video pixel buffer
 
 use std::fmt;
 use super::ffi;
@@ -50,6 +50,10 @@ impl CVPixelBuffer {
     /// * `height` - Height of the pixel buffer in pixels
     /// * `pixel_format` - Pixel format type (e.g., 0x42475241 for BGRA)
     ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the pixel buffer creation fails.
+    ///
     /// # Examples
     ///
     /// ```
@@ -97,6 +101,10 @@ impl CVPixelBuffer {
     /// - `base_address` points to valid memory
     /// - Memory remains valid for the lifetime of the pixel buffer
     /// - `bytes_per_row` correctly represents the memory layout
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the pixel buffer creation fails.
     ///
     /// # Examples
     ///
@@ -163,6 +171,10 @@ impl CVPixelBuffer {
     ///
     /// This is useful for pixel buffers that have been created with extended pixels
     /// enabled, to ensure proper edge handling for effects and filters.
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the operation fails.
     pub fn fill_extended_pixels(&self) -> Result<(), i32> {
         unsafe {
             let status = ffi::cv_pixel_buffer_fill_extended_pixels(self.0);
@@ -182,6 +194,10 @@ impl CVPixelBuffer {
     /// - `plane_base_addresses` points to valid memory for each plane
     /// - Memory remains valid for the lifetime of the pixel buffer
     /// - All plane parameters correctly represent the memory layout
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the pixel buffer creation fails.
     pub unsafe fn create_with_planar_bytes(
         width: usize,
         height: usize,
@@ -218,7 +234,11 @@ impl CVPixelBuffer {
         }
     }
 
-    /// Create a pixel buffer from an IOSurface
+    /// Create a pixel buffer from an `IOSurface`
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the pixel buffer creation fails.
     pub fn create_with_io_surface(surface: &IOSurface) -> Result<Self, i32> {
         unsafe {
             let mut pixel_buffer_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
@@ -235,7 +255,7 @@ impl CVPixelBuffer {
         }
     }
 
-    /// Get the Core Foundation type ID for CVPixelBuffer
+    /// Get the Core Foundation type ID for `CVPixelBuffer`
     pub fn get_type_id() -> usize {
         unsafe { ffi::cv_pixel_buffer_get_type_id() }
     }
@@ -300,7 +320,7 @@ impl CVPixelBuffer {
         }
     }
 
-    /// Check if the pixel buffer is backed by an IOSurface
+    /// Check if the pixel buffer is backed by an `IOSurface`
     pub fn is_backed_by_io_surface(&self) -> bool {
         self.get_io_surface().is_some()
     }
@@ -345,6 +365,11 @@ impl CVPixelBuffer {
         unsafe { ffi::cv_pixel_buffer_get_bytes_per_row(self.0) }
     }
 
+    /// Lock the base address for raw access
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the lock operation fails.
     pub fn lock_raw(&self, flags: u32) -> Result<(), i32> {
         unsafe {
             let result = ffi::cv_pixel_buffer_lock_base_address(self.0, flags);
@@ -356,6 +381,11 @@ impl CVPixelBuffer {
         }
     }
 
+    /// Unlock the base address after raw access
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the unlock operation fails.
     pub fn unlock_raw(&self, flags: u32) -> Result<(), i32> {
         unsafe {
             let result = ffi::cv_pixel_buffer_unlock_base_address(self.0, flags);
@@ -385,6 +415,11 @@ impl CVPixelBuffer {
         }
     }
 
+    /// Lock the base address and return a guard for RAII-style access
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the lock operation fails.
     pub fn lock_base_address(&self, read_only: bool) -> Result<CVPixelBufferLockGuard<'_>, i32> {
         let flags = u32::from(read_only);
         self.lock_raw(flags)?;
@@ -392,7 +427,7 @@ impl CVPixelBuffer {
     }
 }
 
-/// RAII guard for locked CVPixelBuffer base address
+/// RAII guard for locked `CVPixelBuffer` base address
 pub struct CVPixelBufferLockGuard<'a> {
     buffer: &'a CVPixelBuffer,
     read_only: bool,
@@ -451,7 +486,7 @@ impl fmt::Display for CVPixelBuffer {
     }
 }
 
-/// Opaque handle to CVPixelBufferPool
+/// Opaque handle to `CVPixelBufferPool`
 #[repr(transparent)]
 #[derive(Debug)]
 pub struct CVPixelBufferPool(*mut std::ffi::c_void);
@@ -500,6 +535,10 @@ impl CVPixelBufferPool {
     /// * `height` - Height of pixel buffers in the pool
     /// * `pixel_format` - Pixel format type
     /// * `max_buffers` - Maximum number of buffers in the pool (0 for unlimited)
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the pool creation fails.
     pub fn create(
         width: usize,
         height: usize,
@@ -525,6 +564,10 @@ impl CVPixelBufferPool {
     }
 
     /// Create a pixel buffer from the pool
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the buffer creation fails.
     pub fn create_pixel_buffer(&self) -> Result<CVPixelBuffer, i32> {
         unsafe {
             let mut pixel_buffer_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
@@ -550,7 +593,7 @@ impl CVPixelBufferPool {
         }
     }
 
-    /// Get the Core Foundation type ID for CVPixelBufferPool
+    /// Get the Core Foundation type ID for `CVPixelBufferPool`
     pub fn get_type_id() -> usize {
         unsafe { ffi::cv_pixel_buffer_pool_get_type_id() }
     }
@@ -558,6 +601,10 @@ impl CVPixelBufferPool {
     /// Create a pixel buffer from the pool with auxiliary attributes
     ///
     /// This allows specifying additional attributes for the created buffer
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the buffer creation fails.
     pub fn create_pixel_buffer_with_aux_attributes(
         &self,
         aux_attributes: Option<&std::collections::HashMap<String, u32>>,
@@ -593,7 +640,7 @@ impl CVPixelBufferPool {
 
     /// Get the pool attributes
     ///
-    /// Returns the raw pointer to the CFDictionary containing pool attributes
+    /// Returns the raw pointer to the `CFDictionary` containing pool attributes
     pub fn get_attributes(&self) -> Option<*const std::ffi::c_void> {
         unsafe {
             let ptr = ffi::cv_pixel_buffer_pool_get_attributes(self.0);
@@ -607,7 +654,7 @@ impl CVPixelBufferPool {
 
     /// Get the pixel buffer attributes
     ///
-    /// Returns the raw pointer to the CFDictionary containing pixel buffer attributes
+    /// Returns the raw pointer to the `CFDictionary` containing pixel buffer attributes
     pub fn get_pixel_buffer_attributes(&self) -> Option<*const std::ffi::c_void> {
         unsafe {
             let ptr = ffi::cv_pixel_buffer_pool_get_pixel_buffer_attributes(self.0);

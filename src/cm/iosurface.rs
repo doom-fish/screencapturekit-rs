@@ -1,4 +1,4 @@
-//! IOSurface - Hardware-accelerated surface
+//! `IOSurface` - Hardware-accelerated surface
 
 use std::fmt;
 use super::ffi;

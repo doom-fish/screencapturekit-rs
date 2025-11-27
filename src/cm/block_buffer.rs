@@ -1,4 +1,4 @@
-//! CMBlockBuffer - Block of contiguous data
+//! `CMBlockBuffer` - Block of contiguous data
 
 use super::ffi;
 

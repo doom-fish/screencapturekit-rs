@@ -1,6 +1,6 @@
 //! # ScreenCaptureKit-rs
 //!
-//! Rust bindings for macOS ScreenCaptureKit framework.
+//! Rust bindings for macOS `ScreenCaptureKit` framework.
 //!
 //! This crate provides safe, idiomatic Rust bindings for capturing screen content,
 //! windows, and applications on macOS 12.3+.
@@ -23,13 +23,14 @@
 //! let display = &content.displays()[0];
 //!
 //! // Create filter and configuration
-//! let filter = SCContentFilter::build()
+//! let filter = SCContentFilter::builder()
 //!     .display(display)
 //!     .exclude_windows(&[])
 //!     .build();
-//! let config = SCStreamConfiguration::build()
-//!     .set_width(1920)?
-//!     .set_height(1080)?;
+//! let config = SCStreamConfiguration::builder()
+//!     .width(1920)
+//!     .height(1080)
+//!     .build();
 //!
 //! // Create and start stream
 //! let mut stream = SCStream::new(&filter, &config);
@@ -39,8 +40,8 @@
 //!
 //! ## Module Organization
 //!
-//! - [`cm`] - Core Media types (CMSampleBuffer, CMTime, etc.)
-//! - [`cg`] - Core Graphics types (CGRect, CGSize, etc.)
+//! - [`cm`] - Core Media types (`CMSampleBuffer`, `CMTime`, etc.)
+//! - [`cg`] - Core Graphics types (`CGRect`, `CGSize`, etc.)
 //! - [`stream`] - Stream configuration and management
 //! - [`shareable_content`] - Display and window information
 //! - [`output`] - Frame buffer and pixel access
@@ -49,9 +50,6 @@
 
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 #![allow(clippy::must_use_candidate)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::doc_markdown)]
 #![allow(clippy::missing_const_for_fn)]
 
 pub mod cg;

@@ -38,7 +38,6 @@ impl SCStreamConfiguration {
     
     /// Creates a new stream configuration builder (deprecated alias)
     #[deprecated(since = "1.1.0", note = "Use `builder()` instead")]
-    #[must_use]
     pub fn build() -> Self {
         Self::internal_init()
     }
