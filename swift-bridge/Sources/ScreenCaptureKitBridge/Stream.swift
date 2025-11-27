@@ -203,11 +203,15 @@ public func addStreamOutput(
     if type == 0 {
         outputType = .screen
     } else if type == 2 {
-        if #available(macOS 15.0, *) {
-            outputType = .microphone
-        } else {
-            outputType = .audio  // Fallback for older macOS
-        }
+        #if compiler(>=6.0)
+            if #available(macOS 15.0, *) {
+                outputType = .microphone
+            } else {
+                outputType = .audio
+            }
+            #else
+            outputType = .audio
+            #endif
     } else {
         outputType = .audio
     }
@@ -238,11 +242,15 @@ public func addStreamOutputWithQueue(
     if type == 0 {
         outputType = .screen
     } else if type == 2 {
-        if #available(macOS 15.0, *) {
-            outputType = .microphone
-        } else {
-            outputType = .audio  // Fallback for older macOS
-        }
+        #if compiler(>=6.0)
+            if #available(macOS 15.0, *) {
+                outputType = .microphone
+            } else {
+                outputType = .audio
+            }
+            #else
+            outputType = .audio
+            #endif
     } else {
         outputType = .audio
     }
@@ -274,11 +282,15 @@ public func removeStreamOutput(
     if type == 0 {
         outputType = .screen
     } else if type == 2 {
-        if #available(macOS 15.0, *) {
-            outputType = .microphone
-        } else {
-            outputType = .audio  // Fallback for older macOS
-        }
+        #if compiler(>=6.0)
+            if #available(macOS 15.0, *) {
+                outputType = .microphone
+            } else {
+                outputType = .audio
+            }
+            #else
+            outputType = .audio
+            #endif
     } else {
         outputType = .audio
     }

@@ -308,6 +308,7 @@ public func getStreamConfigurationCapturesShadowsOnly(_ config: OpaquePointer) -
     return false
 }
 
+#if compiler(>=6.0)
 @_cdecl("sc_stream_configuration_set_captures_microphone")
 public func setStreamConfigurationCapturesMicrophone(_ config: OpaquePointer, _ value: Bool) {
     let cfg: SCStreamConfiguration = unretained(config)
@@ -315,7 +316,13 @@ public func setStreamConfigurationCapturesMicrophone(_ config: OpaquePointer, _ 
         cfg.captureMicrophone = value
     }
 }
+#else
+@_cdecl("sc_stream_configuration_set_captures_microphone")
+public func setStreamConfigurationCapturesMicrophone(_ config: OpaquePointer, _ value: Bool) {
+}
+#endif
 
+#if compiler(>=6.0)
 @_cdecl("sc_stream_configuration_get_captures_microphone")
 public func getStreamConfigurationCapturesMicrophone(_ config: OpaquePointer) -> Bool {
     let cfg: SCStreamConfiguration = unretained(config)
@@ -324,6 +331,12 @@ public func getStreamConfigurationCapturesMicrophone(_ config: OpaquePointer) ->
     }
     return false
 }
+#else
+@_cdecl("sc_stream_configuration_get_captures_microphone")
+public func getStreamConfigurationCapturesMicrophone(_ config: OpaquePointer) -> Bool {
+    return false
+}
+#endif
 
 @_cdecl("sc_stream_configuration_set_excludes_current_process_audio")
 public func setStreamConfigurationExcludesCurrentProcessAudio(_ config: OpaquePointer, _ value: Bool) {
@@ -337,6 +350,7 @@ public func getStreamConfigurationExcludesCurrentProcessAudio(_ config: OpaquePo
     return cfg.excludesCurrentProcessAudio
 }
 
+#if compiler(>=6.0)
 @_cdecl("sc_stream_configuration_set_microphone_capture_device_id")
 public func setStreamConfigurationMicrophoneCaptureDeviceId(_ config: OpaquePointer, _ deviceId: UnsafePointer<CChar>?) {
     let cfg: SCStreamConfiguration = unretained(config)
@@ -348,7 +362,13 @@ public func setStreamConfigurationMicrophoneCaptureDeviceId(_ config: OpaquePoin
         }
     }
 }
+#else
+@_cdecl("sc_stream_configuration_set_microphone_capture_device_id")
+public func setStreamConfigurationMicrophoneCaptureDeviceId(_ config: OpaquePointer, _ deviceId: UnsafePointer<CChar>?) {
+}
+#endif
 
+#if compiler(>=6.0)
 @_cdecl("sc_stream_configuration_get_microphone_capture_device_id")
 public func getStreamConfigurationMicrophoneCaptureDeviceId(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
     let cfg: SCStreamConfiguration = unretained(config)
@@ -363,6 +383,12 @@ public func getStreamConfigurationMicrophoneCaptureDeviceId(_ config: OpaquePoin
     }
     return false
 }
+#else
+@_cdecl("sc_stream_configuration_get_microphone_capture_device_id")
+public func getStreamConfigurationMicrophoneCaptureDeviceId(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+    return false
+}
+#endif
 
 @_cdecl("sc_stream_configuration_set_stream_name")
 public func setStreamConfigurationStreamName(_ config: OpaquePointer, _ name: UnsafePointer<CChar>?) {
