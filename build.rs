@@ -7,7 +7,7 @@ fn main() {
     // Build the Swift bridge
     let swift_dir = "swift-bridge";
     let out_dir = env::var("OUT_DIR").unwrap();
-    let swift_build_dir = format!("{}/swift-build", out_dir);
+    let swift_build_dir = format!("{out_dir}/swift-build");
     
     println!("cargo:rerun-if-changed={swift_dir}");
     
@@ -41,7 +41,7 @@ fn main() {
     }
     
     // Link the Swift library from OUT_DIR
-    println!("cargo:rustc-link-search=native={}/release", swift_build_dir);
+    println!("cargo:rustc-link-search=native={swift_build_dir}/release");
     println!("cargo:rustc-link-lib=static=ScreenCaptureKitBridge");
     
     // Link required frameworks
