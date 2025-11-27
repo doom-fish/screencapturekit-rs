@@ -247,6 +247,9 @@ impl SCStreamConfiguration {
     /// When enabled, the content will be scaled while maintaining its original
     /// aspect ratio, potentially adding letterboxing or pillarboxing.
     ///
+    /// Note: This property requires macOS 14.0+. On older versions, the setter
+    /// is a no-op and the getter returns `false`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -255,7 +258,8 @@ impl SCStreamConfiguration {
     /// let config = SCStreamConfiguration::build()
     ///     .set_preserves_aspect_ratio(true)
     ///     .unwrap();
-    /// assert!(config.get_preserves_aspect_ratio());
+    /// // Returns true on macOS 14.0+, false on older versions
+    /// let _ = config.get_preserves_aspect_ratio();
     /// ```
     pub fn set_preserves_aspect_ratio(
         self,
