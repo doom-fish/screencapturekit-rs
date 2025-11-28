@@ -6,28 +6,30 @@ use screencapturekit::stream::configuration::{PixelFormat, SCStreamConfiguration
 
 #[test]
 fn test_default_configuration() {
-    let _config = SCStreamConfiguration::build();
+    let _config = SCStreamConfiguration::default();
     // Just verify it doesn't crash
 }
 
 #[test]
 fn test_set_dimensions() {
-    let result = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(1920)
-        .and_then(|c| c.set_height(1080));
+        .set_height(1080);
     
-    assert!(result.is_ok());
+    assert_eq!(config.get_width(), 1920);
+    assert_eq!(config.get_height(), 1080);
 }
 
 #[test]
 fn test_set_dimensions_chaining() {
-    let result = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(1920)
-        .and_then(|c| c.set_height(1080))
-        .and_then(|c| c.set_width(1280))
-        .and_then(|c| c.set_height(720));
+        .set_height(1080)
+        .set_width(1280)
+        .set_height(720);
     
-    assert!(result.is_ok());
+    assert_eq!(config.get_width(), 1280);
+    assert_eq!(config.get_height(), 720);
 }
 
 #[test]
@@ -40,58 +42,53 @@ fn test_set_pixel_format() {
     ];
     
     for format in formats {
-        let result = SCStreamConfiguration::build().set_pixel_format(format);
-        assert!(result.is_ok(), "Failed to set pixel format {format:?}");
+        let _config = SCStreamConfiguration::default().set_pixel_format(format);
+        // Just verify it doesn't crash
     }
 }
 
 #[test]
 fn test_audio_configuration() {
-    let result = SCStreamConfiguration::build()
+    let _config = SCStreamConfiguration::default()
         .set_captures_audio(true);
-    
-    assert!(result.is_ok());
+    // Just verify it doesn't crash
 }
 
 #[test]
 fn test_audio_sample_rate() {
-    let result = SCStreamConfiguration::build()
+    let _config = SCStreamConfiguration::default()
         .set_captures_audio(true)
-        .and_then(|c| c.set_sample_rate(48000));
-    
-    assert!(result.is_ok());
+        .set_sample_rate(48000);
+    // Just verify it doesn't crash
 }
 
 #[test]
 fn test_audio_channel_count() {
-    let result = SCStreamConfiguration::build()
+    let _config = SCStreamConfiguration::default()
         .set_captures_audio(true)
-        .and_then(|c| c.set_channel_count(2));
-    
-    assert!(result.is_ok());
+        .set_channel_count(2);
+    // Just verify it doesn't crash
 }
 
 #[test]
 fn test_complete_audio_configuration() {
-    let result = SCStreamConfiguration::build()
+    let _config = SCStreamConfiguration::default()
         .set_captures_audio(true)
-        .and_then(|c| c.set_sample_rate(48000))
-        .and_then(|c| c.set_channel_count(2));
-    
-    assert!(result.is_ok());
+        .set_sample_rate(48000)
+        .set_channel_count(2);
+    // Just verify it doesn't crash
 }
 
 #[test]
 fn test_complete_video_audio_configuration() {
-    let result = SCStreamConfiguration::build()
+    let _config = SCStreamConfiguration::default()
         .set_width(1920)
-        .and_then(|c| c.set_height(1080))
-        .and_then(|c| c.set_pixel_format(PixelFormat::BGRA))
-        .and_then(|c| c.set_captures_audio(true))
-        .and_then(|c| c.set_sample_rate(48000))
-        .and_then(|c| c.set_channel_count(2));
-    
-    assert!(result.is_ok());
+        .set_height(1080)
+        .set_pixel_format(PixelFormat::BGRA)
+        .set_captures_audio(true)
+        .set_sample_rate(48000)
+        .set_channel_count(2);
+    // Just verify it doesn't crash
 }
 
 #[test]
@@ -105,11 +102,12 @@ fn test_various_resolutions() {
     ];
     
     for (width, height) in resolutions {
-        let result = SCStreamConfiguration::build()
+        let config = SCStreamConfiguration::default()
             .set_width(width)
-            .and_then(|c| c.set_height(height));
+            .set_height(height);
         
-        assert!(result.is_ok(), "Failed to set resolution {width}x{height}");
+        assert_eq!(config.get_width(), width, "Width mismatch for {width}x{height}");
+        assert_eq!(config.get_height(), height, "Height mismatch for {width}x{height}");
     }
 }
 
@@ -118,11 +116,10 @@ fn test_common_sample_rates() {
     let sample_rates = [44100, 48000, 96000];
     
     for rate in sample_rates {
-        let result = SCStreamConfiguration::build()
+        let _config = SCStreamConfiguration::default()
             .set_captures_audio(true)
-            .and_then(|c| c.set_sample_rate(rate));
-        
-        assert!(result.is_ok(), "Failed to set sample rate {rate}");
+            .set_sample_rate(rate);
+        // Just verify it doesn't crash
     }
 }
 
@@ -131,11 +128,10 @@ fn test_channel_counts() {
     let channels = [1, 2];
     
     for count in channels {
-        let result = SCStreamConfiguration::build()
+        let _config = SCStreamConfiguration::default()
             .set_captures_audio(true)
-            .and_then(|c| c.set_channel_count(count));
-        
-        assert!(result.is_ok(), "Failed to set channel count {count}");
+            .set_channel_count(count);
+        // Just verify it doesn't crash
     }
 }
 
@@ -158,61 +154,58 @@ fn test_pixel_format_in_collections() {
 }
 
 #[test]
-fn test_configuration_error_handling() {
-    // Test that configuration methods return Result types
-    let result = SCStreamConfiguration::build().set_width(1920);
-    assert!(result.is_ok());
+fn test_configuration_chaining() {
+    // Test that configuration methods can be chained
+    let config = SCStreamConfiguration::default().set_width(1920);
+    assert_eq!(config.get_width(), 1920);
 }
 
 #[test]
 fn test_multiple_configurations() {
     // Test creating multiple configurations
-    let _config1 = SCStreamConfiguration::build();
-    let _config2 = SCStreamConfiguration::build();
-    let _config3 = SCStreamConfiguration::build();
+    let _config1 = SCStreamConfiguration::default();
+    let _config2 = SCStreamConfiguration::default();
+    let _config3 = SCStreamConfiguration::default();
     
     // Should not crash or leak memory
 }
 
 #[test]
 fn test_configuration_modification_order() {
-    // Test that order of modifications doesn't matter
-    let result1 = SCStreamConfiguration::build()
+    // Test that order of modifications doesn't matter for final result
+    let config1 = SCStreamConfiguration::default()
         .set_width(1920)
-        .and_then(|c| c.set_height(1080));
+        .set_height(1080);
     
-    let result2 = SCStreamConfiguration::build()
+    let config2 = SCStreamConfiguration::default()
         .set_height(1080)
-        .and_then(|c| c.set_width(1920));
+        .set_width(1920);
     
-    assert!(result1.is_ok());
-    assert!(result2.is_ok());
+    assert_eq!(config1.get_width(), config2.get_width());
+    assert_eq!(config1.get_height(), config2.get_height());
 }
 
 #[test]
 fn test_audio_without_video() {
-    let result = SCStreamConfiguration::build()
+    let _config = SCStreamConfiguration::default()
         .set_captures_audio(true)
-        .and_then(|c| c.set_sample_rate(48000));
-    
-    assert!(result.is_ok());
+        .set_sample_rate(48000);
+    // Just verify it doesn't crash
 }
 
 #[test]
 fn test_video_without_audio() {
-    let result = SCStreamConfiguration::build()
+    let _config = SCStreamConfiguration::default()
         .set_width(1920)
-        .and_then(|c| c.set_height(1080))
-        .and_then(|c| c.set_captures_audio(false));
-    
-    assert!(result.is_ok());
+        .set_height(1080)
+        .set_captures_audio(false);
+    // Just verify it doesn't crash
 }
 
 #[test]
 fn test_stream_name() {
-    let config = SCStreamConfiguration::build()
-        .set_stream_name(Some("test-stream"))
-        .unwrap();
+    let config = SCStreamConfiguration::default()
+        .set_stream_name(Some("test-stream"));
     
     // The getter may not work on all macOS versions
     let _ = config.get_stream_name();
@@ -223,9 +216,8 @@ fn test_stream_name() {
 fn test_dynamic_range() {
     use screencapturekit::stream::configuration::SCCaptureDynamicRange;
     
-    let config = SCStreamConfiguration::build()
-        .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay)
-        .unwrap();
+    let config = SCStreamConfiguration::default()
+        .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
     
     // May return SDR on macOS < 15.0
     let _ = config.get_capture_dynamic_range();
@@ -242,21 +234,19 @@ fn test_queue_depth_and_frame_interval() {
         epoch: 1,
     };
     let queue_depth = 10;
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_queue_depth(queue_depth)
-        .unwrap()
-        .set_minimum_frame_interval(&cm_time)
-        .unwrap();
+        .set_minimum_frame_interval(&cm_time);
 
-    assert!(config.get_queue_depth() == queue_depth);
+    assert_eq!(config.get_queue_depth(), queue_depth);
 
     let acquired_cm_time = config.get_minimum_frame_interval();
     // Note: minimum_frame_interval may not be supported on all macOS versions
     // If supported, values should match
     if acquired_cm_time.is_valid() {
-        assert!(acquired_cm_time.value == cm_time.value, 
+        assert_eq!(acquired_cm_time.value, cm_time.value, 
             "Expected value {}, got {}", cm_time.value, acquired_cm_time.value);
-        assert!(acquired_cm_time.timescale == cm_time.timescale,
+        assert_eq!(acquired_cm_time.timescale, cm_time.timescale,
             "Expected timescale {}, got {}", cm_time.timescale, acquired_cm_time.timescale);
     }
 }
@@ -269,12 +259,12 @@ fn test_advanced_setters() {
     // These advanced properties require macOS 13.0-14.2+
     // The test verifies that setters don't error, but getters may not
     // return the set values on older macOS versions
-    let config = SCStreamConfiguration::build()
-        .set_ignore_fraction_of_screen(0.1).unwrap()
-        .set_ignores_shadows_single_window(true).unwrap()
-        .set_should_be_opaque(true).unwrap()
-        .set_includes_child_windows(true).unwrap()
-        .set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always).unwrap();
+    let config = SCStreamConfiguration::default()
+        .set_ignore_fraction_of_screen(0.1)
+        .set_ignores_shadows_single_window(true)
+        .set_should_be_opaque(true)
+        .set_includes_child_windows(true)
+        .set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always);
 
     // Verify setters worked without errors
     // Note: getters may return default values on older macOS versions
@@ -287,9 +277,23 @@ fn test_advanced_setters() {
 
 #[test]
 fn test_shows_cursor() {
-    let config = SCStreamConfiguration::default();
-    let config = config
-        .set_shows_cursor(true)
-        .expect("Failed to set showsCursor");
+    let config = SCStreamConfiguration::default()
+        .set_shows_cursor(true);
     assert!(config.get_shows_cursor());
+}
+
+#[test]
+fn test_builder_pattern() {
+    // Test the new builder pattern
+    let config = SCStreamConfiguration::builder()
+        .width(1920)
+        .height(1080)
+        .pixel_format(PixelFormat::BGRA)
+        .captures_audio(true)
+        .sample_rate(48000)
+        .channel_count(2)
+        .build();
+    
+    assert_eq!(config.get_width(), 1920);
+    assert_eq!(config.get_height(), 1080);
 }

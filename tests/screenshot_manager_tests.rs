@@ -18,16 +18,14 @@ fn test_capture_image() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(640)
-        .unwrap()
-        .set_height(480)
-        .unwrap();
+        .set_height(480);
 
     let result = SCScreenshotManager::capture_image(&filter, &config);
 
@@ -43,16 +41,14 @@ fn test_capture_sample_buffer() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(640)
-        .unwrap()
-        .set_height(480)
-        .unwrap();
+        .set_height(480);
 
     let result = SCScreenshotManager::capture_sample_buffer(&filter, &config);
     // Note: May fail if screen recording permission not granted
@@ -77,16 +73,14 @@ fn test_cgimage_rgba_data() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(100)
-        .unwrap()
-        .set_height(100)
-        .unwrap();
+        .set_height(100);
 
     if let Ok(image) = SCScreenshotManager::capture_image(&filter, &config) {
         if let Ok(data) = image.get_rgba_data() {

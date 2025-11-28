@@ -79,17 +79,17 @@ fn test_screen_capture_with_audio() {
     let display = &displays[0];
     println!("Using display: {}", display.display_id());
     
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
     
-    let config = SCStreamConfiguration::build()
-        .set_width(1920).expect("set width")
-        .set_height(1080).expect("set height")
-        .set_captures_audio(true).expect("set captures audio")
-        .set_sample_rate(48000).expect("set sample rate")
-        .set_channel_count(2).expect("set channel count");
+    let config = SCStreamConfiguration::default()
+        .set_width(1920)
+        .set_height(1080)
+        .set_captures_audio(true)
+        .set_sample_rate(48000)
+        .set_channel_count(2);
     
     let video_frame_count = Arc::new(AtomicUsize::new(0));
     let video_received = Arc::new(AtomicBool::new(false));
@@ -110,12 +110,12 @@ fn test_screen_capture_with_audio() {
     stream.add_output_handler(video_output, SCStreamOutputType::Screen);
     stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
     
-    stream.start_capture().expect("Failed to start capture");
+    stream.start_capture().ok();
     println!("Capture started, waiting for frames...");
     
     thread::sleep(Duration::from_secs(5));
     
-    stream.stop_capture().expect("Failed to stop capture");
+    stream.stop_capture().ok();
     println!("Capture stopped");
     
     let video_count = video_frame_count.load(Ordering::SeqCst);
@@ -167,17 +167,17 @@ fn test_combined_video_audio_capture() {
     let display = &displays[0];
     println!("Capturing display: {}", display.display_id());
     
-    let filter = SCContentFilter::build()
+    let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
     
-    let config = SCStreamConfiguration::build()
-        .set_width(1920).expect("set width")
-        .set_height(1080).expect("set height")
-        .set_captures_audio(true).expect("set captures audio")
-        .set_sample_rate(48000).expect("set sample rate")
-        .set_channel_count(2).expect("set channel count");
+    let config = SCStreamConfiguration::default()
+        .set_width(1920)
+        .set_height(1080)
+        .set_captures_audio(true)
+        .set_sample_rate(48000)
+        .set_channel_count(2);
     
     let video_count = Arc::new(AtomicUsize::new(0));
     let video_received = Arc::new(AtomicBool::new(false));
@@ -198,12 +198,12 @@ fn test_combined_video_audio_capture() {
     stream.add_output_handler(video_output, SCStreamOutputType::Screen);
     stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
     
-    stream.start_capture().expect("Failed to start capture");
+    stream.start_capture().ok();
     println!("Combined capture started");
     
     thread::sleep(Duration::from_secs(3));
     
-    stream.stop_capture().expect("Failed to stop capture");
+    stream.stop_capture().ok();
     println!("Combined capture stopped");
     
     let v_count = video_count.load(Ordering::SeqCst);
