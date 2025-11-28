@@ -1,6 +1,13 @@
 //! Swift FFI bridge to `ScreenCaptureKit`
 use std::ffi::c_void;
 
+// MARK: - CoreGraphics Initialization
+extern "C" {
+    /// Force CoreGraphics initialization by calling CGMainDisplayID
+    /// This prevents CGS_REQUIRE_INIT crashes on headless systems
+    pub fn sc_initialize_core_graphics();
+}
+
 // MARK: - SCShareableContent
 extern "C" {
     /// Synchronous blocking call to get shareable content

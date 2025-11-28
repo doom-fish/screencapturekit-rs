@@ -4,13 +4,7 @@ import CoreGraphics
 import Foundation
 import ScreenCaptureKit
 
-// MARK: - CoreGraphics Initialization
 
-/// Force CoreGraphics initialization by calling CGMainDisplayID
-/// This prevents CGS_REQUIRE_INIT crashes on headless systems
-private func ensureCoreGraphicsInitialized() {
-    _ = CGMainDisplayID()
-}
 
 // MARK: - Thread-safe result holder
 
@@ -43,7 +37,7 @@ public func getShareableContentSync(
     errorBufferSize: Int
 ) -> OpaquePointer? {
     // Force CoreGraphics initialization
-    ensureCoreGraphicsInitialized()
+    initializeCoreGraphics()
     
     let semaphore = DispatchSemaphore(value: 0)
     let holder = ResultHolder<SCShareableContent>()

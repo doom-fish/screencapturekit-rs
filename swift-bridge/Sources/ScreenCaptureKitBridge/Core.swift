@@ -1,6 +1,17 @@
 // Core memory management utilities for the Swift bridge
 
+import CoreGraphics
 import Foundation
+
+// MARK: - CoreGraphics Initialization
+
+/// Force CoreGraphics initialization by calling CGMainDisplayID
+/// This prevents CGS_REQUIRE_INIT crashes on headless systems
+/// Made public so it can be called from Rust FFI
+@_cdecl("sc_initialize_core_graphics")
+public func initializeCoreGraphics() {
+    _ = CGMainDisplayID()
+}
 
 // MARK: - Error Types
 
