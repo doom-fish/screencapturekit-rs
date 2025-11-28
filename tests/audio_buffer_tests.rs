@@ -1,4 +1,4 @@
-//! AudioBuffer and AudioBufferList tests
+//! `AudioBuffer` and `AudioBufferList` tests
 
 use screencapturekit::cm::AudioBuffer;
 

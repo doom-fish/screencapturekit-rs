@@ -53,6 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let file = std::fs::File::create(filename)?;
     let buf_writer = std::io::BufWriter::new(file);
+    #[allow(clippy::cast_possible_truncation)]
     let mut encoder = png::Encoder::new(buf_writer, width as u32, height as u32);
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);

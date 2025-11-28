@@ -10,7 +10,7 @@ use screencapturekit::stream::content_filter::SCContentFilter;
 #[test]
 fn test_screenshot_manager_type() {
     // Just verify the type exists and can be referenced
-    let _manager = SCScreenshotManager;
+    let _ = SCScreenshotManager;
 }
 
 #[test]
@@ -52,9 +52,7 @@ fn test_capture_sample_buffer() {
 
     let result = SCScreenshotManager::capture_sample_buffer(&filter, &config);
     // Note: May fail if screen recording permission not granted
-    if result.is_ok() {
-        // If we got a sample buffer, it should be valid
-        let buffer = result.unwrap();
+    if let Ok(buffer) = result {
         // The buffer should have a presentation timestamp
         let _pts = buffer.get_presentation_timestamp();
     }

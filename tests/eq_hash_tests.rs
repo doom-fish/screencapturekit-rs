@@ -2,6 +2,8 @@
 //!
 //! Tests all types that implement these traits to ensure correctness.
 
+#![allow(clippy::similar_names)]
+
 use std::collections::{HashMap, HashSet};
 use screencapturekit::prelude::*;
 use screencapturekit::{

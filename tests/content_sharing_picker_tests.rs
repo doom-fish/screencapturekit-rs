@@ -48,9 +48,9 @@ fn test_picker_configuration_lifecycle() {
     for i in 0..3 {
         let config = SCContentSharingPickerConfiguration::new();
         assert!(!config.as_ptr().is_null());
-        println!("✓ Configuration {} created", i);
+        println!("✓ Configuration {i} created");
         drop(config);
-        println!("✓ Configuration {} dropped", i);
+        println!("✓ Configuration {i} dropped");
     }
 }
 

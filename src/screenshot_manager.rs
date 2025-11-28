@@ -231,6 +231,9 @@ impl SCScreenshotManager {
     /// - The system is not macOS 14.0+
     /// - Screen recording permission is not granted
     /// - The capture fails for any reason
+    ///
+    /// # Panics
+    /// Panics if the internal mutex is poisoned.
     pub fn capture_image(
         content_filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
@@ -269,6 +272,9 @@ impl SCScreenshotManager {
     /// - The system is not macOS 14.0+
     /// - Screen recording permission is not granted
     /// - The capture fails for any reason
+    ///
+    /// # Panics
+    /// Panics if the internal mutex is poisoned.
     pub fn capture_sample_buffer(
         content_filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
