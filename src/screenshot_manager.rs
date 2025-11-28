@@ -6,48 +6,22 @@
 use crate::error::SCError;
 use crate::stream::configuration::SCStreamConfiguration;
 use crate::stream::content_filter::SCContentFilter;
+use crate::utils::sync_completion::{error_from_cstr, SyncCompletion};
 use std::ffi::c_void;
-use std::sync::{Arc, Condvar, Mutex};
-
-/// Shared state for synchronous capture
-struct SyncCaptureState<T> {
-    result: Option<Result<T, SCError>>,
-}
-
-/// Holder for state + condvar
-struct SyncCapture<T> {
-    state: Mutex<SyncCaptureState<T>>,
-    condvar: Condvar,
-}
 
 extern "C" fn image_callback(
     image_ptr: *const c_void,
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    let capture = unsafe { Arc::from_raw(user_data.cast::<SyncCapture<CGImage>>()) };
-
-    let result = if !error_ptr.is_null() {
-        let error_msg = unsafe {
-            std::ffi::CStr::from_ptr(error_ptr)
-                .to_string_lossy()
-                .into_owned()
-        };
-        Err(crate::utils::error::create_sc_error(&error_msg))
+    if !error_ptr.is_null() {
+        let error = unsafe { error_from_cstr(error_ptr) };
+        unsafe { SyncCompletion::<CGImage>::complete_err(user_data, error) };
     } else if !image_ptr.is_null() {
-        Ok(CGImage::from_ptr(image_ptr))
+        unsafe { SyncCompletion::complete_ok(user_data, CGImage::from_ptr(image_ptr)) };
     } else {
-        Err(crate::utils::error::create_sc_error("Unknown error"))
-    };
-
-    {
-        let mut state = capture.state.lock().unwrap();
-        state.result = Some(result);
+        unsafe { SyncCompletion::<CGImage>::complete_err(user_data, "Unknown error".to_string()) };
     }
-    capture.condvar.notify_one();
-
-    // Release our reference - the caller still holds one
-    drop(capture);
 }
 
 extern "C" fn buffer_callback(
@@ -55,31 +29,20 @@ extern "C" fn buffer_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    let capture =
-        unsafe { Arc::from_raw(user_data.cast::<SyncCapture<crate::cm::CMSampleBuffer>>()) };
-
-    let result = if !error_ptr.is_null() {
-        let error_msg = unsafe {
-            std::ffi::CStr::from_ptr(error_ptr)
-                .to_string_lossy()
-                .into_owned()
-        };
-        Err(crate::utils::error::create_sc_error(&error_msg))
+    if !error_ptr.is_null() {
+        let error = unsafe { error_from_cstr(error_ptr) };
+        unsafe { SyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(user_data, error) };
     } else if !buffer_ptr.is_null() {
         let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(buffer_ptr.cast_mut()) };
-        Ok(buffer)
+        unsafe { SyncCompletion::complete_ok(user_data, buffer) };
     } else {
-        Err(crate::utils::error::create_sc_error("Unknown error"))
-    };
-
-    {
-        let mut state = capture.state.lock().unwrap();
-        state.result = Some(result);
+        unsafe {
+            SyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(
+                user_data,
+                "Unknown error".to_string(),
+            );
+        };
     }
-    capture.condvar.notify_one();
-
-    // Release our reference - the caller still holds one
-    drop(capture);
 }
 
 /// `CGImage` wrapper for screenshots
@@ -239,29 +202,20 @@ impl SCScreenshotManager {
         content_filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
     ) -> Result<CGImage, SCError> {
-        let capture = Arc::new(SyncCapture {
-            state: Mutex::new(SyncCaptureState { result: None }),
-            condvar: Condvar::new(),
-        });
-
-        let user_data = Arc::into_raw(capture.clone()).cast_mut().cast::<c_void>();
+        let (completion, context) = SyncCompletion::<CGImage>::new();
 
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_image(
                 content_filter.as_ptr(),
                 configuration.as_ptr(),
                 image_callback,
-                user_data,
+                context,
             );
         }
 
-        // Wait for callback
-        let mut state = capture.state.lock().unwrap();
-        while state.result.is_none() {
-            state = capture.condvar.wait(state).unwrap();
-        }
-
-        state.result.take().unwrap()
+        completion
+            .wait()
+            .map_err(SCError::ScreenshotError)
     }
 
     /// Capture a single screenshot as a `CMSampleBuffer`
@@ -280,28 +234,19 @@ impl SCScreenshotManager {
         content_filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
     ) -> Result<crate::cm::CMSampleBuffer, SCError> {
-        let capture = Arc::new(SyncCapture {
-            state: Mutex::new(SyncCaptureState { result: None }),
-            condvar: Condvar::new(),
-        });
-
-        let user_data = Arc::into_raw(capture.clone()).cast_mut().cast::<c_void>();
+        let (completion, context) = SyncCompletion::<crate::cm::CMSampleBuffer>::new();
 
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_sample_buffer(
                 content_filter.as_ptr(),
                 configuration.as_ptr(),
                 buffer_callback,
-                user_data,
+                context,
             );
         }
 
-        // Wait for callback
-        let mut state = capture.state.lock().unwrap();
-        while state.result.is_none() {
-            state = capture.condvar.wait(state).unwrap();
-        }
-
-        state.result.take().unwrap()
+        completion
+            .wait()
+            .map_err(SCError::ScreenshotError)
     }
 }
