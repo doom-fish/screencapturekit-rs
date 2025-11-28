@@ -2,6 +2,7 @@
 
 import Foundation
 import ScreenCaptureKit
+import AppKit
 
 // MARK: - Content Sharing Picker (macOS 14.0+)
 
@@ -47,6 +48,106 @@ public func releaseContentSharingPickerConfiguration(_ config: OpaquePointer) {
     release(config)
 }
 
+// MARK: - Picker Result with content info
+
+/// Result structure returned by picker - contains filter and content metadata
+@available(macOS 14.0, *)
+class PickerResult {
+    let filter: SCContentFilter
+    let contentRect: CGRect
+    let pointPixelScale: Double
+    
+    // Extracted content from filter using KVC
+    let windows: [SCWindow]
+    let displays: [SCDisplay]
+    let applications: [SCRunningApplication]
+    
+    init(filter: SCContentFilter) {
+        self.filter = filter
+        self.contentRect = filter.contentRect
+        self.pointPixelScale = Double(filter.pointPixelScale)
+        
+        // Extract the picked content via KVC (these are internal but accessible)
+        self.windows = (filter.value(forKey: "includedWindows") as? [SCWindow]) ?? []
+        self.displays = (filter.value(forKey: "includedDisplays") as? [SCDisplay]) ?? []
+        self.applications = (filter.value(forKey: "includedApplications") as? [SCRunningApplication]) ?? []
+    }
+}
+
+// Observer class to handle picker callbacks - returns filter directly
+@available(macOS 14.0, *)
+class PickerObserver: NSObject, SCContentSharingPickerObserver {
+    let callback: @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void
+    let userData: UnsafeMutableRawPointer?
+    var hasCompleted = false
+    
+    init(callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
+         userData: UnsafeMutableRawPointer?) {
+        self.callback = callback
+        self.userData = userData
+    }
+    
+    func contentSharingPicker(_ picker: SCContentSharingPicker, didCancelFor stream: SCStream?) {
+        guard !hasCompleted else { return }
+        hasCompleted = true
+        callback(0, nil, userData) // 0 = cancelled
+    }
+    
+    func contentSharingPicker(_ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for stream: SCStream?) {
+        guard !hasCompleted else { return }
+        hasCompleted = true
+        // Return the filter in the same format as other APIs
+        let ptr = ScreenCaptureKitBridge.retain(filter)
+        callback(1, ptr, userData) // 1 = success with filter
+    }
+    
+    func contentSharingPickerStartDidFailWithError(_ error: Error) {
+        guard !hasCompleted else { return }
+        hasCompleted = true
+        callback(-1, nil, userData) // -1 = error
+    }
+}
+
+// Observer that returns PickerResult with metadata
+@available(macOS 14.0, *)
+class PickerObserverWithResult: NSObject, SCContentSharingPickerObserver {
+    let callback: @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void
+    let userData: UnsafeMutableRawPointer?
+    var hasCompleted = false
+    
+    init(callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
+         userData: UnsafeMutableRawPointer?) {
+        self.callback = callback
+        self.userData = userData
+    }
+    
+    func contentSharingPicker(_ picker: SCContentSharingPicker, didCancelFor stream: SCStream?) {
+        guard !hasCompleted else { return }
+        hasCompleted = true
+        callback(0, nil, userData)
+    }
+    
+    func contentSharingPicker(_ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for stream: SCStream?) {
+        guard !hasCompleted else { return }
+        hasCompleted = true
+        // Return PickerResult with metadata
+        let result = PickerResult(filter: filter)
+        let ptr = ScreenCaptureKitBridge.retain(result)
+        callback(1, ptr, userData)
+    }
+    
+    func contentSharingPickerStartDidFailWithError(_ error: Error) {
+        guard !hasCompleted else { return }
+        hasCompleted = true
+        callback(-1, nil, userData)
+    }
+}
+
+// Global to keep observer alive during picker
+@available(macOS 14.0, *)
+private var currentObserver: (any SCContentSharingPickerObserver)? = nil
+
+/// Show picker and return SCContentFilter directly (simple API)
 @available(macOS 14.0, *)
 @_cdecl("sc_content_sharing_picker_show")
 public func showContentSharingPicker(
@@ -54,7 +155,125 @@ public func showContentSharingPicker(
     _ callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
     _ userData: UnsafeMutableRawPointer?
 ) {
-    // Note: SCContentSharingPicker API requires specific integration
-    // For now, return cancelled. Full implementation would need proper UI handling
-    callback(0, nil, userData)
+    let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    
+    DispatchQueue.main.async {
+        let picker = SCContentSharingPicker.shared
+        
+        let observer = PickerObserver(callback: callback, userData: userData)
+        currentObserver = observer
+        
+        picker.add(observer)
+        picker.isActive = true
+        picker.defaultConfiguration = configBox.value
+        picker.present()
+    }
+}
+
+/// Show picker and return PickerResult with metadata (advanced API)
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_show_with_result")
+public func showContentSharingPickerWithResult(
+    _ config: OpaquePointer,
+    _ callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    
+    DispatchQueue.main.async {
+        let picker = SCContentSharingPicker.shared
+        
+        let observer = PickerObserverWithResult(callback: callback, userData: userData)
+        currentObserver = observer
+        
+        picker.add(observer)
+        picker.isActive = true
+        picker.defaultConfiguration = configBox.value
+        picker.present()
+    }
+}
+
+// MARK: - PickerResult accessors
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_filter")
+public func getPickerResultFilter(_ result: OpaquePointer) -> OpaquePointer {
+    let r: PickerResult = unretained(result)
+    return ScreenCaptureKitBridge.retain(r.filter)
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_content_rect")
+public func getPickerResultContentRect(
+    _ result: OpaquePointer,
+    _ x: UnsafeMutablePointer<Double>,
+    _ y: UnsafeMutablePointer<Double>,
+    _ width: UnsafeMutablePointer<Double>,
+    _ height: UnsafeMutablePointer<Double>
+) {
+    let r: PickerResult = unretained(result)
+    x.pointee = r.contentRect.origin.x
+    y.pointee = r.contentRect.origin.y
+    width.pointee = r.contentRect.size.width
+    height.pointee = r.contentRect.size.height
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_scale")
+public func getPickerResultScale(_ result: OpaquePointer) -> Double {
+    let r: PickerResult = unretained(result)
+    return r.pointPixelScale
+}
+
+// MARK: - Picked content accessors
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_windows_count")
+public func getPickerResultWindowsCount(_ result: OpaquePointer) -> Int {
+    let r: PickerResult = unretained(result)
+    return r.windows.count
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_window_at")
+public func getPickerResultWindowAt(_ result: OpaquePointer, _ index: Int) -> OpaquePointer? {
+    let r: PickerResult = unretained(result)
+    guard index >= 0 && index < r.windows.count else { return nil }
+    return ScreenCaptureKitBridge.retain(r.windows[index])
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_displays_count")
+public func getPickerResultDisplaysCount(_ result: OpaquePointer) -> Int {
+    let r: PickerResult = unretained(result)
+    return r.displays.count
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_display_at")
+public func getPickerResultDisplayAt(_ result: OpaquePointer, _ index: Int) -> OpaquePointer? {
+    let r: PickerResult = unretained(result)
+    guard index >= 0 && index < r.displays.count else { return nil }
+    return ScreenCaptureKitBridge.retain(r.displays[index])
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_applications_count")
+public func getPickerResultApplicationsCount(_ result: OpaquePointer) -> Int {
+    let r: PickerResult = unretained(result)
+    return r.applications.count
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_get_application_at")
+public func getPickerResultApplicationAt(_ result: OpaquePointer, _ index: Int) -> OpaquePointer? {
+    let r: PickerResult = unretained(result)
+    guard index >= 0 && index < r.applications.count else { return nil }
+    return ScreenCaptureKitBridge.retain(r.applications[index])
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_picker_result_release")
+public func releasePickerResult(_ result: OpaquePointer) {
+    release(result)
 }
