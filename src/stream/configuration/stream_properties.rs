@@ -32,7 +32,7 @@ impl SCStreamConfiguration {
     /// let mut config = SCStreamConfiguration::default();
     /// config.set_stream_name(Some("MyApp-MainCapture"));
     /// ```
-    pub fn set_stream_name(&mut self, name: Option<&str>) {
+    pub fn set_stream_name(&mut self, name: Option<&str>) -> &mut Self {
         unsafe {
             if let Some(stream_name) = name {
                 if let Ok(c_name) = std::ffi::CString::new(stream_name) {
@@ -48,6 +48,14 @@ impl SCStreamConfiguration {
                 );
             }
         }
+        self
+    }
+
+    /// Set the stream name (builder pattern)
+    #[must_use]
+    pub fn with_stream_name(mut self, name: Option<&str>) -> Self {
+        self.set_stream_name(name);
+        self
     }
 
     /// Get the configured stream name
@@ -80,19 +88,28 @@ impl SCStreamConfiguration {
     /// use screencapturekit::prelude::*;
     /// use screencapturekit::stream::configuration::stream_properties::SCCaptureDynamicRange;
     ///
-    /// let mut config = SCStreamConfiguration::default();
-    /// config.set_width(1920)
-    /// config.set_height(1080)
-    /// config.set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_width(1920)
+    ///     .with_height(1080)
+    ///     .with_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
     /// ```
     #[cfg(feature = "macos_15_0")]
-    pub fn set_capture_dynamic_range(&mut self, dynamic_range: SCCaptureDynamicRange) {
+    pub fn set_capture_dynamic_range(&mut self, dynamic_range: SCCaptureDynamicRange) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_capture_dynamic_range(
                 self.as_ptr(),
                 dynamic_range as i32,
             );
         }
+        self
+    }
+
+    /// Set the dynamic range mode (builder pattern)
+    #[cfg(feature = "macos_15_0")]
+    #[must_use]
+    pub fn with_capture_dynamic_range(mut self, dynamic_range: SCCaptureDynamicRange) -> Self {
+        self.set_capture_dynamic_range(dynamic_range);
+        self
     }
 
     /// Get the configured dynamic range mode (macOS 15.0+)

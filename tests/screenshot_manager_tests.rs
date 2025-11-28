@@ -23,9 +23,9 @@ fn test_capture_image() {
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::default()
-        .set_width(640)
-        .set_height(480);
+    let config = SCStreamConfiguration::new()
+        .with_width(640)
+        .with_height(480);
 
     let result = SCScreenshotManager::capture_image(&filter, &config);
 
@@ -46,9 +46,9 @@ fn test_capture_sample_buffer() {
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::default()
-        .set_width(640)
-        .set_height(480);
+    let config = SCStreamConfiguration::new()
+        .with_width(640)
+        .with_height(480);
 
     let result = SCScreenshotManager::capture_sample_buffer(&filter, &config);
     // Note: May fail if screen recording permission not granted
@@ -76,9 +76,9 @@ fn test_cgimage_rgba_data() {
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::default()
-        .set_width(100)
-        .set_height(100);
+    let config = SCStreamConfiguration::new()
+        .with_width(100)
+        .with_height(100);
 
     if let Ok(image) = SCScreenshotManager::capture_image(&filter, &config) {
         if let Ok(data) = image.get_rgba_data() {
