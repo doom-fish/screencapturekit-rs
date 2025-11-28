@@ -4,7 +4,7 @@
 //! This example shows:
 //! - Getting shareable content (displays)
 //! - Creating a content filter
-//! - Configuring stream settings
+//! - Configuring stream settings (including new macOS 14.0+/15.0+ options)
 //! - Starting and stopping capture
 //! - Using both struct handlers and closure handlers
 
@@ -45,11 +45,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .exclude_windows(&[])
         .build();
 
+    // Show filter info (macOS 14.0+)
+    #[cfg(feature = "macos_14_0")]
+    {
+        let scale = filter.get_point_pixel_scale();
+        println!("Filter scale: {:.1}x", scale);
+    }
+
     // 3. Configure stream (how to capture)
-    let config = SCStreamConfiguration::new()
+    let mut config = SCStreamConfiguration::new()
         .with_width(1920)
         .with_height(1080)
-        .with_pixel_format(PixelFormat::BGRA);
+        .with_pixel_format(PixelFormat::BGRA)
+        .with_shows_cursor(true);
+
+    // macOS 14.0+ configuration options
+    #[cfg(feature = "macos_14_0")]
+    {
+        config = config
+            .with_ignores_shadows_display(false)
+            .with_ignore_global_clip_display(false);
+    }
+
+    // macOS 15.0+ configuration options
+    #[cfg(feature = "macos_15_0")]
+    {
+        // Show mouse click indicators (circle around cursor when clicking)
+        config = config.with_shows_mouse_clicks(true);
+        println!("Mouse click indicators: enabled");
+    }
 
     // 4. Create stream
     let mut stream = SCStream::new(&filter, &config);

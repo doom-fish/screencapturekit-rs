@@ -60,30 +60,44 @@ fn main() {
     println!("   to present the system picker UI to the user.\n");
 
     // Demonstrate the result types
-    println!("📦 Possible Result Types:");
-    println!("   - SCContentSharingPickerResult::Display(display)");
-    println!("   - SCContentSharingPickerResult::Window(window)");
-    println!("   - SCContentSharingPickerResult::Application(app)");
-    println!("   - SCContentSharingPickerResult::Cancelled");
-    println!("   - SCContentSharingPickerResult::Error(message)");
+    println!("📦 Picker APIs:");
+    println!("   Main API:");
+    println!("     SCContentSharingPicker::pick(&config) -> SCPickerOutcome");
+    println!("       - SCPickerOutcome::Picked(result)  // result.filter(), result.windows(), result.displays()");
+    println!("       - SCPickerOutcome::Cancelled");
+    println!("       - SCPickerOutcome::Error(message)");
+    println!();
+    println!("   Simple API:");
+    println!("     SCContentSharingPicker::pick_filter(&config) -> SCPickerFilterOutcome");
+    println!("       - SCPickerFilterOutcome::Filter(filter)");
+    println!("       - SCPickerFilterOutcome::Cancelled");
+    println!("       - SCPickerFilterOutcome::Error(message)");
 
     // Example of how to use the picker (commented out as it needs GUI)
     /*
-    let result = SCContentSharingPicker::show(&config);
+    use screencapturekit::content_sharing_picker::{
+        SCContentSharingPicker, SCPickerOutcome,
+    };
+    
+    let result = SCContentSharingPicker::pick(&config);
     match result {
-        SCContentSharingPickerResult::Display(display) => {
-            println!("Selected display: {:?}", display.display_id());
+        SCPickerOutcome::Picked(result) => {
+            // Get filter + metadata
+            let filter = result.filter();
+            let (width, height) = result.pixel_size();
+            
+            // Access picked content for custom filters
+            for window in result.windows() {
+                println!("Selected window: {:?}", window.title());
+            }
+            for display in result.displays() {
+                println!("Selected display: {:?}", display.display_id());
+            }
         }
-        SCContentSharingPickerResult::Window(window) => {
-            println!("Selected window: {:?}", window.title());
-        }
-        SCContentSharingPickerResult::Application(app) => {
-            println!("Selected app: {}", app.application_name());
-        }
-        SCContentSharingPickerResult::Cancelled => {
+        SCPickerOutcome::Cancelled => {
             println!("User cancelled the picker");
         }
-        SCContentSharingPickerResult::Error(msg) => {
+        SCPickerOutcome::Error(msg) => {
             eprintln!("Picker error: {}", msg);
         }
     }
