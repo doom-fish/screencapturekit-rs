@@ -175,9 +175,9 @@ unsafe impl Sync for CGImage {}
 /// let content = SCShareableContent::get()?;
 /// let display = &content.displays()[0];
 /// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
-/// let mut config = SCStreamConfiguration::default();
-/// config.set_width(1920);
-/// config.set_height(1080);
+/// let config = SCStreamConfiguration::new()
+///     .with_width(1920)
+///     .with_height(1080);
 ///
 /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
 /// println!("Captured screenshot: {}x{}", image.width(), image.height());

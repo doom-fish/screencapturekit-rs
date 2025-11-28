@@ -21,3 +21,23 @@ impl Default for SCStreamConfiguration {
         Self::internal_init()
     }
 }
+
+impl SCStreamConfiguration {
+    /// Create a new stream configuration with default values
+    ///
+    /// This is equivalent to `SCStreamConfiguration::default()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::prelude::*;
+    ///
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_width(1920)
+    ///     .with_height(1080);
+    /// ```
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}

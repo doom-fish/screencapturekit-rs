@@ -18,10 +18,18 @@ impl SCStreamConfiguration {
     /// config.set_captures_audio(true);
     /// assert!(config.get_captures_audio());
     /// ```
-    pub fn set_captures_audio(&mut self, captures_audio: bool) {
+    pub fn set_captures_audio(&mut self, captures_audio: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_captures_audio(self.as_ptr(), captures_audio);
         }
+        self
+    }
+
+    /// Enable or disable audio capture (builder pattern)
+    #[must_use]
+    pub fn with_captures_audio(mut self, captures_audio: bool) -> Self {
+        self.set_captures_audio(captures_audio);
+        self
     }
 
     /// Check if audio capture is enabled
@@ -42,13 +50,21 @@ impl SCStreamConfiguration {
     /// config.set_sample_rate(48000);
     /// assert_eq!(config.get_sample_rate(), 48000);
     /// ```
-    pub fn set_sample_rate(&mut self, sample_rate: i32) {
+    pub fn set_sample_rate(&mut self, sample_rate: i32) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_sample_rate(
                 self.as_ptr(),
                 sample_rate as isize,
             );
         }
+        self
+    }
+
+    /// Set the audio sample rate (builder pattern)
+    #[must_use]
+    pub fn with_sample_rate(mut self, sample_rate: i32) -> Self {
+        self.set_sample_rate(sample_rate);
+        self
     }
 
     /// Get the configured audio sample rate
@@ -73,13 +89,21 @@ impl SCStreamConfiguration {
     /// config.set_channel_count(2); // Stereo
     /// assert_eq!(config.get_channel_count(), 2);
     /// ```
-    pub fn set_channel_count(&mut self, channel_count: i32) {
+    pub fn set_channel_count(&mut self, channel_count: i32) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_channel_count(
                 self.as_ptr(),
                 channel_count as isize,
             );
         }
+        self
+    }
+
+    /// Set the number of audio channels (builder pattern)
+    #[must_use]
+    pub fn with_channel_count(mut self, channel_count: i32) -> Self {
+        self.set_channel_count(channel_count);
+        self
     }
 
     /// Get the configured channel count
@@ -112,13 +136,21 @@ impl SCStreamConfiguration {
     /// config.set_sample_rate(48000);
     /// config.set_channel_count(2);
     /// ```
-    pub fn set_captures_microphone(&mut self, captures_microphone: bool) {
+    pub fn set_captures_microphone(&mut self, captures_microphone: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_captures_microphone(
                 self.as_ptr(),
                 captures_microphone,
             );
         }
+        self
+    }
+
+    /// Enable microphone capture (builder pattern)
+    #[must_use]
+    pub fn with_captures_microphone(mut self, captures_microphone: bool) -> Self {
+        self.set_captures_microphone(captures_microphone);
+        self
     }
 
     /// Get whether microphone capture is enabled (macOS 15.0+).
@@ -139,13 +171,21 @@ impl SCStreamConfiguration {
     /// config.set_captures_audio(true);
     /// config.set_excludes_current_process_audio(true); // Prevent feedback
     /// ```
-    pub fn set_excludes_current_process_audio(&mut self, excludes: bool) {
+    pub fn set_excludes_current_process_audio(&mut self, excludes: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_excludes_current_process_audio(
                 self.as_ptr(),
                 excludes,
             );
         }
+        self
+    }
+
+    /// Exclude current process audio (builder pattern)
+    #[must_use]
+    pub fn with_excludes_current_process_audio(mut self, excludes: bool) -> Self {
+        self.set_excludes_current_process_audio(excludes);
+        self
     }
 
     /// Get whether current process audio is excluded from capture.
@@ -171,7 +211,7 @@ impl SCStreamConfiguration {
     /// config.set_captures_microphone(true);
     /// config.set_microphone_capture_device_id(Some("AppleHDAEngineInput:1B,0,1,0:1"));
     /// ```
-    pub fn set_microphone_capture_device_id(&mut self, device_id: Option<&str>) {
+    pub fn set_microphone_capture_device_id(&mut self, device_id: Option<&str>) -> &mut Self {
         unsafe {
             if let Some(id) = device_id {
                 if let Ok(c_id) = std::ffi::CString::new(id) {
@@ -187,6 +227,14 @@ impl SCStreamConfiguration {
                 );
             }
         }
+        self
+    }
+
+    /// Set microphone capture device ID (builder pattern)
+    #[must_use]
+    pub fn with_microphone_capture_device_id(mut self, device_id: Option<&str>) -> Self {
+        self.set_microphone_capture_device_id(device_id);
+        self
     }
 
     /// Get microphone capture device ID (macOS 15.0+).
