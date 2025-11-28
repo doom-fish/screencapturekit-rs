@@ -199,8 +199,8 @@ fn test_content_filter_equality() {
 
 #[test]
 fn test_content_filter_hash() {
-    cg_init_for_headless_ci();
     use std::collections::HashSet;
+    cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
