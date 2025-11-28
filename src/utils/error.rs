@@ -163,6 +163,15 @@ pub enum SCError {
 
     /// OS error with code
     OSError { code: i32, message: String },
+
+    /// User declined screen recording permission (macOS 12.3+)
+    UserDeclined,
+
+    /// Failed to start microphone capture (macOS 15.0+)
+    MicrophoneCaptureFailed(String),
+
+    /// System stopped the stream (macOS 15.0+)
+    SystemStoppedStream,
 }
 
 impl fmt::Display for SCError {
@@ -206,6 +215,9 @@ impl fmt::Display for SCError {
             Self::Timeout(msg) => write!(f, "Operation timed out: {msg}"),
             Self::InternalError(msg) => write!(f, "Internal error: {msg}"),
             Self::OSError { code, message } => write!(f, "OS error {code}: {message}"),
+            Self::UserDeclined => write!(f, "User declined screen recording permission"),
+            Self::MicrophoneCaptureFailed(msg) => write!(f, "Failed to start microphone capture: {msg}"),
+            Self::SystemStoppedStream => write!(f, "System stopped the stream"),
         }
     }
 }
