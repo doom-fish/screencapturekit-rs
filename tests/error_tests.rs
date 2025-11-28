@@ -115,3 +115,106 @@ fn test_multiple_error_messages() {
         assert!(!display.is_empty());
     }
 }
+
+// MARK: - New Error Types
+
+#[test]
+fn test_user_declined_error() {
+    let err = SCError::UserDeclined;
+    let display = format!("{err}");
+
+    assert!(display.contains("declined"));
+    assert!(display.contains("permission"));
+}
+
+#[test]
+fn test_microphone_capture_failed_error() {
+    let err = SCError::MicrophoneCaptureFailed("Audio device not available".to_string());
+    let display = format!("{err}");
+
+    assert!(display.contains("microphone"));
+    assert!(display.contains("Audio device not available"));
+}
+
+#[test]
+fn test_system_stopped_stream_error() {
+    let err = SCError::SystemStoppedStream;
+    let display = format!("{err}");
+
+    assert!(display.contains("System"));
+    assert!(display.contains("stopped"));
+}
+
+#[test]
+fn test_new_error_types_equality() {
+    assert_eq!(SCError::UserDeclined, SCError::UserDeclined);
+    assert_eq!(SCError::SystemStoppedStream, SCError::SystemStoppedStream);
+    assert_eq!(
+        SCError::MicrophoneCaptureFailed("test".to_string()),
+        SCError::MicrophoneCaptureFailed("test".to_string())
+    );
+
+    assert_ne!(SCError::UserDeclined, SCError::SystemStoppedStream);
+    assert_ne!(
+        SCError::MicrophoneCaptureFailed("a".to_string()),
+        SCError::MicrophoneCaptureFailed("b".to_string())
+    );
+}
+
+#[test]
+fn test_new_error_types_debug() {
+    let errors = [
+        SCError::UserDeclined,
+        SCError::SystemStoppedStream,
+        SCError::MicrophoneCaptureFailed("Test error".to_string()),
+    ];
+
+    for err in errors {
+        let debug = format!("{err:?}");
+        assert!(!debug.is_empty());
+    }
+}
+
+#[test]
+fn test_error_is_std_error() {
+    fn assert_error<T: std::error::Error>() {}
+    assert_error::<SCError>();
+}
+
+#[test]
+fn test_all_error_variants_display() {
+    // Test that all error variants have non-empty display strings
+    let errors: Vec<SCError> = vec![
+        SCError::InvalidConfiguration("test".to_string()),
+        SCError::InvalidDimension { field: "width".to_string(), value: 0 },
+        SCError::InvalidPixelFormat("test".to_string()),
+        SCError::NoShareableContent("test".to_string()),
+        SCError::DisplayNotFound("test".to_string()),
+        SCError::WindowNotFound("test".to_string()),
+        SCError::ApplicationNotFound("test".to_string()),
+        SCError::StreamError("test".to_string()),
+        SCError::StreamAlreadyRunning,
+        SCError::StreamNotRunning,
+        SCError::CaptureStartFailed("test".to_string()),
+        SCError::CaptureStopFailed("test".to_string()),
+        SCError::BufferLockError("test".to_string()),
+        SCError::BufferUnlockError("test".to_string()),
+        SCError::InvalidBuffer("test".to_string()),
+        SCError::ScreenshotError("test".to_string()),
+        SCError::PermissionDenied("test".to_string()),
+        SCError::FeatureNotAvailable { feature: "test".to_string(), required_version: "14.0".to_string() },
+        SCError::FFIError("test".to_string()),
+        SCError::NullPointer("test".to_string()),
+        SCError::Timeout("test".to_string()),
+        SCError::InternalError("test".to_string()),
+        SCError::OSError { code: 1, message: "test".to_string() },
+        SCError::UserDeclined,
+        SCError::MicrophoneCaptureFailed("test".to_string()),
+        SCError::SystemStoppedStream,
+    ];
+
+    for err in errors {
+        let display = format!("{err}");
+        assert!(!display.is_empty(), "Display should not be empty for {:?}", err);
+    }
+}
