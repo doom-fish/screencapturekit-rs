@@ -465,3 +465,118 @@ public func getStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer) -
     return 0  // Not available on macOS < 15.0
 }
 #endif
+
+// MARK: - macOS 15.0+ Properties
+
+#if compiler(>=6.0)
+@_cdecl("sc_stream_configuration_set_shows_mouse_clicks")
+public func setStreamConfigurationShowsMouseClicks(_ config: OpaquePointer, _ value: Bool) {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 15.0, *) {
+        cfg.showMouseClicks = value
+    }
+}
+#else
+@_cdecl("sc_stream_configuration_set_shows_mouse_clicks")
+public func setStreamConfigurationShowsMouseClicks(_ config: OpaquePointer, _ value: Bool) {
+}
+#endif
+
+#if compiler(>=6.0)
+@_cdecl("sc_stream_configuration_get_shows_mouse_clicks")
+public func getStreamConfigurationShowsMouseClicks(_ config: OpaquePointer) -> Bool {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 15.0, *) {
+        return cfg.showMouseClicks
+    }
+    return false
+}
+#else
+@_cdecl("sc_stream_configuration_get_shows_mouse_clicks")
+public func getStreamConfigurationShowsMouseClicks(_ config: OpaquePointer) -> Bool {
+    return false
+}
+#endif
+
+// MARK: - macOS 14.0+ Properties
+
+@_cdecl("sc_stream_configuration_set_ignores_shadows_display")
+public func setStreamConfigurationIgnoresShadowsDisplay(_ config: OpaquePointer, _ value: Bool) {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        cfg.ignoreShadowsDisplay = value
+    }
+}
+
+@_cdecl("sc_stream_configuration_get_ignores_shadows_display")
+public func getStreamConfigurationIgnoresShadowsDisplay(_ config: OpaquePointer) -> Bool {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        return cfg.ignoreShadowsDisplay
+    }
+    return false
+}
+
+@_cdecl("sc_stream_configuration_set_ignore_global_clip_display")
+public func setStreamConfigurationIgnoreGlobalClipDisplay(_ config: OpaquePointer, _ value: Bool) {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        cfg.ignoreGlobalClipDisplay = value
+    }
+}
+
+@_cdecl("sc_stream_configuration_get_ignore_global_clip_display")
+public func getStreamConfigurationIgnoreGlobalClipDisplay(_ config: OpaquePointer) -> Bool {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        return cfg.ignoreGlobalClipDisplay
+    }
+    return false
+}
+
+@_cdecl("sc_stream_configuration_set_ignore_global_clip_single_window")
+public func setStreamConfigurationIgnoreGlobalClipSingleWindow(_ config: OpaquePointer, _ value: Bool) {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        cfg.ignoreGlobalClipSingleWindow = value
+    }
+}
+
+@_cdecl("sc_stream_configuration_get_ignore_global_clip_single_window")
+public func getStreamConfigurationIgnoreGlobalClipSingleWindow(_ config: OpaquePointer) -> Bool {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        return cfg.ignoreGlobalClipSingleWindow
+    }
+    return false
+}
+
+// MARK: - Preset-based configuration (macOS 15.0+)
+
+#if compiler(>=6.0)
+@_cdecl("sc_stream_configuration_create_with_preset")
+public func createStreamConfigurationWithPreset(_ preset: Int32) -> OpaquePointer? {
+    if #available(macOS 15.0, *) {
+        let scPreset: SCStreamConfiguration.Preset
+        switch preset {
+        case 0:
+            scPreset = .captureHDRStreamLocalDisplay
+        case 1:
+            scPreset = .captureHDRStreamCanonicalDisplay
+        case 2:
+            scPreset = .captureHDRScreenshotLocalDisplay
+        case 3:
+            scPreset = .captureHDRScreenshotCanonicalDisplay
+        default:
+            scPreset = .captureHDRStreamLocalDisplay
+        }
+        return retain(SCStreamConfiguration(preset: scPreset))
+    }
+    return retain(SCStreamConfiguration())
+}
+#else
+@_cdecl("sc_stream_configuration_create_with_preset")
+public func createStreamConfigurationWithPreset(_ preset: Int32) -> OpaquePointer? {
+    return retain(SCStreamConfiguration())
+}
+#endif
