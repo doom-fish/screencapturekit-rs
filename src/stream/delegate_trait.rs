@@ -32,11 +32,29 @@ use crate::error::SCError;
 /// }
 /// ```
 pub trait SCStreamDelegateTrait: Send {
-    /// Called when video effects start
+    /// Called when video effects start (macOS 14.0+)
+    ///
+    /// Notifies when the stream's overlay video effect (presenter overlay) has started.
     fn output_video_effect_did_start_for_stream(&self) {}
 
-    /// Called when video effects stop
+    /// Called when video effects stop (macOS 14.0+)
+    ///
+    /// Notifies when the stream's overlay video effect (presenter overlay) has stopped.
     fn output_video_effect_did_stop_for_stream(&self) {}
+
+    /// Called when the stream becomes active (macOS 15.2+)
+    ///
+    /// Notifies the first time any window that was being shared in the stream
+    /// is re-opened after all the windows being shared were closed.
+    /// When all the windows being shared are closed, the client will receive
+    /// `stream_did_become_inactive`.
+    fn stream_did_become_active(&self) {}
+
+    /// Called when the stream becomes inactive (macOS 15.2+)
+    ///
+    /// Notifies when all the windows that are currently being shared are exited.
+    /// This callback occurs for all content filter types.
+    fn stream_did_become_inactive(&self) {}
 
     /// Called when stream stops with an error
     fn did_stop_with_error(&self, _error: SCError) {}
