@@ -7,10 +7,8 @@
 //!
 //! | Method | Returns | Use Case |
 //! |--------|---------|----------|
-//! | `pick()` | `SCPickerResult` | Get filter + metadata (dimensions, picked content) |
-//! | `pick_filter()` | `SCContentFilter` | Just get the filter |
-//! | `pick_async()` | `SCPickerResult` | Async version of `pick()` |
-//! | `pick_filter_async()` | `SCContentFilter` | Async version of `pick_filter()` |
+//! | `pick()` | `SCPickerOutcome` | Get filter + metadata (dimensions, picked content) |
+//! | `pick_filter()` | `SCPickerFilterOutcome` | Just get the filter |
 //!
 //! # Examples
 //!
@@ -54,24 +52,6 @@
 //!     }
 //!     SCPickerFilterOutcome::Cancelled => println!("Cancelled"),
 //!     SCPickerFilterOutcome::Error(e) => eprintln!("Error: {}", e),
-//! }
-//! ```
-//!
-//! ## Async API: Use with async/await
-//! ```no_run
-//! use screencapturekit::content_sharing_picker::*;
-//! use screencapturekit::prelude::*;
-//!
-//! async fn start_capture() {
-//!     let config = SCContentSharingPickerConfiguration::new();
-//!     match SCContentSharingPicker::pick_async(&config).await {
-//!         SCPickerOutcome::Picked(result) => {
-//!             let filter = result.filter();
-//!             let stream = SCStream::new(&filter, &SCStreamConfiguration::default());
-//!         }
-//!         SCPickerOutcome::Cancelled => println!("Cancelled"),
-//!         SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
-//!     }
 //! }
 //! ```
 //!
@@ -510,54 +490,6 @@ impl SCContentSharingPicker {
     #[deprecated(since = "1.3.0", note = "Use pick() instead")]
     pub fn show(config: &SCContentSharingPickerConfiguration) -> SCPickerOutcome {
         Self::pick(config)
-    }
-
-    /// Async version of `pick()` - returns `SCPickerResult` with filter and metadata
-    ///
-    /// This spawns the picker on a blocking thread and awaits the result.
-    /// Note: The picker UI will still be shown on the main thread internally.
-    ///
-    /// # Example
-    /// ```no_run
-    /// use screencapturekit::content_sharing_picker::*;
-    /// use screencapturekit::prelude::*;
-    ///
-    /// async fn example() {
-    ///     let config = SCContentSharingPickerConfiguration::new();
-    ///     if let SCPickerOutcome::Picked(result) = SCContentSharingPicker::pick_async(&config).await {
-    ///         let filter = result.filter();
-    ///         // Use filter with SCStream
-    ///     }
-    /// }
-    /// ```
-    pub async fn pick_async(config: &SCContentSharingPickerConfiguration) -> SCPickerOutcome {
-        let config = config.clone();
-        tokio::task::spawn_blocking(move || Self::pick(&config))
-            .await
-            .unwrap_or_else(|e| SCPickerOutcome::Error(format!("Task join error: {e}")))
-    }
-
-    /// Async version of `pick_filter()` - returns an `SCContentFilter` directly
-    ///
-    /// This spawns the picker on a blocking thread and awaits the result.
-    /// Note: The picker UI will still be shown on the main thread internally.
-    ///
-    /// # Example
-    /// ```no_run
-    /// use screencapturekit::content_sharing_picker::*;
-    ///
-    /// async fn example() {
-    ///     let config = SCContentSharingPickerConfiguration::new();
-    ///     if let SCPickerFilterOutcome::Filter(filter) = SCContentSharingPicker::pick_filter_async(&config).await {
-    ///         // Use filter with SCStream
-    ///     }
-    /// }
-    /// ```
-    pub async fn pick_filter_async(config: &SCContentSharingPickerConfiguration) -> SCPickerFilterOutcome {
-        let config = config.clone();
-        tokio::task::spawn_blocking(move || Self::pick_filter(&config))
-            .await
-            .unwrap_or_else(|e| SCPickerFilterOutcome::Error(format!("Task join error: {e}")))
     }
 }
 
