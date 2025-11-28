@@ -135,7 +135,7 @@ impl SCContentSharingPicker {
 
         completion
             .wait()
-            .unwrap_or_else(|e| SCContentSharingPickerResult::Error(e))
+            .unwrap_or_else(SCContentSharingPickerResult::Error)
     }
 }
 
