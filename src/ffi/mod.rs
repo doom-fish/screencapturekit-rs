@@ -422,6 +422,27 @@ extern "C" {
         callback: extern "C" fn(i32, *const c_void, *mut c_void),
         user_data: *mut c_void,
     );
+    pub fn sc_content_sharing_picker_show_with_result(
+        config: *const c_void,
+        callback: extern "C" fn(i32, *const c_void, *mut c_void),
+        user_data: *mut c_void,
+    );
+    pub fn sc_picker_result_get_filter(result: *const c_void) -> *const c_void;
+    pub fn sc_picker_result_get_content_rect(
+        result: *const c_void,
+        x: *mut f64,
+        y: *mut f64,
+        width: *mut f64,
+        height: *mut f64,
+    );
+    pub fn sc_picker_result_get_scale(result: *const c_void) -> f64;
+    pub fn sc_picker_result_get_windows_count(result: *const c_void) -> usize;
+    pub fn sc_picker_result_get_window_at(result: *const c_void, index: usize) -> *const c_void;
+    pub fn sc_picker_result_get_displays_count(result: *const c_void) -> usize;
+    pub fn sc_picker_result_get_display_at(result: *const c_void, index: usize) -> *const c_void;
+    pub fn sc_picker_result_get_applications_count(result: *const c_void) -> usize;
+    pub fn sc_picker_result_get_application_at(result: *const c_void, index: usize) -> *const c_void;
+    pub fn sc_picker_result_release(result: *const c_void);
 }
 
 // MARK: - SCRecordingOutput (macOS 15.0+)
@@ -454,6 +475,14 @@ extern "C" {
         callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
         user_data: *mut c_void,
     );
+    pub fn sc_screenshot_manager_capture_image_in_rect(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
+    );
     pub fn cgimage_get_width(image: *const c_void) -> usize;
     pub fn cgimage_get_height(image: *const c_void) -> usize;
     pub fn cgimage_get_data(
@@ -463,4 +492,103 @@ extern "C" {
     ) -> bool;
     pub fn cgimage_free_data(ptr: *mut u8);
     pub fn cgimage_release(image: *const c_void);
+}
+
+// MARK: - SCStreamConfiguration additional properties
+extern "C" {
+    // macOS 15.0+ - showMouseClicks
+    pub fn sc_stream_configuration_set_shows_mouse_clicks(config: *const c_void, value: bool);
+    pub fn sc_stream_configuration_get_shows_mouse_clicks(config: *const c_void) -> bool;
+
+    // macOS 14.0+ - ignoreShadowsDisplay
+    pub fn sc_stream_configuration_set_ignores_shadows_display(config: *const c_void, value: bool);
+    pub fn sc_stream_configuration_get_ignores_shadows_display(config: *const c_void) -> bool;
+
+    // macOS 14.0+ - ignoreGlobalClipDisplay
+    pub fn sc_stream_configuration_set_ignore_global_clip_display(config: *const c_void, value: bool);
+    pub fn sc_stream_configuration_get_ignore_global_clip_display(config: *const c_void) -> bool;
+
+    // macOS 14.0+ - ignoreGlobalClipSingleWindow
+    pub fn sc_stream_configuration_set_ignore_global_clip_single_window(
+        config: *const c_void,
+        value: bool,
+    );
+    pub fn sc_stream_configuration_get_ignore_global_clip_single_window(
+        config: *const c_void,
+    ) -> bool;
+
+    // macOS 15.0+ - preset-based configuration
+    pub fn sc_stream_configuration_create_with_preset(preset: i32) -> *const c_void;
+}
+
+// MARK: - SCContentFilter additional properties
+extern "C" {
+    // macOS 14.0+ - style and pointPixelScale
+    pub fn sc_content_filter_get_style(filter: *const c_void) -> i32;
+    pub fn sc_content_filter_get_point_pixel_scale(filter: *const c_void) -> f32;
+
+    // macOS 14.2+ - includeMenuBar
+    pub fn sc_content_filter_set_include_menu_bar(filter: *const c_void, include: bool);
+    pub fn sc_content_filter_get_include_menu_bar(filter: *const c_void) -> bool;
+
+    // macOS 15.2+ - included content arrays
+    pub fn sc_content_filter_get_included_displays_count(filter: *const c_void) -> isize;
+    pub fn sc_content_filter_get_included_display_at(
+        filter: *const c_void,
+        index: isize,
+    ) -> *const c_void;
+    pub fn sc_content_filter_get_included_windows_count(filter: *const c_void) -> isize;
+    pub fn sc_content_filter_get_included_window_at(
+        filter: *const c_void,
+        index: isize,
+    ) -> *const c_void;
+    pub fn sc_content_filter_get_included_applications_count(filter: *const c_void) -> isize;
+    pub fn sc_content_filter_get_included_application_at(
+        filter: *const c_void,
+        index: isize,
+    ) -> *const c_void;
+}
+
+// MARK: - SCShareableContentInfo (macOS 14.0+)
+extern "C" {
+    pub fn sc_shareable_content_info_for_filter(filter: *const c_void) -> *const c_void;
+    pub fn sc_shareable_content_info_get_style(info: *const c_void) -> i32;
+    pub fn sc_shareable_content_info_get_point_pixel_scale(info: *const c_void) -> f32;
+    pub fn sc_shareable_content_info_get_content_rect(
+        info: *const c_void,
+        x: *mut f64,
+        y: *mut f64,
+        width: *mut f64,
+        height: *mut f64,
+    );
+    pub fn sc_shareable_content_info_retain(info: *const c_void) -> *const c_void;
+    pub fn sc_shareable_content_info_release(info: *const c_void);
+}
+
+// MARK: - SCRecordingOutput additional (macOS 15.0+)
+extern "C" {
+    pub fn sc_recording_output_configuration_set_output_file_type(
+        config: *const c_void,
+        file_type: i32,
+    );
+    pub fn sc_recording_output_configuration_get_output_file_type(config: *const c_void) -> i32;
+    pub fn sc_recording_output_configuration_get_video_codec(config: *const c_void) -> i32;
+    pub fn sc_recording_output_configuration_get_available_video_codecs_count(
+        config: *const c_void,
+    ) -> isize;
+    pub fn sc_recording_output_configuration_get_available_output_file_types_count(
+        config: *const c_void,
+    ) -> isize;
+    pub fn sc_recording_output_create_with_delegate(
+        config: *const c_void,
+        started_callback: Option<extern "C" fn(*const c_void)>,
+        failed_callback: Option<extern "C" fn(*const c_void, *const i8)>,
+        finished_callback: Option<extern "C" fn(*const c_void)>,
+    ) -> *const c_void;
+    pub fn sc_recording_output_get_recorded_duration(
+        output: *const c_void,
+        value: *mut i64,
+        timescale: *mut i32,
+    );
+    pub fn sc_recording_output_get_recorded_file_size(output: *const c_void) -> i64;
 }
