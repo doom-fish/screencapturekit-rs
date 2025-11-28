@@ -4,10 +4,10 @@
 //! Provides high-quality screenshot capture without the overhead of setting up a stream.
 
 use crate::error::SCError;
-use crate::stream::content_filter::SCContentFilter;
 use crate::stream::configuration::SCStreamConfiguration;
+use crate::stream::content_filter::SCContentFilter;
 use std::ffi::c_void;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Condvar, Mutex};
 
 /// Shared state for synchronous capture
 struct SyncCaptureState<T> {
@@ -26,7 +26,7 @@ extern "C" fn image_callback(
     user_data: *mut c_void,
 ) {
     let capture = unsafe { Arc::from_raw(user_data.cast::<SyncCapture<CGImage>>()) };
-    
+
     let result = if !error_ptr.is_null() {
         let error_msg = unsafe {
             std::ffi::CStr::from_ptr(error_ptr)
@@ -45,7 +45,7 @@ extern "C" fn image_callback(
         state.result = Some(result);
     }
     capture.condvar.notify_one();
-    
+
     // Release our reference - the caller still holds one
     drop(capture);
 }
@@ -55,8 +55,9 @@ extern "C" fn buffer_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    let capture = unsafe { Arc::from_raw(user_data.cast::<SyncCapture<crate::cm::CMSampleBuffer>>()) };
-    
+    let capture =
+        unsafe { Arc::from_raw(user_data.cast::<SyncCapture<crate::cm::CMSampleBuffer>>()) };
+
     let result = if !error_ptr.is_null() {
         let error_msg = unsafe {
             std::ffi::CStr::from_ptr(error_ptr)
@@ -76,7 +77,7 @@ extern "C" fn buffer_callback(
         state.result = Some(result);
     }
     capture.condvar.notify_one();
-    
+
     // Release our reference - the caller still holds one
     drop(capture);
 }
@@ -259,7 +260,7 @@ impl SCScreenshotManager {
         while state.result.is_none() {
             state = capture.condvar.wait(state).unwrap();
         }
-        
+
         state.result.take().unwrap()
     }
 
@@ -300,8 +301,7 @@ impl SCScreenshotManager {
         while state.result.is_none() {
             state = capture.condvar.wait(state).unwrap();
         }
-        
+
         state.result.take().unwrap()
     }
 }
-

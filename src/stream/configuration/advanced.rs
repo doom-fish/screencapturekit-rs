@@ -11,7 +11,7 @@ pub enum SCPresenterOverlayAlertSetting {
 
 impl SCStreamConfiguration {
     /// Sets the ignore fraction of screen for this [`SCStreamConfiguration`].
-    /// 
+    ///
     /// Specifies the percentage of the content filter that the stream omits from the captured image.
     /// Available on macOS 14.2+
     ///
@@ -29,13 +29,11 @@ impl SCStreamConfiguration {
 
     #[cfg(feature = "macos_14_2")]
     pub fn get_ignore_fraction_of_screen(&self) -> f64 {
-        unsafe {
-            crate::ffi::sc_stream_configuration_get_ignore_fraction_of_screen(self.as_ptr())
-        }
+        unsafe { crate::ffi::sc_stream_configuration_get_ignore_fraction_of_screen(self.as_ptr()) }
     }
 
     /// Sets whether to ignore shadows for single window capture.
-    /// 
+    ///
     /// A Boolean value that indicates whether the stream omits the shadow effects
     /// of the windows it captures.
     /// Available on macOS 14.2+
@@ -60,7 +58,7 @@ impl SCStreamConfiguration {
     }
 
     /// Sets whether captured content should be treated as opaque.
-    /// 
+    ///
     /// A Boolean value that indicates whether the stream treats the transparency
     /// of the captured content as opaque.
     /// Available on macOS 13.0+
@@ -83,7 +81,7 @@ impl SCStreamConfiguration {
     }
 
     /// Sets whether to include child windows in capture.
-    /// 
+    ///
     /// A Boolean value that indicates whether the content includes child windows.
     /// Available on macOS 14.2+
     ///
@@ -105,7 +103,7 @@ impl SCStreamConfiguration {
     }
 
     /// Sets the presenter overlay privacy alert setting.
-    /// 
+    ///
     /// A configuration for the privacy alert that the capture session displays.
     /// Available on macOS 14.2+
     ///
@@ -139,7 +137,7 @@ impl SCStreamConfiguration {
     }
 
     /// Sets whether to ignore the global clipboard when capturing.
-    /// 
+    ///
     /// Available on macOS 14.0+
     ///
     /// Requires the `macos_14_0` feature flag to be enabled.
@@ -156,13 +154,11 @@ impl SCStreamConfiguration {
 
     #[cfg(feature = "macos_14_0")]
     pub fn get_ignore_global_clipboard(&self) -> bool {
-        unsafe {
-            crate::ffi::sc_stream_configuration_get_ignore_global_clipboard(self.as_ptr())
-        }
+        unsafe { crate::ffi::sc_stream_configuration_get_ignore_global_clipboard(self.as_ptr()) }
     }
 
     /// Sets whether to ignore shadow display configuration.
-    /// 
+    ///
     /// Available on macOS 14.0+
     ///
     /// Requires the `macos_14_0` feature flag to be enabled.
@@ -186,4 +182,3 @@ impl SCStreamConfiguration {
         }
     }
 }
-

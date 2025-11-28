@@ -1,5 +1,5 @@
 //! Pixel buffer wrapper with RAII lock guards
-//! 
+//!
 //! Provides safe access to `CVPixelBuffer` and `IOSurface` with automatic locking/unlocking.
 //! The lock guard pattern ensures buffers are always properly unlocked, even in case of panics.
 //!
@@ -13,17 +13,17 @@
 //! // Create a test pixel buffer
 //! let buffer = screencapturekit::cm::CVPixelBuffer::create(100, 100, 0x42475241)
 //!     .map_err(|_| SCError::internal_error("Failed to create buffer"))?;
-//! 
+//!
 //! // Lock for reading (automatically unlocks on drop)
 //! let guard = buffer.lock(PixelBufferLockFlags::ReadOnly)?;
-//! 
+//!
 //! // Access pixel data
 //! let width = guard.width();
 //! let height = guard.height();
 //! let pixels = guard.as_slice();
-//! 
+//!
 //! println!("Got {}x{} frame with {} bytes", width, height, pixels.len());
-//! 
+//!
 //! // Buffer automatically unlocked here when guard drops
 //! # Ok(())
 //! # }
@@ -53,7 +53,7 @@ impl PixelBufferLockFlags {
     pub const fn as_u64(self) -> u64 {
         self as u64
     }
-    
+
     /// Convert to u32 representation (used by FFI)
     pub const fn as_u32(self) -> u32 {
         self as u32
@@ -61,7 +61,7 @@ impl PixelBufferLockFlags {
 }
 
 /// A guard that provides access to locked pixel buffer memory
-/// 
+///
 /// This guard implements RAII (Resource Acquisition Is Initialization) pattern.
 /// The buffer is automatically unlocked when this guard is dropped, ensuring
 /// proper cleanup even if an error occurs or panic happens.
@@ -85,7 +85,7 @@ impl PixelBufferLockFlags {
 /// // Create a test buffer
 /// let buffer = CVPixelBuffer::create(100, 100, 0x42475241)
 ///     .map_err(|_| SCError::internal_error("Failed to create buffer"))?;
-/// 
+///
 /// // Lock the buffer
 /// let guard = buffer.lock(PixelBufferLockFlags::ReadOnly)?;
 ///
@@ -171,10 +171,7 @@ impl PixelBufferLockGuard<'_> {
     /// Get buffer data as a byte slice
     pub fn as_slice(&self) -> &[u8] {
         unsafe {
-            std::slice::from_raw_parts(
-                self.base_address.as_ptr(),
-                self.height * self.bytes_per_row,
-            )
+            std::slice::from_raw_parts(self.base_address.as_ptr(), self.height * self.bytes_per_row)
         }
     }
 
@@ -184,7 +181,10 @@ impl PixelBufferLockGuard<'_> {
             return None;
         }
         unsafe {
-            let row_ptr = self.base_address.as_ptr().add(row_index * self.bytes_per_row);
+            let row_ptr = self
+                .base_address
+                .as_ptr()
+                .add(row_index * self.bytes_per_row);
             Some(std::slice::from_raw_parts(row_ptr, self.bytes_per_row))
         }
     }
@@ -208,7 +208,7 @@ impl PixelBufferLockGuard<'_> {
     /// let guard = buffer.lock(PixelBufferLockFlags::ReadOnly)?;
     ///
     /// let mut cursor = guard.cursor();
-    /// 
+    ///
     /// // Read using standard Read trait
     /// let mut pixel = [0u8; 4];
     /// cursor.read_exact(&mut pixel).unwrap();
@@ -238,7 +238,10 @@ impl PixelBufferLockGuard<'_> {
 impl Drop for PixelBufferLockGuard<'_> {
     fn drop(&mut self) {
         unsafe {
-            crate::cm::ffi::cv_pixel_buffer_unlock_base_address(self.buffer_ptr, self.flags.as_u32());
+            crate::cm::ffi::cv_pixel_buffer_unlock_base_address(
+                self.buffer_ptr,
+                self.flags.as_u32(),
+            );
         }
     }
 }
@@ -291,18 +294,23 @@ pub trait CVImageBufferLockExt {
     /// # Errors
     ///
     /// Returns an `SCError` if the lock operation fails.
-    fn lock(&self, flags: PixelBufferLockFlags) -> Result<PixelBufferLockGuard<'_>, crate::error::SCError>;
+    fn lock(
+        &self,
+        flags: PixelBufferLockFlags,
+    ) -> Result<PixelBufferLockGuard<'_>, crate::error::SCError>;
 }
 
 // Implementation for our CVPixelBuffer
 impl CVImageBufferLockExt for crate::cm::CVPixelBuffer {
-    fn lock(&self, flags: PixelBufferLockFlags) -> Result<PixelBufferLockGuard<'_>, crate::error::SCError> {
+    fn lock(
+        &self,
+        flags: PixelBufferLockFlags,
+    ) -> Result<PixelBufferLockGuard<'_>, crate::error::SCError> {
         unsafe {
-            PixelBufferLockGuard::new(
-                self.as_ptr(),
-                flags,
-            ).map_err(|code| {
-                crate::error::SCError::buffer_lock_error(format!("Failed to lock pixel buffer (error code: {code})"))
+            PixelBufferLockGuard::new(self.as_ptr(), flags).map_err(|code| {
+                crate::error::SCError::buffer_lock_error(format!(
+                    "Failed to lock pixel buffer (error code: {code})"
+                ))
             })
         }
     }

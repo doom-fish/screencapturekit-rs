@@ -1,5 +1,5 @@
-use crate::cm::CMTime;
 use super::internal::SCStreamConfiguration;
+use crate::cm::CMTime;
 
 impl SCStreamConfiguration {
     /// Set the queue depth for frame buffering
@@ -7,11 +7,14 @@ impl SCStreamConfiguration {
         // FFI expects isize; u32 may wrap on 32-bit platforms (acceptable)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
-            crate::ffi::sc_stream_configuration_set_queue_depth(self.as_ptr(), queue_depth as isize);
+            crate::ffi::sc_stream_configuration_set_queue_depth(
+                self.as_ptr(),
+                queue_depth as isize,
+            );
         }
         self
     }
-    
+
     pub fn get_queue_depth(&self) -> u32 {
         // FFI returns isize but queue depth is always positive and fits in u32
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
@@ -33,14 +36,14 @@ impl SCStreamConfiguration {
         }
         self
     }
-    
+
     pub fn get_minimum_frame_interval(&self) -> CMTime {
         unsafe {
             let mut value: i64 = 0;
             let mut timescale: i32 = 0;
             let mut flags: u32 = 0;
             let mut epoch: i64 = 0;
-            
+
             crate::ffi::sc_stream_configuration_get_minimum_frame_interval(
                 self.as_ptr(),
                 &mut value,
@@ -48,7 +51,7 @@ impl SCStreamConfiguration {
                 &mut flags,
                 &mut epoch,
             );
-            
+
             CMTime {
                 value,
                 timescale,
@@ -61,7 +64,7 @@ impl SCStreamConfiguration {
     /// Set the capture resolution for the stream
     ///
     /// Available on macOS 14.0+. Controls the resolution at which content is captured.
-    /// 
+    ///
     /// # Arguments
     /// * `width` - The width in pixels
     /// * `height` - The height in pixels

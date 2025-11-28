@@ -8,8 +8,7 @@ mod leak_tests {
         shareable_content::SCShareableContent,
         stream::{
             configuration::SCStreamConfiguration, content_filter::SCContentFilter,
-            output_trait::SCStreamOutputTrait,
-            output_type::SCStreamOutputType, SCStream,
+            output_trait::SCStreamOutputTrait, output_type::SCStreamOutputType, SCStream,
         },
     };
 
@@ -48,7 +47,10 @@ mod leak_tests {
                 let display = SCShareableContent::get();
 
                 let d = display.unwrap().displays().remove(0);
-                let filter = SCContentFilter::builder().display(&d).exclude_windows(&[]).build();
+                let filter = SCContentFilter::builder()
+                    .display(&d)
+                    .exclude_windows(&[])
+                    .build();
                 let mut stream = SCStream::new(&filter, &config);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Audio);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Screen);
@@ -75,23 +77,23 @@ mod leak_tests {
 
         println!("stdout: {stdout}");
         println!("stderr: {stderr}");
-        
+
         // Check for leaks, but ignore known Apple framework leaks in ScreenCaptureKit
         // These are internal leaks in CMCapture/FigRemoteOperationReceiver that we can't fix
         if stdout.contains("0 leaks for 0 total leaked bytes") {
             return;
         }
-        
+
         // Check if all leaks are from Apple frameworks (not our code)
-        let apple_framework_leaks = stdout.contains("CMCapture") 
+        let apple_framework_leaks = stdout.contains("CMCapture")
             || stdout.contains("FigRemoteOperationReceiver")
             || stdout.contains("SCStream(SCContentSharing)");
-        
+
         if apple_framework_leaks && !stdout.contains("screencapturekit") {
             println!("Note: Detected Apple framework leaks (not in our code), ignoring");
             return;
         }
-        
+
         panic!("Memory leaks detected in our code");
     }
 }

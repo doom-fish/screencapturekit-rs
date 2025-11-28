@@ -1,5 +1,5 @@
 //! Content Sharing Picker tests (macOS 14.0+)
-//! 
+//!
 //! These tests verify the content sharing picker functionality
 
 #![cfg(feature = "macos_14_0")]
@@ -12,7 +12,10 @@ use screencapturekit::content_sharing_picker::{
 fn test_picker_configuration_creation() {
     // Test basic picker configuration creation
     let config = SCContentSharingPickerConfiguration::new();
-    assert!(!config.as_ptr().is_null(), "Configuration pointer should not be null");
+    assert!(
+        !config.as_ptr().is_null(),
+        "Configuration pointer should not be null"
+    );
     println!("✅ Picker configuration created");
 }
 
@@ -76,7 +79,10 @@ fn test_multiple_picker_configurations() {
 
     // Verify all have valid pointers
     for (i, config) in configs.iter().enumerate() {
-        assert!(!config.as_ptr().is_null(), "Config {i} should have valid pointer");
+        assert!(
+            !config.as_ptr().is_null(),
+            "Config {i} should have valid pointer"
+        );
     }
 
     println!("✅ Multiple configurations created");

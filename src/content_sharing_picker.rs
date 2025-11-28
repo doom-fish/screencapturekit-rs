@@ -7,7 +7,7 @@
 
 use crate::shareable_content::{SCDisplay, SCRunningApplication, SCWindow};
 use std::ffi::c_void;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Condvar, Mutex};
 
 /// Shared state for synchronous picker
 struct SyncPickerState {
@@ -20,11 +20,7 @@ struct SyncPicker {
     condvar: Condvar,
 }
 
-extern "C" fn picker_callback(
-    result_code: i32,
-    stream_ptr: *const c_void,
-    user_data: *mut c_void,
-) {
+extern "C" fn picker_callback(result_code: i32, stream_ptr: *const c_void, user_data: *mut c_void) {
     let picker = unsafe { Arc::from_raw(user_data.cast::<SyncPicker>()) };
 
     let result = match result_code {
@@ -43,7 +39,7 @@ extern "C" fn picker_callback(
         state.result = Some(result);
     }
     picker.condvar.notify_one();
-    
+
     // Release our reference - the caller still holds one
     drop(picker);
 }
@@ -100,7 +96,9 @@ impl Default for SCContentSharingPickerConfiguration {
 impl Clone for SCContentSharingPickerConfiguration {
     fn clone(&self) -> Self {
         unsafe {
-            Self { ptr: crate::ffi::sc_content_sharing_picker_configuration_retain(self.ptr) }
+            Self {
+                ptr: crate::ffi::sc_content_sharing_picker_configuration_retain(self.ptr),
+            }
         }
     }
 }
@@ -148,9 +146,7 @@ impl SCContentSharingPicker {
     ///
     /// # Panics
     /// Panics if the internal mutex is poisoned.
-    pub fn show(
-        config: &SCContentSharingPickerConfiguration,
-    ) -> SCContentSharingPickerResult {
+    pub fn show(config: &SCContentSharingPickerConfiguration) -> SCContentSharingPickerResult {
         let picker = Arc::new(SyncPicker {
             state: Mutex::new(SyncPickerState { result: None }),
             condvar: Condvar::new(),
@@ -167,14 +163,16 @@ impl SCContentSharingPicker {
         while state.result.is_none() {
             state = picker.condvar.wait(state).unwrap();
         }
-        
-        state.result.take().unwrap_or(SCContentSharingPickerResult::Error(
-            "Failed to receive result".to_string(),
-        ))
+
+        state
+            .result
+            .take()
+            .unwrap_or(SCContentSharingPickerResult::Error(
+                "Failed to receive result".to_string(),
+            ))
     }
 }
 
 // Safety: SCContentSharingPickerConfiguration wraps an Objective-C object that is thread-safe
 unsafe impl Send for SCContentSharingPickerConfiguration {}
 unsafe impl Sync for SCContentSharingPickerConfiguration {}
-

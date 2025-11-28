@@ -1,6 +1,6 @@
 //! Tests for dispatch queue functionality
 
-use screencapturekit::dispatch_queue::{DispatchQueue, DispatchQoS};
+use screencapturekit::dispatch_queue::{DispatchQoS, DispatchQueue};
 
 #[test]
 fn test_dispatch_queue_creation() {
@@ -28,7 +28,7 @@ fn test_dispatch_queue_all_qos_levels() {
 fn test_dispatch_queue_with_different_labels() {
     let queue1 = DispatchQueue::new("com.test.queue1", DispatchQoS::Default);
     let queue2 = DispatchQueue::new("com.test.queue2", DispatchQoS::Default);
-    
+
     assert!(!queue1.as_ptr().is_null());
     assert!(!queue2.as_ptr().is_null());
     assert_ne!(queue1.as_ptr(), queue2.as_ptr());

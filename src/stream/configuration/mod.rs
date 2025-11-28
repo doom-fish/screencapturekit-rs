@@ -1,5 +1,5 @@
-mod internal;
 mod builder;
+mod internal;
 
 pub mod advanced;
 pub mod audio;
@@ -20,12 +20,12 @@ pub use types::{ConfigError, Point, Rect, Size};
 
 impl SCStreamConfiguration {
     /// Creates a new stream configuration builder
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust
     /// use screencapturekit::stream::configuration::SCStreamConfiguration;
-    /// 
+    ///
     /// let config = SCStreamConfiguration::builder()
     ///     .width(1920)
     ///     .height(1080)
@@ -35,7 +35,7 @@ impl SCStreamConfiguration {
     pub fn builder() -> SCStreamConfigurationBuilder {
         SCStreamConfigurationBuilder::new()
     }
-    
+
     /// Creates a new stream configuration builder (deprecated alias)
     #[deprecated(since = "1.1.0", note = "Use `builder()` instead")]
     pub fn build() -> Self {

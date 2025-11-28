@@ -1,6 +1,6 @@
-use core::fmt;
 use crate::cg::CGRect;
 use crate::utils::ffi_string::{ffi_string_from_buffer, DEFAULT_BUFFER_SIZE};
+use core::fmt;
 use std::ffi::c_void;
 
 use super::SCRunningApplication;
@@ -97,7 +97,9 @@ impl SCWindow {
     pub fn window_layer(&self) -> i32 {
         // FFI returns isize but window layer fits in i32
         #[allow(clippy::cast_possible_truncation)]
-        unsafe { crate::ffi::sc_window_get_window_layer(self.0) as i32 }
+        unsafe {
+            crate::ffi::sc_window_get_window_layer(self.0) as i32
+        }
     }
 
     /// Check if window is on screen
@@ -123,9 +125,7 @@ impl Drop for SCWindow {
 
 impl Clone for SCWindow {
     fn clone(&self) -> Self {
-        unsafe {
-            Self(crate::ffi::sc_window_retain(self.0))
-        }
+        unsafe { Self(crate::ffi::sc_window_retain(self.0)) }
     }
 }
 

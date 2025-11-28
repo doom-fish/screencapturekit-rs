@@ -3,56 +3,59 @@
 //! This is the primary (and only) implementation in v1.0+.
 //! All `ScreenCaptureKit` operations use direct Swift FFI bindings.
 
-use std::ffi::{c_void, CStr};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::ffi::{c_void, CStr};
 use std::fmt;
+use std::sync::Mutex;
 
+use crate::error::SCError;
 use crate::{
-    ffi,
     dispatch_queue::DispatchQueue,
+    ffi,
     stream::{
-        configuration::SCStreamConfiguration,
-        content_filter::SCContentFilter,
-        output_type::SCStreamOutputType,
-        output_trait::SCStreamOutputTrait,
+        configuration::SCStreamConfiguration, content_filter::SCContentFilter,
+        output_trait::SCStreamOutputTrait, output_type::SCStreamOutputType,
     },
 };
-use crate::error::SCError;
 
 // Global registry for output handlers
-static HANDLER_REGISTRY: Mutex<Option<HashMap<usize, Box<dyn SCStreamOutputTrait>>>> = Mutex::new(None);
+static HANDLER_REGISTRY: Mutex<Option<HashMap<usize, Box<dyn SCStreamOutputTrait>>>> =
+    Mutex::new(None);
 static NEXT_HANDLER_ID: Mutex<usize> = Mutex::new(1);
 
 // C callback that retrieves handler from registry
-extern "C" fn sample_handler(_stream: *const c_void, sample_buffer: *const c_void, output_type: i32) {
+extern "C" fn sample_handler(
+    _stream: *const c_void,
+    sample_buffer: *const c_void,
+    output_type: i32,
+) {
     // Mutex poisoning is unrecoverable in C callback context; unwrap is appropriate
     let registry = HANDLER_REGISTRY.lock().unwrap();
     if let Some(handlers) = registry.as_ref() {
         if handlers.is_empty() {
             return;
         }
-        
+
         let output_type_enum = if output_type == 1 {
             SCStreamOutputType::Audio
         } else {
             SCStreamOutputType::Screen
         };
-        
+
         let handler_count = handlers.len();
-        
+
         // Call all registered handlers
         for (idx, (_id, handler)) in handlers.iter().enumerate() {
             // Convert raw pointer to CMSampleBuffer
             let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(sample_buffer.cast_mut()) };
-            
+
             // For all handlers except the last, we need to retain the buffer
             if idx < handler_count - 1 {
                 // Retain the buffer so it's not released when this handler's buffer is dropped
                 unsafe { crate::cm::ffi::cm_sample_buffer_retain(sample_buffer.cast_mut()) };
             }
             // The last handler will release the original retained reference from Swift
-            
+
             handler.did_output_sample_buffer(buffer, output_type_enum);
         }
     }
@@ -134,12 +137,18 @@ impl SCStream {
                 }
             }
         }
-        let ptr = unsafe { ffi::sc_stream_create(filter.as_ptr(), configuration.as_ptr(), error_callback) };
+        let ptr = unsafe {
+            ffi::sc_stream_create(filter.as_ptr(), configuration.as_ptr(), error_callback)
+        };
         assert!(!ptr.is_null(), "Swift bridge returned null stream");
         Self { ptr }
     }
 
-    pub fn new_with_delegate(filter: &SCContentFilter, configuration: &SCStreamConfiguration, _delegate: impl crate::stream::delegate_trait::SCStreamDelegateTrait) -> Self {
+    pub fn new_with_delegate(
+        filter: &SCContentFilter,
+        configuration: &SCStreamConfiguration,
+        _delegate: impl crate::stream::delegate_trait::SCStreamDelegateTrait,
+    ) -> Self {
         // Delegate callbacks not yet mapped in bridge version; stored for API parity.
         Self::new(filter, configuration)
     }
@@ -199,7 +208,11 @@ impl SCStream {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn add_output_handler(&mut self, handler: impl SCStreamOutputTrait + 'static, of_type: SCStreamOutputType) -> Option<usize> {
+    pub fn add_output_handler(
+        &mut self,
+        handler: impl SCStreamOutputTrait + 'static,
+        of_type: SCStreamOutputType,
+    ) -> Option<usize> {
         self.add_output_handler_with_queue(handler, of_type, None)
     }
 
@@ -240,10 +253,10 @@ impl SCStream {
     /// # }
     /// ```
     pub fn add_output_handler_with_queue(
-        &mut self, 
-        handler: impl SCStreamOutputTrait + 'static, 
+        &mut self,
+        handler: impl SCStreamOutputTrait + 'static,
         of_type: SCStreamOutputType,
-        queue: Option<&DispatchQueue>
+        queue: Option<&DispatchQueue>,
     ) -> Option<usize> {
         // Get next handler ID
         let handler_id = {
@@ -262,7 +275,10 @@ impl SCStream {
                 *registry = Some(HashMap::new());
             }
             // We just ensured registry is Some above
-            registry.as_mut().unwrap().insert(handler_id, Box::new(handler));
+            registry
+                .as_mut()
+                .unwrap()
+                .insert(handler_id, Box::new(handler));
         }
 
         // Convert output type to int for Swift
@@ -273,19 +289,23 @@ impl SCStream {
         };
 
         let ok = if let Some(q) = queue {
-            unsafe { 
+            unsafe {
                 ffi::sc_stream_add_stream_output_with_queue(
-                    self.ptr, 
-                    output_type_int, 
+                    self.ptr,
+                    output_type_int,
                     sample_handler,
-                    q.as_ptr()
-                ) 
+                    q.as_ptr(),
+                )
             }
         } else {
             unsafe { ffi::sc_stream_add_stream_output(self.ptr, output_type_int, sample_handler) }
         };
-        
-        if ok { Some(handler_id) } else { None }
+
+        if ok {
+            Some(handler_id)
+        } else {
+            None
+        }
     }
 
     /// Remove an output handler
@@ -305,7 +325,8 @@ impl SCStream {
     pub fn remove_output_handler(&mut self, id: usize, _of_type: SCStreamOutputType) -> bool {
         // Mutex poisoning is unrecoverable; unwrap is appropriate
         let mut registry = HANDLER_REGISTRY.lock().unwrap();
-        registry.as_mut()
+        registry
+            .as_mut()
             .and_then(|handlers| handlers.remove(&id))
             .is_some()
     }
@@ -318,7 +339,9 @@ impl SCStream {
     pub fn start_capture(&self) -> Result<(), SCError> {
         extern "C" fn completion(success: bool, msg: *const i8) {
             if !success && !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() { eprintln!("start_capture error: {s}"); }
+                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
+                    eprintln!("start_capture error: {s}");
+                }
             }
         }
         unsafe { ffi::sc_stream_start_capture(self.ptr, completion) };
@@ -333,7 +356,9 @@ impl SCStream {
     pub fn stop_capture(&self) -> Result<(), SCError> {
         extern "C" fn completion(success: bool, msg: *const i8) {
             if !success && !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() { eprintln!("stop_capture error: {s}"); }
+                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
+                    eprintln!("stop_capture error: {s}");
+                }
             }
         }
         unsafe { ffi::sc_stream_stop_capture(self.ptr, completion) };
@@ -345,13 +370,20 @@ impl SCStream {
     /// # Errors
     ///
     /// This method currently does not fail and always returns `Ok`.
-    pub fn update_configuration(&self, configuration: &SCStreamConfiguration) -> Result<(), SCError> {
+    pub fn update_configuration(
+        &self,
+        configuration: &SCStreamConfiguration,
+    ) -> Result<(), SCError> {
         extern "C" fn completion(success: bool, msg: *const i8) {
             if !success && !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() { eprintln!("update_configuration error: {s}"); }
+                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
+                    eprintln!("update_configuration error: {s}");
+                }
             }
         }
-        unsafe { ffi::sc_stream_update_configuration(self.ptr, configuration.as_ptr(), completion) };
+        unsafe {
+            ffi::sc_stream_update_configuration(self.ptr, configuration.as_ptr(), completion)
+        };
         Ok(())
     }
 
@@ -363,13 +395,14 @@ impl SCStream {
     pub fn update_content_filter(&self, filter: &SCContentFilter) -> Result<(), SCError> {
         extern "C" fn completion(success: bool, msg: *const i8) {
             if !success && !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() { eprintln!("update_content_filter error: {s}"); }
+                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
+                    eprintln!("update_content_filter error: {s}");
+                }
             }
         }
         unsafe { ffi::sc_stream_update_content_filter(self.ptr, filter.as_ptr(), completion) };
         Ok(())
     }
-
 }
 
 impl Drop for SCStream {
@@ -381,16 +414,16 @@ impl Drop for SCStream {
 impl Clone for SCStream {
     fn clone(&self) -> Self {
         unsafe {
-            Self { ptr: crate::ffi::sc_stream_retain(self.ptr) }
+            Self {
+                ptr: crate::ffi::sc_stream_retain(self.ptr),
+            }
         }
     }
 }
 
 impl fmt::Debug for SCStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SCStream")
-            .field("ptr", &self.ptr)
-            .finish()
+        f.debug_struct("SCStream").field("ptr", &self.ptr).finish()
     }
 }
 

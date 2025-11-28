@@ -68,5 +68,7 @@ pub mod iosurface;
 pub mod pixel_buffer;
 
 pub use crate::cm::{CMSampleBuffer, CMTime, CVPixelBuffer};
-pub use iosurface::{IOSurface, IOSurfaceLockOptions, IOSurfaceLockGuard, CVPixelBufferIOSurface};
-pub use pixel_buffer::{PixelBufferLockFlags, PixelBufferLockGuard, PixelBufferCursorExt, CVImageBufferLockExt};
+pub use iosurface::{CVPixelBufferIOSurface, IOSurface, IOSurfaceLockGuard, IOSurfaceLockOptions};
+pub use pixel_buffer::{
+    CVImageBufferLockExt, PixelBufferCursorExt, PixelBufferLockFlags, PixelBufferLockGuard,
+};

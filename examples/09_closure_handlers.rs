@@ -7,8 +7,8 @@
 //! - Using `ErrorHandler` for delegate callbacks
 //! - Combining multiple handler types
 
+use screencapturekit::dispatch_queue::{DispatchQoS, DispatchQueue};
 use screencapturekit::prelude::*;
-use screencapturekit::dispatch_queue::{DispatchQueue, DispatchQoS};
 use screencapturekit::stream::ErrorHandler;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -18,9 +18,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Get display
     let content = SCShareableContent::get()?;
-    let display = content.displays().into_iter().next()
+    let display = content
+        .displays()
+        .into_iter()
+        .next()
         .ok_or("No displays found")?;
-    
+
     println!("Display: {}x{}\n", display.width(), display.height());
 
     // Create filter and config
@@ -39,12 +42,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Simple closure handler
     // =========================================================================
     println!("📌 Example 1: Simple closure handler");
-    
+
     let frame_count = Arc::new(AtomicUsize::new(0));
     let count_clone = frame_count.clone();
-    
+
     let mut stream = SCStream::new(&filter, &config);
-    
+
     // Add handler using a closure directly
     stream.add_output_handler(
         move |_sample: CMSampleBuffer, output_type: SCStreamOutputType| {
@@ -55,28 +58,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         },
-        SCStreamOutputType::Screen
+        SCStreamOutputType::Screen,
     );
-    
+
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(2));
     stream.stop_capture()?;
-    
-    println!("   ✅ Captured {} frames\n", frame_count.load(Ordering::Relaxed));
+
+    println!(
+        "   ✅ Captured {} frames\n",
+        frame_count.load(Ordering::Relaxed)
+    );
 
     // =========================================================================
     // Example 2: Closure with custom dispatch queue
     // =========================================================================
     println!("📌 Example 2: Closure with custom dispatch queue");
-    
+
     let frame_count = Arc::new(AtomicUsize::new(0));
     let count_clone = frame_count.clone();
-    
+
     let mut stream = SCStream::new(&filter, &config);
-    
+
     // Create a high-priority queue for frame processing
     let queue = DispatchQueue::new("com.example.capture", DispatchQoS::UserInteractive);
-    
+
     // Add handler with custom queue
     stream.add_output_handler_with_queue(
         move |_sample: CMSampleBuffer, _output_type: SCStreamOutputType| {
@@ -86,65 +92,71 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         },
         SCStreamOutputType::Screen,
-        Some(&queue)
+        Some(&queue),
     );
-    
+
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(2));
     stream.stop_capture()?;
-    
-    println!("   ✅ Captured {} frames\n", frame_count.load(Ordering::Relaxed));
+
+    println!(
+        "   ✅ Captured {} frames\n",
+        frame_count.load(Ordering::Relaxed)
+    );
 
     // =========================================================================
     // Example 3: ErrorHandler for delegate callbacks
     // =========================================================================
     println!("📌 Example 3: ErrorHandler for delegate callbacks");
-    
+
     // Create an error handler from a closure
     let error_handler = ErrorHandler::new(|error| {
         eprintln!("   ❌ Stream error: {error}");
     });
-    
+
     // Create stream with delegate
     let mut stream = SCStream::new_with_delegate(&filter, &config, error_handler);
-    
+
     let frame_count = Arc::new(AtomicUsize::new(0));
     let count_clone = frame_count.clone();
-    
+
     stream.add_output_handler(
         move |_sample: CMSampleBuffer, _output_type: SCStreamOutputType| {
             count_clone.fetch_add(1, Ordering::Relaxed);
         },
-        SCStreamOutputType::Screen
+        SCStreamOutputType::Screen,
     );
-    
+
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(2));
     stream.stop_capture()?;
-    
-    println!("   ✅ Captured {} frames (with error handling)\n", frame_count.load(Ordering::Relaxed));
+
+    println!(
+        "   ✅ Captured {} frames (with error handling)\n",
+        frame_count.load(Ordering::Relaxed)
+    );
 
     // =========================================================================
     // Example 4: Multiple handlers
     // =========================================================================
     println!("📌 Example 4: Multiple handlers on same stream");
-    
+
     let video_count = Arc::new(AtomicUsize::new(0));
     let stats_count = Arc::new(AtomicUsize::new(0));
-    
+
     let video_clone = video_count.clone();
     let stats_clone = stats_count.clone();
-    
+
     let mut stream = SCStream::new(&filter, &config);
-    
+
     // Handler 1: Count frames
     stream.add_output_handler(
         move |_sample: CMSampleBuffer, _output_type: SCStreamOutputType| {
             video_clone.fetch_add(1, Ordering::Relaxed);
         },
-        SCStreamOutputType::Screen
+        SCStreamOutputType::Screen,
     );
-    
+
     // Handler 2: Log every 60th frame
     stream.add_output_handler(
         move |_sample: CMSampleBuffer, _output_type: SCStreamOutputType| {
@@ -153,15 +165,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("   📊 Stats checkpoint at frame {n}");
             }
         },
-        SCStreamOutputType::Screen
+        SCStreamOutputType::Screen,
     );
-    
+
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(2));
     stream.stop_capture()?;
-    
-    println!("   ✅ Handler 1 counted: {} frames", video_count.load(Ordering::Relaxed));
-    println!("   ✅ Handler 2 counted: {} frames\n", stats_count.load(Ordering::Relaxed));
+
+    println!(
+        "   ✅ Handler 1 counted: {} frames",
+        video_count.load(Ordering::Relaxed)
+    );
+    println!(
+        "   ✅ Handler 2 counted: {} frames\n",
+        stats_count.load(Ordering::Relaxed)
+    );
 
     println!("✨ All closure handler examples complete!");
     Ok(())

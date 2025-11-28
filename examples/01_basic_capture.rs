@@ -31,9 +31,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Get available displays
     let content = SCShareableContent::get()?;
-    let display = content.displays().into_iter().next()
+    let display = content
+        .displays()
+        .into_iter()
+        .next()
         .ok_or("No displays found")?;
-    
+
     println!("Display: {}x{}", display.width(), display.height());
 
     // 2. Create content filter (what to capture)
@@ -51,12 +54,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. Create stream
     let mut stream = SCStream::new(&filter, &config);
-    
+
     // Method 1: Struct-based handler
     let count = Arc::new(AtomicUsize::new(0));
-    let handler = FrameHandler { count: count.clone() };
+    let handler = FrameHandler {
+        count: count.clone(),
+    };
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
-    
+
     // Method 2: Closure-based handler (alternative approach)
     // Uncomment to use instead of struct handler:
     // let count = Arc::new(AtomicUsize::new(0));
@@ -70,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     },
     //     SCStreamOutputType::Screen
     // );
-    
+
     println!("Starting capture...\n");
     stream.start_capture()?;
 
@@ -78,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::sleep(std::time::Duration::from_secs(5));
 
     stream.stop_capture()?;
-    
+
     println!("\n✅ Captured {} frames", count.load(Ordering::Relaxed));
     Ok(())
 }

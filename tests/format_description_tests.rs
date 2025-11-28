@@ -9,7 +9,10 @@ fn test_media_type_constants() {
     assert_eq!(media_types::AUDIO, FourCharCode::from_bytes(*b"soun"));
     assert_eq!(media_types::MUXED, FourCharCode::from_bytes(*b"mux "));
     assert_eq!(media_types::TEXT, FourCharCode::from_bytes(*b"text"));
-    assert_eq!(media_types::CLOSED_CAPTION, FourCharCode::from_bytes(*b"clcp"));
+    assert_eq!(
+        media_types::CLOSED_CAPTION,
+        FourCharCode::from_bytes(*b"clcp")
+    );
     assert_eq!(media_types::METADATA, FourCharCode::from_bytes(*b"meta"));
     assert_eq!(media_types::TIMECODE, FourCharCode::from_bytes(*b"tmcd"));
 }

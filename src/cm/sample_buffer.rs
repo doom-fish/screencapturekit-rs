@@ -1,8 +1,11 @@
 //! `CMSampleBuffer` - Container for media samples
 
-use std::fmt;
 use super::ffi;
-use super::{CMTime, CMSampleTimingInfo, CVPixelBuffer, AudioBuffer, AudioBufferList, AudioBufferListRaw, CMBlockBuffer, CMFormatDescription, SCFrameStatus};
+use super::{
+    AudioBuffer, AudioBufferList, AudioBufferListRaw, CMBlockBuffer, CMFormatDescription,
+    CMSampleTimingInfo, CMTime, CVPixelBuffer, SCFrameStatus,
+};
+use std::fmt;
 
 /// Opaque handle to `CMSampleBuffer`
 #[repr(transparent)]
@@ -96,7 +99,7 @@ impl CMSampleBuffer {
                 duration.timescale,
                 &mut sample_buffer_ptr,
             );
-            
+
             if status == 0 && !sample_buffer_ptr.is_null() {
                 Ok(Self(sample_buffer_ptr))
             } else {
@@ -162,7 +165,12 @@ impl CMSampleBuffer {
                 &mut flags,
                 &mut epoch,
             );
-            CMTime { value, timescale, flags, epoch }
+            CMTime {
+                value,
+                timescale,
+                flags,
+                epoch,
+            }
         }
     }
 
@@ -179,7 +187,12 @@ impl CMSampleBuffer {
                 &mut flags,
                 &mut epoch,
             );
-            CMTime { value, timescale, flags, epoch }
+            CMTime {
+                value,
+                timescale,
+                flags,
+                epoch,
+            }
         }
     }
 
@@ -196,14 +209,14 @@ impl CMSampleBuffer {
             let mut num_buffers: u32 = 0;
             let mut buffers_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
             let mut buffers_len: usize = 0;
-            
+
             ffi::cm_sample_buffer_get_audio_buffer_list(
                 self.0,
                 &mut num_buffers,
                 &mut buffers_ptr,
                 &mut buffers_len,
             );
-            
+
             if num_buffers == 0 {
                 None
             } else {
@@ -239,7 +252,12 @@ impl CMSampleBuffer {
                 &mut flags,
                 &mut epoch,
             );
-            CMTime { value, timescale, flags, epoch }
+            CMTime {
+                value,
+                timescale,
+                flags,
+                epoch,
+            }
         }
     }
 
@@ -257,7 +275,12 @@ impl CMSampleBuffer {
                 &mut flags,
                 &mut epoch,
             );
-            CMTime { value, timescale, flags, epoch }
+            CMTime {
+                value,
+                timescale,
+                flags,
+                epoch,
+            }
         }
     }
 
@@ -393,7 +416,10 @@ impl CMSampleBuffer {
     /// # Errors
     ///
     /// Returns a Core Media error code if the copy cannot be created.
-    pub fn create_copy_with_new_timing(&self, timing_info: &[CMSampleTimingInfo]) -> Result<Self, i32> {
+    pub fn create_copy_with_new_timing(
+        &self,
+        timing_info: &[CMSampleTimingInfo],
+    ) -> Result<Self, i32> {
         unsafe {
             let mut new_buffer_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
             let status = ffi::cm_sample_buffer_create_copy_with_new_timing(
@@ -415,7 +441,12 @@ impl CMSampleBuffer {
     /// # Errors
     ///
     /// Returns a Core Media error code if the copy operation fails.
-    pub fn copy_pcm_data_into_audio_buffer_list(&self, frame_offset: i32, num_frames: i32, buffer_list: &mut AudioBufferList) -> Result<(), i32> {
+    pub fn copy_pcm_data_into_audio_buffer_list(
+        &self,
+        frame_offset: i32,
+        num_frames: i32,
+        buffer_list: &mut AudioBufferList,
+    ) -> Result<(), i32> {
         unsafe {
             let status = ffi::cm_sample_buffer_copy_pcm_data_into_audio_buffer_list(
                 self.0,

@@ -15,7 +15,7 @@ fn test_set_dimensions() {
     let config = SCStreamConfiguration::default()
         .set_width(1920)
         .set_height(1080);
-    
+
     assert_eq!(config.get_width(), 1920);
     assert_eq!(config.get_height(), 1080);
 }
@@ -27,7 +27,7 @@ fn test_set_dimensions_chaining() {
         .set_height(1080)
         .set_width(1280)
         .set_height(720);
-    
+
     assert_eq!(config.get_width(), 1280);
     assert_eq!(config.get_height(), 720);
 }
@@ -40,7 +40,7 @@ fn test_set_pixel_format() {
         PixelFormat::YCbCr_420f,
         PixelFormat::l10r,
     ];
-    
+
     for format in formats {
         let _config = SCStreamConfiguration::default().set_pixel_format(format);
         // Just verify it doesn't crash
@@ -49,8 +49,7 @@ fn test_set_pixel_format() {
 
 #[test]
 fn test_audio_configuration() {
-    let _config = SCStreamConfiguration::default()
-        .set_captures_audio(true);
+    let _config = SCStreamConfiguration::default().set_captures_audio(true);
     // Just verify it doesn't crash
 }
 
@@ -100,21 +99,29 @@ fn test_various_resolutions() {
         (2560, 1440),
         (3840, 2160),
     ];
-    
+
     for (width, height) in resolutions {
         let config = SCStreamConfiguration::default()
             .set_width(width)
             .set_height(height);
-        
-        assert_eq!(config.get_width(), width, "Width mismatch for {width}x{height}");
-        assert_eq!(config.get_height(), height, "Height mismatch for {width}x{height}");
+
+        assert_eq!(
+            config.get_width(),
+            width,
+            "Width mismatch for {width}x{height}"
+        );
+        assert_eq!(
+            config.get_height(),
+            height,
+            "Height mismatch for {width}x{height}"
+        );
     }
 }
 
 #[test]
 fn test_common_sample_rates() {
     let sample_rates = [44100, 48000, 96000];
-    
+
     for rate in sample_rates {
         let _config = SCStreamConfiguration::default()
             .set_captures_audio(true)
@@ -126,7 +133,7 @@ fn test_common_sample_rates() {
 #[test]
 fn test_channel_counts() {
     let channels = [1, 2];
-    
+
     for count in channels {
         let _config = SCStreamConfiguration::default()
             .set_captures_audio(true)
@@ -144,12 +151,12 @@ fn test_pixel_format_equality() {
 #[test]
 fn test_pixel_format_in_collections() {
     use std::collections::HashSet;
-    
+
     let mut formats = HashSet::new();
     formats.insert(PixelFormat::BGRA);
     formats.insert(PixelFormat::YCbCr_420v);
     formats.insert(PixelFormat::BGRA); // Duplicate
-    
+
     assert_eq!(formats.len(), 2);
 }
 
@@ -166,7 +173,7 @@ fn test_multiple_configurations() {
     let _config1 = SCStreamConfiguration::default();
     let _config2 = SCStreamConfiguration::default();
     let _config3 = SCStreamConfiguration::default();
-    
+
     // Should not crash or leak memory
 }
 
@@ -176,11 +183,11 @@ fn test_configuration_modification_order() {
     let config1 = SCStreamConfiguration::default()
         .set_width(1920)
         .set_height(1080);
-    
+
     let config2 = SCStreamConfiguration::default()
         .set_height(1080)
         .set_width(1920);
-    
+
     assert_eq!(config1.get_width(), config2.get_width());
     assert_eq!(config1.get_height(), config2.get_height());
 }
@@ -204,9 +211,8 @@ fn test_video_without_audio() {
 
 #[test]
 fn test_stream_name() {
-    let config = SCStreamConfiguration::default()
-        .set_stream_name(Some("test-stream"));
-    
+    let config = SCStreamConfiguration::default().set_stream_name(Some("test-stream"));
+
     // The getter may not work on all macOS versions
     let _ = config.get_stream_name();
 }
@@ -215,10 +221,10 @@ fn test_stream_name() {
 #[cfg(feature = "macos_15_0")]
 fn test_dynamic_range() {
     use screencapturekit::stream::configuration::SCCaptureDynamicRange;
-    
+
     let config = SCStreamConfiguration::default()
         .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
-    
+
     // May return SDR on macOS < 15.0
     let _ = config.get_capture_dynamic_range();
 }
@@ -226,7 +232,7 @@ fn test_dynamic_range() {
 #[test]
 fn test_queue_depth_and_frame_interval() {
     use screencapturekit::cm::CMTime;
-    
+
     let cm_time = CMTime {
         value: 4,
         timescale: 1,
@@ -244,10 +250,16 @@ fn test_queue_depth_and_frame_interval() {
     // Note: minimum_frame_interval may not be supported on all macOS versions
     // If supported, values should match
     if acquired_cm_time.is_valid() {
-        assert_eq!(acquired_cm_time.value, cm_time.value, 
-            "Expected value {}, got {}", cm_time.value, acquired_cm_time.value);
-        assert_eq!(acquired_cm_time.timescale, cm_time.timescale,
-            "Expected timescale {}, got {}", cm_time.timescale, acquired_cm_time.timescale);
+        assert_eq!(
+            acquired_cm_time.value, cm_time.value,
+            "Expected value {}, got {}",
+            cm_time.value, acquired_cm_time.value
+        );
+        assert_eq!(
+            acquired_cm_time.timescale, cm_time.timescale,
+            "Expected timescale {}, got {}",
+            cm_time.timescale, acquired_cm_time.timescale
+        );
     }
 }
 
@@ -255,7 +267,7 @@ fn test_queue_depth_and_frame_interval() {
 #[cfg(all(feature = "macos_13_0", feature = "macos_14_2"))]
 fn test_advanced_setters() {
     use screencapturekit::stream::configuration::SCPresenterOverlayAlertSetting;
-    
+
     // These advanced properties require macOS 13.0-14.2+
     // The test verifies that setters don't error, but getters may not
     // return the set values on older macOS versions
@@ -277,8 +289,7 @@ fn test_advanced_setters() {
 
 #[test]
 fn test_shows_cursor() {
-    let config = SCStreamConfiguration::default()
-        .set_shows_cursor(true);
+    let config = SCStreamConfiguration::default().set_shows_cursor(true);
     assert!(config.get_shows_cursor());
 }
 
@@ -293,7 +304,7 @@ fn test_builder_pattern() {
         .sample_rate(48000)
         .channel_count(2)
         .build();
-    
+
     assert_eq!(config.get_width(), 1920);
     assert_eq!(config.get_height(), 1080);
 }

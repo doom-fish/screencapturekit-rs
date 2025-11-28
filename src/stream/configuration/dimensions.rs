@@ -29,7 +29,7 @@ impl SCStreamConfiguration {
         }
         self
     }
-    
+
     /// Get the configured output width in pixels
     ///
     /// # Examples
@@ -70,7 +70,7 @@ impl SCStreamConfiguration {
         }
         self
     }
-    
+
     /// Get the configured output height in pixels
     ///
     /// # Examples
@@ -110,12 +110,10 @@ impl SCStreamConfiguration {
         }
         self
     }
-    
+
     /// Check if scaling to fit is enabled
     pub fn get_scales_to_fit(&self) -> bool {
-        unsafe {
-            crate::ffi::sc_stream_configuration_get_scales_to_fit(self.as_ptr())
-        }
+        unsafe { crate::ffi::sc_stream_configuration_get_scales_to_fit(self.as_ptr()) }
     }
 
     /// Set the source rectangle to capture
@@ -146,7 +144,7 @@ impl SCStreamConfiguration {
         }
         self
     }
-    
+
     /// Get the configured source rectangle
     pub fn get_source_rect(&self) -> CGRect {
         unsafe {
@@ -193,7 +191,7 @@ impl SCStreamConfiguration {
         }
         self
     }
-    
+
     /// Get the configured destination rectangle
     pub fn get_destination_rect(&self) -> CGRect {
         unsafe {
@@ -232,16 +230,17 @@ impl SCStreamConfiguration {
     /// ```
     pub fn set_preserves_aspect_ratio(self, preserves_aspect_ratio: bool) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_preserves_aspect_ratio(self.as_ptr(), preserves_aspect_ratio);
+            crate::ffi::sc_stream_configuration_set_preserves_aspect_ratio(
+                self.as_ptr(),
+                preserves_aspect_ratio,
+            );
         }
         self
     }
-    
+
     /// Check if aspect ratio preservation is enabled
     pub fn get_preserves_aspect_ratio(&self) -> bool {
-        unsafe {
-            crate::ffi::sc_stream_configuration_get_preserves_aspect_ratio(self.as_ptr())
-        }
+        unsafe { crate::ffi::sc_stream_configuration_get_preserves_aspect_ratio(self.as_ptr()) }
     }
 
     /// Preserve aspect ratio when scaling (alternative API)
@@ -249,16 +248,17 @@ impl SCStreamConfiguration {
     /// This is an alternative to `set_preserves_aspect_ratio` for compatibility.
     pub fn set_preserve_aspect_ratio(self, preserve_aspect_ratio: bool) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_preserve_aspect_ratio(self.as_ptr(), preserve_aspect_ratio);
+            crate::ffi::sc_stream_configuration_set_preserve_aspect_ratio(
+                self.as_ptr(),
+                preserve_aspect_ratio,
+            );
         }
         self
     }
-    
+
     /// Check if aspect ratio preservation is enabled (alternative API)
     pub fn get_preserve_aspect_ratio(&self) -> bool {
-        unsafe {
-            crate::ffi::sc_stream_configuration_get_preserve_aspect_ratio(self.as_ptr())
-        }
+        unsafe { crate::ffi::sc_stream_configuration_get_preserve_aspect_ratio(self.as_ptr()) }
     }
 
     /// Enable or disable increased resolution for Retina displays
@@ -286,7 +286,7 @@ impl SCStreamConfiguration {
         }
         self
     }
-    
+
     /// Check if increased resolution for Retina displays is enabled
     pub fn get_increase_resolution_for_retina_displays(&self) -> bool {
         unsafe {

@@ -7,9 +7,9 @@
 //! - Saving as PNG
 
 #[cfg(feature = "macos_14_0")]
-use screencapturekit::screenshot_manager::SCScreenshotManager;
-#[cfg(feature = "macos_14_0")]
 use screencapturekit::prelude::*;
+#[cfg(feature = "macos_14_0")]
+use screencapturekit::screenshot_manager::SCScreenshotManager;
 
 #[cfg(not(feature = "macos_14_0"))]
 fn main() {
@@ -23,9 +23,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Get display
     let content = SCShareableContent::get()?;
-    let display = content.displays().into_iter().next()
+    let display = content
+        .displays()
+        .into_iter()
+        .next()
         .ok_or("No displays found")?;
-    
+
     println!("Display: {}x{}", display.width(), display.height());
 
     // 2. Create filter
@@ -42,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 4. Capture screenshot
     println!("Capturing...");
     let image = SCScreenshotManager::capture_image(&filter, &config)?;
-    
+
     let width = image.width();
     let height = image.height();
     println!("Captured: {width}x{height}");
@@ -50,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 5. Save as PNG using png crate
     let filename = "screenshot.png";
     let rgba_data = image.get_rgba_data()?;
-    
+
     let file = std::fs::File::create(filename)?;
     let buf_writer = std::io::BufWriter::new(file);
     #[allow(clippy::cast_possible_truncation)]
@@ -59,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     encoder.set_depth(png::BitDepth::Eight);
     let mut writer = encoder.write_header()?;
     writer.write_image_data(&rgba_data)?;
-    
+
     println!("✅ Saved to {filename}");
     Ok(())
 }

@@ -1,5 +1,5 @@
-use core::fmt;
 use crate::cg::CGRect;
+use core::fmt;
 use std::ffi::c_void;
 
 /// Opaque wrapper around `SCDisplay` from `ScreenCaptureKit`
@@ -14,9 +14,9 @@ use std::ffi::c_void;
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let content = SCShareableContent::get()?;
 /// for display in content.displays() {
-///     println!("Display {}: {}x{}", 
-///         display.display_id(), 
-///         display.width(), 
+///     println!("Display {}: {}x{}",
+///         display.display_id(),
+///         display.width(),
 ///         display.height()
 ///     );
 /// }
@@ -101,14 +101,18 @@ impl SCDisplay {
     pub fn height(&self) -> u32 {
         // FFI returns isize but display dimensions are always positive and fit in u32
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        unsafe { crate::ffi::sc_display_get_height(self.0) as u32 }
+        unsafe {
+            crate::ffi::sc_display_get_height(self.0) as u32
+        }
     }
 
     /// Get display width in pixels
     pub fn width(&self) -> u32 {
         // FFI returns isize but display dimensions are always positive and fit in u32
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        unsafe { crate::ffi::sc_display_get_width(self.0) as u32 }
+        unsafe {
+            crate::ffi::sc_display_get_width(self.0) as u32
+        }
     }
 }
 
@@ -122,9 +126,7 @@ impl Drop for SCDisplay {
 
 impl Clone for SCDisplay {
     fn clone(&self) -> Self {
-        unsafe {
-            Self(crate::ffi::sc_display_retain(self.0))
-        }
+        unsafe { Self(crate::ffi::sc_display_retain(self.0)) }
     }
 }
 
@@ -152,4 +154,3 @@ impl fmt::Display for SCDisplay {
         )
     }
 }
-

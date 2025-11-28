@@ -1,7 +1,7 @@
 //! `SCStreamDelegateTrait` tests
 
-use screencapturekit::stream::delegate_trait::{ErrorHandler, SCStreamDelegateTrait};
 use screencapturekit::error::SCError;
+use screencapturekit::stream::delegate_trait::{ErrorHandler, SCStreamDelegateTrait};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -83,7 +83,7 @@ fn test_error_handler_receives_error() {
 fn test_delegate_trait_send() {
     fn assert_send<T: Send>() {}
     fn check_send<T: Send>(_: &T) {}
-    
+
     assert_send::<TestDelegate>();
 
     // ErrorHandler with Send closure should be Send

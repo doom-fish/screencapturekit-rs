@@ -42,7 +42,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Get display
     let content = SCShareableContent::get()?;
-    let display = content.displays().into_iter().next()
+    let display = content
+        .displays()
+        .into_iter()
+        .next()
         .ok_or("No displays found")?;
 
     // 2. Create filter
@@ -55,9 +58,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SCStreamConfiguration::builder()
         .width(1920)
         .height(1080)
-        .captures_audio(true)      // Enable audio
-        .sample_rate(48000)        // 48kHz
-        .channel_count(2)          // Stereo
+        .captures_audio(true) // Enable audio
+        .sample_rate(48000) // 48kHz
+        .channel_count(2) // Stereo
         .build();
 
     // 4. Start capture
@@ -65,22 +68,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         video_count: Arc::new(AtomicUsize::new(0)),
         audio_count: Arc::new(AtomicUsize::new(0)),
     };
-    
+
     let video_count = handler.video_count.clone();
     let audio_count = handler.audio_count.clone();
-    
+
     let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
-    
+
     println!("Starting capture...\n");
     stream.start_capture()?;
 
     std::thread::sleep(std::time::Duration::from_secs(5));
     stream.stop_capture()?;
-    
+
     println!("\n✅ Captured:");
     println!("   Video: {} frames", video_count.load(Ordering::Relaxed));
     println!("   Audio: {} buffers", audio_count.load(Ordering::Relaxed));
-    
+
     Ok(())
 }

@@ -97,10 +97,7 @@ pub enum SCError {
     InvalidConfiguration(String),
 
     /// Invalid dimension value (width or height)
-    InvalidDimension {
-        field: String,
-        value: usize,
-    },
+    InvalidDimension { field: String, value: usize },
 
     /// Invalid pixel format
     InvalidPixelFormat(String),
@@ -166,10 +163,7 @@ pub enum SCError {
     InternalError(String),
 
     /// OS error with code
-    OSError {
-        code: i32,
-        message: String,
-    },
+    OSError { code: i32, message: String },
 }
 
 impl fmt::Display for SCError {
@@ -177,7 +171,10 @@ impl fmt::Display for SCError {
         match self {
             Self::InvalidConfiguration(msg) => write!(f, "Invalid configuration: {msg}"),
             Self::InvalidDimension { field, value } => {
-                write!(f, "Invalid dimension: {field} must be greater than 0 (got {value})")
+                write!(
+                    f,
+                    "Invalid dimension: {field} must be greater than 0 (got {value})"
+                )
             }
             Self::InvalidPixelFormat(msg) => write!(f, "Invalid pixel format: {msg}"),
             Self::NoShareableContent(msg) => write!(f, "No shareable content available: {msg}"),
@@ -196,8 +193,14 @@ impl fmt::Display for SCError {
             Self::PermissionDenied(msg) => {
                 write!(f, "Permission denied: {msg}. Check System Preferences → Security & Privacy → Screen Recording")
             }
-            Self::FeatureNotAvailable { feature, required_version } => {
-                write!(f, "Feature not available: {feature} requires macOS {required_version}+")
+            Self::FeatureNotAvailable {
+                feature,
+                required_version,
+            } => {
+                write!(
+                    f,
+                    "Feature not available: {feature} requires macOS {required_version}+"
+                )
             }
             Self::FFIError(msg) => write!(f, "FFI error: {msg}"),
             Self::NullPointer(msg) => write!(f, "Null pointer: {msg}"),
@@ -436,4 +439,3 @@ impl SCError {
 pub fn create_sc_error(message: &str) -> SCError {
     SCError::new(message)
 }
-

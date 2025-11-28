@@ -26,15 +26,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Get available content
     let content = SCShareableContent::get()?;
     let windows = content.windows();
-    
+
     // 2. List windows (optional - for demonstration)
     println!("Available windows:");
     for (i, window) in windows.iter().take(10).enumerate() {
-        let app_name = window.owning_application()
+        let app_name = window
+            .owning_application()
             .map(|app| app.application_name())
             .unwrap_or_default();
-        
-        println!("  {}. {} - {} ({}x{})",
+
+        println!(
+            "  {}. {} - {} ({}x{})",
             i + 1,
             app_name,
             window.title().unwrap_or_default(),
@@ -42,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             window.frame().height
         );
     }
-    
+
     // 3. Find a window (example: Safari)
     let window = windows
         .iter()
@@ -51,13 +53,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .is_some_and(|app| app.application_name().contains("Safari"))
         })
         .ok_or("Safari window not found. Try another app.")?;
-    
+
     println!("\nCapturing: {}\n", window.title().unwrap_or_default());
 
     // 4. Create window filter
-    let filter = SCContentFilter::builder()
-        .window(window)
-        .build();
+    let filter = SCContentFilter::builder().window(window).build();
 
     // 5. Configure stream
     let config = SCStreamConfiguration::builder()
@@ -67,15 +67,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 6. Start capture
     let count = Arc::new(AtomicUsize::new(0));
-    let handler = FrameHandler { count: count.clone() };
-    
+    let handler = FrameHandler {
+        count: count.clone(),
+    };
+
     let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
     stream.start_capture()?;
 
     std::thread::sleep(std::time::Duration::from_secs(5));
     stream.stop_capture()?;
-    
+
     println!("✅ Captured {} frames", count.load(Ordering::Relaxed));
     Ok(())
 }
