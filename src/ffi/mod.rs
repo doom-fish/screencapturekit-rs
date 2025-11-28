@@ -12,8 +12,8 @@ extern "C" {
         error_buffer_size: isize,
     ) -> *const c_void;
     
-    /// Async callback-based shareable content retrieval
-    pub fn sc_shareable_content_get_async(
+    /// Async callback-based shareable content retrieval with options
+    pub fn sc_shareable_content_get_with_options(
         exclude_desktop_windows: bool,
         on_screen_windows_only: bool,
         callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
@@ -21,11 +21,6 @@ extern "C" {
     );
     
     pub fn sc_shareable_content_get(
-        callback: extern "C" fn(*const c_void, *const i8),
-    );
-    pub fn sc_shareable_content_get_with_options(
-        exclude_desktop_windows: bool,
-        on_screen_windows_only: bool,
         callback: extern "C" fn(*const c_void, *const i8),
     );
     pub fn sc_shareable_content_get_current_process_displays(
