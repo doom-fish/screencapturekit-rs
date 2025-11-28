@@ -44,6 +44,7 @@ pub use running_application::SCRunningApplication;
 pub use window::SCWindow;
 
 use crate::error::SCError;
+use crate::utils::sync_completion::{error_from_cstr, SyncCompletion};
 use core::fmt;
 use std::ffi::c_void;
 
@@ -52,6 +53,28 @@ pub struct SCShareableContent(*const c_void);
 
 unsafe impl Send for SCShareableContent {}
 unsafe impl Sync for SCShareableContent {}
+
+/// Callback for shareable content retrieval
+extern "C" fn shareable_content_callback(
+    content_ptr: *const c_void,
+    error_ptr: *const i8,
+    user_data: *mut c_void,
+) {
+    if !error_ptr.is_null() {
+        let error = unsafe { error_from_cstr(error_ptr) };
+        unsafe { SyncCompletion::<SCShareableContent>::complete_err(user_data, error) };
+    } else if !content_ptr.is_null() {
+        let content = unsafe { SCShareableContent::from_ptr(content_ptr) };
+        unsafe { SyncCompletion::complete_ok(user_data, content) };
+    } else {
+        unsafe {
+            SyncCompletion::<SCShareableContent>::complete_err(
+                user_data,
+                "Unknown error".to_string(),
+            );
+        };
+    }
+}
 
 impl PartialEq for SCShareableContent {
     fn eq(&self, other: &Self) -> bool {
@@ -276,33 +299,25 @@ impl SCShareableContentOptions {
 
     /// Get shareable content synchronously
     ///
-    /// This blocks until the content is retrieved (uses Swift semaphore internally).
+    /// This blocks until the content is retrieved.
     ///
     /// # Errors
     ///
     /// Returns an error if screen recording permission is not granted or retrieval fails.
     pub fn get(self) -> Result<SCShareableContent, SCError> {
-        let mut error_buffer = vec![0i8; 1024];
+        let (completion, context) = SyncCompletion::<SCShareableContent>::new();
 
-        #[allow(clippy::cast_possible_wrap)]
-        let ptr = unsafe {
-            crate::ffi::sc_shareable_content_get_sync(
+        unsafe {
+            crate::ffi::sc_shareable_content_get_with_options(
                 self.exclude_desktop_windows,
                 self.on_screen_windows_only,
-                error_buffer.as_mut_ptr(),
-                error_buffer.len() as isize,
-            )
-        };
-
-        if ptr.is_null() {
-            let error_msg = unsafe {
-                std::ffi::CStr::from_ptr(error_buffer.as_ptr())
-                    .to_string_lossy()
-                    .into_owned()
-            };
-            return Err(crate::utils::error::create_sc_error(&error_msg));
+                shareable_content_callback,
+                context,
+            );
         }
 
-        Ok(unsafe { SCShareableContent::from_ptr(ptr) })
+        completion
+            .wait()
+            .map_err(SCError::NoShareableContent)
     }
 }
