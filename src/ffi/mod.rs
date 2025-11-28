@@ -353,17 +353,27 @@ extern "C" {
         sample_buffer_callback: extern "C" fn(*const c_void, *const c_void, i32),
         dispatch_queue: *const c_void,
     ) -> bool;
-    pub fn sc_stream_start_capture(stream: *const c_void, callback: extern "C" fn(bool, *const i8));
-    pub fn sc_stream_stop_capture(stream: *const c_void, callback: extern "C" fn(bool, *const i8));
+    pub fn sc_stream_start_capture(
+        stream: *const c_void,
+        context: *mut c_void,
+        callback: extern "C" fn(*mut c_void, bool, *const i8),
+    );
+    pub fn sc_stream_stop_capture(
+        stream: *const c_void,
+        context: *mut c_void,
+        callback: extern "C" fn(*mut c_void, bool, *const i8),
+    );
     pub fn sc_stream_update_configuration(
         stream: *const c_void,
         config: *const c_void,
-        callback: extern "C" fn(bool, *const i8),
+        context: *mut c_void,
+        callback: extern "C" fn(*mut c_void, bool, *const i8),
     );
     pub fn sc_stream_update_content_filter(
         stream: *const c_void,
         filter: *const c_void,
-        callback: extern "C" fn(bool, *const i8),
+        context: *mut c_void,
+        callback: extern "C" fn(*mut c_void, bool, *const i8),
     );
     pub fn sc_stream_retain(stream: *const c_void) -> *const c_void;
     pub fn sc_stream_release(stream: *const c_void);

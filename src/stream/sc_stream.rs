@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::fmt;
-use std::sync::Mutex;
+use std::sync::{Arc, Condvar, Mutex};
 
 use crate::error::SCError;
 use crate::{
@@ -22,6 +22,60 @@ use crate::{
 static HANDLER_REGISTRY: Mutex<Option<HashMap<usize, Box<dyn SCStreamOutputTrait>>>> =
     Mutex::new(None);
 static NEXT_HANDLER_ID: Mutex<usize> = Mutex::new(1);
+
+/// Shared state for async completion callbacks
+struct CompletionState {
+    completed: bool,
+    error: Option<String>,
+}
+
+type CompletionPair = Arc<(Mutex<CompletionState>, Condvar)>;
+
+/// C callback for stream operations that signals completion
+extern "C" fn completion_callback(context: *mut c_void, success: bool, msg: *const i8) {
+    if context.is_null() {
+        return;
+    }
+    let pair = unsafe { Arc::from_raw(context.cast::<(Mutex<CompletionState>, Condvar)>()) };
+    let (lock, cvar) = &*pair;
+    let mut state = lock.lock().unwrap();
+    state.completed = true;
+    if !success {
+        state.error = if msg.is_null() {
+            Some("Unknown error".to_string())
+        } else {
+            unsafe { CStr::from_ptr(msg) }
+                .to_str()
+                .ok()
+                .map(String::from)
+                .or_else(|| Some("Unknown error".to_string()))
+        };
+    }
+    cvar.notify_one();
+}
+
+/// Creates a completion pair and returns (Arc, raw pointer for FFI)
+fn create_completion_context() -> (CompletionPair, *mut c_void) {
+    let pair: CompletionPair = Arc::new((
+        Mutex::new(CompletionState {
+            completed: false,
+            error: None,
+        }),
+        Condvar::new(),
+    ));
+    let raw = Arc::into_raw(Arc::clone(&pair));
+    (pair, raw as *mut c_void)
+}
+
+/// Waits for completion and returns the result
+fn wait_for_completion(pair: &CompletionPair) -> Result<(), String> {
+    let (lock, cvar) = &**pair;
+    let mut state = lock.lock().unwrap();
+    while !state.completed {
+        state = cvar.wait(state).unwrap();
+    }
+    state.error.take().map_or(Ok(()), Err)
+}
 
 // C callback that retrieves handler from registry
 extern "C" fn sample_handler(
@@ -333,75 +387,71 @@ impl SCStream {
 
     /// Start capturing screen content
     ///
+    /// This method blocks until the capture operation completes or fails.
+    ///
     /// # Errors
     ///
-    /// This method currently does not fail and always returns `Ok`.
+    /// Returns `SCError::CaptureStartFailed` if the capture fails to start.
     pub fn start_capture(&self) -> Result<(), SCError> {
-        extern "C" fn completion(success: bool, msg: *const i8) {
-            if !success && !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
-                    eprintln!("start_capture error: {s}");
-                }
-            }
-        }
-        unsafe { ffi::sc_stream_start_capture(self.ptr, completion) };
-        Ok(())
+        let (pair, context) = create_completion_context();
+        unsafe { ffi::sc_stream_start_capture(self.ptr, context, completion_callback) };
+        wait_for_completion(&pair).map_err(SCError::CaptureStartFailed)
     }
 
     /// Stop capturing screen content
     ///
+    /// This method blocks until the capture operation completes or fails.
+    ///
     /// # Errors
     ///
-    /// This method currently does not fail and always returns `Ok`.
+    /// Returns `SCError::CaptureStopFailed` if the capture fails to stop.
     pub fn stop_capture(&self) -> Result<(), SCError> {
-        extern "C" fn completion(success: bool, msg: *const i8) {
-            if !success && !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
-                    eprintln!("stop_capture error: {s}");
-                }
-            }
-        }
-        unsafe { ffi::sc_stream_stop_capture(self.ptr, completion) };
-        Ok(())
+        let (pair, context) = create_completion_context();
+        unsafe { ffi::sc_stream_stop_capture(self.ptr, context, completion_callback) };
+        wait_for_completion(&pair).map_err(SCError::CaptureStopFailed)
     }
 
     /// Update the stream configuration
     ///
+    /// This method blocks until the configuration update completes or fails.
+    ///
     /// # Errors
     ///
-    /// This method currently does not fail and always returns `Ok`.
+    /// Returns `SCError::StreamError` if the configuration update fails.
     pub fn update_configuration(
         &self,
         configuration: &SCStreamConfiguration,
     ) -> Result<(), SCError> {
-        extern "C" fn completion(success: bool, msg: *const i8) {
-            if !success && !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
-                    eprintln!("update_configuration error: {s}");
-                }
-            }
-        }
+        let (pair, context) = create_completion_context();
         unsafe {
-            ffi::sc_stream_update_configuration(self.ptr, configuration.as_ptr(), completion);
+            ffi::sc_stream_update_configuration(
+                self.ptr,
+                configuration.as_ptr(),
+                context,
+                completion_callback,
+            );
         }
-        Ok(())
+        wait_for_completion(&pair).map_err(SCError::StreamError)
     }
 
     /// Update the content filter
     ///
+    /// This method blocks until the filter update completes or fails.
+    ///
     /// # Errors
     ///
-    /// This method currently does not fail and always returns `Ok`.
+    /// Returns `SCError::StreamError` if the filter update fails.
     pub fn update_content_filter(&self, filter: &SCContentFilter) -> Result<(), SCError> {
-        extern "C" fn completion(success: bool, msg: *const i8) {
-            if !success && !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
-                    eprintln!("update_content_filter error: {s}");
-                }
-            }
+        let (pair, context) = create_completion_context();
+        unsafe {
+            ffi::sc_stream_update_content_filter(
+                self.ptr,
+                filter.as_ptr(),
+                context,
+                completion_callback,
+            );
         }
-        unsafe { ffi::sc_stream_update_content_filter(self.ptr, filter.as_ptr(), completion) };
-        Ok(())
+        wait_for_completion(&pair).map_err(SCError::StreamError)
     }
 }
 
