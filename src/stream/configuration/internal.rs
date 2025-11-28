@@ -16,7 +16,7 @@ use std::fmt;
 ///     .with_height(1080);
 /// ```
 #[repr(transparent)]
-pub struct SCStreamConfiguration(*const c_void);
+pub struct SCStreamConfiguration(pub(crate) *const c_void);
 
 impl PartialEq for SCStreamConfiguration {
     fn eq(&self, other: &Self) -> bool {

@@ -311,3 +311,114 @@ fn test_mutable_configuration() {
     assert_eq!(config.get_width(), 1920);
     assert_eq!(config.get_height(), 1080);
 }
+
+// MARK: - New Features Tests (macOS 14.0+)
+
+#[test]
+fn test_captures_shadows_only() {
+    let mut config = SCStreamConfiguration::default();
+    config.set_captures_shadows_only(true);
+    // On macOS 14.0+, this should return true; on older versions, false
+    let _ = config.get_captures_shadows_only();
+}
+
+#[test]
+fn test_captures_shadows_only_builder() {
+    let config = SCStreamConfiguration::new()
+        .with_width(1920)
+        .with_height(1080)
+        .with_captures_shadows_only(true);
+    
+    // Verify builder pattern works
+    assert_eq!(config.get_width(), 1920);
+}
+
+#[test]
+#[cfg(feature = "macos_15_0")]
+fn test_shows_mouse_clicks() {
+    let mut config = SCStreamConfiguration::default();
+    config.set_shows_mouse_clicks(true);
+    // On macOS 15.0+, this should return true
+    let result = config.get_shows_mouse_clicks();
+    // Note: May return false on older macOS versions
+    let _ = result;
+}
+
+#[test]
+#[cfg(feature = "macos_15_0")]
+fn test_shows_mouse_clicks_builder() {
+    let config = SCStreamConfiguration::new()
+        .with_shows_cursor(true)
+        .with_shows_mouse_clicks(true);
+    
+    // Verify builder pattern works
+    assert!(config.get_shows_cursor());
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_ignores_shadows_display() {
+    let mut config = SCStreamConfiguration::default();
+    config.set_ignores_shadows_display(true);
+    // On macOS 14.0+, this should return true
+    let _ = config.get_ignores_shadows_display();
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_ignore_global_clip_display() {
+    let mut config = SCStreamConfiguration::default();
+    config.set_ignore_global_clip_display(true);
+    let _ = config.get_ignore_global_clip_display();
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_ignore_global_clip_single_window() {
+    let mut config = SCStreamConfiguration::default();
+    config.set_ignore_global_clip_single_window(true);
+    let _ = config.get_ignore_global_clip_single_window();
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_ignore_global_clip_builder_pattern() {
+    let config = SCStreamConfiguration::new()
+        .with_width(1920)
+        .with_height(1080)
+        .with_ignores_shadows_display(true)
+        .with_ignore_global_clip_display(true)
+        .with_ignore_global_clip_single_window(true);
+    
+    assert_eq!(config.get_width(), 1920);
+}
+
+#[test]
+#[cfg(feature = "macos_15_0")]
+fn test_preset_configuration() {
+    use screencapturekit::stream::configuration::SCStreamConfigurationPreset;
+    
+    // Test creating configurations from presets
+    let config = SCStreamConfiguration::from_preset(SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay);
+    // Just verify it doesn't crash
+    let _ = config.get_width();
+}
+
+#[test]
+#[cfg(feature = "macos_15_0")]
+fn test_all_presets() {
+    use screencapturekit::stream::configuration::SCStreamConfigurationPreset;
+    
+    let presets = [
+        SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay,
+        SCStreamConfigurationPreset::CaptureHDRStreamCanonicalDisplay,
+        SCStreamConfigurationPreset::CaptureHDRScreenshotLocalDisplay,
+        SCStreamConfigurationPreset::CaptureHDRScreenshotCanonicalDisplay,
+    ];
+    
+    for preset in presets {
+        let config = SCStreamConfiguration::from_preset(preset);
+        // Just verify they don't crash
+        let _ = config.get_width();
+    }
+}
