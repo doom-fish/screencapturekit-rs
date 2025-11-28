@@ -29,21 +29,21 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-screencapturekit = "1.1"
+screencapturekit = "1"
 ```
 
 For async support:
 
 ```toml
 [dependencies]
-screencapturekit = { version = "1.1", features = ["async"] }
+screencapturekit = { version = "1", features = ["async"] }
 ```
 
 For latest macOS features:
 
 ```toml
 [dependencies]
-screencapturekit = { version = "1.1", features = ["macos_15_0"] }
+screencapturekit = { version = "1", features = ["macos_15_0"] }
 ```
 
 ## 🚀 Quick Start
