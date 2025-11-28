@@ -7,11 +7,11 @@
 //!
 //! ## Features
 //!
-//! - Screen and window capture
-//! - Audio capture
-//! - Real-time frame processing
-//! - Configurable capture settings
-//! - Zero external dependencies (uses custom Swift bridge)
+//! - **Screen and window capture** - Capture displays, windows, or applications
+//! - **Audio capture** - System audio and microphone input
+//! - **Real-time frame processing** - High-performance callbacks
+//! - **Async support** - Runtime-agnostic async API (requires `async` feature)
+//! - **Zero-copy GPU access** - IOSurface for Metal/OpenGL integration
 //!
 //! ## Quick Start
 //!
@@ -27,6 +27,7 @@
 //!     .display(display)
 //!     .exclude_windows(&[])
 //!     .build();
+//!
 //! let config = SCStreamConfiguration::new()
 //!     .with_width(1920)
 //!     .with_height(1080);
@@ -37,16 +38,51 @@
 //! # Ok::<(), screencapturekit::error::SCError>(())
 //! ```
 //!
+//! ## Configuration
+//!
+//! Use the builder pattern for fluent configuration:
+//!
+//! ```rust
+//! use screencapturekit::prelude::*;
+//!
+//! let config = SCStreamConfiguration::new()
+//!     .with_width(1920)
+//!     .with_height(1080)
+//!     .with_pixel_format(PixelFormat::BGRA)
+//!     .with_captures_audio(true)
+//!     .with_sample_rate(48000)
+//!     .with_channel_count(2)
+//!     .with_shows_cursor(true);
+//! ```
+//!
 //! ## Module Organization
 //!
+//! - [`stream`] - Stream configuration and management
+//!   - [`stream::configuration`] - Stream settings (resolution, format, audio)
+//!   - [`stream::content_filter`] - Filter for selecting capture content
+//!   - [`stream::sc_stream`] - Main capture stream
+//! - [`shareable_content`] - Display and window enumeration
 //! - [`cm`] - Core Media types (`CMSampleBuffer`, `CMTime`, etc.)
 //! - [`cg`] - Core Graphics types (`CGRect`, `CGSize`, etc.)
-//! - [`stream`] - Stream configuration and management
-//! - [`shareable_content`] - Display and window information
 //! - [`output`] - Frame buffer and pixel access
-//! - [`error`] - Error types
-//! - [`utils`] - Utility functions
+//! - [`error`] - Error types and result aliases
+//! - [`dispatch_queue`] - Custom dispatch queues for callbacks
+//!
+//! ## Feature Flags
+//!
+//! | Feature | Description |
+//! |---------|-------------|
+//! | `async` | Runtime-agnostic async API |
+//! | `macos_13_0` | macOS 13.0+ APIs |
+//! | `macos_14_0` | macOS 14.0+ APIs (content picker, screenshots) |
+//! | `macos_15_0` | macOS 15.0+ APIs (recording output, HDR) |
+//!
+//! ## Platform Requirements
+//!
+//! - macOS 12.3+ (Monterey)
+//! - Screen recording permission required
 
+#![doc(html_root_url = "https://docs.rs/screencapturekit")]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::missing_const_for_fn)]
