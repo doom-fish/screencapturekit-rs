@@ -72,7 +72,7 @@ impl Future for AsyncShareableContentFuture {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.inner)
             .poll(cx)
-            .map(|r| r.map_err(|e| SCError::NoShareableContent(e)))
+            .map(|r| r.map_err(SCError::NoShareableContent))
     }
 }
 
@@ -418,8 +418,8 @@ extern "C" fn screenshot_image_callback(
     if !error_ptr.is_null() {
         let error = unsafe { error_from_cstr(error_ptr) };
         unsafe {
-            AsyncCompletion::<crate::screenshot_manager::CGImage>::complete_err(user_data, error)
-        };
+            AsyncCompletion::<crate::screenshot_manager::CGImage>::complete_err(user_data, error);
+        }
     } else if !image_ptr.is_null() {
         let image = crate::screenshot_manager::CGImage::from_ptr(image_ptr);
         unsafe { AsyncCompletion::complete_ok(user_data, image) };
