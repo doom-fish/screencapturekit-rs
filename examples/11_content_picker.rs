@@ -2,7 +2,7 @@
 //!
 //! Demonstrates the system UI for selecting content to share (macOS 14.0+).
 //!
-//! Run with: cargo run --example 11_content_picker --features macos_14_0
+//! Run with: cargo run --example `11_content_picker` --features `macos_14_0`
 
 #[cfg(not(feature = "macos_14_0"))]
 fn main() {

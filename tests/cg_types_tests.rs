@@ -1,5 +1,7 @@
 //! Core Graphics types tests
 
+#![allow(clippy::float_cmp)]
+
 use screencapturekit::cg::{CGPoint, CGRect, CGSize};
 
 #[test]
@@ -34,7 +36,7 @@ fn test_cgpoint_distance_squared() {
 #[test]
 fn test_cgpoint_display() {
     let point = CGPoint::new(100.5, 200.5);
-    let display = format!("{}", point);
+    let display = format!("{point}");
     assert!(display.contains("100.5"));
     assert!(display.contains("200.5"));
 }
@@ -97,7 +99,7 @@ fn test_cgsize_is_empty() {
 #[test]
 fn test_cgsize_display() {
     let size = CGSize::new(1920.0, 1080.0);
-    let display = format!("{}", size);
+    let display = format!("{size}");
     assert_eq!(display, "1920x1080");
 }
 
@@ -181,7 +183,7 @@ fn test_cgrect_is_empty() {
 #[test]
 fn test_cgrect_display() {
     let rect = CGRect::new(10.0, 20.0, 100.0, 200.0);
-    let display = format!("{}", rect);
+    let display = format!("{rect}");
     assert!(display.contains("10"));
     assert!(display.contains("20"));
     assert!(display.contains("100"));
@@ -190,9 +192,9 @@ fn test_cgrect_display() {
 
 #[test]
 fn test_cg_types_default() {
-    let point: CGPoint = Default::default();
-    let size: CGSize = Default::default();
-    let rect: CGRect = Default::default();
+    let point = CGPoint::default();
+    let size = CGSize::default();
+    let rect = CGRect::default();
 
     assert!(point.is_zero());
     assert!(size.is_null());

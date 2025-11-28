@@ -1,4 +1,4 @@
-//! CMFormatDescription tests
+//! `CMFormatDescription` tests
 
 use screencapturekit::cm::{codec_types, media_types, CMFormatDescription};
 use screencapturekit::FourCharCode;

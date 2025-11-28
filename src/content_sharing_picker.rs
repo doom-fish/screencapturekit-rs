@@ -146,8 +146,8 @@ pub struct SCContentSharingPicker;
 impl SCContentSharingPicker {
     /// Show the picker UI and wait for user selection
     ///
-    /// # Errors
-    /// Returns an error if the system is not macOS 14.0+ or the picker fails
+    /// # Panics
+    /// Panics if the internal mutex is poisoned.
     pub fn show(
         config: &SCContentSharingPickerConfiguration,
     ) -> SCContentSharingPickerResult {

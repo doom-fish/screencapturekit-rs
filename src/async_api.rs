@@ -511,7 +511,7 @@ impl<T> Future for AsyncScreenshotFuture<T> {
     }
 }
 
-/// Callback for async CGImage capture
+/// Callback for async `CGImage` capture
 #[cfg(feature = "macos_14_0")]
 extern "C" fn screenshot_image_callback(
     image_ptr: *const c_void,
@@ -545,7 +545,7 @@ extern "C" fn screenshot_image_callback(
     std::mem::forget(state);
 }
 
-/// Callback for async CMSampleBuffer capture
+/// Callback for async `CMSampleBuffer` capture
 #[cfg(feature = "macos_14_0")]
 extern "C" fn screenshot_buffer_callback(
     buffer_ptr: *const c_void,

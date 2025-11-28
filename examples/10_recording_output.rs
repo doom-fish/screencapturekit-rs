@@ -2,7 +2,9 @@
 //!
 //! Demonstrates direct video file recording (macOS 15.0+).
 //!
-//! Run with: cargo run --example 10_recording_output --features macos_15_0
+//! Run with: cargo run --example `10_recording_output` --features `macos_15_0`
+
+#![allow(clippy::unnecessary_wraps)]
 
 #[cfg(not(feature = "macos_15_0"))]
 fn main() {
@@ -25,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set output file path
     let output_path = PathBuf::from("/tmp/screen_recording.mp4");
     config.set_output_url(&output_path);
-    println!("Output path: {:?}", output_path);
+    println!("Output path: {}", output_path.display());
 
     // Set video codec (H.264 or HEVC)
     config.set_video_codec(SCRecordingOutputCodec::H264);
@@ -41,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   Pointer: {:?}", recording_output.as_ptr());
 
         // Clone test
-        let cloned = recording_output.clone();
+        let cloned = recording_output;
         println!("   Clone pointer: {:?}", cloned.as_ptr());
     } else {
         println!("\n⚠️  Recording output creation failed.");

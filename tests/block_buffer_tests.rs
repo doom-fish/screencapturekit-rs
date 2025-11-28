@@ -1,4 +1,4 @@
-//! CMBlockBuffer tests
+//! `CMBlockBuffer` tests
 
 use screencapturekit::cm::CMBlockBuffer;
 

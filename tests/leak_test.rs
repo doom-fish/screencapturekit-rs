@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod leak_tests {
 
-    use std::{error::Error, process::Command, thread};
+    use std::{process::Command, thread};
 
     use screencapturekit::{
         cm::CMSampleBuffer,
@@ -35,7 +35,7 @@ mod leak_tests {
     }
 
     #[test]
-    fn test_if_program_leaks() -> Result<(), Box<dyn Error>> {
+    fn test_if_program_leaks() {
         for _ in 0..4 {
             // Create and immediately drop streams
 
@@ -65,7 +65,7 @@ mod leak_tests {
 
         // Run the 'leaks' command
         let output = Command::new("leaks")
-            .args(&[pid.to_string(), "-c".to_string()])
+            .args([pid.to_string(), "-c".to_string()])
             .output()
             .expect("Failed to execute leaks command");
 
@@ -79,7 +79,7 @@ mod leak_tests {
         // Check for leaks, but ignore known Apple framework leaks in ScreenCaptureKit
         // These are internal leaks in CMCapture/FigRemoteOperationReceiver that we can't fix
         if stdout.contains("0 leaks for 0 total leaked bytes") {
-            return Ok(());
+            return;
         }
         
         // Check if all leaks are from Apple frameworks (not our code)
@@ -89,7 +89,7 @@ mod leak_tests {
         
         if apple_framework_leaks && !stdout.contains("screencapturekit") {
             println!("Note: Detected Apple framework leaks (not in our code), ignoring");
-            return Ok(());
+            return;
         }
         
         panic!("Memory leaks detected in our code");

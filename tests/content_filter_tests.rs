@@ -1,4 +1,4 @@
-//! SCContentFilter tests
+//! `SCContentFilter` tests
 
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::content_filter::SCContentFilter;
@@ -15,7 +15,7 @@ fn test_content_filter_builder_display() {
         .build();
 
     // Verify filter was created (debug output includes pointer)
-    let debug_str = format!("{:?}", filter);
+    let debug_str = format!("{filter:?}");
     assert!(debug_str.contains("SCContentFilter"));
 }
 
@@ -25,7 +25,7 @@ fn test_content_filter_builder_window() {
 
     if let Some(window) = content.windows().first() {
         let filter = SCContentFilter::builder().window(window).build();
-        let debug_str = format!("{:?}", filter);
+        let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
     }
 }
@@ -43,7 +43,7 @@ fn test_content_filter_exclude_windows() {
             .exclude_windows(&window_refs)
             .build();
 
-        let debug_str = format!("{:?}", filter);
+        let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
     }
 }
@@ -61,7 +61,7 @@ fn test_content_filter_include_windows() {
             .include_windows(&window_refs)
             .build();
 
-        let debug_str = format!("{:?}", filter);
+        let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
     }
 }
@@ -79,7 +79,7 @@ fn test_content_filter_include_applications() {
             .include_applications(&app_refs, &[])
             .build();
 
-        let debug_str = format!("{:?}", filter);
+        let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
     }
 }
@@ -117,7 +117,7 @@ fn test_content_filter_set_content_rect() {
     let rect = Rect::new(Point::new(50.0, 50.0), Size::new(400.0, 300.0));
     let filter = filter.set_content_rect(rect);
 
-    let debug_str = format!("{:?}", filter);
+    let debug_str = format!("{filter:?}");
     assert!(debug_str.contains("SCContentFilter"));
 }
 
@@ -131,8 +131,8 @@ fn test_content_filter_clone() {
         .exclude_windows(&[])
         .build();
 
-    let cloned = filter.clone();
-    let debug_str = format!("{:?}", cloned);
+    let cloned = filter;
+    let debug_str = format!("{cloned:?}");
     assert!(debug_str.contains("SCContentFilter"));
 }
 
@@ -154,10 +154,10 @@ fn test_content_filter_debug_display() {
         .exclude_windows(&[])
         .build();
 
-    let debug = format!("{:?}", filter);
+    let debug = format!("{filter:?}");
     assert!(debug.contains("SCContentFilter"));
 
-    let display_str = format!("{}", filter);
+    let display_str = format!("{filter}");
     assert!(display_str.contains("SCContentFilter"));
 }
 

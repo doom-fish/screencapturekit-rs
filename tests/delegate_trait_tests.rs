@@ -1,4 +1,4 @@
-//! SCStreamDelegateTrait tests
+//! `SCStreamDelegateTrait` tests
 
 use screencapturekit::stream::delegate_trait::{ErrorHandler, SCStreamDelegateTrait};
 use screencapturekit::error::SCError;
@@ -71,22 +71,22 @@ fn test_error_handler_receives_error() {
     let error_msg_clone = Arc::clone(&error_msg);
 
     let handler = ErrorHandler::new(move |error| {
-        *error_msg_clone.lock().unwrap() = format!("{}", error);
+        *error_msg_clone.lock().unwrap() = format!("{error}");
     });
 
     handler.did_stop_with_error(SCError::internal_error("specific error"));
 
-    let msg = error_msg.lock().unwrap();
-    assert!(msg.contains("specific error"));
+    assert!(error_msg.lock().unwrap().contains("specific error"));
 }
 
 #[test]
 fn test_delegate_trait_send() {
     fn assert_send<T: Send>() {}
+    fn check_send<T: Send>(_: &T) {}
+    
     assert_send::<TestDelegate>();
 
     // ErrorHandler with Send closure should be Send
     let handler = ErrorHandler::new(|_| {});
-    fn check_send<T: Send>(_: &T) {}
     check_send(&handler);
 }
