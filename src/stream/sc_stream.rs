@@ -382,8 +382,8 @@ impl SCStream {
             }
         }
         unsafe {
-            ffi::sc_stream_update_configuration(self.ptr, configuration.as_ptr(), completion)
-        };
+            ffi::sc_stream_update_configuration(self.ptr, configuration.as_ptr(), completion);
+        }
         Ok(())
     }
 
