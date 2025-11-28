@@ -162,6 +162,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Content Picker (macOS 14.0+)
+
+Use the system picker UI to let users choose what to capture:
+
+```rust
+use screencapturekit::content_sharing_picker::*;
+use screencapturekit::prelude::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = SCContentSharingPickerConfiguration::new();
+    
+    // Advanced API: Get filter with metadata (dimensions, scale)
+    match SCContentSharingPicker::pick(&config) {
+        SCPickResult::Success(result) => {
+            // Get dimensions from the picked content
+            let (width, height) = result.pixel_size();
+            println!("Selected: {}x{} (scale: {})", width, height, result.scale());
+            
+            let mut stream_config = SCStreamConfiguration::new()
+                .with_width(width)
+                .with_height(height);
+            
+            // Get filter for streaming
+            let filter = result.filter();
+            let mut stream = SCStream::new(&filter, &stream_config);
+            // ...
+        }
+        SCPickResult::Cancelled => println!("User cancelled"),
+        SCPickResult::Error(e) => eprintln!("Error: {}", e),
+    }
+    
+    // Simple API: Get filter directly (when you don't need dimensions)
+    // match SCContentSharingPicker::show(&config) {
+    //     SCContentSharingPickerResult::Filter(filter) => { ... }
+    //     ...
+    // }
+    
+    Ok(())
+}
+```
+
 ## 🎯 Key Concepts
 
 ### Builder Pattern

@@ -47,15 +47,30 @@ macos_14_0 = ["macos_13_0"]
 macos_14_2 = ["macos_14_0"]
 macos_14_4 = ["macos_14_2"]
 macos_15_0 = ["macos_14_4"]
+macos_15_2 = ["macos_15_0"]
 
 [dependencies]
 
 [dev-dependencies]
 png = "0.17"
 tokio = { version = "1.40", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+metal = "0.29"
+cocoa = "0.25"
+core-graphics-types = "0.1"
+objc = "0.2"
+winit = "0.28"
+raw-window-handle = "0.5"
 
 [package.metadata.docs.rs]
+# Build documentation with all features enabled
+all-features = true
 # docs.rs builds on Linux, but this crate only works on macOS
-# Documentation is hosted on GitHub Pages instead
 default-target = "x86_64-apple-darwin"
 targets = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
+# Enable rustdoc unstable features for better docs
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[example]]
+name = "metal_overlay"
+path = "examples/metal_overlay/main.rs"
+required-features = ["macos_14_0"]
