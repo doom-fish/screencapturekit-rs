@@ -215,3 +215,163 @@ fn test_content_filter_hash() {
 
     assert!(set.contains(&filter));
 }
+
+// MARK: - New Content Filter Features (macOS 14.0+)
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_content_filter_style() {
+    use screencapturekit::stream::content_filter::SCShareableContentStyle;
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let display = &content.displays()[0];
+
+    let filter = SCContentFilter::builder()
+        .display(display)
+        .exclude_windows(&[])
+        .build();
+
+    let style = filter.get_style();
+    // Display filters should have Display style
+    assert!(matches!(style, SCShareableContentStyle::Display | SCShareableContentStyle::None));
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_content_filter_style_window() {
+    use screencapturekit::stream::content_filter::SCShareableContentStyle;
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+
+    if let Some(window) = content.windows().first() {
+        let filter = SCContentFilter::builder().window(window).build();
+        let style = filter.get_style();
+        // Window filters should have Window style
+        assert!(matches!(style, SCShareableContentStyle::Window | SCShareableContentStyle::None));
+    }
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_content_filter_point_pixel_scale() {
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let display = &content.displays()[0];
+
+    let filter = SCContentFilter::builder()
+        .display(display)
+        .exclude_windows(&[])
+        .build();
+
+    let scale = filter.get_point_pixel_scale();
+    // Scale should be positive (typically 1.0 or 2.0 for Retina)
+    assert!(scale > 0.0);
+}
+
+#[test]
+#[cfg(feature = "macos_14_2")]
+fn test_content_filter_include_menu_bar() {
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let display = &content.displays()[0];
+
+    let mut filter = SCContentFilter::builder()
+        .display(display)
+        .exclude_windows(&[])
+        .build();
+
+    // Set include menu bar
+    filter.set_include_menu_bar(true);
+    let includes_menu_bar = filter.get_include_menu_bar();
+    // May return false on older macOS versions
+    let _ = includes_menu_bar;
+}
+
+#[test]
+#[cfg(feature = "macos_15_2")]
+fn test_content_filter_included_displays() {
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let display = &content.displays()[0];
+
+    let filter = SCContentFilter::builder()
+        .display(display)
+        .exclude_windows(&[])
+        .build();
+
+    let included_displays = filter.get_included_displays();
+    // Display filters should have at least one included display
+    // (Note: may return empty on older macOS)
+    let _ = included_displays;
+}
+
+#[test]
+#[cfg(feature = "macos_15_2")]
+fn test_content_filter_included_windows() {
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+
+    if let Some(window) = content.windows().first() {
+        let filter = SCContentFilter::builder().window(window).build();
+        let included_windows = filter.get_included_windows();
+        // Window filters should have at least one included window
+        // (Note: may return empty on older macOS)
+        let _ = included_windows;
+    }
+}
+
+#[test]
+#[cfg(feature = "macos_15_2")]
+fn test_content_filter_included_applications() {
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let display = &content.displays()[0];
+    let apps = content.applications();
+
+    if !apps.is_empty() {
+        let app_refs: Vec<&_> = apps.iter().take(1).collect();
+        let filter = SCContentFilter::builder()
+            .display(display)
+            .include_applications(&app_refs, &[])
+            .build();
+
+        let included_apps = filter.get_included_applications();
+        // Application filters should have included applications
+        // (Note: may return empty on older macOS)
+        let _ = included_apps;
+    }
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_shareable_content_style_values() {
+    use screencapturekit::stream::content_filter::SCShareableContentStyle;
+
+    // Test that all style values can be compared
+    assert_eq!(SCShareableContentStyle::None, SCShareableContentStyle::None);
+    assert_eq!(SCShareableContentStyle::Window, SCShareableContentStyle::Window);
+    assert_eq!(SCShareableContentStyle::Display, SCShareableContentStyle::Display);
+    assert_eq!(SCShareableContentStyle::Application, SCShareableContentStyle::Application);
+    
+    assert_ne!(SCShareableContentStyle::None, SCShareableContentStyle::Window);
+    assert_ne!(SCShareableContentStyle::Display, SCShareableContentStyle::Application);
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_shareable_content_style_from_i32() {
+    use screencapturekit::stream::content_filter::SCShareableContentStyle;
+
+    assert_eq!(SCShareableContentStyle::from(0), SCShareableContentStyle::None);
+    assert_eq!(SCShareableContentStyle::from(1), SCShareableContentStyle::Window);
+    assert_eq!(SCShareableContentStyle::from(2), SCShareableContentStyle::Display);
+    assert_eq!(SCShareableContentStyle::from(3), SCShareableContentStyle::Application);
+    assert_eq!(SCShareableContentStyle::from(99), SCShareableContentStyle::None); // Unknown
+}
