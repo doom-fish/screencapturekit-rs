@@ -70,16 +70,16 @@ fn test_video_capture() {
     let display = &displays[0];
     
     // Create configuration for video
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(1920)
-        .unwrap()
+        
         .set_height(1080)
-        .unwrap()
+        
         .set_captures_audio(false)
-        .unwrap();
+        ;
     
     // Create filter for the display
-    let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+    let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
     
     // Create stream
     let mut stream = SCStream::new(&filter, &config);
@@ -148,12 +148,12 @@ fn test_audio_capture() {
     let display = &displays[0];
     
     // Create configuration for audio
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_captures_audio(true)
-        .unwrap();
+        ;
     
     // Create filter for the display
-    let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+    let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
     
     // Create stream
     let mut stream = SCStream::new(&filter, &config);
@@ -229,16 +229,16 @@ fn test_video_and_audio_capture() {
     let display = &displays[0];
     
     // Create configuration for both video and audio
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(1280)
-        .unwrap()
+        
         .set_height(720)
-        .unwrap()
+        
         .set_captures_audio(true)
-        .unwrap();
+        ;
     
     // Create filter for the display
-    let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+    let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
     
     // Create stream
     let mut stream = SCStream::new(&filter, &config);
@@ -304,14 +304,14 @@ fn test_pixel_buffer_locking() {
     let display = &displays[0];
     
     // Create configuration
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(640)
-        .unwrap()
+        
         .set_height(480)
-        .unwrap();
+        ;
     
     // Create filter and stream
-    let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+    let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
     let mut stream = SCStream::new(&filter, &config);
     
     // Add output handler
@@ -388,14 +388,14 @@ fn test_iosurface_backed_buffer() {
     let display = &displays[0];
     
     // Create configuration
-    let config = SCStreamConfiguration::build()
+    let config = SCStreamConfiguration::default()
         .set_width(1920)
-        .unwrap()
+        
         .set_height(1080)
-        .unwrap();
+        ;
     
     // Create filter and stream
-    let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+    let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
     let mut stream = SCStream::new(&filter, &config);
     
     // Add output handler

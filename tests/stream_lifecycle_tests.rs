@@ -17,8 +17,8 @@ fn test_stream_creation() {
     }
     
     let display = &content.displays()[0];
-    let filter = SCContentFilter::build().display(display).build();
-    let config = SCStreamConfiguration::build();
+    let filter = SCContentFilter::builder().display(display).build();
+    let config = SCStreamConfiguration::default();
     
     let stream = SCStream::new(&filter, &config);
     
@@ -39,11 +39,11 @@ fn test_stream_with_custom_config() {
     }
     
     let display = &content.displays()[0];
-    let filter = SCContentFilter::build().display(display).build();
-    let config = SCStreamConfiguration::build()
-        .set_width(1920).unwrap()
-        .set_height(1080).unwrap()
-        .set_shows_cursor(false).unwrap();
+    let filter = SCContentFilter::builder().display(display).build();
+    let config = SCStreamConfiguration::default()
+        .set_width(1920)
+        .set_height(1080)
+        .set_shows_cursor(false);
     
     let stream = SCStream::new(&filter, &config);
     
@@ -64,8 +64,8 @@ fn test_stream_multiple_instances() {
     }
     
     let display = &content.displays()[0];
-    let filter = SCContentFilter::build().display(display).build();
-    let config = SCStreamConfiguration::build();
+    let filter = SCContentFilter::builder().display(display).build();
+    let config = SCStreamConfiguration::default();
     
     let stream1 = SCStream::new(&filter, &config);
     let stream2 = SCStream::new(&filter, &config);
@@ -88,8 +88,8 @@ fn test_stream_clone() {
     }
     
     let display = &content.displays()[0];
-    let filter = SCContentFilter::build().display(display).build();
-    let config = SCStreamConfiguration::build();
+    let filter = SCContentFilter::builder().display(display).build();
+    let config = SCStreamConfiguration::default();
     
     let stream1 = SCStream::new(&filter, &config);
     let stream2 = stream1.clone();
@@ -123,14 +123,14 @@ fn test_stream_update_configuration() {
     }
     
     let display = &content.displays()[0];
-    let filter = SCContentFilter::build().display(display).build();
-    let config1 = SCStreamConfiguration::build();
+    let filter = SCContentFilter::builder().display(display).build();
+    let config1 = SCStreamConfiguration::default();
     
     let stream = SCStream::new(&filter, &config1);
     
-    let config2 = SCStreamConfiguration::build()
-        .set_width(1280).unwrap()
-        .set_height(720).unwrap();
+    let config2 = SCStreamConfiguration::default()
+        .set_width(1280)
+        .set_height(720);
     
     let result = stream.update_configuration(&config2);
     
@@ -153,12 +153,12 @@ fn test_stream_update_filter() {
     }
     
     let display = &content.displays()[0];
-    let filter1 = SCContentFilter::build().display(display).build();
-    let config = SCStreamConfiguration::build();
+    let filter1 = SCContentFilter::builder().display(display).build();
+    let config = SCStreamConfiguration::default();
     
     let stream = SCStream::new(&filter1, &config);
     
-    let filter2 = SCContentFilter::build().display(display).build();
+    let filter2 = SCContentFilter::builder().display(display).build();
     
     let result = stream.update_content_filter(&filter2);
     
@@ -207,8 +207,8 @@ fn test_stream_lifecycle() {
     }
     
     let display = &content.displays()[0];
-    let filter = SCContentFilter::build().display(display).build();
-    let config = SCStreamConfiguration::build();
+    let filter = SCContentFilter::builder().display(display).build();
+    let config = SCStreamConfiguration::default();
     
     {
         let _stream = SCStream::new(&filter, &config);
@@ -234,9 +234,9 @@ fn test_stream_different_displays() {
     let display1 = &content.displays()[0];
     let display2 = &content.displays()[1];
     
-    let filter1 = SCContentFilter::build().display(display1).build();
-    let filter2 = SCContentFilter::build().display(display2).build();
-    let config = SCStreamConfiguration::build();
+    let filter1 = SCContentFilter::builder().display(display1).build();
+    let filter2 = SCContentFilter::builder().display(display2).build();
+    let config = SCStreamConfiguration::default();
     
     let stream1 = SCStream::new(&filter1, &config);
     let stream2 = SCStream::new(&filter2, &config);

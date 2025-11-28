@@ -40,15 +40,15 @@ mod leak_tests {
             // Create and immediately drop streams
 
             let stream = {
-                let config = SCStreamConfiguration::build()
-                    .set_captures_audio(true)?
-                    .set_width(100)?
-                    .set_height(100)?;
+                let config = SCStreamConfiguration::default()
+                    .set_captures_audio(true)
+                    .set_width(100)
+                    .set_height(100);
 
                 let display = SCShareableContent::get();
 
                 let d = display.unwrap().displays().remove(0);
-                let filter = SCContentFilter::build().display(&d).exclude_windows(&[]).build();
+                let filter = SCContentFilter::builder().display(&d).exclude_windows(&[]).build();
                 let mut stream = SCStream::new(&filter, &config);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Audio);
                 stream.add_output_handler(Capturer::new(), SCStreamOutputType::Screen);
@@ -93,7 +93,5 @@ mod leak_tests {
         }
         
         panic!("Memory leaks detected in our code");
-
-        Ok(())
     }
 }

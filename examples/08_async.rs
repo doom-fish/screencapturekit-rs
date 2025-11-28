@@ -146,9 +146,9 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
             .exclude_windows(&[])
             .build();
 
-        let config = SCStreamConfiguration::build()
-            .set_width(1920)?
-            .set_height(1080)?;
+        let config = SCStreamConfiguration::default()
+            .set_width(1920)
+            .set_height(1080);
 
         // Create async stream with 30-frame buffer
         let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);

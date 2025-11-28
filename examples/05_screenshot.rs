@@ -35,9 +35,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     // 3. Configure screenshot
-    let config = SCStreamConfiguration::build()
-        .set_width(1920)?
-        .set_height(1080)?;
+    let config = SCStreamConfiguration::default()
+        .set_width(1920)
+        .set_height(1080);
 
     // 4. Capture screenshot
     println!("Capturing...");
