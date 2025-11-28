@@ -212,9 +212,7 @@ impl SCScreenshotManager {
             );
         }
 
-        completion
-            .wait()
-            .map_err(SCError::ScreenshotError)
+        completion.wait().map_err(SCError::ScreenshotError)
     }
 
     /// Capture a single screenshot as a `CMSampleBuffer`
@@ -244,8 +242,6 @@ impl SCScreenshotManager {
             );
         }
 
-        completion
-            .wait()
-            .map_err(SCError::ScreenshotError)
+        completion.wait().map_err(SCError::ScreenshotError)
     }
 }

@@ -316,8 +316,6 @@ impl SCShareableContentOptions {
             );
         }
 
-        completion
-            .wait()
-            .map_err(SCError::NoShareableContent)
+        completion.wait().map_err(SCError::NoShareableContent)
     }
 }
