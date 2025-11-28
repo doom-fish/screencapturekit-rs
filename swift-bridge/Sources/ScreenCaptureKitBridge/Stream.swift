@@ -309,20 +309,22 @@ public func removeStreamOutput(
 /// Starts capturing from the stream
 /// - Parameters:
 ///   - stream: The stream to start
-///   - callback: Called with success/failure and optional error message
+///   - context: Opaque context pointer passed back to callback
+///   - callback: Called with context, success/failure and optional error message
 @_cdecl("sc_stream_start_capture")
 public func startStreamCapture(
     _ stream: OpaquePointer,
-    _ callback: @escaping @convention(c) (Bool, UnsafePointer<CChar>?) -> Void
+    _ context: UnsafeMutableRawPointer?,
+    _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void
 ) {
     let scStream: SCStream = unretained(stream)
     Task {
         do {
             try await scStream.startCapture()
-            callback(true, nil)
+            callback(context, true, nil)
         } catch {
             let bridgeError = SCBridgeError.streamError(error.localizedDescription)
-            bridgeError.description.withCString { callback(false, $0) }
+            bridgeError.description.withCString { callback(context, false, $0) }
         }
     }
 }
@@ -330,20 +332,22 @@ public func startStreamCapture(
 /// Stops capturing from the stream
 /// - Parameters:
 ///   - stream: The stream to stop
-///   - callback: Called with success/failure and optional error message
+///   - context: Opaque context pointer passed back to callback
+///   - callback: Called with context, success/failure and optional error message
 @_cdecl("sc_stream_stop_capture")
 public func stopStreamCapture(
     _ stream: OpaquePointer,
-    _ callback: @escaping @convention(c) (Bool, UnsafePointer<CChar>?) -> Void
+    _ context: UnsafeMutableRawPointer?,
+    _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void
 ) {
     let scStream: SCStream = unretained(stream)
     Task {
         do {
             try await scStream.stopCapture()
-            callback(true, nil)
+            callback(context, true, nil)
         } catch {
             let bridgeError = SCBridgeError.streamError(error.localizedDescription)
-            bridgeError.description.withCString { callback(false, $0) }
+            bridgeError.description.withCString { callback(context, false, $0) }
         }
     }
 }
@@ -352,22 +356,24 @@ public func stopStreamCapture(
 /// - Parameters:
 ///   - stream: The stream to update
 ///   - filter: The new content filter
-///   - callback: Called with success/failure and optional error message
+///   - context: Opaque context pointer passed back to callback
+///   - callback: Called with context, success/failure and optional error message
 @_cdecl("sc_stream_update_content_filter")
 public func updateStreamContentFilter(
     _ stream: OpaquePointer,
     _ filter: OpaquePointer,
-    _ callback: @escaping @convention(c) (Bool, UnsafePointer<CChar>?) -> Void
+    _ context: UnsafeMutableRawPointer?,
+    _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void
 ) {
     let scStream: SCStream = unretained(stream)
     let scFilter: SCContentFilter = unretained(filter)
     Task {
         do {
             try await scStream.updateContentFilter(scFilter)
-            callback(true, nil)
+            callback(context, true, nil)
         } catch {
             let bridgeError = SCBridgeError.streamError(error.localizedDescription)
-            bridgeError.description.withCString { callback(false, $0) }
+            bridgeError.description.withCString { callback(context, false, $0) }
         }
     }
 }
@@ -376,22 +382,24 @@ public func updateStreamContentFilter(
 /// - Parameters:
 ///   - stream: The stream to update
 ///   - config: The new configuration
-///   - callback: Called with success/failure and optional error message
+///   - context: Opaque context pointer passed back to callback
+///   - callback: Called with context, success/failure and optional error message
 @_cdecl("sc_stream_update_configuration")
 public func updateStreamConfiguration(
     _ stream: OpaquePointer,
     _ config: OpaquePointer,
-    _ callback: @escaping @convention(c) (Bool, UnsafePointer<CChar>?) -> Void
+    _ context: UnsafeMutableRawPointer?,
+    _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void
 ) {
     let scStream: SCStream = unretained(stream)
     let scConfig: SCStreamConfiguration = unretained(config)
     Task {
         do {
             try await scStream.updateConfiguration(scConfig)
-            callback(true, nil)
+            callback(context, true, nil)
         } catch {
             let bridgeError = SCBridgeError.configurationError(error.localizedDescription)
-            bridgeError.description.withCString { callback(false, $0) }
+            bridgeError.description.withCString { callback(context, false, $0) }
         }
     }
 }
