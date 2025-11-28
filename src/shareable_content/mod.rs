@@ -319,3 +319,104 @@ impl SCShareableContentOptions {
         completion.wait().map_err(SCError::NoShareableContent)
     }
 }
+
+// MARK: - SCShareableContentInfo (macOS 14.0+)
+
+/// Information about shareable content from a filter (macOS 14.0+)
+///
+/// Provides metadata about the content being captured, including dimensions and scale factor.
+#[cfg(feature = "macos_14_0")]
+pub struct SCShareableContentInfo(*const c_void);
+
+#[cfg(feature = "macos_14_0")]
+impl SCShareableContentInfo {
+    /// Get content info for a filter
+    ///
+    /// Returns information about the content described by the given filter.
+    pub fn for_filter(filter: &crate::stream::content_filter::SCContentFilter) -> Option<Self> {
+        let ptr = unsafe { crate::ffi::sc_shareable_content_info_for_filter(filter.as_ptr()) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(Self(ptr))
+        }
+    }
+
+    /// Get the content style
+    pub fn style(&self) -> crate::stream::content_filter::SCShareableContentStyle {
+        let value = unsafe { crate::ffi::sc_shareable_content_info_get_style(self.0) };
+        crate::stream::content_filter::SCShareableContentStyle::from(value)
+    }
+
+    /// Get the point-to-pixel scale factor
+    ///
+    /// Typically 2.0 for Retina displays.
+    pub fn point_pixel_scale(&self) -> f32 {
+        unsafe { crate::ffi::sc_shareable_content_info_get_point_pixel_scale(self.0) }
+    }
+
+    /// Get the content rectangle in points
+    pub fn content_rect(&self) -> crate::cg::CGRect {
+        let mut x = 0.0;
+        let mut y = 0.0;
+        let mut width = 0.0;
+        let mut height = 0.0;
+        unsafe {
+            crate::ffi::sc_shareable_content_info_get_content_rect(
+                self.0,
+                &mut x,
+                &mut y,
+                &mut width,
+                &mut height,
+            );
+        }
+        crate::cg::CGRect::new(x, y, width, height)
+    }
+
+    /// Get the content size in pixels
+    ///
+    /// Convenience method that multiplies `content_rect` dimensions by `point_pixel_scale`.
+    pub fn pixel_size(&self) -> (u32, u32) {
+        let rect = self.content_rect();
+        let scale = self.point_pixel_scale();
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+        let width = (rect.width * f64::from(scale)) as u32;
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+        let height = (rect.height * f64::from(scale)) as u32;
+        (width, height)
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
+impl Drop for SCShareableContentInfo {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe {
+                crate::ffi::sc_shareable_content_info_release(self.0);
+            }
+        }
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
+impl Clone for SCShareableContentInfo {
+    fn clone(&self) -> Self {
+        unsafe { Self(crate::ffi::sc_shareable_content_info_retain(self.0)) }
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
+impl fmt::Debug for SCShareableContentInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SCShareableContentInfo")
+            .field("style", &self.style())
+            .field("point_pixel_scale", &self.point_pixel_scale())
+            .field("content_rect", &self.content_rect())
+            .finish()
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
+unsafe impl Send for SCShareableContentInfo {}
+#[cfg(feature = "macos_14_0")]
+unsafe impl Sync for SCShareableContentInfo {}
