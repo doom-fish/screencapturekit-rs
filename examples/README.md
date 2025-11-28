@@ -23,6 +23,7 @@ cargo run --example 01_basic_capture
 | 09 | `closure_handlers` | Closures as handlers | - |
 | 10 | `recording_output` | Direct video recording | `macos_15_0` |
 | 11 | `content_picker` | System content picker UI | `macos_14_0` |
+| 12 | `metal_overlay` | Metal GPU rendering + overlay UI | - |
 
 ## Running with Features
 
@@ -37,6 +38,9 @@ cargo run --example 11_content_picker --features macos_14_0
 # macOS 15+ examples  
 cargo run --example 10_recording_output --features macos_15_0
 
+# Metal GUI example
+cargo run --example metal_overlay
+
 # All features
 cargo run --example 08_async --all-features
 ```
@@ -46,3 +50,41 @@ cargo run --example 08_async --all-features
 - Examples are numbered by complexity - start with `01`
 - Each example focuses on one API concept
 - Check source code for detailed comments
+
+## Metal Overlay Example
+
+Example 12 (`metal_overlay`) is a full GUI application demonstrating:
+- **Metal GPU rendering** with runtime shader compilation
+- **Bitmap font** rendering for overlay text (8x8 pixel glyphs)
+- **Audio waveform** visualization with VU meter
+- **Interactive menu** with keyboard navigation
+- **Screen capture** integration via ScreenCaptureKit
+
+### Controls
+- `S` - Start screen capture
+- `X` - Stop capture
+- `W` - Toggle waveform display
+- `M` / `Escape` - Toggle menu
+- `↑`/`↓` - Navigate menu
+- `Q` - Quit
+
+### Data Structure Alignment
+
+The example shows proper Rust/Metal data alignment using `#[repr(C)]`:
+
+```rust
+// Rust struct matching Metal shader vertex input
+#[repr(C)]
+struct Vertex {
+    position: [f32; 2],  // 8 bytes - matches packed_float2
+    color: [f32; 4],     // 16 bytes - matches packed_float4
+}
+
+// Uniforms with explicit padding for 16-byte alignment
+#[repr(C)]
+struct Uniforms {
+    viewport_size: [f32; 2],  // 8 bytes
+    time: f32,                // 4 bytes
+    _padding: f32,            // 4 bytes (16-byte alignment)
+}
+```
