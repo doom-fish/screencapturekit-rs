@@ -28,6 +28,7 @@ use crate::error::SCError;
 use crate::shareable_content::SCShareableContent;
 use crate::stream::configuration::SCStreamConfiguration;
 use crate::stream::content_filter::SCContentFilter;
+use crate::utils::sync_completion::{error_from_cstr, AsyncCompletion, AsyncCompletionFuture};
 use std::ffi::c_void;
 use std::future::Future;
 use std::pin::Pin;
@@ -38,64 +39,41 @@ use std::task::{Context, Poll, Waker};
 // AsyncSCShareableContent - True async with callback-based FFI
 // ============================================================================
 
-/// Shared state for async shareable content retrieval
-struct ShareableContentState {
-    result: Option<Result<SCShareableContent, SCError>>,
-    waker: Option<Waker>,
-}
-
-/// Future for async shareable content retrieval
-pub struct AsyncShareableContentFuture {
-    state: Arc<Mutex<ShareableContentState>>,
-}
-
-impl Future for AsyncShareableContentFuture {
-    type Output = Result<SCShareableContent, SCError>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut state = self.state.lock().unwrap();
-
-        state.result.take().map_or_else(
-            || {
-                state.waker = Some(cx.waker().clone());
-                Poll::Pending
-            },
-            Poll::Ready,
-        )
-    }
-}
-
 /// Callback from Swift FFI for shareable content
 extern "C" fn shareable_content_callback(
     content: *const c_void,
     error: *const i8,
     user_data: *mut c_void,
 ) {
-    let state = unsafe { Arc::from_raw(user_data.cast::<Mutex<ShareableContentState>>()) };
-
-    let result = if !error.is_null() {
-        let error_msg = unsafe {
-            std::ffi::CStr::from_ptr(error)
-                .to_string_lossy()
-                .into_owned()
-        };
-        Err(crate::utils::error::create_sc_error(&error_msg))
+    if !error.is_null() {
+        let error_msg = unsafe { error_from_cstr(error) };
+        unsafe { AsyncCompletion::<SCShareableContent>::complete_err(user_data, error_msg) };
     } else if !content.is_null() {
-        Ok(unsafe { SCShareableContent::from_ptr(content) })
+        let sc = unsafe { SCShareableContent::from_ptr(content) };
+        unsafe { AsyncCompletion::complete_ok(user_data, sc) };
     } else {
-        Err(crate::utils::error::create_sc_error("Unknown error"))
-    };
-
-    {
-        let mut guard = state.lock().unwrap();
-        guard.result = Some(result);
-        if let Some(waker) = guard.waker.take() {
-            waker.wake();
-        }
+        unsafe {
+            AsyncCompletion::<SCShareableContent>::complete_err(
+                user_data,
+                "Unknown error".to_string(),
+            );
+        };
     }
+}
 
-    // Keep state alive - the Arc will be dropped when the future is dropped
-    std::mem::forget(state);
+/// Future for async shareable content retrieval
+pub struct AsyncShareableContentFuture {
+    inner: AsyncCompletionFuture<SCShareableContent>,
+}
+
+impl Future for AsyncShareableContentFuture {
+    type Output = Result<SCShareableContent, SCError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.inner)
+            .poll(cx)
+            .map(|r| r.map_err(|e| SCError::NoShareableContent(e)))
+    }
 }
 
 /// Async wrapper for `SCShareableContent`
@@ -149,23 +127,18 @@ impl AsyncSCShareableContentOptions {
 
     /// Asynchronously get the shareable content with these options
     pub fn get_async(self) -> AsyncShareableContentFuture {
-        let state = Arc::new(Mutex::new(ShareableContentState {
-            result: None,
-            waker: None,
-        }));
-
-        let state_ptr = Arc::into_raw(state.clone()).cast_mut().cast::<c_void>();
+        let (future, context) = AsyncCompletion::create();
 
         unsafe {
             crate::ffi::sc_shareable_content_get_with_options(
                 self.exclude_desktop_windows,
                 self.on_screen_windows_only,
                 shareable_content_callback,
-                state_ptr,
+                context,
             );
         }
 
-        AsyncShareableContentFuture { state }
+        AsyncShareableContentFuture { inner: future }
     }
 }
 
@@ -437,6 +410,69 @@ impl AsyncSCStream {
 #[cfg(feature = "macos_14_0")]
 pub struct AsyncSCScreenshotManager;
 
+/// Callback for async `CGImage` capture
+#[cfg(feature = "macos_14_0")]
+extern "C" fn screenshot_image_callback(
+    image_ptr: *const c_void,
+    error_ptr: *const i8,
+    user_data: *mut c_void,
+) {
+    if !error_ptr.is_null() {
+        let error = unsafe { error_from_cstr(error_ptr) };
+        unsafe { AsyncCompletion::<crate::screenshot_manager::CGImage>::complete_err(user_data, error) };
+    } else if !image_ptr.is_null() {
+        let image = crate::screenshot_manager::CGImage::from_ptr(image_ptr);
+        unsafe { AsyncCompletion::complete_ok(user_data, image) };
+    } else {
+        unsafe {
+            AsyncCompletion::<crate::screenshot_manager::CGImage>::complete_err(
+                user_data,
+                "Unknown error".to_string(),
+            );
+        };
+    }
+}
+
+/// Callback for async `CMSampleBuffer` capture
+#[cfg(feature = "macos_14_0")]
+extern "C" fn screenshot_buffer_callback(
+    buffer_ptr: *const c_void,
+    error_ptr: *const i8,
+    user_data: *mut c_void,
+) {
+    if !error_ptr.is_null() {
+        let error = unsafe { error_from_cstr(error_ptr) };
+        unsafe { AsyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(user_data, error) };
+    } else if !buffer_ptr.is_null() {
+        let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(buffer_ptr.cast_mut()) };
+        unsafe { AsyncCompletion::complete_ok(user_data, buffer) };
+    } else {
+        unsafe {
+            AsyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(
+                user_data,
+                "Unknown error".to_string(),
+            );
+        };
+    }
+}
+
+/// Future for async screenshot capture
+#[cfg(feature = "macos_14_0")]
+pub struct AsyncScreenshotFuture<T> {
+    inner: AsyncCompletionFuture<T>,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl<T> Future for AsyncScreenshotFuture<T> {
+    type Output = Result<T, SCError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.inner)
+            .poll(cx)
+            .map(|r| r.map_err(SCError::ScreenshotError))
+    }
+}
+
 #[cfg(feature = "macos_14_0")]
 impl AsyncSCScreenshotManager {
     /// Capture a single screenshot as a `CGImage` asynchronously
@@ -449,26 +485,18 @@ impl AsyncSCScreenshotManager {
         content_filter: &crate::stream::content_filter::SCContentFilter,
         configuration: &SCStreamConfiguration,
     ) -> AsyncScreenshotFuture<crate::screenshot_manager::CGImage> {
-        let state = Arc::new(Mutex::new(ScreenshotState {
-            result: None,
-            waker: None,
-        }));
-
-        let state_ptr = Arc::into_raw(state.clone()).cast_mut().cast::<c_void>();
+        let (future, context) = AsyncCompletion::create();
 
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_image(
                 content_filter.as_ptr(),
                 configuration.as_ptr(),
                 screenshot_image_callback,
-                state_ptr,
+                context,
             );
         }
 
-        AsyncScreenshotFuture {
-            state,
-            _marker: std::marker::PhantomData,
-        }
+        AsyncScreenshotFuture { inner: future }
     }
 
     /// Capture a single screenshot as a `CMSampleBuffer` asynchronously
@@ -481,130 +509,17 @@ impl AsyncSCScreenshotManager {
         content_filter: &crate::stream::content_filter::SCContentFilter,
         configuration: &SCStreamConfiguration,
     ) -> AsyncScreenshotFuture<crate::cm::CMSampleBuffer> {
-        let state = Arc::new(Mutex::new(ScreenshotState {
-            result: None,
-            waker: None,
-        }));
-
-        let state_ptr = Arc::into_raw(state.clone()).cast_mut().cast::<c_void>();
+        let (future, context) = AsyncCompletion::create();
 
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_sample_buffer(
                 content_filter.as_ptr(),
                 configuration.as_ptr(),
                 screenshot_buffer_callback,
-                state_ptr,
+                context,
             );
         }
 
-        AsyncScreenshotFuture {
-            state,
-            _marker: std::marker::PhantomData,
-        }
+        AsyncScreenshotFuture { inner: future }
     }
-}
-
-/// Shared state for async screenshot capture
-#[cfg(feature = "macos_14_0")]
-struct ScreenshotState<T> {
-    result: Option<Result<T, SCError>>,
-    waker: Option<std::task::Waker>,
-}
-
-/// Future for async screenshot capture
-#[cfg(feature = "macos_14_0")]
-pub struct AsyncScreenshotFuture<T> {
-    state: Arc<Mutex<ScreenshotState<T>>>,
-    _marker: std::marker::PhantomData<T>,
-}
-
-#[cfg(feature = "macos_14_0")]
-impl<T> Future for AsyncScreenshotFuture<T> {
-    type Output = Result<T, SCError>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut state = self.state.lock().unwrap();
-
-        state.result.take().map_or_else(
-            || {
-                state.waker = Some(cx.waker().clone());
-                Poll::Pending
-            },
-            Poll::Ready,
-        )
-    }
-}
-
-/// Callback for async `CGImage` capture
-#[cfg(feature = "macos_14_0")]
-extern "C" fn screenshot_image_callback(
-    image_ptr: *const c_void,
-    error_ptr: *const i8,
-    user_data: *mut c_void,
-) {
-    let state = unsafe {
-        Arc::from_raw(
-            user_data.cast::<Mutex<ScreenshotState<crate::screenshot_manager::CGImage>>>(),
-        )
-    };
-
-    let result = if !error_ptr.is_null() {
-        let error_msg = unsafe {
-            std::ffi::CStr::from_ptr(error_ptr)
-                .to_string_lossy()
-                .into_owned()
-        };
-        Err(crate::utils::error::create_sc_error(&error_msg))
-    } else if !image_ptr.is_null() {
-        Ok(crate::screenshot_manager::CGImage::from_ptr(image_ptr))
-    } else {
-        Err(crate::utils::error::create_sc_error("Unknown error"))
-    };
-
-    {
-        let mut guard = state.lock().unwrap();
-        guard.result = Some(result);
-        if let Some(waker) = guard.waker.take() {
-            waker.wake();
-        }
-    }
-
-    // Keep state alive - the Arc will be dropped when the future is dropped
-    std::mem::forget(state);
-}
-
-/// Callback for async `CMSampleBuffer` capture
-#[cfg(feature = "macos_14_0")]
-extern "C" fn screenshot_buffer_callback(
-    buffer_ptr: *const c_void,
-    error_ptr: *const i8,
-    user_data: *mut c_void,
-) {
-    let state = unsafe {
-        Arc::from_raw(user_data.cast::<Mutex<ScreenshotState<crate::cm::CMSampleBuffer>>>())
-    };
-
-    let result = if !error_ptr.is_null() {
-        let error_msg = unsafe {
-            std::ffi::CStr::from_ptr(error_ptr)
-                .to_string_lossy()
-                .into_owned()
-        };
-        Err(crate::utils::error::create_sc_error(&error_msg))
-    } else if !buffer_ptr.is_null() {
-        Ok(unsafe { crate::cm::CMSampleBuffer::from_ptr(buffer_ptr.cast_mut()) })
-    } else {
-        Err(crate::utils::error::create_sc_error("Unknown error"))
-    };
-
-    {
-        let mut guard = state.lock().unwrap();
-        guard.result = Some(result);
-        if let Some(waker) = guard.waker.take() {
-            waker.wake();
-        }
-    }
-
-    // Keep state alive - the Arc will be dropped when the future is dropped
-    std::mem::forget(state);
 }
