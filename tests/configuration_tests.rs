@@ -12,21 +12,21 @@ fn test_default_configuration() {
 
 #[test]
 fn test_set_dimensions() {
-    let config = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
 
     assert_eq!(config.get_width(), 1920);
     assert_eq!(config.get_height(), 1080);
 }
 
 #[test]
-fn test_set_dimensions_chaining() {
-    let config = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080)
-        .set_width(1280)
-        .set_height(720);
+fn test_set_dimensions_multiple() {
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_width(1280);
+    config.set_height(720);
 
     assert_eq!(config.get_width(), 1280);
     assert_eq!(config.get_height(), 720);
@@ -42,51 +42,53 @@ fn test_set_pixel_format() {
     ];
 
     for format in formats {
-        let _config = SCStreamConfiguration::default().set_pixel_format(format);
+        let mut config = SCStreamConfiguration::default();
+        config.set_pixel_format(format);
         // Just verify it doesn't crash
     }
 }
 
 #[test]
 fn test_audio_configuration() {
-    let _config = SCStreamConfiguration::default().set_captures_audio(true);
+    let mut config = SCStreamConfiguration::default();
+    config.set_captures_audio(true);
     // Just verify it doesn't crash
 }
 
 #[test]
 fn test_audio_sample_rate() {
-    let _config = SCStreamConfiguration::default()
-        .set_captures_audio(true)
-        .set_sample_rate(48000);
+    let mut config = SCStreamConfiguration::default();
+    config.set_captures_audio(true);
+    config.set_sample_rate(48000);
     // Just verify it doesn't crash
 }
 
 #[test]
 fn test_audio_channel_count() {
-    let _config = SCStreamConfiguration::default()
-        .set_captures_audio(true)
-        .set_channel_count(2);
+    let mut config = SCStreamConfiguration::default();
+    config.set_captures_audio(true);
+    config.set_channel_count(2);
     // Just verify it doesn't crash
 }
 
 #[test]
 fn test_complete_audio_configuration() {
-    let _config = SCStreamConfiguration::default()
-        .set_captures_audio(true)
-        .set_sample_rate(48000)
-        .set_channel_count(2);
+    let mut config = SCStreamConfiguration::default();
+    config.set_captures_audio(true);
+    config.set_sample_rate(48000);
+    config.set_channel_count(2);
     // Just verify it doesn't crash
 }
 
 #[test]
 fn test_complete_video_audio_configuration() {
-    let _config = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080)
-        .set_pixel_format(PixelFormat::BGRA)
-        .set_captures_audio(true)
-        .set_sample_rate(48000)
-        .set_channel_count(2);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_pixel_format(PixelFormat::BGRA);
+    config.set_captures_audio(true);
+    config.set_sample_rate(48000);
+    config.set_channel_count(2);
     // Just verify it doesn't crash
 }
 
@@ -101,9 +103,9 @@ fn test_various_resolutions() {
     ];
 
     for (width, height) in resolutions {
-        let config = SCStreamConfiguration::default()
-            .set_width(width)
-            .set_height(height);
+        let mut config = SCStreamConfiguration::default();
+        config.set_width(width);
+        config.set_height(height);
 
         assert_eq!(
             config.get_width(),
@@ -123,9 +125,9 @@ fn test_common_sample_rates() {
     let sample_rates = [44100, 48000, 96000];
 
     for rate in sample_rates {
-        let _config = SCStreamConfiguration::default()
-            .set_captures_audio(true)
-            .set_sample_rate(rate);
+        let mut config = SCStreamConfiguration::default();
+        config.set_captures_audio(true);
+        config.set_sample_rate(rate);
         // Just verify it doesn't crash
     }
 }
@@ -135,9 +137,9 @@ fn test_channel_counts() {
     let channels = [1, 2];
 
     for count in channels {
-        let _config = SCStreamConfiguration::default()
-            .set_captures_audio(true)
-            .set_channel_count(count);
+        let mut config = SCStreamConfiguration::default();
+        config.set_captures_audio(true);
+        config.set_channel_count(count);
         // Just verify it doesn't crash
     }
 }
@@ -161,9 +163,9 @@ fn test_pixel_format_in_collections() {
 }
 
 #[test]
-fn test_configuration_chaining() {
-    // Test that configuration methods can be chained
-    let config = SCStreamConfiguration::default().set_width(1920);
+fn test_configuration_set_width() {
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
     assert_eq!(config.get_width(), 1920);
 }
 
@@ -180,13 +182,13 @@ fn test_multiple_configurations() {
 #[test]
 fn test_configuration_modification_order() {
     // Test that order of modifications doesn't matter for final result
-    let config1 = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080);
+    let mut config1 = SCStreamConfiguration::default();
+    config1.set_width(1920);
+    config1.set_height(1080);
 
-    let config2 = SCStreamConfiguration::default()
-        .set_height(1080)
-        .set_width(1920);
+    let mut config2 = SCStreamConfiguration::default();
+    config2.set_height(1080);
+    config2.set_width(1920);
 
     assert_eq!(config1.get_width(), config2.get_width());
     assert_eq!(config1.get_height(), config2.get_height());
@@ -194,24 +196,25 @@ fn test_configuration_modification_order() {
 
 #[test]
 fn test_audio_without_video() {
-    let _config = SCStreamConfiguration::default()
-        .set_captures_audio(true)
-        .set_sample_rate(48000);
+    let mut config = SCStreamConfiguration::default();
+    config.set_captures_audio(true);
+    config.set_sample_rate(48000);
     // Just verify it doesn't crash
 }
 
 #[test]
 fn test_video_without_audio() {
-    let _config = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080)
-        .set_captures_audio(false);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_captures_audio(false);
     // Just verify it doesn't crash
 }
 
 #[test]
 fn test_stream_name() {
-    let config = SCStreamConfiguration::default().set_stream_name(Some("test-stream"));
+    let mut config = SCStreamConfiguration::default();
+    config.set_stream_name(Some("test-stream"));
 
     // The getter may not work on all macOS versions
     let _ = config.get_stream_name();
@@ -222,8 +225,8 @@ fn test_stream_name() {
 fn test_dynamic_range() {
     use screencapturekit::stream::configuration::SCCaptureDynamicRange;
 
-    let config = SCStreamConfiguration::default()
-        .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
+    let mut config = SCStreamConfiguration::default();
+    config.set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
 
     // May return SDR on macOS < 15.0
     let _ = config.get_capture_dynamic_range();
@@ -240,9 +243,9 @@ fn test_queue_depth_and_frame_interval() {
         epoch: 1,
     };
     let queue_depth = 10;
-    let config = SCStreamConfiguration::default()
-        .set_queue_depth(queue_depth)
-        .set_minimum_frame_interval(&cm_time);
+    let mut config = SCStreamConfiguration::default();
+    config.set_queue_depth(queue_depth);
+    config.set_minimum_frame_interval(&cm_time);
 
     assert_eq!(config.get_queue_depth(), queue_depth);
 
@@ -271,12 +274,12 @@ fn test_advanced_setters() {
     // These advanced properties require macOS 13.0-14.2+
     // The test verifies that setters don't error, but getters may not
     // return the set values on older macOS versions
-    let config = SCStreamConfiguration::default()
-        .set_ignore_fraction_of_screen(0.1)
-        .set_ignores_shadows_single_window(true)
-        .set_should_be_opaque(true)
-        .set_includes_child_windows(true)
-        .set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always);
+    let mut config = SCStreamConfiguration::default();
+    config.set_ignore_fraction_of_screen(0.1);
+    config.set_ignores_shadows_single_window(true);
+    config.set_should_be_opaque(true);
+    config.set_includes_child_windows(true);
+    config.set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always);
 
     // Verify setters worked without errors
     // Note: getters may return default values on older macOS versions
@@ -289,21 +292,21 @@ fn test_advanced_setters() {
 
 #[test]
 fn test_shows_cursor() {
-    let config = SCStreamConfiguration::default().set_shows_cursor(true);
+    let mut config = SCStreamConfiguration::default();
+    config.set_shows_cursor(true);
     assert!(config.get_shows_cursor());
 }
 
 #[test]
-fn test_builder_pattern() {
-    // Test the new builder pattern
-    let config = SCStreamConfiguration::builder()
-        .width(1920)
-        .height(1080)
-        .pixel_format(PixelFormat::BGRA)
-        .captures_audio(true)
-        .sample_rate(48000)
-        .channel_count(2)
-        .build();
+fn test_mutable_configuration() {
+    // Test the mutable configuration pattern
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_pixel_format(PixelFormat::BGRA);
+    config.set_captures_audio(true);
+    config.set_sample_rate(48000);
+    config.set_channel_count(2);
 
     assert_eq!(config.get_width(), 1920);
     assert_eq!(config.get_height(), 1080);

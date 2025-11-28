@@ -17,17 +17,16 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_width(1920);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_width(1920);
     /// assert_eq!(config.get_width(), 1920);
     /// ```
-    pub fn set_width(self, width: u32) -> Self {
+    pub fn set_width(&mut self, width: u32) {
         // FFI expects isize; u32 may wrap on 32-bit platforms (acceptable)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
             crate::ffi::sc_stream_configuration_set_width(self.as_ptr(), width as isize);
         }
-        self
     }
 
     /// Get the configured output width in pixels
@@ -37,8 +36,8 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_width(1920);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_width(1920);
     /// assert_eq!(config.get_width(), 1920);
     /// ```
     pub fn get_width(&self) -> u32 {
@@ -58,17 +57,16 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_height(1080);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_height(1080);
     /// assert_eq!(config.get_height(), 1080);
     /// ```
-    pub fn set_height(self, height: u32) -> Self {
+    pub fn set_height(&mut self, height: u32) {
         // FFI expects isize; u32 may wrap on 32-bit platforms (acceptable)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
             crate::ffi::sc_stream_configuration_set_height(self.as_ptr(), height as isize);
         }
-        self
     }
 
     /// Get the configured output height in pixels
@@ -78,8 +76,8 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_height(1080);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_height(1080);
     /// assert_eq!(config.get_height(), 1080);
     /// ```
     pub fn get_height(&self) -> u32 {
@@ -100,15 +98,14 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_scales_to_fit(true);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_scales_to_fit(true);
     /// assert!(config.get_scales_to_fit());
     /// ```
-    pub fn set_scales_to_fit(self, scales_to_fit: bool) -> Self {
+    pub fn set_scales_to_fit(&mut self, scales_to_fit: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_scales_to_fit(self.as_ptr(), scales_to_fit);
         }
-        self
     }
 
     /// Check if scaling to fit is enabled
@@ -129,10 +126,10 @@ impl SCStreamConfiguration {
     ///
     /// // Capture only top-left quarter of screen
     /// let rect = CGRect::new(0.0, 0.0, 960.0, 540.0);
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_source_rect(rect);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_source_rect(rect);
     /// ```
-    pub fn set_source_rect(self, source_rect: CGRect) -> Self {
+    pub fn set_source_rect(&mut self, source_rect: CGRect) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_source_rect(
                 self.as_ptr(),
@@ -142,7 +139,6 @@ impl SCStreamConfiguration {
                 source_rect.height,
             );
         }
-        self
     }
 
     /// Get the configured source rectangle
@@ -176,10 +172,10 @@ impl SCStreamConfiguration {
     ///
     /// // Place captured content in top-left corner
     /// let rect = CGRect::new(0.0, 0.0, 640.0, 480.0);
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_destination_rect(rect);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_destination_rect(rect);
     /// ```
-    pub fn set_destination_rect(self, destination_rect: CGRect) -> Self {
+    pub fn set_destination_rect(&mut self, destination_rect: CGRect) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_destination_rect(
                 self.as_ptr(),
@@ -189,7 +185,6 @@ impl SCStreamConfiguration {
                 destination_rect.height,
             );
         }
-        self
     }
 
     /// Get the configured destination rectangle
@@ -223,19 +218,18 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_preserves_aspect_ratio(true);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_preserves_aspect_ratio(true);
     /// // Returns true on macOS 14.0+, false on older versions
     /// let _ = config.get_preserves_aspect_ratio();
     /// ```
-    pub fn set_preserves_aspect_ratio(self, preserves_aspect_ratio: bool) -> Self {
+    pub fn set_preserves_aspect_ratio(&mut self, preserves_aspect_ratio: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_preserves_aspect_ratio(
                 self.as_ptr(),
                 preserves_aspect_ratio,
             );
         }
-        self
     }
 
     /// Check if aspect ratio preservation is enabled
@@ -246,14 +240,13 @@ impl SCStreamConfiguration {
     /// Preserve aspect ratio when scaling (alternative API)
     ///
     /// This is an alternative to `set_preserves_aspect_ratio` for compatibility.
-    pub fn set_preserve_aspect_ratio(self, preserve_aspect_ratio: bool) -> Self {
+    pub fn set_preserve_aspect_ratio(&mut self, preserve_aspect_ratio: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_preserve_aspect_ratio(
                 self.as_ptr(),
                 preserve_aspect_ratio,
             );
         }
-        self
     }
 
     /// Check if aspect ratio preservation is enabled (alternative API)
@@ -272,19 +265,18 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_increase_resolution_for_retina_displays(true);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_increase_resolution_for_retina_displays(true);
     /// // Note: Getter may not return the set value on all macOS versions
     /// let _ = config.get_increase_resolution_for_retina_displays();
     /// ```
-    pub fn set_increase_resolution_for_retina_displays(self, increase_resolution: bool) -> Self {
+    pub fn set_increase_resolution_for_retina_displays(&mut self, increase_resolution: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_increase_resolution_for_retina_displays(
                 self.as_ptr(),
                 increase_resolution,
             );
         }
-        self
     }
 
     /// Check if increased resolution for Retina displays is enabled

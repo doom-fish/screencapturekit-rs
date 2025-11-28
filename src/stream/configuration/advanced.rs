@@ -17,14 +17,13 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_14_2` feature flag to be enabled.
     #[cfg(feature = "macos_14_2")]
-    pub fn set_ignore_fraction_of_screen(self, ignore_fraction: f64) -> Self {
+    pub fn set_ignore_fraction_of_screen(&mut self, ignore_fraction: f64) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_ignore_fraction_of_screen(
                 self.as_ptr(),
                 ignore_fraction,
             );
         }
-        self
     }
 
     #[cfg(feature = "macos_14_2")]
@@ -40,14 +39,13 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_14_2` feature flag to be enabled.
     #[cfg(feature = "macos_14_2")]
-    pub fn set_ignores_shadows_single_window(self, ignores_shadows: bool) -> Self {
+    pub fn set_ignores_shadows_single_window(&mut self, ignores_shadows: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_ignores_shadows_single_window(
                 self.as_ptr(),
                 ignores_shadows,
             );
         }
-        self
     }
 
     #[cfg(feature = "macos_14_2")]
@@ -65,14 +63,13 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_13_0` feature flag to be enabled.
     #[cfg(feature = "macos_13_0")]
-    pub fn set_should_be_opaque(self, should_be_opaque: bool) -> Self {
+    pub fn set_should_be_opaque(&mut self, should_be_opaque: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_should_be_opaque(
                 self.as_ptr(),
                 should_be_opaque,
             );
         }
-        self
     }
 
     #[cfg(feature = "macos_13_0")]
@@ -87,14 +84,13 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_14_2` feature flag to be enabled.
     #[cfg(feature = "macos_14_2")]
-    pub fn set_includes_child_windows(self, includes_child_windows: bool) -> Self {
+    pub fn set_includes_child_windows(&mut self, includes_child_windows: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_includes_child_windows(
                 self.as_ptr(),
                 includes_child_windows,
             );
         }
-        self
     }
 
     #[cfg(feature = "macos_14_2")]
@@ -112,14 +108,13 @@ impl SCStreamConfiguration {
     pub fn set_presenter_overlay_privacy_alert_setting(
         self,
         setting: SCPresenterOverlayAlertSetting,
-    ) -> Self {
+    ) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_presenter_overlay_privacy_alert_setting(
                 self.as_ptr(),
                 setting as i32,
             );
         }
-        self
     }
 
     #[cfg(feature = "macos_14_2")]
@@ -142,14 +137,13 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_14_0` feature flag to be enabled.
     #[cfg(feature = "macos_14_0")]
-    pub fn set_ignore_global_clipboard(self, ignore_global_clipboard: bool) -> Self {
+    pub fn set_ignore_global_clipboard(&mut self, ignore_global_clipboard: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_ignore_global_clipboard(
                 self.as_ptr(),
                 ignore_global_clipboard,
             );
         }
-        self
     }
 
     #[cfg(feature = "macos_14_0")]
@@ -163,14 +157,13 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_14_0` feature flag to be enabled.
     #[cfg(feature = "macos_14_0")]
-    pub fn set_ignores_shadow_display_configuration(self, ignores_shadow: bool) -> Self {
+    pub fn set_ignores_shadow_display_configuration(&mut self, ignores_shadow: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_ignores_shadow_display_configuration(
                 self.as_ptr(),
                 ignores_shadow,
             );
         }
-        self
     }
 
     #[cfg(feature = "macos_14_0")]

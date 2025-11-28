@@ -32,11 +32,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::builder()
-        .width(1920)
-        .height(1080)
-        .pixel_format(PixelFormat::BGRA)
-        .build();
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_pixel_format(PixelFormat::BGRA);
 
     // =========================================================================
     // Example 1: Simple closure handler

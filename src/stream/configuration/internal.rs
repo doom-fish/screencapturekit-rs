@@ -11,12 +11,11 @@ use std::fmt;
 /// ```
 /// use screencapturekit::stream::configuration::SCStreamConfiguration;
 ///
-/// let config = SCStreamConfiguration::default()
-///     .set_width(1920)
-///     .set_height(1080);
+/// let mut config = SCStreamConfiguration::default();
+/// config.set_width(1920);
+/// config.set_height(1080);
 /// ```
 #[repr(transparent)]
-#[must_use]
 pub struct SCStreamConfiguration(*const c_void);
 
 impl PartialEq for SCStreamConfiguration {
