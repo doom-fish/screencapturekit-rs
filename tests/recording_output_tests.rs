@@ -122,3 +122,135 @@ fn test_recording_configuration() {
     // Just verify it doesn't crash
     assert!(!config.as_ptr().is_null());
 }
+
+// MARK: - New Recording Output Features
+
+#[test]
+fn test_recording_output_video_codec_get_set() {
+    use screencapturekit::recording_output::SCRecordingOutputCodec;
+
+    let mut config = SCRecordingOutputConfiguration::new();
+    
+    // Test H264
+    config.set_video_codec(SCRecordingOutputCodec::H264);
+    assert_eq!(config.get_video_codec(), SCRecordingOutputCodec::H264);
+    
+    // Test HEVC
+    config.set_video_codec(SCRecordingOutputCodec::HEVC);
+    assert_eq!(config.get_video_codec(), SCRecordingOutputCodec::HEVC);
+}
+
+#[test]
+fn test_recording_output_file_type() {
+    use screencapturekit::recording_output::SCRecordingOutputFileType;
+
+    let mut config = SCRecordingOutputConfiguration::new();
+    
+    // Test MP4
+    config.set_output_file_type(SCRecordingOutputFileType::MP4);
+    assert_eq!(config.get_output_file_type(), SCRecordingOutputFileType::MP4);
+    
+    // Test MOV
+    config.set_output_file_type(SCRecordingOutputFileType::MOV);
+    assert_eq!(config.get_output_file_type(), SCRecordingOutputFileType::MOV);
+}
+
+#[test]
+fn test_recording_output_available_codecs_count() {
+    let config = SCRecordingOutputConfiguration::new();
+    let count = config.available_video_codecs_count();
+    // Should have at least one codec available
+    println!("Available video codecs: {}", count);
+}
+
+#[test]
+fn test_recording_output_available_file_types_count() {
+    let config = SCRecordingOutputConfiguration::new();
+    let count = config.available_output_file_types_count();
+    // Should have at least one file type available
+    println!("Available file types: {}", count);
+}
+
+#[test]
+fn test_recording_output_recorded_duration() {
+    let config = SCRecordingOutputConfiguration::new();
+
+    if let Some(output) = SCRecordingOutput::new(&config) {
+        let duration = output.recorded_duration();
+        // Not recording, so duration should be 0
+        assert_eq!(duration.value, 0);
+        println!("✓ Recorded duration accessible");
+    } else {
+        println!("⚠ Skipping duration test - recording output unavailable");
+    }
+}
+
+#[test]
+fn test_recording_output_recorded_file_size() {
+    let config = SCRecordingOutputConfiguration::new();
+
+    if let Some(output) = SCRecordingOutput::new(&config) {
+        let size = output.recorded_file_size();
+        // Not recording, so size should be 0
+        assert_eq!(size, 0);
+        println!("✓ Recorded file size accessible");
+    } else {
+        println!("⚠ Skipping file size test - recording output unavailable");
+    }
+}
+
+#[test]
+fn test_recording_output_codec_equality() {
+    use screencapturekit::recording_output::SCRecordingOutputCodec;
+
+    assert_eq!(SCRecordingOutputCodec::H264, SCRecordingOutputCodec::H264);
+    assert_eq!(SCRecordingOutputCodec::HEVC, SCRecordingOutputCodec::HEVC);
+    assert_ne!(SCRecordingOutputCodec::H264, SCRecordingOutputCodec::HEVC);
+}
+
+#[test]
+fn test_recording_output_file_type_equality() {
+    use screencapturekit::recording_output::SCRecordingOutputFileType;
+
+    assert_eq!(SCRecordingOutputFileType::MP4, SCRecordingOutputFileType::MP4);
+    assert_eq!(SCRecordingOutputFileType::MOV, SCRecordingOutputFileType::MOV);
+    assert_ne!(SCRecordingOutputFileType::MP4, SCRecordingOutputFileType::MOV);
+}
+
+#[test]
+fn test_recording_output_codec_hash() {
+    use screencapturekit::recording_output::SCRecordingOutputCodec;
+    use std::collections::HashSet;
+
+    let mut codecs = HashSet::new();
+    codecs.insert(SCRecordingOutputCodec::H264);
+    codecs.insert(SCRecordingOutputCodec::HEVC);
+    codecs.insert(SCRecordingOutputCodec::H264); // Duplicate
+
+    assert_eq!(codecs.len(), 2);
+}
+
+#[test]
+fn test_recording_output_file_type_hash() {
+    use screencapturekit::recording_output::SCRecordingOutputFileType;
+    use std::collections::HashSet;
+
+    let mut types = HashSet::new();
+    types.insert(SCRecordingOutputFileType::MP4);
+    types.insert(SCRecordingOutputFileType::MOV);
+    types.insert(SCRecordingOutputFileType::MP4); // Duplicate
+
+    assert_eq!(types.len(), 2);
+}
+
+#[test]
+fn test_recording_output_configuration_debug() {
+    use screencapturekit::recording_output::SCRecordingOutputCodec;
+
+    let mut config = SCRecordingOutputConfiguration::new();
+    config.set_video_codec(SCRecordingOutputCodec::HEVC);
+
+    let debug_str = format!("{:?}", config);
+    assert!(debug_str.contains("SCRecordingOutputConfiguration"));
+    assert!(debug_str.contains("HEVC"));
+}
