@@ -385,3 +385,81 @@ public func getRunningApplicationName(_ app: OpaquePointer, _ buffer: UnsafeMuta
     buffer[bufferSize - 1] = 0
     return true
 }
+
+// MARK: - SCShareableContentInfo (macOS 14.0+)
+
+@_cdecl("sc_shareable_content_info_for_filter")
+public func getShareableContentInfoForFilter(_ filter: OpaquePointer) -> OpaquePointer? {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 14.0, *) {
+        let info = SCShareableContent.info(for: f)
+        return retain(info)
+    }
+    return nil
+}
+
+@_cdecl("sc_shareable_content_info_get_style")
+public func getShareableContentInfoStyle(_ info: OpaquePointer) -> Int32 {
+    if #available(macOS 14.0, *) {
+        let i: SCShareableContentInfo = unretained(info)
+        switch i.style {
+        case .none:
+            return 0
+        case .window:
+            return 1
+        case .display:
+            return 2
+        case .application:
+            return 3
+        @unknown default:
+            return 0
+        }
+    }
+    return 0
+}
+
+@_cdecl("sc_shareable_content_info_get_point_pixel_scale")
+public func getShareableContentInfoPointPixelScale(_ info: OpaquePointer) -> Float {
+    if #available(macOS 14.0, *) {
+        let i: SCShareableContentInfo = unretained(info)
+        return i.pointPixelScale
+    }
+    return 1.0
+}
+
+@_cdecl("sc_shareable_content_info_get_content_rect")
+public func getShareableContentInfoContentRect(
+    _ info: OpaquePointer,
+    _ x: UnsafeMutablePointer<Double>,
+    _ y: UnsafeMutablePointer<Double>,
+    _ width: UnsafeMutablePointer<Double>,
+    _ height: UnsafeMutablePointer<Double>
+) {
+    if #available(macOS 14.0, *) {
+        let i: SCShareableContentInfo = unretained(info)
+        let rect = i.contentRect
+        x.pointee = rect.origin.x
+        y.pointee = rect.origin.y
+        width.pointee = rect.size.width
+        height.pointee = rect.size.height
+    } else {
+        x.pointee = 0.0
+        y.pointee = 0.0
+        width.pointee = 0.0
+        height.pointee = 0.0
+    }
+}
+
+@_cdecl("sc_shareable_content_info_retain")
+public func retainShareableContentInfo(_ info: OpaquePointer) -> OpaquePointer {
+    if #available(macOS 14.0, *) {
+        let i: SCShareableContentInfo = unretained(info)
+        return retain(i)
+    }
+    return info
+}
+
+@_cdecl("sc_shareable_content_info_release")
+public func releaseShareableContentInfo(_ info: OpaquePointer) {
+    release(info)
+}
