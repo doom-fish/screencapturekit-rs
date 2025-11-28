@@ -110,6 +110,14 @@ impl SCContentFilter {
         SCContentFilterBuilder::new()
     }
 
+    /// Creates a content filter from a picker-returned pointer
+    ///
+    /// This is used internally when the content sharing picker returns a filter.
+    #[cfg(feature = "macos_14_0")]
+    pub(crate) fn from_picker_ptr(ptr: *const c_void) -> Self {
+        Self(ptr)
+    }
+
     /// Returns the raw pointer to the content filter
     pub(crate) fn as_ptr(&self) -> *const c_void {
         self.0
@@ -150,6 +158,138 @@ impl SCContentFilter {
                 crate::stream::configuration::Point::new(x, y),
                 crate::stream::configuration::Size::new(width, height),
             )
+        }
+    }
+
+    /// Get the content style (macOS 14.0+)
+    ///
+    /// Returns the type of content being captured (window, display, application, or none).
+    #[cfg(feature = "macos_14_0")]
+    pub fn get_style(&self) -> SCShareableContentStyle {
+        let value = unsafe { ffi::sc_content_filter_get_style(self.0) };
+        SCShareableContentStyle::from(value)
+    }
+
+    /// Get the point-to-pixel scale factor (macOS 14.0+)
+    ///
+    /// Returns the scaling factor used to convert points to pixels.
+    /// Typically 2.0 for Retina displays.
+    #[cfg(feature = "macos_14_0")]
+    pub fn get_point_pixel_scale(&self) -> f32 {
+        unsafe { ffi::sc_content_filter_get_point_pixel_scale(self.0) }
+    }
+
+    /// Include the menu bar in capture (macOS 14.2+)
+    ///
+    /// When set to `true`, the menu bar is included in display capture.
+    /// This property has no effect for window filters.
+    #[cfg(feature = "macos_14_2")]
+    pub fn set_include_menu_bar(&mut self, include: bool) {
+        unsafe {
+            ffi::sc_content_filter_set_include_menu_bar(self.0, include);
+        }
+    }
+
+    /// Check if menu bar is included in capture (macOS 14.2+)
+    #[cfg(feature = "macos_14_2")]
+    pub fn get_include_menu_bar(&self) -> bool {
+        unsafe { ffi::sc_content_filter_get_include_menu_bar(self.0) }
+    }
+
+    /// Get included displays (macOS 15.2+)
+    ///
+    /// Returns the displays currently included in this filter.
+    #[cfg(feature = "macos_15_2")]
+    pub fn get_included_displays(&self) -> Vec<SCDisplay> {
+        let count = unsafe { ffi::sc_content_filter_get_included_displays_count(self.0) };
+        if count <= 0 {
+            return Vec::new();
+        }
+        #[allow(clippy::cast_sign_loss)]
+        (0..count as usize)
+            .filter_map(|i| {
+                #[allow(clippy::cast_possible_wrap)]
+                let ptr = unsafe { ffi::sc_content_filter_get_included_display_at(self.0, i as isize) };
+                if ptr.is_null() {
+                    None
+                } else {
+                    Some(SCDisplay::from_ffi_owned(ptr))
+                }
+            })
+            .collect()
+    }
+
+    /// Get included windows (macOS 15.2+)
+    ///
+    /// Returns the windows currently included in this filter.
+    #[cfg(feature = "macos_15_2")]
+    pub fn get_included_windows(&self) -> Vec<SCWindow> {
+        let count = unsafe { ffi::sc_content_filter_get_included_windows_count(self.0) };
+        if count <= 0 {
+            return Vec::new();
+        }
+        #[allow(clippy::cast_sign_loss)]
+        (0..count as usize)
+            .filter_map(|i| {
+                #[allow(clippy::cast_possible_wrap)]
+                let ptr = unsafe { ffi::sc_content_filter_get_included_window_at(self.0, i as isize) };
+                if ptr.is_null() {
+                    None
+                } else {
+                    Some(SCWindow::from_ffi_owned(ptr))
+                }
+            })
+            .collect()
+    }
+
+    /// Get included applications (macOS 15.2+)
+    ///
+    /// Returns the applications currently included in this filter.
+    #[cfg(feature = "macos_15_2")]
+    pub fn get_included_applications(&self) -> Vec<SCRunningApplication> {
+        let count = unsafe { ffi::sc_content_filter_get_included_applications_count(self.0) };
+        if count <= 0 {
+            return Vec::new();
+        }
+        #[allow(clippy::cast_sign_loss)]
+        (0..count as usize)
+            .filter_map(|i| {
+                #[allow(clippy::cast_possible_wrap)]
+                let ptr = unsafe { ffi::sc_content_filter_get_included_application_at(self.0, i as isize) };
+                if ptr.is_null() {
+                    None
+                } else {
+                    Some(SCRunningApplication::from_ffi_owned(ptr))
+                }
+            })
+            .collect()
+    }
+}
+
+/// Content style for filters (macOS 14.0+)
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[cfg(feature = "macos_14_0")]
+pub enum SCShareableContentStyle {
+    /// No specific content type
+    #[default]
+    None = 0,
+    /// Window-based content
+    Window = 1,
+    /// Display-based content
+    Display = 2,
+    /// Application-based content
+    Application = 3,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl From<i32> for SCShareableContentStyle {
+    fn from(value: i32) -> Self {
+        match value {
+            1 => Self::Window,
+            2 => Self::Display,
+            3 => Self::Application,
+            _ => Self::None,
         }
     }
 }

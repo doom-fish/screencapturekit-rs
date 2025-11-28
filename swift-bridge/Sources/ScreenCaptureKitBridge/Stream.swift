@@ -99,17 +99,153 @@ public func getContentFilterContentRect(
     _ width: UnsafeMutablePointer<Double>,
     _ height: UnsafeMutablePointer<Double>
 ) {
-    x.pointee = 0.0
-    y.pointee = 0.0
-    width.pointee = 0.0
-    height.pointee = 0.0
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 14.0, *) {
+        let rect = f.contentRect
+        x.pointee = rect.origin.x
+        y.pointee = rect.origin.y
+        width.pointee = rect.size.width
+        height.pointee = rect.size.height
+    } else {
+        x.pointee = 0.0
+        y.pointee = 0.0
+        width.pointee = 0.0
+        height.pointee = 0.0
+    }
 }
+
+@_cdecl("sc_content_filter_get_style")
+public func getContentFilterStyle(_ filter: OpaquePointer) -> Int32 {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 14.0, *) {
+        switch f.style {
+        case .none:
+            return 0
+        case .window:
+            return 1
+        case .display:
+            return 2
+        case .application:
+            return 3
+        @unknown default:
+            return 0
+        }
+    }
+    return 0
+}
+
+@_cdecl("sc_content_filter_get_point_pixel_scale")
+public func getContentFilterPointPixelScale(_ filter: OpaquePointer) -> Float {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 14.0, *) {
+        return f.pointPixelScale
+    }
+    return 1.0
+}
+
+// macOS 14.2+ - includeMenuBar property
+@_cdecl("sc_content_filter_set_include_menu_bar")
+public func setContentFilterIncludeMenuBar(_ filter: OpaquePointer, _ include: Bool) {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 14.2, *) {
+        f.includeMenuBar = include
+    }
+}
+
+@_cdecl("sc_content_filter_get_include_menu_bar")
+public func getContentFilterIncludeMenuBar(_ filter: OpaquePointer) -> Bool {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 14.2, *) {
+        return f.includeMenuBar
+    }
+    return false
+}
+
+// macOS 15.2+ - readonly arrays
+#if compiler(>=6.0)
+@_cdecl("sc_content_filter_get_included_displays_count")
+public func getContentFilterIncludedDisplaysCount(_ filter: OpaquePointer) -> Int {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 15.2, *) {
+        return f.includedDisplays.count
+    }
+    return 0
+}
+
+@_cdecl("sc_content_filter_get_included_display_at")
+public func getContentFilterIncludedDisplayAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 15.2, *) {
+        guard index >= 0 && index < f.includedDisplays.count else { return nil }
+        return retain(f.includedDisplays[index])
+    }
+    return nil
+}
+
+@_cdecl("sc_content_filter_get_included_windows_count")
+public func getContentFilterIncludedWindowsCount(_ filter: OpaquePointer) -> Int {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 15.2, *) {
+        return f.includedWindows.count
+    }
+    return 0
+}
+
+@_cdecl("sc_content_filter_get_included_window_at")
+public func getContentFilterIncludedWindowAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 15.2, *) {
+        guard index >= 0 && index < f.includedWindows.count else { return nil }
+        return retain(f.includedWindows[index])
+    }
+    return nil
+}
+
+@_cdecl("sc_content_filter_get_included_applications_count")
+public func getContentFilterIncludedApplicationsCount(_ filter: OpaquePointer) -> Int {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 15.2, *) {
+        return f.includedApplications.count
+    }
+    return 0
+}
+
+@_cdecl("sc_content_filter_get_included_application_at")
+public func getContentFilterIncludedApplicationAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 15.2, *) {
+        guard index >= 0 && index < f.includedApplications.count else { return nil }
+        return retain(f.includedApplications[index])
+    }
+    return nil
+}
+#else
+@_cdecl("sc_content_filter_get_included_displays_count")
+public func getContentFilterIncludedDisplaysCount(_ filter: OpaquePointer) -> Int { 0 }
+
+@_cdecl("sc_content_filter_get_included_display_at")
+public func getContentFilterIncludedDisplayAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? { nil }
+
+@_cdecl("sc_content_filter_get_included_windows_count")
+public func getContentFilterIncludedWindowsCount(_ filter: OpaquePointer) -> Int { 0 }
+
+@_cdecl("sc_content_filter_get_included_window_at")
+public func getContentFilterIncludedWindowAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? { nil }
+
+@_cdecl("sc_content_filter_get_included_applications_count")
+public func getContentFilterIncludedApplicationsCount(_ filter: OpaquePointer) -> Int { 0 }
+
+@_cdecl("sc_content_filter_get_included_application_at")
+public func getContentFilterIncludedApplicationAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? { nil }
+#endif
 
 // MARK: - Stream: SCStream Delegates and Handlers
 
 private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
     let errorCallback: @convention(c) (OpaquePointer, UnsafePointer<CChar>) -> Void
     let streamPtr: OpaquePointer
+    var activeCallback: (@convention(c) (OpaquePointer) -> Void)?
+    var inactiveCallback: (@convention(c) (OpaquePointer) -> Void)?
 
     init(streamPtr: OpaquePointer, errorCallback: @escaping @convention(c) (OpaquePointer, UnsafePointer<CChar>) -> Void) {
         self.streamPtr = streamPtr
@@ -120,6 +256,18 @@ private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
         let errorMsg = error.localizedDescription
         errorMsg.withCString { errorCallback(streamPtr, $0) }
     }
+    
+    #if compiler(>=6.0)
+    @available(macOS 15.2, *)
+    func streamDidBecomeActive(_ stream: SCStream) {
+        activeCallback?(streamPtr)
+    }
+    
+    @available(macOS 15.2, *)
+    func streamDidBecomeInactive(_ stream: SCStream) {
+        inactiveCallback?(streamPtr)
+    }
+    #endif
 }
 
 private class StreamOutputHandler: NSObject, SCStreamOutput {
