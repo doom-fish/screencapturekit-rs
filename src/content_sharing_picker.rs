@@ -3,10 +3,14 @@
 //! Available on macOS 14.0+
 //! Provides a system UI for users to select displays, windows, or applications to share.
 //!
-//! # Two APIs
+//! # APIs
 //!
-//! 1. **Main API** - `SCContentSharingPicker::pick()` returns `SCPickerResult` with filter + metadata
-//! 2. **Simple API** - `SCContentSharingPicker::pick_filter()` returns an `SCContentFilter` directly
+//! | Method | Returns | Use Case |
+//! |--------|---------|----------|
+//! | `pick()` | `SCPickerResult` | Get filter + metadata (dimensions, picked content) |
+//! | `pick_filter()` | `SCContentFilter` | Just get the filter |
+//! | `pick_async()` | `SCPickerResult` | Async version of `pick()` |
+//! | `pick_filter_async()` | `SCContentFilter` | Async version of `pick_filter()` |
 //!
 //! # Examples
 //!
@@ -50,6 +54,24 @@
 //!     }
 //!     SCPickerFilterOutcome::Cancelled => println!("Cancelled"),
 //!     SCPickerFilterOutcome::Error(e) => eprintln!("Error: {}", e),
+//! }
+//! ```
+//!
+//! ## Async API: Use with async/await
+//! ```no_run
+//! use screencapturekit::content_sharing_picker::*;
+//! use screencapturekit::prelude::*;
+//!
+//! async fn start_capture() {
+//!     let config = SCContentSharingPickerConfiguration::new();
+//!     match SCContentSharingPicker::pick_async(&config).await {
+//!         SCPickerOutcome::Picked(result) => {
+//!             let filter = result.filter();
+//!             let stream = SCStream::new(&filter, &SCStreamConfiguration::default());
+//!         }
+//!         SCPickerOutcome::Cancelled => println!("Cancelled"),
+//!         SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
+//!     }
 //! }
 //! ```
 //!
