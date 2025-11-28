@@ -283,6 +283,7 @@ let config = SCStreamConfiguration::builder()
 
 - **`AsyncSCShareableContent`** - Async content queries
 - **`AsyncSCStream`** - Async stream with frame iteration
+- **`AsyncSCScreenshotManager`** - Async screenshot capture (macOS 14.0+)
 
 ### Display & Window Types
 

@@ -386,3 +386,195 @@ impl AsyncSCStream {
         &self.stream
     }
 }
+
+// ============================================================================
+// AsyncSCScreenshotManager - Async screenshot capture (macOS 14.0+)
+// ============================================================================
+
+/// Async wrapper for `SCScreenshotManager`
+///
+/// Provides async methods for single-frame screenshot capture.
+/// **Executor-agnostic** - works with any async runtime.
+///
+/// Requires the `macos_14_0` feature flag.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCScreenshotManager};
+/// use screencapturekit::stream::configuration::SCStreamConfiguration;
+/// use screencapturekit::stream::content_filter::SCContentFilter;
+///
+/// let content = AsyncSCShareableContent::get().await?;
+/// let display = &content.displays()[0];
+/// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+/// let config = SCStreamConfiguration::builder()
+///     .width(1920)
+///     .height(1080)
+///     .build();
+///
+/// let image = AsyncSCScreenshotManager::capture_image(&filter, &config).await?;
+/// println!("Screenshot: {}x{}", image.width(), image.height());
+/// # Ok(())
+/// # }
+/// ```
+#[cfg(feature = "macos_14_0")]
+pub struct AsyncSCScreenshotManager;
+
+#[cfg(feature = "macos_14_0")]
+impl AsyncSCScreenshotManager {
+    /// Capture a single screenshot as a `CGImage` asynchronously
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - Screen recording permission is not granted
+    /// - The capture fails for any reason
+    pub fn capture_image(
+        content_filter: &crate::stream::content_filter::SCContentFilter,
+        configuration: &SCStreamConfiguration,
+    ) -> AsyncScreenshotFuture<crate::screenshot_manager::CGImage> {
+        let state = Arc::new(Mutex::new(ScreenshotState {
+            result: None,
+            waker: None,
+        }));
+
+        let state_ptr = Arc::into_raw(state.clone()).cast_mut().cast::<c_void>();
+
+        unsafe {
+            crate::ffi::sc_screenshot_manager_capture_image(
+                content_filter.as_ptr(),
+                configuration.as_ptr(),
+                screenshot_image_callback,
+                state_ptr,
+            );
+        }
+
+        AsyncScreenshotFuture { state, _marker: std::marker::PhantomData }
+    }
+
+    /// Capture a single screenshot as a `CMSampleBuffer` asynchronously
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - Screen recording permission is not granted
+    /// - The capture fails for any reason
+    pub fn capture_sample_buffer(
+        content_filter: &crate::stream::content_filter::SCContentFilter,
+        configuration: &SCStreamConfiguration,
+    ) -> AsyncScreenshotFuture<crate::cm::CMSampleBuffer> {
+        let state = Arc::new(Mutex::new(ScreenshotState {
+            result: None,
+            waker: None,
+        }));
+
+        let state_ptr = Arc::into_raw(state.clone()).cast_mut().cast::<c_void>();
+
+        unsafe {
+            crate::ffi::sc_screenshot_manager_capture_sample_buffer(
+                content_filter.as_ptr(),
+                configuration.as_ptr(),
+                screenshot_buffer_callback,
+                state_ptr,
+            );
+        }
+
+        AsyncScreenshotFuture { state, _marker: std::marker::PhantomData }
+    }
+}
+
+/// Shared state for async screenshot capture
+#[cfg(feature = "macos_14_0")]
+struct ScreenshotState<T> {
+    result: Option<Result<T, SCError>>,
+    waker: Option<std::task::Waker>,
+}
+
+/// Future for async screenshot capture
+#[cfg(feature = "macos_14_0")]
+pub struct AsyncScreenshotFuture<T> {
+    state: Arc<Mutex<ScreenshotState<T>>>,
+    _marker: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl<T> Future for AsyncScreenshotFuture<T> {
+    type Output = Result<T, SCError>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut state = self.state.lock().unwrap();
+
+        state.result.take().map_or_else(|| {
+            state.waker = Some(cx.waker().clone());
+            Poll::Pending
+        }, Poll::Ready)
+    }
+}
+
+/// Callback for async CGImage capture
+#[cfg(feature = "macos_14_0")]
+extern "C" fn screenshot_image_callback(
+    image_ptr: *const c_void,
+    error_ptr: *const i8,
+    user_data: *mut c_void,
+) {
+    let state = unsafe { Arc::from_raw(user_data.cast::<Mutex<ScreenshotState<crate::screenshot_manager::CGImage>>>()) };
+
+    let result = if !error_ptr.is_null() {
+        let error_msg = unsafe {
+            std::ffi::CStr::from_ptr(error_ptr)
+                .to_string_lossy()
+                .into_owned()
+        };
+        Err(crate::utils::error::create_sc_error(&error_msg))
+    } else if !image_ptr.is_null() {
+        Ok(crate::screenshot_manager::CGImage::from_ptr(image_ptr))
+    } else {
+        Err(crate::utils::error::create_sc_error("Unknown error"))
+    };
+
+    {
+        let mut guard = state.lock().unwrap();
+        guard.result = Some(result);
+        if let Some(waker) = guard.waker.take() {
+            waker.wake();
+        }
+    }
+
+    // Keep state alive - the Arc will be dropped when the future is dropped
+    std::mem::forget(state);
+}
+
+/// Callback for async CMSampleBuffer capture
+#[cfg(feature = "macos_14_0")]
+extern "C" fn screenshot_buffer_callback(
+    buffer_ptr: *const c_void,
+    error_ptr: *const i8,
+    user_data: *mut c_void,
+) {
+    let state = unsafe { Arc::from_raw(user_data.cast::<Mutex<ScreenshotState<crate::cm::CMSampleBuffer>>>()) };
+
+    let result = if !error_ptr.is_null() {
+        let error_msg = unsafe {
+            std::ffi::CStr::from_ptr(error_ptr)
+                .to_string_lossy()
+                .into_owned()
+        };
+        Err(crate::utils::error::create_sc_error(&error_msg))
+    } else if !buffer_ptr.is_null() {
+        Ok(unsafe { crate::cm::CMSampleBuffer::from_ptr(buffer_ptr.cast_mut()) })
+    } else {
+        Err(crate::utils::error::create_sc_error("Unknown error"))
+    };
+
+    {
+        let mut guard = state.lock().unwrap();
+        guard.result = Some(result);
+        if let Some(waker) = guard.waker.take() {
+            waker.wake();
+        }
+    }
+
+    // Keep state alive - the Arc will be dropped when the future is dropped
+    std::mem::forget(state);
+}
