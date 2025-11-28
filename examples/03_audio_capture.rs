@@ -55,13 +55,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     // 3. Configure with audio enabled
-    let config = SCStreamConfiguration::builder()
-        .width(1920)
-        .height(1080)
-        .captures_audio(true) // Enable audio
-        .sample_rate(48000) // 48kHz
-        .channel_count(2) // Stereo
-        .build();
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_captures_audio(true); // Enable audio
+    config.set_sample_rate(48000); // 48kHz
+    config.set_channel_count(2); // Stereo
 
     // 4. Start capture
     let handler = Handler {

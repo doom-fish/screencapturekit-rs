@@ -83,10 +83,9 @@ extern "C" fn sample_handler(
 ///     .display(display)
 ///     .exclude_windows(&[])
 ///     .build();
-/// let config = SCStreamConfiguration::builder()
-///     .width(1920)
-///     .height(1080)
-///     .build();
+/// let mut config = SCStreamConfiguration::default();
+/// config.set_width(1920);
+/// config.set_height(1080);
 ///
 /// // Create and start stream
 /// let mut stream = SCStream::new(&filter, &config);
@@ -124,7 +123,7 @@ impl SCStream {
     ///     .display(display)
     ///     .exclude_windows(&[])
     ///     .build();
-    /// let config = SCStreamConfiguration::builder().build();
+    /// let config = SCStreamConfiguration::default();
     ///
     /// let stream = SCStream::new(&filter, &config);
     /// # Ok(())
@@ -185,7 +184,7 @@ impl SCStream {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
     /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
-    /// # let config = SCStreamConfiguration::builder().build();
+    /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config);
     /// stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
     /// # Ok(())
@@ -200,7 +199,7 @@ impl SCStream {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
     /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
-    /// # let config = SCStreamConfiguration::builder().build();
+    /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config);
     /// stream.add_output_handler(
     ///     |_sample, _type| println!("Got frame!"),
@@ -241,7 +240,7 @@ impl SCStream {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
     /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
-    /// # let config = SCStreamConfiguration::builder().build();
+    /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config);
     /// let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
     ///

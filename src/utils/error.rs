@@ -9,11 +9,10 @@
 //! use screencapturekit::prelude::*;
 //!
 //! fn setup_capture() -> SCResult<()> {
-//!     // Build configuration with the builder pattern
-//!     let config = SCStreamConfiguration::builder()
-//!         .width(1920)
-//!         .height(1080)
-//!         .build();
+//!     // Configure with mutable configuration
+//!     let mut config = SCStreamConfiguration::default();
+//!     config.set_width(1920);
+//!     config.set_height(1080);
 //!     Ok(())
 //! }
 //!

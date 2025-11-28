@@ -80,11 +80,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::builder()
-        .width(640)
-        .height(480)
-        .pixel_format(PixelFormat::BGRA)
-        .build();
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(640);
+    config.set_height(480);
+    config.set_pixel_format(PixelFormat::BGRA);
 
     let count = Arc::new(AtomicUsize::new(0));
     let handler = Handler { count };

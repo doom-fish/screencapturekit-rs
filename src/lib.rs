@@ -27,10 +27,9 @@
 //!     .display(display)
 //!     .exclude_windows(&[])
 //!     .build();
-//! let config = SCStreamConfiguration::builder()
-//!     .width(1920)
-//!     .height(1080)
-//!     .build();
+//! let mut config = SCStreamConfiguration::default();
+//! config.set_width(1920);
+//! config.set_height(1080);
 //!
 //! // Create and start stream
 //! let mut stream = SCStream::new(&filter, &config);
@@ -91,7 +90,7 @@ pub mod prelude {
         SCDisplay, SCRunningApplication, SCShareableContent, SCWindow,
     };
     pub use crate::stream::{
-        configuration::{PixelFormat, SCStreamConfiguration, SCStreamConfigurationBuilder},
+        configuration::{PixelFormat, SCStreamConfiguration},
         content_filter::SCContentFilter,
         delegate_trait::SCStreamDelegateTrait,
         output_trait::SCStreamOutputTrait,

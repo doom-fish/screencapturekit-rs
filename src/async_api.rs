@@ -239,10 +239,9 @@ unsafe impl Sync for AsyncSampleSender {}
 /// let content = AsyncSCShareableContent::get().await?;
 /// let display = &content.displays()[0];
 /// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
-/// let config = SCStreamConfiguration::builder()
-///     .width(1920)
-///     .height(1080)
-///     .build();
+/// let mut config = SCStreamConfiguration::default();
+/// config.set_width(1920);
+/// config.set_height(1080);
 ///
 /// let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
 /// stream.start_capture()?;
@@ -397,10 +396,9 @@ impl AsyncSCStream {
 /// let content = AsyncSCShareableContent::get().await?;
 /// let display = &content.displays()[0];
 /// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
-/// let config = SCStreamConfiguration::builder()
-///     .width(1920)
-///     .height(1080)
-///     .build();
+/// let mut config = SCStreamConfiguration::default();
+/// config.set_width(1920);
+/// config.set_height(1080);
 ///
 /// let image = AsyncSCScreenshotManager::capture_image(&filter, &config).await?;
 /// println!("Screenshot: {}x{}", image.width(), image.height());

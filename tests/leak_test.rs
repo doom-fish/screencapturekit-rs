@@ -39,10 +39,10 @@ mod leak_tests {
             // Create and immediately drop streams
 
             let stream = {
-                let config = SCStreamConfiguration::default()
-                    .set_captures_audio(true)
-                    .set_width(100)
-                    .set_height(100);
+                let mut config = SCStreamConfiguration::default();
+                config.set_captures_audio(true);
+                config.set_width(100);
+                config.set_height(100);
 
                 let display = SCShareableContent::get();
 

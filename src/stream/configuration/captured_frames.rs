@@ -3,7 +3,7 @@ use crate::cm::CMTime;
 
 impl SCStreamConfiguration {
     /// Set the queue depth for frame buffering
-    pub fn set_queue_depth(self, queue_depth: u32) -> Self {
+    pub fn set_queue_depth(&mut self, queue_depth: u32) {
         // FFI expects isize; u32 may wrap on 32-bit platforms (acceptable)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
@@ -12,7 +12,6 @@ impl SCStreamConfiguration {
                 queue_depth as isize,
             );
         }
-        self
     }
 
     pub fn get_queue_depth(&self) -> u32 {
@@ -24,7 +23,7 @@ impl SCStreamConfiguration {
     }
 
     /// Set the minimum frame interval
-    pub fn set_minimum_frame_interval(self, cm_time: &CMTime) -> Self {
+    pub fn set_minimum_frame_interval(&mut self, cm_time: &CMTime) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_minimum_frame_interval(
                 self.as_ptr(),
@@ -34,7 +33,6 @@ impl SCStreamConfiguration {
                 cm_time.epoch,
             );
         }
-        self
     }
 
     pub fn get_minimum_frame_interval(&self) -> CMTime {
@@ -68,7 +66,7 @@ impl SCStreamConfiguration {
     /// # Arguments
     /// * `width` - The width in pixels
     /// * `height` - The height in pixels
-    pub fn set_capture_resolution(self, width: usize, height: usize) -> Self {
+    pub fn set_capture_resolution(&mut self, width: usize, height: usize) {
         // FFI expects isize for dimensions (Objective-C NSInteger)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
@@ -78,7 +76,6 @@ impl SCStreamConfiguration {
                 height as isize,
             );
         }
-        self
     }
 
     /// Get the configured capture resolution

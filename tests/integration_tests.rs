@@ -66,10 +66,10 @@ fn test_video_capture() {
     let display = &displays[0];
 
     // Create configuration for video
-    let config = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080)
-        .set_captures_audio(false);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_captures_audio(false);
 
     // Create filter for the display
     let filter = SCContentFilter::builder()
@@ -144,7 +144,8 @@ fn test_audio_capture() {
     let display = &displays[0];
 
     // Create configuration for audio
-    let config = SCStreamConfiguration::default().set_captures_audio(true);
+    let mut config = SCStreamConfiguration::default();
+    config.set_captures_audio(true);
 
     // Create filter for the display
     let filter = SCContentFilter::builder()
@@ -226,10 +227,10 @@ fn test_video_and_audio_capture() {
     let display = &displays[0];
 
     // Create configuration for both video and audio
-    let config = SCStreamConfiguration::default()
-        .set_width(1280)
-        .set_height(720)
-        .set_captures_audio(true);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1280);
+    config.set_height(720);
+    config.set_captures_audio(true);
 
     // Create filter for the display
     let filter = SCContentFilter::builder()
@@ -301,9 +302,9 @@ fn test_pixel_buffer_locking() {
     let display = &displays[0];
 
     // Create configuration
-    let config = SCStreamConfiguration::default()
-        .set_width(640)
-        .set_height(480);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(640);
+    config.set_height(480);
 
     // Create filter and stream
     let filter = SCContentFilter::builder()
@@ -388,9 +389,9 @@ fn test_iosurface_backed_buffer() {
     let display = &displays[0];
 
     // Create configuration
-    let config = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
 
     // Create filter and stream
     let filter = SCContentFilter::builder()

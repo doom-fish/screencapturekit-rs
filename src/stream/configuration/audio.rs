@@ -14,15 +14,14 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_captures_audio(true);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_captures_audio(true);
     /// assert!(config.get_captures_audio());
     /// ```
-    pub fn set_captures_audio(self, captures_audio: bool) -> Self {
+    pub fn set_captures_audio(&mut self, captures_audio: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_captures_audio(self.as_ptr(), captures_audio);
         }
-        self
     }
 
     /// Check if audio capture is enabled
@@ -39,18 +38,17 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_sample_rate(48000);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_sample_rate(48000);
     /// assert_eq!(config.get_sample_rate(), 48000);
     /// ```
-    pub fn set_sample_rate(self, sample_rate: i32) -> Self {
+    pub fn set_sample_rate(&mut self, sample_rate: i32) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_sample_rate(
                 self.as_ptr(),
                 sample_rate as isize,
             );
         }
-        self
     }
 
     /// Get the configured audio sample rate
@@ -71,18 +69,17 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_channel_count(2); // Stereo
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_channel_count(2); // Stereo
     /// assert_eq!(config.get_channel_count(), 2);
     /// ```
-    pub fn set_channel_count(self, channel_count: i32) -> Self {
+    pub fn set_channel_count(&mut self, channel_count: i32) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_channel_count(
                 self.as_ptr(),
                 channel_count as isize,
             );
         }
-        self
     }
 
     /// Get the configured channel count
@@ -109,20 +106,19 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_captures_audio(true)       // System audio
-    ///     .set_captures_microphone(true)  // Microphone audio (macOS 15.0+)
-    ///     .set_sample_rate(48000)
-    ///     .set_channel_count(2);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_captures_audio(true);       // System audio
+    /// config.set_captures_microphone(true);  // Microphone audio (macOS 15.0+)
+    /// config.set_sample_rate(48000);
+    /// config.set_channel_count(2);
     /// ```
-    pub fn set_captures_microphone(self, captures_microphone: bool) -> Self {
+    pub fn set_captures_microphone(&mut self, captures_microphone: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_captures_microphone(
                 self.as_ptr(),
                 captures_microphone,
             );
         }
-        self
     }
 
     /// Get whether microphone capture is enabled (macOS 15.0+).
@@ -139,18 +135,17 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_captures_audio(true)
-    ///     .set_excludes_current_process_audio(true); // Prevent feedback
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_captures_audio(true);
+    /// config.set_excludes_current_process_audio(true); // Prevent feedback
     /// ```
-    pub fn set_excludes_current_process_audio(self, excludes: bool) -> Self {
+    pub fn set_excludes_current_process_audio(&mut self, excludes: bool) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_excludes_current_process_audio(
                 self.as_ptr(),
                 excludes,
             );
         }
-        self
     }
 
     /// Get whether current process audio is excluded from capture.
@@ -172,11 +167,11 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_captures_microphone(true)
-    ///     .set_microphone_capture_device_id(Some("AppleHDAEngineInput:1B,0,1,0:1"));
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_captures_microphone(true);
+    /// config.set_microphone_capture_device_id(Some("AppleHDAEngineInput:1B,0,1,0:1"));
     /// ```
-    pub fn set_microphone_capture_device_id(self, device_id: Option<&str>) -> Self {
+    pub fn set_microphone_capture_device_id(&mut self, device_id: Option<&str>) {
         unsafe {
             if let Some(id) = device_id {
                 if let Ok(c_id) = std::ffi::CString::new(id) {
@@ -192,7 +187,6 @@ impl SCStreamConfiguration {
                 );
             }
         }
-        self
     }
 
     /// Get microphone capture device ID (macOS 15.0+).

@@ -29,10 +29,10 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_stream_name(Some("MyApp-MainCapture"));
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_stream_name(Some("MyApp-MainCapture"));
     /// ```
-    pub fn set_stream_name(self, name: Option<&str>) -> Self {
+    pub fn set_stream_name(&mut self, name: Option<&str>) {
         unsafe {
             if let Some(stream_name) = name {
                 if let Ok(c_name) = std::ffi::CString::new(stream_name) {
@@ -48,7 +48,6 @@ impl SCStreamConfiguration {
                 );
             }
         }
-        self
     }
 
     /// Get the configured stream name
@@ -81,20 +80,19 @@ impl SCStreamConfiguration {
     /// use screencapturekit::prelude::*;
     /// use screencapturekit::stream::configuration::stream_properties::SCCaptureDynamicRange;
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_width(1920)
-    ///     .set_height(1080)
-    ///     .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_width(1920)
+    /// config.set_height(1080)
+    /// config.set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
     /// ```
     #[cfg(feature = "macos_15_0")]
-    pub fn set_capture_dynamic_range(self, dynamic_range: SCCaptureDynamicRange) -> Self {
+    pub fn set_capture_dynamic_range(&mut self, dynamic_range: SCCaptureDynamicRange) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_capture_dynamic_range(
                 self.as_ptr(),
                 dynamic_range as i32,
             );
         }
-        self
     }
 
     /// Get the configured dynamic range mode (macOS 15.0+)

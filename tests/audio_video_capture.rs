@@ -82,12 +82,12 @@ fn test_screen_capture_with_audio() {
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080)
-        .set_captures_audio(true)
-        .set_sample_rate(48000)
-        .set_channel_count(2);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_captures_audio(true);
+    config.set_sample_rate(48000);
+    config.set_channel_count(2);
 
     let video_frame_count = Arc::new(AtomicUsize::new(0));
     let video_received = Arc::new(AtomicBool::new(false));
@@ -170,12 +170,12 @@ fn test_combined_video_audio_capture() {
         .exclude_windows(&[])
         .build();
 
-    let config = SCStreamConfiguration::default()
-        .set_width(1920)
-        .set_height(1080)
-        .set_captures_audio(true)
-        .set_sample_rate(48000)
-        .set_channel_count(2);
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
+    config.set_captures_audio(true);
+    config.set_sample_rate(48000);
+    config.set_channel_count(2);
 
     let video_count = Arc::new(AtomicUsize::new(0));
     let video_received = Arc::new(AtomicBool::new(false));

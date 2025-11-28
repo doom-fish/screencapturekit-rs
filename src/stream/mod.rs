@@ -21,10 +21,9 @@
 //!     .display(display)
 //!     .exclude_windows(&[])
 //!     .build();
-//! let config = SCStreamConfiguration::builder()
-//!     .width(1920)
-//!     .height(1080)
-//!     .build();
+//! let mut config = SCStreamConfiguration::default();
+//! config.set_width(1920);
+//! config.set_height(1080);
 //!
 //! let mut stream = SCStream::new(&filter, &config);
 //! stream.start_capture()?;
