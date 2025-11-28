@@ -194,6 +194,15 @@ impl IOSurface {
         }
     }
 
+    /// Get the raw `IOSurface` pointer for use with Metal or other frameworks
+    ///
+    /// # Safety
+    /// The returned pointer is only valid for the lifetime of this `IOSurface`.
+    #[must_use]
+    pub fn as_ptr(&self) -> *const c_void {
+        self.0
+    }
+
     /// Get the width of the `IOSurface` in pixels
     pub fn width(&self) -> usize {
         // FFI returns isize but dimensions are always positive
