@@ -12,7 +12,34 @@ env:
 
 jobs:
   # ==========================================================================
-  # Build & Test
+  # Lint (runs once, not per-platform)
+  # ==========================================================================
+  lint:
+    runs-on: macos-latest
+    name: Lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-lint-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-lint-cargo-
+      - name: Run clippy
+        run: cargo clippy --all-features -- -D warnings
+      - name: Check formatting
+        run: cargo fmt --check
+
+  # ==========================================================================
+  # Build & Test (per-platform)
   # ==========================================================================
   build:
     strategy:
@@ -47,17 +74,13 @@ jobs:
         run: cargo build --verbose --all-features
       - name: Run tests
         run: cargo test --verbose
-      - name: Run clippy
-        run: cargo clippy --all-features -- -D warnings
-      - name: Check formatting
-        run: cargo fmt --check
 
   # ==========================================================================
   # Documentation (only on main)
   # ==========================================================================
   docs:
     runs-on: macos-latest
-    needs: build
+    needs: [lint, build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
@@ -89,7 +112,7 @@ jobs:
   # ==========================================================================
   release-pr:
     runs-on: macos-latest
-    needs: build
+    needs: [lint, build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: release
     concurrency:
@@ -114,7 +137,7 @@ jobs:
 
   release:
     runs-on: macos-latest
-    needs: build
+    needs: [lint, build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: release
     permissions:
