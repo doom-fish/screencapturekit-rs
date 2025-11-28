@@ -576,9 +576,17 @@ extern "C" {
     pub fn sc_recording_output_configuration_get_available_video_codecs_count(
         config: *const c_void,
     ) -> isize;
+    pub fn sc_recording_output_configuration_get_available_video_codec_at(
+        config: *const c_void,
+        index: isize,
+    ) -> i32;
     pub fn sc_recording_output_configuration_get_available_output_file_types_count(
         config: *const c_void,
     ) -> isize;
+    pub fn sc_recording_output_configuration_get_available_output_file_type_at(
+        config: *const c_void,
+        index: isize,
+    ) -> i32;
     pub fn sc_recording_output_create_with_delegate(
         config: *const c_void,
         started_callback: Option<extern "C" fn(*const c_void)>,

@@ -131,10 +131,36 @@ public func getRecordingOutputAvailableVideoCodecsCount(_ config: OpaquePointer)
 }
 
 @available(macOS 15.0, *)
+@_cdecl("sc_recording_output_configuration_get_available_video_codec_at")
+public func getRecordingOutputAvailableVideoCodecAt(_ config: OpaquePointer, _ index: Int) -> Int32 {
+    let box: Box<SCRecordingOutputConfiguration> = unretained(config)
+    guard index >= 0 && index < box.value.availableVideoCodecTypes.count else { return -1 }
+    let codec = box.value.availableVideoCodecTypes[index]
+    switch codec {
+    case .h264: return 0
+    case .hevc: return 1
+    default: return -1
+    }
+}
+
+@available(macOS 15.0, *)
 @_cdecl("sc_recording_output_configuration_get_available_output_file_types_count")
 public func getRecordingOutputAvailableFileTypesCount(_ config: OpaquePointer) -> Int {
     let box: Box<SCRecordingOutputConfiguration> = unretained(config)
     return box.value.availableOutputFileTypes.count
+}
+
+@available(macOS 15.0, *)
+@_cdecl("sc_recording_output_configuration_get_available_output_file_type_at")
+public func getRecordingOutputAvailableFileTypeAt(_ config: OpaquePointer, _ index: Int) -> Int32 {
+    let box: Box<SCRecordingOutputConfiguration> = unretained(config)
+    guard index >= 0 && index < box.value.availableOutputFileTypes.count else { return -1 }
+    let fileType = box.value.availableOutputFileTypes[index]
+    switch fileType {
+    case .mp4: return 0
+    case .mov: return 1
+    default: return -1
+    }
 }
 
 @available(macOS 15.0, *)
@@ -255,8 +281,14 @@ public func getRecordingOutputFileType(_ config: OpaquePointer?) -> Int32 { 0 }
 @_cdecl("sc_recording_output_configuration_get_available_video_codecs_count")
 public func getRecordingOutputAvailableVideoCodecsCount(_ config: OpaquePointer?) -> Int { 0 }
 
+@_cdecl("sc_recording_output_configuration_get_available_video_codec_at")
+public func getRecordingOutputAvailableVideoCodecAt(_ config: OpaquePointer?, _ index: Int) -> Int32 { -1 }
+
 @_cdecl("sc_recording_output_configuration_get_available_output_file_types_count")
 public func getRecordingOutputAvailableFileTypesCount(_ config: OpaquePointer?) -> Int { 0 }
+
+@_cdecl("sc_recording_output_configuration_get_available_output_file_type_at")
+public func getRecordingOutputAvailableFileTypeAt(_ config: OpaquePointer?, _ index: Int) -> Int32 { -1 }
 
 @_cdecl("sc_recording_output_configuration_set_average_bitrate")
 public func setRecordingOutputAverageBitrate(_ config: OpaquePointer?, _ bitrate: Int64) {

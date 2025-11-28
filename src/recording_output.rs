@@ -108,6 +108,29 @@ impl SCRecordingOutputConfiguration {
         }
     }
 
+    /// Get all available video codecs
+    ///
+    /// Returns a vector of all video codecs that can be used for recording.
+    pub fn available_video_codecs(&self) -> Vec<SCRecordingOutputCodec> {
+        let count = self.available_video_codecs_count();
+        let mut codecs = Vec::with_capacity(count);
+        for i in 0..count {
+            #[allow(clippy::cast_possible_wrap)]
+            let codec_value = unsafe {
+                crate::ffi::sc_recording_output_configuration_get_available_video_codec_at(
+                    self.ptr,
+                    i as isize,
+                )
+            };
+            match codec_value {
+                0 => codecs.push(SCRecordingOutputCodec::H264),
+                1 => codecs.push(SCRecordingOutputCodec::HEVC),
+                _ => {}
+            }
+        }
+        codecs
+    }
+
     /// Get the number of available output file types
     pub fn available_output_file_types_count(&self) -> usize {
         let count = unsafe {
@@ -121,6 +144,29 @@ impl SCRecordingOutputConfiguration {
         } else {
             0
         }
+    }
+
+    /// Get all available output file types
+    ///
+    /// Returns a vector of all file types that can be used for recording output.
+    pub fn available_output_file_types(&self) -> Vec<SCRecordingOutputFileType> {
+        let count = self.available_output_file_types_count();
+        let mut file_types = Vec::with_capacity(count);
+        for i in 0..count {
+            #[allow(clippy::cast_possible_wrap)]
+            let file_type_value = unsafe {
+                crate::ffi::sc_recording_output_configuration_get_available_output_file_type_at(
+                    self.ptr,
+                    i as isize,
+                )
+            };
+            match file_type_value {
+                0 => file_types.push(SCRecordingOutputFileType::MP4),
+                1 => file_types.push(SCRecordingOutputFileType::MOV),
+                _ => {}
+            }
+        }
+        file_types
     }
 
     /// Set the average bitrate in bits per second
