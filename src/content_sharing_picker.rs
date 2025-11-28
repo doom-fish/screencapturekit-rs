@@ -7,17 +7,25 @@
 
 use crate::shareable_content::{SCDisplay, SCRunningApplication, SCWindow};
 use std::ffi::c_void;
+use std::sync::{Arc, Mutex, Condvar};
+
+/// Shared state for synchronous picker
+struct SyncPickerState {
+    result: Option<SCContentSharingPickerResult>,
+}
+
+/// Holder for state + condvar
+struct SyncPicker {
+    state: Mutex<SyncPickerState>,
+    condvar: Condvar,
+}
 
 extern "C" fn picker_callback(
     result_code: i32,
     stream_ptr: *const c_void,
     user_data: *mut c_void,
 ) {
-    let tx = unsafe {
-        Box::from_raw(
-            user_data.cast::<std::sync::mpsc::Sender<SCContentSharingPickerResult>>(),
-        )
-    };
+    let picker = unsafe { Arc::from_raw(user_data.cast::<SyncPicker>()) };
 
     let result = match result_code {
         0 => SCContentSharingPickerResult::Cancelled,
@@ -30,7 +38,14 @@ extern "C" fn picker_callback(
         _ => SCContentSharingPickerResult::Cancelled,
     };
 
-    let _ = tx.send(result);
+    {
+        let mut state = picker.state.lock().unwrap();
+        state.result = Some(result);
+    }
+    picker.condvar.notify_one();
+    
+    // Release our reference - the caller still holds one
+    drop(picker);
 }
 
 /// Picker style determines what content types can be selected
@@ -136,18 +151,26 @@ impl SCContentSharingPicker {
     pub fn show(
         config: &SCContentSharingPickerConfiguration,
     ) -> SCContentSharingPickerResult {
-        let (tx, rx) = std::sync::mpsc::channel();
+        let picker = Arc::new(SyncPicker {
+            state: Mutex::new(SyncPickerState { result: None }),
+            condvar: Condvar::new(),
+        });
 
-        let user_data = Box::into_raw(Box::new(tx)).cast::<c_void>();
+        let user_data = Arc::into_raw(picker.clone()).cast_mut().cast::<c_void>();
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show(config.as_ptr(), picker_callback, user_data);
         }
 
-        rx.recv()
-            .unwrap_or(SCContentSharingPickerResult::Error(
-                "Failed to receive result".to_string(),
-            ))
+        // Wait for callback
+        let mut state = picker.state.lock().unwrap();
+        while state.result.is_none() {
+            state = picker.condvar.wait(state).unwrap();
+        }
+        
+        state.result.take().unwrap_or(SCContentSharingPickerResult::Error(
+            "Failed to receive result".to_string(),
+        ))
     }
 }
 
