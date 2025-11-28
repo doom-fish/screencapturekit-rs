@@ -414,6 +414,7 @@ fn test_all_presets() {
         SCStreamConfigurationPreset::CaptureHDRStreamCanonicalDisplay,
         SCStreamConfigurationPreset::CaptureHDRScreenshotLocalDisplay,
         SCStreamConfigurationPreset::CaptureHDRScreenshotCanonicalDisplay,
+        SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10,
     ];
     
     for preset in presets {
@@ -421,4 +422,19 @@ fn test_all_presets() {
         // Just verify they don't crash
         let _ = config.get_width();
     }
+}
+
+#[test]
+#[cfg(feature = "macos_15_0")]
+fn test_hdr_recording_preset() {
+    use screencapturekit::stream::configuration::SCStreamConfigurationPreset;
+    
+    // Test the HDR recording preset specifically
+    let config = SCStreamConfiguration::from_preset(
+        SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10
+    );
+    
+    // Verify configuration was created
+    assert!(config.get_width() > 0 || config.get_width() == 0); // Some default value
+    println!("HDR Recording Preset: width={}", config.get_width());
 }

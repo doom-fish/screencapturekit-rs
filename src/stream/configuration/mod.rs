@@ -38,6 +38,13 @@ pub enum SCStreamConfigurationPreset {
     CaptureHDRScreenshotLocalDisplay = 2,
     /// HDR screenshot optimized for canonical display
     CaptureHDRScreenshotCanonicalDisplay = 3,
+    /// HDR recording optimized for HDR10, preserving SDR range during playback
+    ///
+    /// This preset sets values for `captureDynamicRange`, `pixelFormat`, and `colorSpace`
+    /// intended for a stream recording in HDR10, optimized for rendering on the
+    /// canonical HDR display. It also adds HDR10 metadata to the video recording
+    /// that is designed to preserve the SDR range during video playback.
+    CaptureHDRRecordingPreservedSDRHDR10 = 4,
 }
 
 impl SCStreamConfiguration {
