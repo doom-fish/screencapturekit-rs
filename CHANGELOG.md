@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.1.0...v2.0.0) - 2025-11-28
+
+### Added
+
+- [**breaking**] implement synchronous error propagation for stream operations
+- add AsyncSCScreenshotManager for async screenshot capture
+
+### Fixed
+
+- add macOS 14.0 availability check for updateConfiguration
+- *(ffi)* add backticks to doc comments for clippy
+- *(tests)* initialize CoreGraphics for headless CI environments
+- resolve clippy warnings with --all-features
+- add semicolon to satisfy clippy lint
+- resolve all clippy warnings
+- use correct FFI function for async shareable content
+
+### Other
+
+- separate lint job from per-platform build matrix
+- fix formatting issues
+- replace builder pattern with mutable configuration
+- update content_sharing_picker to use SyncCompletion
+- unify async completion patterns with AsyncCompletion<T>
+- unify sync completion patterns across codebase
+- fix formatting issues
+- consolidate workflows into single CI pipeline
+- replace mpsc channel with Mutex+Condvar in content sharing picker
+- replace mpsc channel with Mutex+Condvar in screenshot manager
+- update version to 1.1 in README
+
 ## [1.1.0] - 2025-11-28
 
 ### Changed
