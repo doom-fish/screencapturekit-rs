@@ -85,17 +85,18 @@ pub use utils::four_char_code::FourCharCode;
 /// ```
 pub mod prelude {
     pub use crate::cm::{CMSampleBuffer, CMTime};
-    pub use crate::dispatch_queue::{DispatchQueue, DispatchQoS};
+    pub use crate::dispatch_queue::{DispatchQoS, DispatchQueue};
     pub use crate::error::{SCError, SCResult};
-    pub use crate::shareable_content::{SCDisplay, SCRunningApplication, SCShareableContent, SCWindow};
+    pub use crate::shareable_content::{
+        SCDisplay, SCRunningApplication, SCShareableContent, SCWindow,
+    };
     pub use crate::stream::{
         configuration::{PixelFormat, SCStreamConfiguration, SCStreamConfigurationBuilder},
         content_filter::SCContentFilter,
-        output_type::SCStreamOutputType,
-        output_trait::SCStreamOutputTrait,
         delegate_trait::SCStreamDelegateTrait,
+        output_trait::SCStreamOutputTrait,
+        output_type::SCStreamOutputType,
         sc_stream::SCStream,
         ErrorHandler,
     };
 }
-

@@ -31,15 +31,14 @@
 //! # Ok::<(), screencapturekit::error::SCError>(())
 //! ```
 
-pub mod content_filter;
-pub mod sc_stream;
 pub mod configuration;
+pub mod content_filter;
 pub mod delegate_trait;
 pub mod output_trait;
 pub mod output_type;
+pub mod sc_stream;
 
-pub use sc_stream::SCStream;
-pub use output_trait::SCStreamOutputTrait as SCStreamOutput;
-pub use delegate_trait::SCStreamDelegateTrait as SCStreamDelegate;
 pub use delegate_trait::ErrorHandler;
-
+pub use delegate_trait::SCStreamDelegateTrait as SCStreamDelegate;
+pub use output_trait::SCStreamOutputTrait as SCStreamOutput;
+pub use sc_stream::SCStream;

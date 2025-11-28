@@ -15,8 +15,8 @@ use crate::utils::ffi_string::{ffi_string_from_buffer_or_empty, DEFAULT_BUFFER_S
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let content = SCShareableContent::get()?;
 /// for app in content.applications() {
-///     println!("App: {} (PID: {})", 
-///         app.application_name(), 
+///     println!("App: {} (PID: {})",
+///         app.application_name(),
 ///         app.process_id()
 ///     );
 /// }
@@ -90,9 +90,7 @@ impl Drop for SCRunningApplication {
 
 impl Clone for SCRunningApplication {
     fn clone(&self) -> Self {
-        unsafe {
-            Self(crate::ffi::sc_running_application_retain(self.0))
-        }
+        unsafe { Self(crate::ffi::sc_running_application_retain(self.0)) }
     }
 }
 

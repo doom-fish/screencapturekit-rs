@@ -1,5 +1,5 @@
 //! `IOSurface` wrapper for `ScreenCaptureKit`
-//! 
+//!
 //! Provides access to IOSurface-backed pixel buffers for efficient frame processing
 
 use std::ffi::c_void;
@@ -22,7 +22,7 @@ impl IOSurfaceLockOptions {
 }
 
 /// A guard that provides access to locked `IOSurface` memory
-/// 
+///
 /// The surface is automatically unlocked when this guard is dropped.
 pub struct IOSurfaceLockGuard<'a> {
     surface_ptr: *const c_void,
@@ -92,10 +92,7 @@ impl IOSurfaceLockGuard<'_> {
     /// Get buffer data as a byte slice
     pub fn as_slice(&self) -> &[u8] {
         unsafe {
-            std::slice::from_raw_parts(
-                self.base_address.as_ptr(),
-                self.height * self.bytes_per_row,
-            )
+            std::slice::from_raw_parts(self.base_address.as_ptr(), self.height * self.bytes_per_row)
         }
     }
 
@@ -105,7 +102,10 @@ impl IOSurfaceLockGuard<'_> {
             return None;
         }
         unsafe {
-            let row_ptr = self.base_address.as_ptr().add(row_index * self.bytes_per_row);
+            let row_ptr = self
+                .base_address
+                .as_ptr()
+                .add(row_index * self.bytes_per_row);
             Some(std::slice::from_raw_parts(row_ptr, self.bytes_per_row))
         }
     }
@@ -123,10 +123,10 @@ impl IOSurfaceLockGuard<'_> {
     ///
     /// # fn example(guard: screencapturekit::output::IOSurfaceLockGuard) {
     /// let mut cursor = guard.cursor();
-    /// 
+    ///
     /// // Read a pixel using the extension trait
     /// let pixel = cursor.read_pixel().unwrap();
-    /// 
+    ///
     /// // Or use standard Read trait
     /// let mut buf = [0u8; 4];
     /// cursor.read_exact(&mut buf).unwrap();
@@ -227,11 +227,11 @@ impl IOSurface {
     }
 
     /// Get the base address of the `IOSurface` buffer
-    /// 
+    ///
     /// **Important:** You must lock the `IOSurface` before accessing memory!
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The returned pointer is only valid while the `IOSurface` is locked.
     /// Accessing unlocked memory or after unlock is undefined behavior.
     pub unsafe fn base_address(&self) -> *mut u8 {
@@ -239,15 +239,15 @@ impl IOSurface {
     }
 
     /// Lock the `IOSurface` and get a guard for safe access
-    /// 
+    ///
     /// The surface will be automatically unlocked when the guard is dropped.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an `IOSurface` error code if the lock operation fails.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```no_run
     /// # use screencapturekit::output::{IOSurface, IOSurfaceLockOptions};
     /// # fn example(surface: IOSurface) -> Result<(), i32> {
@@ -305,7 +305,7 @@ impl std::fmt::Debug for IOSurface {
 pub trait CVPixelBufferIOSurface {
     /// Get the underlying `IOSurface` if the pixel buffer is backed by one
     fn iosurface(&self) -> Option<IOSurface>;
-    
+
     /// Check if this pixel buffer is backed by an `IOSurface`
     fn is_backed_by_iosurface(&self) -> bool;
 }
@@ -319,8 +319,6 @@ impl CVPixelBufferIOSurface for crate::output::CVPixelBuffer {
     }
 
     fn is_backed_by_iosurface(&self) -> bool {
-        unsafe {
-            crate::ffi::cv_pixel_buffer_is_backed_by_iosurface(self.as_ptr())
-        }
+        unsafe { crate::ffi::cv_pixel_buffer_is_backed_by_iosurface(self.as_ptr()) }
     }
 }

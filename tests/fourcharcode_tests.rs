@@ -26,7 +26,7 @@ fn test_fourcharcode_parse() {
 fn test_fourcharcode_parse_invalid() {
     let result = "abc".parse::<FourCharCode>();
     assert!(result.is_err());
-    
+
     let result = "abcde".parse::<FourCharCode>();
     assert!(result.is_err());
 }
@@ -42,7 +42,7 @@ fn test_fourcharcode_display() {
 fn test_fourcharcode_const_equality() {
     const H264: FourCharCode = codec_types::H264;
     const HEVC: FourCharCode = codec_types::HEVC;
-    
+
     assert!(H264.equals(codec_types::H264));
     assert!(!H264.equals(HEVC));
 }

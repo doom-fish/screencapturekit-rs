@@ -8,7 +8,7 @@ use screencapturekit::error::SCError;
 fn test_invalid_dimension_error() {
     let err = SCError::invalid_dimension("width", 0);
     let display = format!("{err}");
-    
+
     assert!(display.contains("width"));
     assert!(display.contains('0'));
 }
@@ -17,7 +17,7 @@ fn test_invalid_dimension_error() {
 fn test_permission_denied_error() {
     let err = SCError::permission_denied("Screen Recording");
     let display = format!("{err}");
-    
+
     // Just verify it has content
     assert!(!display.is_empty());
     assert!(display.contains("Screen Recording"));
@@ -27,7 +27,7 @@ fn test_permission_denied_error() {
 fn test_internal_error() {
     let err = SCError::internal_error("Something went wrong");
     let display = format!("{err}");
-    
+
     assert!(display.contains("Something went wrong"));
 }
 
@@ -36,7 +36,7 @@ fn test_error_equality() {
     let err1 = SCError::invalid_dimension("width", 0);
     let err2 = SCError::invalid_dimension("width", 0);
     let err3 = SCError::invalid_dimension("height", 0);
-    
+
     assert_eq!(err1, err2);
     assert_ne!(err1, err3);
 }
@@ -45,17 +45,17 @@ fn test_error_equality() {
 fn test_error_debug() {
     let err = SCError::permission_denied("Screen Recording");
     let debug = format!("{err:?}");
-    
+
     assert!(debug.contains("Screen Recording"));
 }
 
 #[test]
 fn test_error_display_vs_debug() {
     let err = SCError::internal_error("Test error");
-    
+
     let display = format!("{err}");
     let debug = format!("{err:?}");
-    
+
     // Both should contain error information
     assert!(!display.is_empty());
     assert!(!debug.is_empty());
@@ -66,7 +66,7 @@ fn test_error_types_are_different() {
     let err1 = SCError::invalid_dimension("width", 0);
     let err2 = SCError::permission_denied("Screen Recording");
     let err3 = SCError::internal_error("Internal");
-    
+
     assert_ne!(err1, err2);
     assert_ne!(err1, err3);
     assert_ne!(err2, err3);
@@ -75,9 +75,9 @@ fn test_error_types_are_different() {
 #[test]
 fn test_error_in_result() {
     let result: Result<(), SCError> = Err(SCError::permission_denied("Test"));
-    
+
     assert!(result.is_err());
-    
+
     if let Err(err) = result {
         let display = format!("{err}");
         assert!(display.contains("Test"));
@@ -89,12 +89,12 @@ fn test_error_propagation() {
     fn failing_function() -> Result<(), SCError> {
         Err(SCError::internal_error("Failed"))
     }
-    
+
     fn calling_function() -> Result<(), SCError> {
         failing_function()?;
         Ok(())
     }
-    
+
     let result = calling_function();
     assert!(result.is_err());
 }
@@ -109,7 +109,7 @@ fn test_multiple_error_messages() {
         SCError::internal_error("Error 1"),
         SCError::internal_error("Error 2"),
     ];
-    
+
     for err in errors {
         let display = format!("{err}");
         assert!(!display.is_empty());

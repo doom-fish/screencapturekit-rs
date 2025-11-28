@@ -20,11 +20,14 @@ impl SCStreamConfiguration {
     pub fn set_pixel_format(self, pixel_format: PixelFormat) -> Self {
         let four_char_code: FourCharCode = pixel_format.into();
         unsafe {
-            crate::ffi::sc_stream_configuration_set_pixel_format(self.as_ptr(), four_char_code.as_u32());
+            crate::ffi::sc_stream_configuration_set_pixel_format(
+                self.as_ptr(),
+                four_char_code.as_u32(),
+            );
         }
         self
     }
-    
+
     /// Get the current pixel format
     pub fn get_pixel_format(&self) -> PixelFormat {
         unsafe {

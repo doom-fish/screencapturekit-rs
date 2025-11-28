@@ -1,7 +1,7 @@
 //! `IOSurface` - Hardware-accelerated surface
 
-use std::fmt;
 use super::ffi;
+use std::fmt;
 
 pub struct IOSurface(*mut std::ffi::c_void);
 
@@ -85,4 +85,3 @@ impl fmt::Display for IOSurface {
         )
     }
 }
-

@@ -29,13 +29,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // List windows (first 10)
     println!("\n🪟 Windows (showing first 10 of {}):", windows.len());
     for window in windows.iter().take(10) {
-        let app_name = window.owning_application()
+        let app_name = window
+            .owning_application()
             .map(|app| app.application_name())
             .unwrap_or_default();
-        
+
         println!("  - {} - {}", app_name, window.title().unwrap_or_default());
         println!("    Window ID: {}", window.window_id());
-        println!("    Size: {}x{}", window.frame().width, window.frame().height);
+        println!(
+            "    Size: {}x{}",
+            window.frame().width,
+            window.frame().height
+        );
         println!("    Layer: {}", window.window_layer());
         println!("    On screen: {}", window.is_on_screen());
     }
@@ -57,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .is_some_and(|app| app.application_name().contains("Safari"))
         })
         .collect();
-    
+
     println!("Found {} Safari windows", safari_windows.len());
     for window in safari_windows {
         println!("  - {}", window.title().unwrap_or_default());
@@ -69,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .on_screen_windows_only(true)
         .exclude_desktop_windows(true)
         .get()?;
-    
+
     println!("On-screen windows only: {}", filtered.windows().len());
 
     Ok(())

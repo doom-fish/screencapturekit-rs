@@ -13,25 +13,27 @@
 //! - [`AudioBufferList`] - Collection of audio buffers
 //! - [`SCFrameStatus`] - Status of a captured frame
 
-mod frame_status;
-mod time;
-mod sample_buffer;
-mod pixel_buffer;
 mod audio;
 mod block_buffer;
-mod format_description;
-mod iosurface;
 pub mod ffi;
+mod format_description;
+mod frame_status;
+mod iosurface;
+mod pixel_buffer;
+mod sample_buffer;
+mod time;
 
 // Re-export all public types
-pub use frame_status::SCFrameStatus;
-pub use time::{CMTime, CMSampleTimingInfo};
-pub use sample_buffer::CMSampleBuffer;
-pub use pixel_buffer::{CVPixelBuffer, CVPixelBufferLockGuard, CVPixelBufferPool};
-pub use audio::{AudioBuffer, AudioBufferRef, AudioBufferList, AudioBufferListRaw, AudioBufferListIter};
+pub use audio::{
+    AudioBuffer, AudioBufferList, AudioBufferListIter, AudioBufferListRaw, AudioBufferRef,
+};
 pub use block_buffer::CMBlockBuffer;
 pub use format_description::CMFormatDescription;
+pub use frame_status::SCFrameStatus;
 pub use iosurface::IOSurface;
+pub use pixel_buffer::{CVPixelBuffer, CVPixelBufferLockGuard, CVPixelBufferPool};
+pub use sample_buffer::CMSampleBuffer;
+pub use time::{CMSampleTimingInfo, CMTime};
 
 // Re-export codec and media type modules from format_description
 pub use format_description::codec_types;

@@ -14,9 +14,9 @@
 //!
 //! // List displays
 //! for display in content.displays() {
-//!     println!("Display {}: {}x{}", 
-//!         display.display_id(), 
-//!         display.width(), 
+//!     println!("Display {}: {}x{}",
+//!         display.display_id(),
+//!         display.width(),
 //!         display.height()
 //!     );
 //! }
@@ -43,8 +43,8 @@ pub use display::SCDisplay;
 pub use running_application::SCRunningApplication;
 pub use window::SCWindow;
 
-use core::fmt;
 use crate::error::SCError;
+use core::fmt;
 use std::ffi::c_void;
 
 #[repr(transparent)]
@@ -69,15 +69,13 @@ impl std::hash::Hash for SCShareableContent {
 
 impl Clone for SCShareableContent {
     fn clone(&self) -> Self {
-        unsafe {
-            Self(crate::ffi::sc_shareable_content_retain(self.0))
-        }
+        unsafe { Self(crate::ffi::sc_shareable_content_retain(self.0)) }
     }
 }
 
 impl SCShareableContent {
     /// Create from raw pointer (used internally)
-    /// 
+    ///
     /// # Safety
     /// The pointer must be a valid retained `SCShareableContent` pointer from Swift FFI.
     pub(crate) unsafe fn from_ptr(ptr: *const c_void) -> Self {
@@ -147,14 +145,14 @@ impl SCShareableContent {
             // FFI returns isize but count is always positive
             #[allow(clippy::cast_sign_loss)]
             let mut displays = Vec::with_capacity(count as usize);
-            
+
             for i in 0..count {
                 let display_ptr = crate::ffi::sc_shareable_content_get_display_at(self.0, i);
                 if !display_ptr.is_null() {
                     displays.push(SCDisplay::from_ptr(display_ptr));
                 }
             }
-            
+
             displays
         }
     }
@@ -182,14 +180,14 @@ impl SCShareableContent {
             // FFI returns isize but count is always positive
             #[allow(clippy::cast_sign_loss)]
             let mut windows = Vec::with_capacity(count as usize);
-            
+
             for i in 0..count {
                 let window_ptr = crate::ffi::sc_shareable_content_get_window_at(self.0, i);
                 if !window_ptr.is_null() {
                     windows.push(SCWindow::from_ptr(window_ptr));
                 }
             }
-            
+
             windows
         }
     }
@@ -200,14 +198,14 @@ impl SCShareableContent {
             // FFI returns isize but count is always positive
             #[allow(clippy::cast_sign_loss)]
             let mut apps = Vec::with_capacity(count as usize);
-            
+
             for i in 0..count {
                 let app_ptr = crate::ffi::sc_shareable_content_get_application_at(self.0, i);
                 if !app_ptr.is_null() {
                     apps.push(SCRunningApplication::from_ptr(app_ptr));
                 }
             }
-            
+
             apps
         }
     }
@@ -257,7 +255,7 @@ pub struct SCShareableContentOptions {
 
 impl SCShareableContentOptions {
     /// Exclude desktop windows from the shareable content.
-    /// 
+    ///
     /// When set to `true`, desktop-level windows (like the desktop background)
     /// are excluded from the returned window list.
     #[must_use]
@@ -267,7 +265,7 @@ impl SCShareableContentOptions {
     }
 
     /// Include only on-screen windows in the shareable content.
-    /// 
+    ///
     /// When set to `true`, only windows that are currently visible on screen
     /// are included. Minimized or off-screen windows are excluded.
     #[must_use]
@@ -285,7 +283,7 @@ impl SCShareableContentOptions {
     /// Returns an error if screen recording permission is not granted or retrieval fails.
     pub fn get(self) -> Result<SCShareableContent, SCError> {
         let mut error_buffer = vec![0i8; 1024];
-        
+
         #[allow(clippy::cast_possible_wrap)]
         let ptr = unsafe {
             crate::ffi::sc_shareable_content_get_sync(
@@ -295,7 +293,7 @@ impl SCShareableContentOptions {
                 error_buffer.len() as isize,
             )
         };
-        
+
         if ptr.is_null() {
             let error_msg = unsafe {
                 std::ffi::CStr::from_ptr(error_buffer.as_ptr())
@@ -304,7 +302,7 @@ impl SCShareableContentOptions {
             };
             return Err(crate::utils::error::create_sc_error(&error_msg));
         }
-        
+
         Ok(unsafe { SCShareableContent::from_ptr(ptr) })
     }
 }

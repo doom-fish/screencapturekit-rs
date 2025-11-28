@@ -24,10 +24,10 @@ fn test_picker_configuration_default() {
 fn test_picker_configuration_clone() {
     let config1 = SCContentSharingPickerConfiguration::new();
     let config2 = config1.clone();
-    
+
     assert!(!config1.as_ptr().is_null());
     assert!(!config2.as_ptr().is_null());
-    
+
     println!("✓ Picker configuration clone works");
 }
 
@@ -35,10 +35,10 @@ fn test_picker_configuration_clone() {
 fn test_picker_configuration_send_sync() {
     fn assert_send<T: Send>() {}
     fn assert_sync<T: Sync>() {}
-    
+
     assert_send::<SCContentSharingPickerConfiguration>();
     assert_sync::<SCContentSharingPickerConfiguration>();
-    
+
     println!("✓ SCContentSharingPickerConfiguration is Send + Sync");
 }
 
@@ -57,7 +57,7 @@ fn test_picker_configuration_lifecycle() {
 #[test]
 fn test_picker_configuration_modes() {
     use screencapturekit::content_sharing_picker::SCContentSharingPickerMode;
-    
+
     let mut config = SCContentSharingPickerConfiguration::new();
     config.set_allowed_picker_modes(&[
         SCContentSharingPickerMode::SingleWindow,
@@ -70,10 +70,10 @@ fn test_picker_configuration_modes() {
 #[test]
 fn test_picker_api_availability() {
     use screencapturekit::content_sharing_picker::SCContentSharingPicker;
-    
+
     // Verify the API types are available on macOS 14.0+
     let _picker_type = std::any::type_name::<SCContentSharingPicker>();
     let _config_type = std::any::type_name::<SCContentSharingPickerConfiguration>();
-    
+
     println!("✓ Content sharing picker API available on macOS 14.0+");
 }

@@ -45,7 +45,7 @@ impl FourCharCode {
         if bytes.len() != 4 {
             return None;
         }
-        
+
         let code = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
         Some(Self(code))
     }
@@ -101,7 +101,7 @@ impl FromStr for FourCharCode {
         if !s.is_ascii() {
             return Err("FourCharCode must contain only ASCII characters");
         }
-        
+
         let bytes = s.as_bytes();
         let code = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
         Ok(Self(code))

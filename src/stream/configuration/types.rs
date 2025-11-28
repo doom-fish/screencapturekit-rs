@@ -1,5 +1,5 @@
 //! Standalone types for stream configuration
-//! 
+//!
 //! These types are defined locally to avoid external dependencies
 
 use std::fmt;
@@ -102,17 +102,24 @@ impl Rect {
     pub const fn new(origin: Point, size: Size) -> Self {
         Self { origin, size }
     }
-    
+
     pub const fn zero() -> Self {
         Self {
             origin: Point { x: 0.0, y: 0.0 },
-            size: Size { width: 0.0, height: 0.0 },
+            size: Size {
+                width: 0.0,
+                height: 0.0,
+            },
         }
     }
 }
 
 impl fmt::Display for Rect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.origin, self.size.width, self.size.height)
+        write!(
+            f,
+            "({}, {}, {})",
+            self.origin, self.size.width, self.size.height
+        )
     }
 }

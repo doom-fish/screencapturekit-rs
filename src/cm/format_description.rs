@@ -2,8 +2,8 @@
 
 #![allow(dead_code)]
 
-use std::fmt;
 use super::ffi;
+use std::fmt;
 
 pub struct CMFormatDescription(*mut std::ffi::c_void);
 
@@ -27,7 +27,7 @@ impl std::hash::Hash for CMFormatDescription {
 /// Common media type constants
 pub mod media_types {
     use crate::utils::four_char_code::FourCharCode;
-    
+
     /// Video media type ('vide')
     pub const VIDEO: FourCharCode = FourCharCode::from_bytes(*b"vide");
     /// Audio media type ('soun')
@@ -47,7 +47,7 @@ pub mod media_types {
 /// Common codec type constants
 pub mod codec_types {
     use crate::utils::four_char_code::FourCharCode;
-    
+
     // Video codecs
     /// H.264/AVC ('avc1')
     pub const H264: FourCharCode = FourCharCode::from_bytes(*b"avc1");
@@ -61,7 +61,7 @@ pub mod codec_types {
     pub const PRORES_422: FourCharCode = FourCharCode::from_bytes(*b"apcn");
     /// Apple `ProRes` 4444 ('ap4h')
     pub const PRORES_4444: FourCharCode = FourCharCode::from_bytes(*b"ap4h");
-    
+
     // Audio codecs
     /// AAC ('aac ')
     pub const AAC: FourCharCode = FourCharCode::from_bytes(*b"aac ");
@@ -234,4 +234,3 @@ impl fmt::Display for CMFormatDescription {
         )
     }
 }
-

@@ -1,10 +1,10 @@
-use screencapturekit::stream::content_filter::SCContentFilter;
-use screencapturekit::stream::SCStreamOutput;
-use screencapturekit::shareable_content::SCShareableContent;
-use screencapturekit::stream::SCStream;
-use screencapturekit::stream::configuration::SCStreamConfiguration;
 use screencapturekit::cm::CMSampleBuffer;
+use screencapturekit::shareable_content::SCShareableContent;
+use screencapturekit::stream::configuration::SCStreamConfiguration;
+use screencapturekit::stream::content_filter::SCContentFilter;
 use screencapturekit::stream::output_type::SCStreamOutputType;
+use screencapturekit::stream::SCStream;
+use screencapturekit::stream::SCStreamOutput;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -23,9 +23,10 @@ impl SCStreamOutput for TestVideoOutput {
     ) {
         let count = self.frame_count.fetch_add(1, Ordering::SeqCst);
         self.received_frame.store(true, Ordering::SeqCst);
-        
-        println!("Video frame {}: pts={:?}, duration={:?}", 
-            count, 
+
+        println!(
+            "Video frame {}: pts={:?}, duration={:?}",
+            count,
             sample_buffer.get_presentation_timestamp(),
             sample_buffer.get_duration()
         );
@@ -38,16 +39,13 @@ struct TestAudioOutput {
 }
 
 impl SCStreamOutput for TestAudioOutput {
-    fn did_output_sample_buffer(
-        &self,
-        sample_buffer: CMSampleBuffer,
-        of_type: SCStreamOutputType,
-    ) {
+    fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType) {
         if matches!(of_type, SCStreamOutputType::Audio) {
             let count = self.audio_count.fetch_add(1, Ordering::SeqCst);
             self.received_audio.store(true, Ordering::SeqCst);
-            
-            println!("Audio sample {}: pts={:?}, duration={:?}", 
+
+            println!(
+                "Audio sample {}: pts={:?}, duration={:?}",
                 count,
                 sample_buffer.get_presentation_timestamp(),
                 sample_buffer.get_duration()
@@ -59,7 +57,7 @@ impl SCStreamOutput for TestAudioOutput {
 #[test]
 fn test_screen_capture_with_audio() {
     println!("=== Starting Screen Capture with Audio Test ===");
-    
+
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
@@ -69,61 +67,61 @@ fn test_screen_capture_with_audio() {
             return; // Skip test gracefully
         }
     };
-    
+
     let displays = content.displays();
     if displays.is_empty() {
         println!("⚠️  No displays found - skipping test");
         return;
     }
-    
+
     let display = &displays[0];
     println!("Using display: {}", display.display_id());
-    
+
     let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
-    
+
     let config = SCStreamConfiguration::default()
         .set_width(1920)
         .set_height(1080)
         .set_captures_audio(true)
         .set_sample_rate(48000)
         .set_channel_count(2);
-    
+
     let video_frame_count = Arc::new(AtomicUsize::new(0));
     let video_received = Arc::new(AtomicBool::new(false));
     let audio_count = Arc::new(AtomicUsize::new(0));
     let audio_received = Arc::new(AtomicBool::new(false));
-    
+
     let video_output = TestVideoOutput {
         frame_count: video_frame_count.clone(),
         received_frame: video_received.clone(),
     };
-    
+
     let audio_output = TestAudioOutput {
         audio_count: audio_count.clone(),
         received_audio: audio_received.clone(),
     };
-    
+
     let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(video_output, SCStreamOutputType::Screen);
     stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
-    
+
     stream.start_capture().ok();
     println!("Capture started, waiting for frames...");
-    
+
     thread::sleep(Duration::from_secs(5));
-    
+
     stream.stop_capture().ok();
     println!("Capture stopped");
-    
+
     let video_count = video_frame_count.load(Ordering::SeqCst);
     let audio_samples = audio_count.load(Ordering::SeqCst);
-    
+
     println!("Received {video_count} video frames");
     println!("Received {audio_samples} audio samples");
-    
+
     // Note: Test may not receive frames if screen recording permissions are not granted
     // or if the test environment doesn't allow screen capture
     if video_received.load(Ordering::SeqCst) {
@@ -136,7 +134,7 @@ fn test_screen_capture_with_audio() {
         println!("   - System restrictions");
         println!("   Skipping assertion to avoid false negatives");
     }
-    
+
     if audio_received.load(Ordering::SeqCst) {
         println!("✓ Audio capture working!");
     } else {
@@ -147,7 +145,7 @@ fn test_screen_capture_with_audio() {
 #[test]
 fn test_combined_video_audio_capture() {
     println!("=== Combined Video + Audio Capture Test ===");
-    
+
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
@@ -157,61 +155,61 @@ fn test_combined_video_audio_capture() {
             return; // Skip test gracefully
         }
     };
-    
+
     let displays = content.displays();
     if displays.is_empty() {
         println!("⚠️  No displays found - skipping test");
         return;
     }
-    
+
     let display = &displays[0];
     println!("Capturing display: {}", display.display_id());
-    
+
     let filter = SCContentFilter::builder()
         .display(display)
         .exclude_windows(&[])
         .build();
-    
+
     let config = SCStreamConfiguration::default()
         .set_width(1920)
         .set_height(1080)
         .set_captures_audio(true)
         .set_sample_rate(48000)
         .set_channel_count(2);
-    
+
     let video_count = Arc::new(AtomicUsize::new(0));
     let video_received = Arc::new(AtomicBool::new(false));
     let audio_count = Arc::new(AtomicUsize::new(0));
     let audio_received = Arc::new(AtomicBool::new(false));
-    
+
     let video_output = TestVideoOutput {
         frame_count: video_count.clone(),
         received_frame: video_received.clone(),
     };
-    
+
     let audio_output = TestAudioOutput {
         audio_count: audio_count.clone(),
         received_audio: audio_received,
     };
-    
+
     let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(video_output, SCStreamOutputType::Screen);
     stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
-    
+
     stream.start_capture().ok();
     println!("Combined capture started");
-    
+
     thread::sleep(Duration::from_secs(3));
-    
+
     stream.stop_capture().ok();
     println!("Combined capture stopped");
-    
+
     let v_count = video_count.load(Ordering::SeqCst);
     let a_count = audio_count.load(Ordering::SeqCst);
-    
+
     println!("Video frames: {v_count}");
     println!("Audio samples: {a_count}");
-    
+
     // Note: Test may not receive frames if screen recording permissions are not granted
     if video_received.load(Ordering::SeqCst) {
         println!("✓ Video capture working!");

@@ -37,12 +37,12 @@ impl SCFrameStatus {
             _ => None,
         }
     }
-    
+
     /// Returns true if the frame contains actual content
     pub const fn has_content(self) -> bool {
         matches!(self, Self::Complete | Self::Started)
     }
-    
+
     /// Returns true if the frame is complete
     pub const fn is_complete(self) -> bool {
         matches!(self, Self::Complete)

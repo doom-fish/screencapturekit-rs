@@ -48,10 +48,7 @@ impl SCRecordingOutputConfiguration {
     /// Set the video codec
     pub fn set_video_codec(&mut self, codec: SCRecordingOutputCodec) {
         unsafe {
-            crate::ffi::sc_recording_output_configuration_set_video_codec(
-                self.ptr,
-                codec as i32,
-            );
+            crate::ffi::sc_recording_output_configuration_set_video_codec(self.ptr, codec as i32);
         }
     }
 
@@ -77,7 +74,9 @@ impl Default for SCRecordingOutputConfiguration {
 impl Clone for SCRecordingOutputConfiguration {
     fn clone(&self) -> Self {
         unsafe {
-            Self { ptr: crate::ffi::sc_recording_output_configuration_retain(self.ptr) }
+            Self {
+                ptr: crate::ffi::sc_recording_output_configuration_retain(self.ptr),
+            }
         }
     }
 }
@@ -130,7 +129,9 @@ impl SCRecordingOutput {
 impl Clone for SCRecordingOutput {
     fn clone(&self) -> Self {
         unsafe {
-            Self { ptr: crate::ffi::sc_recording_output_retain(self.ptr) }
+            Self {
+                ptr: crate::ffi::sc_recording_output_retain(self.ptr),
+            }
         }
     }
 }
@@ -152,4 +153,3 @@ unsafe impl Sync for SCRecordingOutput {}
 // Safety: SCRecordingOutputConfiguration wraps an Objective-C object that is thread-safe
 unsafe impl Send for SCRecordingOutputConfiguration {}
 unsafe impl Sync for SCRecordingOutputConfiguration {}
-

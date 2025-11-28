@@ -4,13 +4,13 @@
 
 #![allow(clippy::similar_names)]
 
-use std::collections::{HashMap, HashSet};
 use screencapturekit::prelude::*;
 use screencapturekit::{
     cg::{CGPoint, CGRect, CGSize},
     cm::{CMSampleTimingInfo, CMTime},
     codec_types, media_types, FourCharCode,
 };
+use std::collections::{HashMap, HashSet};
 
 #[test]
 fn test_cmtime_eq_and_hash() {
@@ -70,21 +70,12 @@ fn test_cmtime_special_values() {
 
 #[test]
 fn test_cmsample_timing_info_eq_and_hash() {
-    let timing1 = CMSampleTimingInfo::with_times(
-        CMTime::new(1, 30),
-        CMTime::new(0, 30),
-        CMTime::INVALID,
-    );
-    let timing2 = CMSampleTimingInfo::with_times(
-        CMTime::new(1, 30),
-        CMTime::new(0, 30),
-        CMTime::INVALID,
-    );
-    let timing3 = CMSampleTimingInfo::with_times(
-        CMTime::new(1, 30),
-        CMTime::new(1, 30),
-        CMTime::INVALID,
-    );
+    let timing1 =
+        CMSampleTimingInfo::with_times(CMTime::new(1, 30), CMTime::new(0, 30), CMTime::INVALID);
+    let timing2 =
+        CMSampleTimingInfo::with_times(CMTime::new(1, 30), CMTime::new(0, 30), CMTime::INVALID);
+    let timing3 =
+        CMSampleTimingInfo::with_times(CMTime::new(1, 30), CMTime::new(1, 30), CMTime::INVALID);
 
     assert_eq!(timing1, timing2);
     assert_ne!(timing1, timing3);
@@ -187,21 +178,21 @@ fn test_media_type_constants_eq_and_hash() {
 #[test]
 fn test_codec_type_constants_eq_and_hash() {
     let mut codecs: HashSet<FourCharCode> = HashSet::new();
-    
+
     // Video codecs
     codecs.insert(codec_types::H264);
     codecs.insert(codec_types::HEVC);
     codecs.insert(codec_types::HEVC_2);
     codecs.insert(codec_types::JPEG);
-    
+
     // Audio codecs
     codecs.insert(codec_types::AAC);
     codecs.insert(codec_types::LPCM);
     codecs.insert(codec_types::ALAC);
-    
+
     // Test duplicates
     codecs.insert(codec_types::H264); // Duplicate
-    
+
     assert_eq!(codecs.len(), 7);
 }
 
@@ -266,7 +257,7 @@ fn test_config_types_eq_and_hash() {
     let p1 = Point::new(10.0, 20.0);
     let p2 = Point::new(10.0, 20.0);
     let p3 = Point::new(11.0, 20.0);
-    
+
     assert_eq!(p1, p2);
     assert_ne!(p1, p3);
 
@@ -425,18 +416,18 @@ fn test_content_sharing_picker_mode_eq_and_hash() {
 fn test_complex_nested_collections() {
     // Test complex nested structures
     let mut codec_to_formats: HashMap<FourCharCode, HashSet<CGSize>> = HashMap::new();
-    
+
     let mut h264_sizes = HashSet::new();
     h264_sizes.insert(CGSize::new(1920.0, 1080.0));
     h264_sizes.insert(CGSize::new(1280.0, 720.0));
-    
+
     let mut hevc_sizes = HashSet::new();
     hevc_sizes.insert(CGSize::new(3840.0, 2160.0));
     hevc_sizes.insert(CGSize::new(1920.0, 1080.0));
-    
+
     codec_to_formats.insert(codec_types::H264, h264_sizes);
     codec_to_formats.insert(codec_types::HEVC, hevc_sizes);
-    
+
     assert_eq!(codec_to_formats.len(), 2);
     assert_eq!(codec_to_formats.get(&codec_types::H264).unwrap().len(), 2);
     assert_eq!(codec_to_formats.get(&codec_types::HEVC).unwrap().len(), 2);
@@ -448,10 +439,10 @@ fn test_cmtime_const_equality() {
     const TIME1: CMTime = CMTime::new(1, 30);
     const TIME2: CMTime = CMTime::new(1, 30);
     const TIME3: CMTime = CMTime::new(2, 30);
-    
+
     assert!(TIME1.equals(&TIME2));
     assert!(!TIME1.equals(&TIME3));
-    
+
     // Test with invalid times
     assert!(!CMTime::INVALID.equals(&CMTime::INVALID)); // Invalid times don't equal
     assert!(CMTime::ZERO.equals(&CMTime::ZERO));
@@ -461,7 +452,7 @@ fn test_cmtime_const_equality() {
 fn test_fourcharcode_const_equality() {
     const H264: FourCharCode = codec_types::H264;
     const HEVC: FourCharCode = codec_types::HEVC;
-    
+
     assert!(H264.equals(H264));
     assert!(!H264.equals(HEVC));
 }
@@ -469,15 +460,15 @@ fn test_fourcharcode_const_equality() {
 #[test]
 fn test_deduplication_in_vec() {
     use screencapturekit::stream::configuration::PixelFormat;
-    
+
     let formats = vec![
         PixelFormat::BGRA,
         PixelFormat::YCbCr_420v,
-        PixelFormat::BGRA, // Duplicate
+        PixelFormat::BGRA,       // Duplicate
         PixelFormat::YCbCr_420v, // Duplicate
         PixelFormat::l10r,
     ];
-    
+
     let unique: HashSet<_> = formats.into_iter().collect();
     assert_eq!(unique.len(), 3);
 }
@@ -486,17 +477,17 @@ fn test_deduplication_in_vec() {
 fn test_hashmap_key_stability() {
     // Ensure hash values are stable across insertions
     let time = CMTime::new(1, 30);
-    
+
     let mut map1 = HashMap::new();
     map1.insert(time, "value1");
-    
+
     let mut map2 = HashMap::new();
     map2.insert(time, "value2");
-    
+
     // Same key should hash to same value in different maps
     assert!(map1.contains_key(&time));
     assert!(map2.contains_key(&time));
-    
+
     // Should be able to retrieve from both
     assert_eq!(map1.get(&time), Some(&"value1"));
     assert_eq!(map2.get(&time), Some(&"value2"));
@@ -509,7 +500,7 @@ fn test_zero_values_eq() {
     assert_eq!(CGPoint::zero(), CGPoint::zero());
     assert_eq!(CGSize::zero(), CGSize::zero());
     assert_eq!(CGRect::zero(), CGRect::zero());
-    
+
     let mut set = HashSet::new();
     set.insert(CMTime::ZERO);
     set.insert(CMTime::ZERO);
@@ -521,10 +512,10 @@ fn test_edge_case_float_values() {
     // Test edge cases with floating point
     let p1 = CGPoint::new(0.0, 0.0);
     let p2 = CGPoint::new(-0.0, -0.0);
-    
+
     // 0.0 and -0.0 should be equal (same bit representation)
     assert_eq!(p1, p2);
-    
+
     // Test very small differences
     let p3 = CGPoint::new(1.0, 1.0);
     let p4 = CGPoint::new(1.0 + f64::EPSILON, 1.0);

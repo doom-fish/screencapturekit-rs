@@ -54,18 +54,25 @@ impl Future for AsyncShareableContentFuture {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut state = self.state.lock().unwrap();
-        
-        state.result.take().map_or_else(|| {
-            state.waker = Some(cx.waker().clone());
-            Poll::Pending
-        }, Poll::Ready)
+
+        state.result.take().map_or_else(
+            || {
+                state.waker = Some(cx.waker().clone());
+                Poll::Pending
+            },
+            Poll::Ready,
+        )
     }
 }
 
 /// Callback from Swift FFI for shareable content
-extern "C" fn shareable_content_callback(content: *const c_void, error: *const i8, user_data: *mut c_void) {
+extern "C" fn shareable_content_callback(
+    content: *const c_void,
+    error: *const i8,
+    user_data: *mut c_void,
+) {
     let state = unsafe { Arc::from_raw(user_data.cast::<Mutex<ShareableContentState>>()) };
-    
+
     let result = if !error.is_null() {
         let error_msg = unsafe {
             std::ffi::CStr::from_ptr(error)
@@ -78,7 +85,7 @@ extern "C" fn shareable_content_callback(content: *const c_void, error: *const i
     } else {
         Err(crate::utils::error::create_sc_error("Unknown error"))
     };
-    
+
     {
         let mut guard = state.lock().unwrap();
         guard.result = Some(result);
@@ -86,7 +93,7 @@ extern "C" fn shareable_content_callback(content: *const c_void, error: *const i
             waker.wake();
         }
     }
-    
+
     // Keep state alive - the Arc will be dropped when the future is dropped
     std::mem::forget(state);
 }
@@ -146,9 +153,9 @@ impl AsyncSCShareableContentOptions {
             result: None,
             waker: None,
         }));
-        
+
         let state_ptr = Arc::into_raw(state.clone()).cast_mut().cast::<c_void>();
-        
+
         unsafe {
             crate::ffi::sc_shareable_content_get_with_options(
                 self.exclude_desktop_windows,
@@ -157,7 +164,7 @@ impl AsyncSCShareableContentOptions {
                 state_ptr,
             );
         }
-        
+
         AsyncShareableContentFuture { state }
     }
 }
@@ -309,14 +316,19 @@ impl AsyncSCStream {
         let mut stream = crate::stream::SCStream::new(filter, config);
         stream.add_output_handler(sender, output_type);
 
-        Self { stream, iterator_state: state }
+        Self {
+            stream,
+            iterator_state: state,
+        }
     }
 
     /// Get the next sample buffer asynchronously
     ///
     /// Returns `None` when the stream is closed.
     pub fn next(&self) -> NextSample<'_> {
-        NextSample { state: &self.iterator_state }
+        NextSample {
+            state: &self.iterator_state,
+        }
     }
 
     /// Try to get a sample without waiting
@@ -334,7 +346,10 @@ impl AsyncSCStream {
     /// Get the number of buffered samples
     #[must_use]
     pub fn buffered_count(&self) -> usize {
-        self.iterator_state.lock().map(|s| s.buffer.len()).unwrap_or(0)
+        self.iterator_state
+            .lock()
+            .map(|s| s.buffer.len())
+            .unwrap_or(0)
     }
 
     /// Clear all buffered samples
@@ -450,7 +465,10 @@ impl AsyncSCScreenshotManager {
             );
         }
 
-        AsyncScreenshotFuture { state, _marker: std::marker::PhantomData }
+        AsyncScreenshotFuture {
+            state,
+            _marker: std::marker::PhantomData,
+        }
     }
 
     /// Capture a single screenshot as a `CMSampleBuffer` asynchronously
@@ -479,7 +497,10 @@ impl AsyncSCScreenshotManager {
             );
         }
 
-        AsyncScreenshotFuture { state, _marker: std::marker::PhantomData }
+        AsyncScreenshotFuture {
+            state,
+            _marker: std::marker::PhantomData,
+        }
     }
 }
 
@@ -504,10 +525,13 @@ impl<T> Future for AsyncScreenshotFuture<T> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut state = self.state.lock().unwrap();
 
-        state.result.take().map_or_else(|| {
-            state.waker = Some(cx.waker().clone());
-            Poll::Pending
-        }, Poll::Ready)
+        state.result.take().map_or_else(
+            || {
+                state.waker = Some(cx.waker().clone());
+                Poll::Pending
+            },
+            Poll::Ready,
+        )
     }
 }
 
@@ -518,7 +542,11 @@ extern "C" fn screenshot_image_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    let state = unsafe { Arc::from_raw(user_data.cast::<Mutex<ScreenshotState<crate::screenshot_manager::CGImage>>>()) };
+    let state = unsafe {
+        Arc::from_raw(
+            user_data.cast::<Mutex<ScreenshotState<crate::screenshot_manager::CGImage>>>(),
+        )
+    };
 
     let result = if !error_ptr.is_null() {
         let error_msg = unsafe {
@@ -552,7 +580,9 @@ extern "C" fn screenshot_buffer_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    let state = unsafe { Arc::from_raw(user_data.cast::<Mutex<ScreenshotState<crate::cm::CMSampleBuffer>>>()) };
+    let state = unsafe {
+        Arc::from_raw(user_data.cast::<Mutex<ScreenshotState<crate::cm::CMSampleBuffer>>>())
+    };
 
     let result = if !error_ptr.is_null() {
         let error_msg = unsafe {

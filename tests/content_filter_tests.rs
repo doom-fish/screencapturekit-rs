@@ -1,8 +1,8 @@
 //! `SCContentFilter` tests
 
 use screencapturekit::shareable_content::SCShareableContent;
-use screencapturekit::stream::content_filter::SCContentFilter;
 use screencapturekit::stream::configuration::{Point, Rect, Size};
+use screencapturekit::stream::content_filter::SCContentFilter;
 
 #[test]
 fn test_content_filter_builder_display() {
@@ -172,7 +172,7 @@ fn test_content_filter_equality() {
         .build();
 
     let filter2 = filter1.clone();
-    
+
     // A filter should equal itself
     assert_eq!(filter1, filter1);
     // Cloned filters have same pointer
@@ -193,6 +193,6 @@ fn test_content_filter_hash() {
 
     let mut set = HashSet::new();
     set.insert(filter.clone());
-    
+
     assert!(set.contains(&filter));
 }

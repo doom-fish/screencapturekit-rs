@@ -31,8 +31,7 @@ impl fmt::Display for AudioBuffer {
         write!(
             f,
             "AudioBuffer({} channels, {} bytes)",
-            self.number_channels,
-            self.data_bytes_size
+            self.number_channels, self.data_bytes_size
         )
     }
 }
@@ -110,9 +109,7 @@ impl AudioBufferList {
         if index >= self.num_buffers() {
             None
         } else {
-            unsafe {
-                Some(&*self.inner.buffers_ptr.add(index))
-            }
+            unsafe { Some(&*self.inner.buffers_ptr.add(index)) }
         }
     }
 
@@ -124,9 +121,7 @@ impl AudioBufferList {
         if index >= self.num_buffers() {
             None
         } else {
-            unsafe {
-                Some(&mut *self.inner.buffers_ptr.add(index))
-            }
+            unsafe { Some(&mut *self.inner.buffers_ptr.add(index)) }
         }
     }
 
@@ -185,4 +180,3 @@ impl<'a> Iterator for AudioBufferListIter<'a> {
         }
     }
 }
-

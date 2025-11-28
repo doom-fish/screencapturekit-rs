@@ -51,7 +51,12 @@ impl CGRect {
     /// assert_eq!(rect.width, 1920.0);
     /// ```
     pub const fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self { x, y, width, height }
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
     /// Create a zero-sized rectangle at origin
@@ -90,10 +95,7 @@ impl CGRect {
 
     /// Get the center point
     pub const fn center(&self) -> CGPoint {
-        CGPoint::new(
-            self.x + self.width / 2.0,
-            self.y + self.height / 2.0,
-        )
+        CGPoint::new(self.x + self.width / 2.0, self.y + self.height / 2.0)
     }
 
     /// Get the minimum X coordinate
@@ -144,7 +146,11 @@ impl Default for CGRect {
 
 impl fmt::Display for CGRect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {}, {}, {})", self.x, self.y, self.width, self.height)
+        write!(
+            f,
+            "({}, {}, {}, {})",
+            self.x, self.y, self.width, self.height
+        )
     }
 }
 

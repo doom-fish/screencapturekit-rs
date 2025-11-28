@@ -58,9 +58,7 @@ impl Drop for SCStreamConfiguration {
 
 impl Clone for SCStreamConfiguration {
     fn clone(&self) -> Self {
-        unsafe {
-            Self(crate::ffi::sc_stream_configuration_retain(self.0))
-        }
+        unsafe { Self(crate::ffi::sc_stream_configuration_retain(self.0)) }
     }
 }
 

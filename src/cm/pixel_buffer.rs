@@ -1,8 +1,8 @@
 //! `CVPixelBuffer` - Video pixel buffer
 
-use std::fmt;
 use super::ffi;
 use super::IOSurface;
+use std::fmt;
 
 pub struct CVPixelBuffer(*mut std::ffi::c_void);
 
@@ -70,13 +70,9 @@ impl CVPixelBuffer {
     pub fn create(width: usize, height: usize, pixel_format: u32) -> Result<Self, i32> {
         unsafe {
             let mut pixel_buffer_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-            let status = ffi::cv_pixel_buffer_create(
-                width,
-                height,
-                pixel_format,
-                &mut pixel_buffer_ptr,
-            );
-            
+            let status =
+                ffi::cv_pixel_buffer_create(width, height, pixel_format, &mut pixel_buffer_ptr);
+
             if status == 0 && !pixel_buffer_ptr.is_null() {
                 Ok(Self(pixel_buffer_ptr))
             } else {
@@ -159,7 +155,7 @@ impl CVPixelBuffer {
             bytes_per_row,
             &mut pixel_buffer_ptr,
         );
-        
+
         if status == 0 && !pixel_buffer_ptr.is_null() {
             Ok(Self(pixel_buffer_ptr))
         } else {
@@ -423,7 +419,10 @@ impl CVPixelBuffer {
     pub fn lock_base_address(&self, read_only: bool) -> Result<CVPixelBufferLockGuard<'_>, i32> {
         let flags = u32::from(read_only);
         self.lock_raw(flags)?;
-        Ok(CVPixelBufferLockGuard { buffer: self, read_only })
+        Ok(CVPixelBufferLockGuard {
+            buffer: self,
+            read_only,
+        })
     }
 }
 
@@ -435,7 +434,10 @@ pub struct CVPixelBufferLockGuard<'a> {
 
 impl CVPixelBufferLockGuard<'_> {
     pub fn get_base_address(&self) -> *const u8 {
-        self.buffer.base_address().unwrap_or(std::ptr::null_mut()).cast_const()
+        self.buffer
+            .base_address()
+            .unwrap_or(std::ptr::null_mut())
+            .cast_const()
     }
 
     pub fn get_base_address_mut(&mut self) -> *mut u8 {
@@ -571,10 +573,8 @@ impl CVPixelBufferPool {
     pub fn create_pixel_buffer(&self) -> Result<CVPixelBuffer, i32> {
         unsafe {
             let mut pixel_buffer_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-            let status = ffi::cv_pixel_buffer_pool_create_pixel_buffer(
-                self.0,
-                &mut pixel_buffer_ptr,
-            );
+            let status =
+                ffi::cv_pixel_buffer_pool_create_pixel_buffer(self.0, &mut pixel_buffer_ptr);
 
             if status == 0 && !pixel_buffer_ptr.is_null() {
                 Ok(CVPixelBuffer(pixel_buffer_ptr))
@@ -692,5 +692,3 @@ impl fmt::Display for CVPixelBufferPool {
         write!(f, "CVPixelBufferPool")
     }
 }
-
-

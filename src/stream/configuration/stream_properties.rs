@@ -2,8 +2,8 @@
 //!
 //! This module provides methods to configure stream identification and HDR capture settings.
 
-use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 use super::internal::SCStreamConfiguration;
+use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 
 /// Dynamic range mode for capture (macOS 15.0+)
 #[repr(i32)]
@@ -104,9 +104,8 @@ impl SCStreamConfiguration {
     /// Requires the `macos_15_0` feature flag to be enabled.
     #[cfg(feature = "macos_15_0")]
     pub fn get_capture_dynamic_range(&self) -> SCCaptureDynamicRange {
-        let value = unsafe {
-            crate::ffi::sc_stream_configuration_get_capture_dynamic_range(self.as_ptr())
-        };
+        let value =
+            unsafe { crate::ffi::sc_stream_configuration_get_capture_dynamic_range(self.as_ptr()) };
         match value {
             1 => SCCaptureDynamicRange::HDRLocalDisplay,
             2 => SCCaptureDynamicRange::HDRCanonicalDisplay,

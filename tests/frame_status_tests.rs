@@ -66,7 +66,7 @@ fn test_frame_status_hash() {
     set.insert(SCFrameStatus::Complete);
     set.insert(SCFrameStatus::Idle);
     set.insert(SCFrameStatus::Complete); // Duplicate
-    
+
     assert_eq!(set.len(), 2);
     assert!(set.contains(&SCFrameStatus::Complete));
     assert!(set.contains(&SCFrameStatus::Idle));
@@ -78,7 +78,7 @@ fn test_frame_status_copy() {
     let status1 = SCFrameStatus::Complete;
     let status2 = status1; // Copy
     assert_eq!(status1, status2);
-    
+
     // Both should still be usable
     assert!(status1.has_content());
     assert!(status2.has_content());
@@ -95,7 +95,7 @@ fn test_frame_status_clone() {
 fn test_frame_status_const() {
     const STATUS: SCFrameStatus = SCFrameStatus::Complete;
     assert_eq!(STATUS, SCFrameStatus::Complete);
-    
+
     // Verify const methods work
     assert!(STATUS.has_content());
     assert!(STATUS.is_complete());
@@ -104,7 +104,7 @@ fn test_frame_status_const() {
 #[test]
 fn test_frame_status_match() {
     let status = SCFrameStatus::Complete;
-    
+
     let result = match status {
         SCFrameStatus::Complete => "complete",
         SCFrameStatus::Idle => "idle",
@@ -113,7 +113,7 @@ fn test_frame_status_match() {
         SCFrameStatus::Started => "started",
         SCFrameStatus::Stopped => "stopped",
     };
-    
+
     assert_eq!(result, "complete");
 }
 
@@ -127,7 +127,7 @@ fn test_frame_status_all_variants() {
         SCFrameStatus::Started,
         SCFrameStatus::Stopped,
     ];
-    
+
     // Ensure all can be created and are distinct
     let mut set = HashSet::new();
     for status in &all_statuses {
@@ -145,11 +145,9 @@ fn test_frame_status_logic() {
         SCFrameStatus::Blank,
         SCFrameStatus::Started,
     ];
-    
-    let processable: Vec<_> = statuses.iter()
-        .filter(|s| s.has_content())
-        .collect();
-    
+
+    let processable: Vec<_> = statuses.iter().filter(|s| s.has_content()).collect();
+
     assert_eq!(processable.len(), 2); // Complete and Started
     assert!(processable.contains(&&SCFrameStatus::Complete));
     assert!(processable.contains(&&SCFrameStatus::Started));
@@ -165,7 +163,7 @@ fn test_frame_status_from_raw_roundtrip() {
         SCFrameStatus::Started,
         SCFrameStatus::Stopped,
     ];
-    
+
     for status in statuses {
         let raw = status as i32;
         let recovered = SCFrameStatus::from_raw(raw);
@@ -187,12 +185,12 @@ fn test_frame_status_ordering() {
 #[test]
 fn test_frame_status_option_usage() {
     let status: Option<SCFrameStatus> = Some(SCFrameStatus::Complete);
-    
+
     assert!(status.is_some());
     if let Some(s) = status {
         assert_eq!(s, SCFrameStatus::Complete);
     }
-    
+
     let no_status: Option<SCFrameStatus> = None;
     assert!(no_status.is_none());
 }
@@ -206,7 +204,7 @@ fn test_frame_status_result_usage() {
             Err("No content")
         }
     }
-    
+
     assert!(check_status(SCFrameStatus::Complete).is_ok());
     assert!(check_status(SCFrameStatus::Started).is_ok());
     assert!(check_status(SCFrameStatus::Idle).is_err());

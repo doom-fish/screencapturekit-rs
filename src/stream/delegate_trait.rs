@@ -34,13 +34,13 @@ use crate::error::SCError;
 pub trait SCStreamDelegateTrait: Send {
     /// Called when video effects start
     fn output_video_effect_did_start_for_stream(&self) {}
-    
+
     /// Called when video effects stop
     fn output_video_effect_did_stop_for_stream(&self) {}
-    
+
     /// Called when stream stops with an error
     fn did_stop_with_error(&self, _error: SCError) {}
-    
+
     /// Called when stream stops
     ///
     /// # Parameters

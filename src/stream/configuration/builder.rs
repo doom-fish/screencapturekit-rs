@@ -2,9 +2,9 @@
 //!
 //! Provides a fluent builder API for constructing stream configurations.
 
+use super::advanced::SCPresenterOverlayAlertSetting;
 use super::internal::SCStreamConfiguration;
 use super::pixel_format::PixelFormat;
-use super::advanced::SCPresenterOverlayAlertSetting;
 use super::stream_properties::SCCaptureDynamicRange;
 use crate::cg::CGRect;
 
@@ -115,7 +115,10 @@ impl SCStreamConfigurationBuilder {
     #[must_use]
     pub fn preserves_aspect_ratio(self, preserves: bool) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_preserves_aspect_ratio(self.config.as_ptr(), preserves);
+            crate::ffi::sc_stream_configuration_set_preserves_aspect_ratio(
+                self.config.as_ptr(),
+                preserves,
+            );
         }
         self
     }
@@ -127,7 +130,10 @@ impl SCStreamConfigurationBuilder {
     pub fn pixel_format(self, format: PixelFormat) -> Self {
         let code: crate::utils::four_char_code::FourCharCode = format.into();
         unsafe {
-            crate::ffi::sc_stream_configuration_set_pixel_format(self.config.as_ptr(), code.as_u32());
+            crate::ffi::sc_stream_configuration_set_pixel_format(
+                self.config.as_ptr(),
+                code.as_u32(),
+            );
         }
         self
     }
@@ -137,7 +143,10 @@ impl SCStreamConfigurationBuilder {
     pub fn color_matrix(self, matrix: &str) -> Self {
         if let Ok(c_str) = std::ffi::CString::new(matrix) {
             unsafe {
-                crate::ffi::sc_stream_configuration_set_color_matrix(self.config.as_ptr(), c_str.as_ptr());
+                crate::ffi::sc_stream_configuration_set_color_matrix(
+                    self.config.as_ptr(),
+                    c_str.as_ptr(),
+                );
             }
         }
         self
@@ -148,7 +157,10 @@ impl SCStreamConfigurationBuilder {
     pub fn color_space_name(self, name: &str) -> Self {
         if let Ok(c_str) = std::ffi::CString::new(name) {
             unsafe {
-                crate::ffi::sc_stream_configuration_set_color_space_name(self.config.as_ptr(), c_str.as_ptr());
+                crate::ffi::sc_stream_configuration_set_color_space_name(
+                    self.config.as_ptr(),
+                    c_str.as_ptr(),
+                );
             }
         }
         self
@@ -160,7 +172,10 @@ impl SCStreamConfigurationBuilder {
     pub fn background_color(self, red: f32, green: f32, blue: f32) -> Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_background_color(
-                self.config.as_ptr(), red, green, blue,
+                self.config.as_ptr(),
+                red,
+                green,
+                blue,
             );
         }
         self
@@ -182,7 +197,10 @@ impl SCStreamConfigurationBuilder {
     #[allow(clippy::cast_possible_wrap)]
     pub fn sample_rate(self, rate: i32) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_sample_rate(self.config.as_ptr(), rate as isize);
+            crate::ffi::sc_stream_configuration_set_sample_rate(
+                self.config.as_ptr(),
+                rate as isize,
+            );
         }
         self
     }
@@ -192,7 +210,10 @@ impl SCStreamConfigurationBuilder {
     #[allow(clippy::cast_possible_wrap)]
     pub fn channel_count(self, count: i32) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_channel_count(self.config.as_ptr(), count as isize);
+            crate::ffi::sc_stream_configuration_set_channel_count(
+                self.config.as_ptr(),
+                count as isize,
+            );
         }
         self
     }
@@ -201,7 +222,10 @@ impl SCStreamConfigurationBuilder {
     #[must_use]
     pub fn excludes_current_process_audio(self, excludes: bool) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_excludes_current_process_audio(self.config.as_ptr(), excludes);
+            crate::ffi::sc_stream_configuration_set_excludes_current_process_audio(
+                self.config.as_ptr(),
+                excludes,
+            );
         }
         self
     }
@@ -210,7 +234,10 @@ impl SCStreamConfigurationBuilder {
     #[must_use]
     pub fn capture_microphone(self, captures: bool) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_captures_microphone(self.config.as_ptr(), captures);
+            crate::ffi::sc_stream_configuration_set_captures_microphone(
+                self.config.as_ptr(),
+                captures,
+            );
         }
         self
     }
@@ -222,12 +249,14 @@ impl SCStreamConfigurationBuilder {
             if let Some(id) = device_id {
                 if let Ok(c_str) = std::ffi::CString::new(id) {
                     crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
-                        self.config.as_ptr(), c_str.as_ptr(),
+                        self.config.as_ptr(),
+                        c_str.as_ptr(),
                     );
                 }
             } else {
                 crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
-                    self.config.as_ptr(), std::ptr::null(),
+                    self.config.as_ptr(),
+                    std::ptr::null(),
                 );
             }
         }
@@ -252,7 +281,11 @@ impl SCStreamConfigurationBuilder {
     pub fn minimum_frame_interval(self, value: i64, timescale: i32) -> Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_minimum_frame_interval(
-                self.config.as_ptr(), value, timescale, 0, 0,
+                self.config.as_ptr(),
+                value,
+                timescale,
+                0,
+                0,
             );
         }
         self
@@ -263,7 +296,10 @@ impl SCStreamConfigurationBuilder {
     #[allow(clippy::cast_possible_wrap)]
     pub fn queue_depth(self, depth: i32) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_queue_depth(self.config.as_ptr(), depth as isize);
+            crate::ffi::sc_stream_configuration_set_queue_depth(
+                self.config.as_ptr(),
+                depth as isize,
+            );
         }
         self
     }
@@ -283,7 +319,10 @@ impl SCStreamConfigurationBuilder {
     #[must_use]
     pub fn ignores_global_clipboard(self, ignores: bool) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_ignore_global_clipboard(self.config.as_ptr(), ignores);
+            crate::ffi::sc_stream_configuration_set_ignore_global_clipboard(
+                self.config.as_ptr(),
+                ignores,
+            );
         }
         self
     }
@@ -292,7 +331,10 @@ impl SCStreamConfigurationBuilder {
     #[must_use]
     pub fn includes_child_windows(self, includes: bool) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_includes_child_windows(self.config.as_ptr(), includes);
+            crate::ffi::sc_stream_configuration_set_includes_child_windows(
+                self.config.as_ptr(),
+                includes,
+            );
         }
         self
     }
@@ -301,7 +343,10 @@ impl SCStreamConfigurationBuilder {
     #[must_use]
     pub fn ignores_shadows_single_window(self, ignores: bool) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_ignores_shadows_single_window(self.config.as_ptr(), ignores);
+            crate::ffi::sc_stream_configuration_set_ignores_shadows_single_window(
+                self.config.as_ptr(),
+                ignores,
+            );
         }
         self
     }
@@ -312,7 +357,9 @@ impl SCStreamConfigurationBuilder {
     pub fn capture_resolution(self, width: usize, height: usize) -> Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_capture_resolution(
-                self.config.as_ptr(), width as isize, height as isize,
+                self.config.as_ptr(),
+                width as isize,
+                height as isize,
             );
         }
         self
@@ -320,10 +367,14 @@ impl SCStreamConfigurationBuilder {
 
     /// Set presenter overlay alert setting
     #[must_use]
-    pub fn presenter_overlay_privacy_alert_setting(self, setting: SCPresenterOverlayAlertSetting) -> Self {
+    pub fn presenter_overlay_privacy_alert_setting(
+        self,
+        setting: SCPresenterOverlayAlertSetting,
+    ) -> Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_presenter_overlay_privacy_alert_setting(
-                self.config.as_ptr(), setting as i32,
+                self.config.as_ptr(),
+                setting as i32,
             );
         }
         self
@@ -337,10 +388,16 @@ impl SCStreamConfigurationBuilder {
         unsafe {
             if let Some(n) = name {
                 if let Ok(c_str) = std::ffi::CString::new(n) {
-                    crate::ffi::sc_stream_configuration_set_stream_name(self.config.as_ptr(), c_str.as_ptr());
+                    crate::ffi::sc_stream_configuration_set_stream_name(
+                        self.config.as_ptr(),
+                        c_str.as_ptr(),
+                    );
                 }
             } else {
-                crate::ffi::sc_stream_configuration_set_stream_name(self.config.as_ptr(), std::ptr::null());
+                crate::ffi::sc_stream_configuration_set_stream_name(
+                    self.config.as_ptr(),
+                    std::ptr::null(),
+                );
             }
         }
         self
@@ -350,7 +407,10 @@ impl SCStreamConfigurationBuilder {
     #[must_use]
     pub fn capture_dynamic_range(self, range: SCCaptureDynamicRange) -> Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_capture_dynamic_range(self.config.as_ptr(), range as i32);
+            crate::ffi::sc_stream_configuration_set_capture_dynamic_range(
+                self.config.as_ptr(),
+                range as i32,
+            );
         }
         self
     }
