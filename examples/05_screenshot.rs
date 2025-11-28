@@ -1,9 +1,11 @@
 //! Screenshot Capture (macOS 14.0+)
 //!
-//! Demonstrates taking a single screenshot.
+//! Demonstrates taking screenshots using SCScreenshotManager.
 //! This example shows:
 //! - Using `SCScreenshotManager` (macOS 14.0+)
 //! - Capturing a screenshot
+//! - Getting content info (scale factor, dimensions)
+//! - Capturing a specific screen region (macOS 15.2+)
 //! - Saving as PNG
 
 #[cfg(feature = "macos_14_0")]
@@ -37,32 +39,76 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .exclude_windows(&[])
         .build();
 
-    // 3. Configure screenshot
+    // 3. Get content info (macOS 14.0+ feature)
+    if let Some(info) =
+        screencapturekit::shareable_content::SCShareableContentInfo::for_filter(&filter)
+    {
+        println!("\n📊 Content Info:");
+        println!("   Style: {:?}", info.style());
+        println!("   Scale: {:.1}x (Retina)", info.point_pixel_scale());
+        let (pw, ph) = info.pixel_size();
+        println!("   Pixel dimensions: {}x{}", pw, ph);
+    }
+
+    // 4. Configure screenshot
     let config = SCStreamConfiguration::new()
         .with_width(1920)
         .with_height(1080);
 
-    // 4. Capture screenshot
-    println!("Capturing...");
+    // 5. Capture full screenshot
+    println!("\n📷 Capturing full screenshot...");
     let image = SCScreenshotManager::capture_image(&filter, &config)?;
 
     let width = image.width();
     let height = image.height();
-    println!("Captured: {width}x{height}");
+    println!("   Captured: {width}x{height}");
 
-    // 5. Save as PNG using png crate
+    // 6. Save as PNG using png crate
     let filename = "screenshot.png";
-    let rgba_data = image.get_rgba_data()?;
+    save_image_as_png(&image, filename)?;
+    println!("   ✅ Saved to {filename}");
 
+    // 7. Capture specific region (macOS 15.2+)
+    #[cfg(feature = "macos_15_2")]
+    {
+        use screencapturekit::cg::CGRect;
+
+        println!("\n📷 Capturing screen region (macOS 15.2+)...");
+        let rect = CGRect::new(100.0, 100.0, 640.0, 480.0);
+        match SCScreenshotManager::capture_image_in_rect(rect) {
+            Ok(region_image) => {
+                let filename = "screenshot_region.png";
+                save_image_as_png(&region_image, filename)?;
+                println!(
+                    "   Captured region: {}x{}",
+                    region_image.width(),
+                    region_image.height()
+                );
+                println!("   ✅ Saved to {filename}");
+            }
+            Err(e) => {
+                println!("   ⚠️  Region capture failed: {e}");
+            }
+        }
+    }
+
+    println!("\n✅ Screenshot example completed!");
+    Ok(())
+}
+
+#[cfg(feature = "macos_14_0")]
+fn save_image_as_png(
+    image: &screencapturekit::screenshot_manager::CGImage,
+    filename: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let rgba_data = image.get_rgba_data()?;
     let file = std::fs::File::create(filename)?;
     let buf_writer = std::io::BufWriter::new(file);
     #[allow(clippy::cast_possible_truncation)]
-    let mut encoder = png::Encoder::new(buf_writer, width as u32, height as u32);
+    let mut encoder = png::Encoder::new(buf_writer, image.width() as u32, image.height() as u32);
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
     let mut writer = encoder.write_header()?;
     writer.write_image_data(&rgba_data)?;
-
-    println!("✅ Saved to {filename}");
     Ok(())
 }
