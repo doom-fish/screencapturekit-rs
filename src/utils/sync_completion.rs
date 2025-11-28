@@ -19,10 +19,17 @@
 //! ```
 
 use std::ffi::{c_void, CStr};
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Condvar, Mutex};
+use std::task::{Context, Poll, Waker};
 
-/// Internal state for tracking completion
-struct CompletionState<T> {
+// ============================================================================
+// Synchronous Completion (blocking)
+// ============================================================================
+
+/// Internal state for tracking synchronous completion
+struct SyncCompletionState<T> {
     completed: bool,
     result: Option<Result<T, String>>,
 }
@@ -33,7 +40,7 @@ struct CompletionState<T> {
 /// and retrieve the result. It uses `Arc<(Mutex, Condvar)>` internally
 /// for thread-safe signaling between the callback and the waiting thread.
 pub struct SyncCompletion<T> {
-    inner: Arc<(Mutex<CompletionState<T>>, Condvar)>,
+    inner: Arc<(Mutex<SyncCompletionState<T>>, Condvar)>,
 }
 
 /// Raw pointer type for passing to FFI callbacks
@@ -48,7 +55,7 @@ impl<T> SyncCompletion<T> {
     #[must_use]
     pub fn new() -> (Self, SyncCompletionPtr) {
         let inner = Arc::new((
-            Mutex::new(CompletionState {
+            Mutex::new(SyncCompletionState {
                 completed: false,
                 result: None,
             }),
@@ -115,7 +122,7 @@ impl<T> SyncCompletion<T> {
         if context.is_null() {
             return;
         }
-        let inner = Arc::from_raw(context.cast::<(Mutex<CompletionState<T>>, Condvar)>());
+        let inner = Arc::from_raw(context.cast::<(Mutex<SyncCompletionState<T>>, Condvar)>());
         let (lock, cvar) = &*inner;
         {
             let mut state = lock.lock().unwrap();
@@ -131,6 +138,116 @@ impl<T> Default for SyncCompletion<T> {
         Self::new().0
     }
 }
+
+// ============================================================================
+// Asynchronous Completion (Future-based)
+// ============================================================================
+
+/// Internal state for tracking async completion
+struct AsyncCompletionState<T> {
+    result: Option<Result<T, String>>,
+    waker: Option<Waker>,
+}
+
+/// An async completion handler for FFI callbacks
+///
+/// This type provides a `Future` that resolves when an async callback completes.
+/// It uses `Arc<Mutex>` internally for thread-safe signaling and waker management.
+pub struct AsyncCompletion<T> {
+    _marker: std::marker::PhantomData<T>,
+}
+
+/// Future returned by `AsyncCompletion`
+pub struct AsyncCompletionFuture<T> {
+    inner: Arc<Mutex<AsyncCompletionState<T>>>,
+}
+
+impl<T> AsyncCompletion<T> {
+    /// Create a new async completion handler and return the context pointer for FFI
+    ///
+    /// Returns a tuple of (future, `context_ptr`) where:
+    /// - `future` can be awaited to get the result
+    /// - `context_ptr` should be passed to the FFI callback
+    #[must_use]
+    pub fn create() -> (AsyncCompletionFuture<T>, SyncCompletionPtr) {
+        let inner = Arc::new(Mutex::new(AsyncCompletionState {
+            result: None,
+            waker: None,
+        }));
+        let raw = Arc::into_raw(Arc::clone(&inner));
+        (AsyncCompletionFuture { inner }, raw as SyncCompletionPtr)
+    }
+
+    /// Signal successful completion with a value
+    ///
+    /// # Safety
+    ///
+    /// The `context` pointer must be a valid pointer obtained from `AsyncCompletion::new()`.
+    /// This function consumes the Arc reference, so it must only be called once per context.
+    pub unsafe fn complete_ok(context: SyncCompletionPtr, value: T) {
+        Self::complete_with_result(context, Ok(value));
+    }
+
+    /// Signal completion with an error
+    ///
+    /// # Safety
+    ///
+    /// The `context` pointer must be a valid pointer obtained from `AsyncCompletion::new()`.
+    /// This function consumes the Arc reference, so it must only be called once per context.
+    pub unsafe fn complete_err(context: SyncCompletionPtr, error: String) {
+        Self::complete_with_result(context, Err(error));
+    }
+
+    /// Signal completion with a result
+    ///
+    /// # Safety
+    ///
+    /// The `context` pointer must be a valid pointer obtained from `AsyncCompletion::new()`.
+    /// This function consumes the Arc reference, so it must only be called once per context.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned.
+    pub unsafe fn complete_with_result(context: SyncCompletionPtr, result: Result<T, String>) {
+        if context.is_null() {
+            return;
+        }
+        let inner = Arc::from_raw(context.cast::<Mutex<AsyncCompletionState<T>>>());
+
+        let waker = {
+            let mut state = inner.lock().unwrap();
+            state.result = Some(result);
+            state.waker.take()
+        };
+
+        if let Some(w) = waker {
+            w.wake();
+        }
+
+        // Keep the Arc alive - it will be dropped when the future is dropped
+        std::mem::forget(inner);
+    }
+}
+
+impl<T> Future for AsyncCompletionFuture<T> {
+    type Output = Result<T, String>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut state = self.inner.lock().unwrap();
+
+        state.result.take().map_or_else(
+            || {
+                state.waker = Some(cx.waker().clone());
+                Poll::Pending
+            },
+            Poll::Ready,
+        )
+    }
+}
+
+// ============================================================================
+// Shared Utilities
+// ============================================================================
 
 /// Helper to extract error message from a C string pointer
 ///
@@ -226,5 +343,23 @@ mod tests {
         let msg = std::ffi::CString::new("hello").unwrap();
         let result = unsafe { error_from_cstr(msg.as_ptr()) };
         assert_eq!(result, "hello");
+    }
+
+    #[test]
+    fn test_async_completion_immediate() {
+        let (future, context) = AsyncCompletion::<i32>::create();
+
+        // Complete immediately before polling
+        unsafe { AsyncCompletion::complete_ok(context, 42) };
+
+        // Poll should return Ready immediately
+        let waker = std::task::Waker::noop();
+        let mut cx = Context::from_waker(&waker);
+        let mut pinned = std::pin::pin!(future);
+
+        match pinned.as_mut().poll(&mut cx) {
+            Poll::Ready(Ok(v)) => assert_eq!(v, 42),
+            _ => panic!("Expected Ready(Ok(42))"),
+        }
     }
 }
