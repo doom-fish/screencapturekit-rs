@@ -150,7 +150,7 @@ impl AsyncSCShareableContentOptions {
         let state_ptr = Arc::into_raw(state.clone()).cast_mut().cast::<c_void>();
         
         unsafe {
-            crate::ffi::sc_shareable_content_get_async(
+            crate::ffi::sc_shareable_content_get_with_options(
                 self.exclude_desktop_windows,
                 self.on_screen_windows_only,
                 shareable_content_callback,
