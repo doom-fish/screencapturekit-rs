@@ -391,16 +391,21 @@ public func updateStreamConfiguration(
     _ context: UnsafeMutableRawPointer?,
     _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void
 ) {
-    let scStream: SCStream = unretained(stream)
-    let scConfig: SCStreamConfiguration = unretained(config)
-    Task {
-        do {
-            try await scStream.updateConfiguration(scConfig)
-            callback(context, true, nil)
-        } catch {
-            let bridgeError = SCBridgeError.configurationError(error.localizedDescription)
-            bridgeError.description.withCString { callback(context, false, $0) }
+    if #available(macOS 14.0, *) {
+        let scStream: SCStream = unretained(stream)
+        let scConfig: SCStreamConfiguration = unretained(config)
+        Task {
+            do {
+                try await scStream.updateConfiguration(scConfig)
+                callback(context, true, nil)
+            } catch {
+                let bridgeError = SCBridgeError.configurationError(error.localizedDescription)
+                bridgeError.description.withCString { callback(context, false, $0) }
+            }
         }
+    } else {
+        let bridgeError = SCBridgeError.configurationError("updateConfiguration requires macOS 14.0 or later")
+        bridgeError.description.withCString { callback(context, false, $0) }
     }
 }
 
