@@ -3,7 +3,7 @@ use crate::cm::CMTime;
 
 impl SCStreamConfiguration {
     /// Set the queue depth for frame buffering
-    pub fn set_queue_depth(&mut self, queue_depth: u32) {
+    pub fn set_queue_depth(&mut self, queue_depth: u32) -> &mut Self {
         // FFI expects isize; u32 may wrap on 32-bit platforms (acceptable)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
@@ -12,6 +12,14 @@ impl SCStreamConfiguration {
                 queue_depth as isize,
             );
         }
+        self
+    }
+
+    /// Set the queue depth (builder pattern)
+    #[must_use]
+    pub fn with_queue_depth(mut self, queue_depth: u32) -> Self {
+        self.set_queue_depth(queue_depth);
+        self
     }
 
     pub fn get_queue_depth(&self) -> u32 {
@@ -23,7 +31,7 @@ impl SCStreamConfiguration {
     }
 
     /// Set the minimum frame interval
-    pub fn set_minimum_frame_interval(&mut self, cm_time: &CMTime) {
+    pub fn set_minimum_frame_interval(&mut self, cm_time: &CMTime) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_minimum_frame_interval(
                 self.as_ptr(),
@@ -33,6 +41,14 @@ impl SCStreamConfiguration {
                 cm_time.epoch,
             );
         }
+        self
+    }
+
+    /// Set the minimum frame interval (builder pattern)
+    #[must_use]
+    pub fn with_minimum_frame_interval(mut self, cm_time: &CMTime) -> Self {
+        self.set_minimum_frame_interval(cm_time);
+        self
     }
 
     pub fn get_minimum_frame_interval(&self) -> CMTime {
@@ -66,7 +82,7 @@ impl SCStreamConfiguration {
     /// # Arguments
     /// * `width` - The width in pixels
     /// * `height` - The height in pixels
-    pub fn set_capture_resolution(&mut self, width: usize, height: usize) {
+    pub fn set_capture_resolution(&mut self, width: usize, height: usize) -> &mut Self {
         // FFI expects isize for dimensions (Objective-C NSInteger)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
@@ -76,6 +92,14 @@ impl SCStreamConfiguration {
                 height as isize,
             );
         }
+        self
+    }
+
+    /// Set the capture resolution (builder pattern)
+    #[must_use]
+    pub fn with_capture_resolution(mut self, width: usize, height: usize) -> Self {
+        self.set_capture_resolution(width, height);
+        self
     }
 
     /// Get the configured capture resolution

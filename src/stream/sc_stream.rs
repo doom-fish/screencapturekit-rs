@@ -83,9 +83,9 @@ extern "C" fn sample_handler(
 ///     .display(display)
 ///     .exclude_windows(&[])
 ///     .build();
-/// let mut config = SCStreamConfiguration::default();
-/// config.set_width(1920);
-/// config.set_height(1080);
+/// let config = SCStreamConfiguration::new()
+///     .with_width(1920)
+///     .with_height(1080);
 ///
 /// // Create and start stream
 /// let mut stream = SCStream::new(&filter, &config);
@@ -123,7 +123,9 @@ impl SCStream {
     ///     .display(display)
     ///     .exclude_windows(&[])
     ///     .build();
-    /// let config = SCStreamConfiguration::default();
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_width(1920)
+    ///     .with_height(1080);
     ///
     /// let stream = SCStream::new(&filter, &config);
     /// # Ok(())

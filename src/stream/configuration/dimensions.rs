@@ -21,12 +21,30 @@ impl SCStreamConfiguration {
     /// config.set_width(1920);
     /// assert_eq!(config.get_width(), 1920);
     /// ```
-    pub fn set_width(&mut self, width: u32) {
+    pub fn set_width(&mut self, width: u32) -> &mut Self {
         // FFI expects isize; u32 may wrap on 32-bit platforms (acceptable)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
             crate::ffi::sc_stream_configuration_set_width(self.as_ptr(), width as isize);
         }
+        self
+    }
+
+    /// Set the output width in pixels (builder pattern)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::prelude::*;
+    ///
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_width(1920)
+    ///     .with_height(1080);
+    /// ```
+    #[must_use]
+    pub fn with_width(mut self, width: u32) -> Self {
+        self.set_width(width);
+        self
     }
 
     /// Get the configured output width in pixels
@@ -61,12 +79,30 @@ impl SCStreamConfiguration {
     /// config.set_height(1080);
     /// assert_eq!(config.get_height(), 1080);
     /// ```
-    pub fn set_height(&mut self, height: u32) {
+    pub fn set_height(&mut self, height: u32) -> &mut Self {
         // FFI expects isize; u32 may wrap on 32-bit platforms (acceptable)
         #[allow(clippy::cast_possible_wrap)]
         unsafe {
             crate::ffi::sc_stream_configuration_set_height(self.as_ptr(), height as isize);
         }
+        self
+    }
+
+    /// Set the output height in pixels (builder pattern)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::prelude::*;
+    ///
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_width(1920)
+    ///     .with_height(1080);
+    /// ```
+    #[must_use]
+    pub fn with_height(mut self, height: u32) -> Self {
+        self.set_height(height);
+        self
     }
 
     /// Get the configured output height in pixels
@@ -102,10 +138,18 @@ impl SCStreamConfiguration {
     /// config.set_scales_to_fit(true);
     /// assert!(config.get_scales_to_fit());
     /// ```
-    pub fn set_scales_to_fit(&mut self, scales_to_fit: bool) {
+    pub fn set_scales_to_fit(&mut self, scales_to_fit: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_scales_to_fit(self.as_ptr(), scales_to_fit);
         }
+        self
+    }
+
+    /// Enable or disable scaling to fit (builder pattern)
+    #[must_use]
+    pub fn with_scales_to_fit(mut self, scales_to_fit: bool) -> Self {
+        self.set_scales_to_fit(scales_to_fit);
+        self
     }
 
     /// Check if scaling to fit is enabled
@@ -129,7 +173,7 @@ impl SCStreamConfiguration {
     /// let mut config = SCStreamConfiguration::default();
     /// config.set_source_rect(rect);
     /// ```
-    pub fn set_source_rect(&mut self, source_rect: CGRect) {
+    pub fn set_source_rect(&mut self, source_rect: CGRect) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_source_rect(
                 self.as_ptr(),
@@ -139,6 +183,14 @@ impl SCStreamConfiguration {
                 source_rect.height,
             );
         }
+        self
+    }
+
+    /// Set the source rectangle (builder pattern)
+    #[must_use]
+    pub fn with_source_rect(mut self, source_rect: CGRect) -> Self {
+        self.set_source_rect(source_rect);
+        self
     }
 
     /// Get the configured source rectangle
@@ -175,7 +227,7 @@ impl SCStreamConfiguration {
     /// let mut config = SCStreamConfiguration::default();
     /// config.set_destination_rect(rect);
     /// ```
-    pub fn set_destination_rect(&mut self, destination_rect: CGRect) {
+    pub fn set_destination_rect(&mut self, destination_rect: CGRect) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_destination_rect(
                 self.as_ptr(),
@@ -185,6 +237,14 @@ impl SCStreamConfiguration {
                 destination_rect.height,
             );
         }
+        self
+    }
+
+    /// Set the destination rectangle (builder pattern)
+    #[must_use]
+    pub fn with_destination_rect(mut self, destination_rect: CGRect) -> Self {
+        self.set_destination_rect(destination_rect);
+        self
     }
 
     /// Get the configured destination rectangle
@@ -223,13 +283,21 @@ impl SCStreamConfiguration {
     /// // Returns true on macOS 14.0+, false on older versions
     /// let _ = config.get_preserves_aspect_ratio();
     /// ```
-    pub fn set_preserves_aspect_ratio(&mut self, preserves_aspect_ratio: bool) {
+    pub fn set_preserves_aspect_ratio(&mut self, preserves_aspect_ratio: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_preserves_aspect_ratio(
                 self.as_ptr(),
                 preserves_aspect_ratio,
             );
         }
+        self
+    }
+
+    /// Preserve aspect ratio when scaling (builder pattern)
+    #[must_use]
+    pub fn with_preserves_aspect_ratio(mut self, preserves_aspect_ratio: bool) -> Self {
+        self.set_preserves_aspect_ratio(preserves_aspect_ratio);
+        self
     }
 
     /// Check if aspect ratio preservation is enabled
@@ -240,13 +308,21 @@ impl SCStreamConfiguration {
     /// Preserve aspect ratio when scaling (alternative API)
     ///
     /// This is an alternative to `set_preserves_aspect_ratio` for compatibility.
-    pub fn set_preserve_aspect_ratio(&mut self, preserve_aspect_ratio: bool) {
+    pub fn set_preserve_aspect_ratio(&mut self, preserve_aspect_ratio: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_preserve_aspect_ratio(
                 self.as_ptr(),
                 preserve_aspect_ratio,
             );
         }
+        self
+    }
+
+    /// Preserve aspect ratio (builder pattern, alternative API)
+    #[must_use]
+    pub fn with_preserve_aspect_ratio(mut self, preserve_aspect_ratio: bool) -> Self {
+        self.set_preserve_aspect_ratio(preserve_aspect_ratio);
+        self
     }
 
     /// Check if aspect ratio preservation is enabled (alternative API)
@@ -270,13 +346,21 @@ impl SCStreamConfiguration {
     /// // Note: Getter may not return the set value on all macOS versions
     /// let _ = config.get_increase_resolution_for_retina_displays();
     /// ```
-    pub fn set_increase_resolution_for_retina_displays(&mut self, increase_resolution: bool) {
+    pub fn set_increase_resolution_for_retina_displays(&mut self, increase_resolution: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_increase_resolution_for_retina_displays(
                 self.as_ptr(),
                 increase_resolution,
             );
         }
+        self
+    }
+
+    /// Enable increased resolution for Retina displays (builder pattern)
+    #[must_use]
+    pub fn with_increase_resolution_for_retina_displays(mut self, increase_resolution: bool) -> Self {
+        self.set_increase_resolution_for_retina_displays(increase_resolution);
+        self
     }
 
     /// Check if increased resolution for Retina displays is enabled
