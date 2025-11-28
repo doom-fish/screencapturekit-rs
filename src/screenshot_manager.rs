@@ -9,6 +9,9 @@ use crate::stream::content_filter::SCContentFilter;
 use crate::utils::sync_completion::{error_from_cstr, SyncCompletion};
 use std::ffi::c_void;
 
+#[cfg(feature = "macos_15_2")]
+use crate::cg::CGRect;
+
 extern "C" fn image_callback(
     image_ptr: *const c_void,
     error_ptr: *const i8,
@@ -240,6 +243,46 @@ impl SCScreenshotManager {
                 content_filter.as_ptr(),
                 configuration.as_ptr(),
                 buffer_callback,
+                context,
+            );
+        }
+
+        completion.wait().map_err(SCError::ScreenshotError)
+    }
+
+    /// Capture a screenshot of a specific screen region (macOS 15.2+)
+    ///
+    /// This method captures the content within the specified rectangle,
+    /// which can span multiple displays.
+    ///
+    /// # Arguments
+    /// * `rect` - The rectangle to capture, in screen coordinates (points)
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - The system is not macOS 15.2+
+    /// - Screen recording permission is not granted
+    /// - The capture fails for any reason
+    ///
+    /// # Examples
+    /// ```rust,ignore
+    /// use screencapturekit::screenshot_manager::SCScreenshotManager;
+    /// use screencapturekit::cg::CGRect;
+    ///
+    /// let rect = CGRect::new(0.0, 0.0, 1920.0, 1080.0);
+    /// let image = SCScreenshotManager::capture_image_in_rect(rect)?;
+    /// ```
+    #[cfg(feature = "macos_15_2")]
+    pub fn capture_image_in_rect(rect: CGRect) -> Result<CGImage, SCError> {
+        let (completion, context) = SyncCompletion::<CGImage>::new();
+
+        unsafe {
+            crate::ffi::sc_screenshot_manager_capture_image_in_rect(
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                image_callback,
                 context,
             );
         }

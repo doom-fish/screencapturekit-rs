@@ -57,3 +57,44 @@ public func captureScreenshotSampleBuffer(
         }
     }
 }
+
+// MARK: - Capture image in rect (macOS 15.2+)
+
+#if compiler(>=6.0)
+@_cdecl("sc_screenshot_manager_capture_image_in_rect")
+public func captureScreenshotInRect(
+    _ x: Double,
+    _ y: Double,
+    _ width: Double,
+    _ height: Double,
+    _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    if #available(macOS 15.2, *) {
+        let rect = CGRect(x: x, y: y, width: width, height: height)
+        Task {
+            do {
+                let image = try await SCScreenshotManager.captureImage(in: rect)
+                callback(retain(image), nil, userData)
+            } catch {
+                let errorMsg = error.localizedDescription
+                errorMsg.withCString { callback(nil, $0, userData) }
+            }
+        }
+    } else {
+        "captureImageInRect requires macOS 15.2+".withCString { callback(nil, $0, userData) }
+    }
+}
+#else
+@_cdecl("sc_screenshot_manager_capture_image_in_rect")
+public func captureScreenshotInRect(
+    _ x: Double,
+    _ y: Double,
+    _ width: Double,
+    _ height: Double,
+    _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    "captureImageInRect requires macOS 15.2+".withCString { callback(nil, $0, userData) }
+}
+#endif
