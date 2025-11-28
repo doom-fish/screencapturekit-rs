@@ -4,8 +4,17 @@ use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::configuration::{Point, Rect, Size};
 use screencapturekit::stream::content_filter::SCContentFilter;
 
+// Initialize CoreGraphics to prevent CGS_REQUIRE_INIT crashes in CI
+fn cg_init_for_headless_ci() {
+    extern "C" {
+        fn sc_initialize_core_graphics();
+    }
+    unsafe { sc_initialize_core_graphics() }
+}
+
 #[test]
 fn test_content_filter_builder_display() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
@@ -21,6 +30,7 @@ fn test_content_filter_builder_display() {
 
 #[test]
 fn test_content_filter_builder_window() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
@@ -32,6 +42,7 @@ fn test_content_filter_builder_window() {
 
 #[test]
 fn test_content_filter_exclude_windows() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
     let windows = content.windows();
@@ -50,6 +61,7 @@ fn test_content_filter_exclude_windows() {
 
 #[test]
 fn test_content_filter_include_windows() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
     let windows = content.windows();
@@ -68,6 +80,7 @@ fn test_content_filter_include_windows() {
 
 #[test]
 fn test_content_filter_include_applications() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
     let apps = content.applications();
@@ -86,6 +99,7 @@ fn test_content_filter_include_applications() {
 
 #[test]
 fn test_content_filter_content_rect() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
@@ -106,6 +120,7 @@ fn test_content_filter_content_rect() {
 
 #[test]
 fn test_content_filter_set_content_rect() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
@@ -123,6 +138,7 @@ fn test_content_filter_set_content_rect() {
 
 #[test]
 fn test_content_filter_clone() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
@@ -146,6 +162,7 @@ fn test_content_filter_send_sync() {
 
 #[test]
 fn test_content_filter_debug_display() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
@@ -163,6 +180,7 @@ fn test_content_filter_debug_display() {
 
 #[test]
 fn test_content_filter_equality() {
+    cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
@@ -181,6 +199,7 @@ fn test_content_filter_equality() {
 
 #[test]
 fn test_content_filter_hash() {
+    cg_init_for_headless_ci();
     use std::collections::HashSet;
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
