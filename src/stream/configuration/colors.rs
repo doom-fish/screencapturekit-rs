@@ -14,10 +14,10 @@ impl SCStreamConfiguration {
     /// ```
     /// use screencapturekit::stream::configuration::{SCStreamConfiguration, PixelFormat};
     ///
-    /// let config = SCStreamConfiguration::default()
-    ///     .set_pixel_format(PixelFormat::BGRA);
+    /// let mut config = SCStreamConfiguration::default();
+    /// config.set_pixel_format(PixelFormat::BGRA);
     /// ```
-    pub fn set_pixel_format(self, pixel_format: PixelFormat) -> Self {
+    pub fn set_pixel_format(&mut self, pixel_format: PixelFormat) {
         let four_char_code: FourCharCode = pixel_format.into();
         unsafe {
             crate::ffi::sc_stream_configuration_set_pixel_format(
@@ -25,7 +25,6 @@ impl SCStreamConfiguration {
                 four_char_code.as_u32(),
             );
         }
-        self
     }
 
     /// Get the current pixel format
@@ -45,17 +44,16 @@ impl SCStreamConfiguration {
     /// - `r`: Red component (0.0 - 1.0)
     /// - `g`: Green component (0.0 - 1.0)
     /// - `b`: Blue component (0.0 - 1.0)
-    pub fn set_background_color(self, r: f32, g: f32, b: f32) -> Self {
+    pub fn set_background_color(&mut self, r: f32, g: f32, b: f32) {
         unsafe {
             crate::ffi::sc_stream_configuration_set_background_color(self.as_ptr(), r, g, b);
         }
-        self
     }
 
     /// Set the color space name for captured content
     ///
     /// Available on macOS 13.0+
-    pub fn set_color_space_name(self, name: &str) -> Self {
+    pub fn set_color_space_name(&mut self, name: &str) {
         if let Ok(c_name) = std::ffi::CString::new(name) {
             unsafe {
                 crate::ffi::sc_stream_configuration_set_color_space_name(
@@ -64,13 +62,12 @@ impl SCStreamConfiguration {
                 );
             }
         }
-        self
     }
 
     /// Set the color matrix for captured content
     ///
     /// Available on macOS 13.0+. The matrix should be a 3x3 array in row-major order.
-    pub fn set_color_matrix(self, matrix: &str) -> Self {
+    pub fn set_color_matrix(&mut self, matrix: &str) {
         if let Ok(c_matrix) = std::ffi::CString::new(matrix) {
             unsafe {
                 crate::ffi::sc_stream_configuration_set_color_matrix(
@@ -79,6 +76,5 @@ impl SCStreamConfiguration {
                 );
             }
         }
-        self
     }
 }

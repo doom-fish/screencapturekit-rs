@@ -60,10 +60,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::builder().window(window).build();
 
     // 5. Configure stream
-    let config = SCStreamConfiguration::builder()
-        .width(1920)
-        .height(1080)
-        .build();
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(1920);
+    config.set_height(1080);
 
     // 6. Start capture
     let count = Arc::new(AtomicUsize::new(0));
