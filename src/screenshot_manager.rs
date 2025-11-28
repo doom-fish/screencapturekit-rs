@@ -59,7 +59,9 @@ extern "C" fn buffer_callback(
 /// let content = SCShareableContent::get()?;
 /// let display = &content.displays()[0];
 /// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
-/// let config = SCStreamConfiguration::default();
+/// let config = SCStreamConfiguration::new()
+///     .with_width(1920)
+///     .with_height(1080);
 ///
 /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
 /// println!("Screenshot size: {}x{}", image.width(), image.height());
@@ -86,8 +88,8 @@ impl CGImage {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
-    /// # let config = SCStreamConfiguration::default();
+    /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
     /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
     /// let width = image.width();
     /// println!("Width: {}", width);

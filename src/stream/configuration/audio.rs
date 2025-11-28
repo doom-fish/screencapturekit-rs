@@ -130,11 +130,11 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let mut config = SCStreamConfiguration::default();
-    /// config.set_captures_audio(true);       // System audio
-    /// config.set_captures_microphone(true);  // Microphone audio (macOS 15.0+)
-    /// config.set_sample_rate(48000);
-    /// config.set_channel_count(2);
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_captures_audio(true)       // System audio
+    ///     .with_captures_microphone(true)  // Microphone audio (macOS 15.0+)
+    ///     .with_sample_rate(48000)
+    ///     .with_channel_count(2);
     /// ```
     pub fn set_captures_microphone(&mut self, captures_microphone: bool) -> &mut Self {
         unsafe {
@@ -167,9 +167,9 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let mut config = SCStreamConfiguration::default();
-    /// config.set_captures_audio(true);
-    /// config.set_excludes_current_process_audio(true); // Prevent feedback
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_captures_audio(true)
+    ///     .with_excludes_current_process_audio(true); // Prevent feedback
     /// ```
     pub fn set_excludes_current_process_audio(&mut self, excludes: bool) -> &mut Self {
         unsafe {
@@ -207,9 +207,9 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let mut config = SCStreamConfiguration::default();
-    /// config.set_captures_microphone(true);
-    /// config.set_microphone_capture_device_id(Some("AppleHDAEngineInput:1B,0,1,0:1"));
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_captures_microphone(true)
+    ///     .with_microphone_capture_device_id(Some("AppleHDAEngineInput:1B,0,1,0:1"));
     /// ```
     pub fn set_microphone_capture_device_id(&mut self, device_id: Option<&str>) -> &mut Self {
         unsafe {

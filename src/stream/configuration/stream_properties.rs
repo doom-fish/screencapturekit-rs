@@ -29,8 +29,8 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let mut config = SCStreamConfiguration::default();
-    /// config.set_stream_name(Some("MyApp-MainCapture"));
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_stream_name(Some("MyApp-MainCapture"));
     /// ```
     pub fn set_stream_name(&mut self, name: Option<&str>) -> &mut Self {
         unsafe {
