@@ -254,3 +254,57 @@ fn test_recording_output_configuration_debug() {
     assert!(debug_str.contains("SCRecordingOutputConfiguration"));
     assert!(debug_str.contains("HEVC"));
 }
+
+#[test]
+fn test_recording_output_available_video_codecs() {
+    use screencapturekit::recording_output::SCRecordingOutputCodec;
+
+    let config = SCRecordingOutputConfiguration::new();
+    let codecs = config.available_video_codecs();
+
+    println!("Available video codecs: {:?}", codecs);
+    // Should contain at least H264
+    if !codecs.is_empty() {
+        assert!(
+            codecs.contains(&SCRecordingOutputCodec::H264)
+                || codecs.contains(&SCRecordingOutputCodec::HEVC)
+        );
+    }
+}
+
+#[test]
+fn test_recording_output_available_file_types() {
+    use screencapturekit::recording_output::SCRecordingOutputFileType;
+
+    let config = SCRecordingOutputConfiguration::new();
+    let file_types = config.available_output_file_types();
+
+    println!("Available file types: {:?}", file_types);
+    // Should contain at least MP4 or MOV
+    if !file_types.is_empty() {
+        assert!(
+            file_types.contains(&SCRecordingOutputFileType::MP4)
+                || file_types.contains(&SCRecordingOutputFileType::MOV)
+        );
+    }
+}
+
+#[test]
+fn test_recording_output_codec_array_matches_count() {
+    let config = SCRecordingOutputConfiguration::new();
+    let count = config.available_video_codecs_count();
+    let codecs = config.available_video_codecs();
+
+    // The array length should match the count
+    assert_eq!(codecs.len(), count);
+}
+
+#[test]
+fn test_recording_output_file_type_array_matches_count() {
+    let config = SCRecordingOutputConfiguration::new();
+    let count = config.available_output_file_types_count();
+    let file_types = config.available_output_file_types();
+
+    // The array length should match the count
+    assert_eq!(file_types.len(), count);
+}
