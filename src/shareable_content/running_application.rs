@@ -49,6 +49,15 @@ impl SCRunningApplication {
         Self(ptr)
     }
 
+    /// Create from FFI-owned pointer (caller transfers ownership)
+    ///
+    /// # Safety
+    /// The pointer must be a valid, retained `SCRunningApplication` from Swift FFI.
+    #[doc(hidden)]
+    pub fn from_ffi_owned(ptr: *const c_void) -> Self {
+        Self(ptr)
+    }
+
     /// Get the raw pointer (used internally)
     pub(crate) fn as_ptr(&self) -> *const c_void {
         self.0
