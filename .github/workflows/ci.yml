@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ==========================================================================
+  # Build & Test
+  # ==========================================================================
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            name: macOS 14 (Sonoma) ARM64
+          - os: macos-15
+            name: macOS 15 (Sequoia) ARM64
+          - os: macos-13
+            name: macOS 13 (Ventura) Intel
+    runs-on: ${{ matrix.os }}
+    name: Build - ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.os }}-cargo-
+      - name: Build
+        run: cargo build --verbose
+      - name: Build with all features
+        run: cargo build --verbose --all-features
+      - name: Run tests
+        run: cargo test --verbose
+      - name: Run clippy
+        run: cargo clippy --all-features -- -D warnings
+      - name: Check formatting
+        run: cargo fmt --check
+
+  # ==========================================================================
+  # Documentation (only on main)
+  # ==========================================================================
+  docs:
+    runs-on: macos-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features
+      - name: Add redirect
+        run: echo '<meta http-equiv="refresh" content="0; url=screencapturekit/index.html">' > target/doc/index.html
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/doc
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ==========================================================================
+  # Release (only on main, after successful build)
+  # ==========================================================================
+  release-pr:
+    runs-on: macos-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: release
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLZ_TOKEN }}
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache release-plz
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/release-plz
+          key: ${{ runner.os }}-release-plz
+      - name: Install release-plz
+        run: command -v release-plz || cargo install release-plz
+      - name: Create release PR
+        run: release-plz release-pr --git-token ${{ secrets.RELEASE_PLZ_TOKEN }}
+
+  release:
+    runs-on: macos-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLZ_TOKEN }}
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache release-plz
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/release-plz
+          key: ${{ runner.os }}-release-plz
+      - name: Install release-plz
+        run: command -v release-plz || cargo install release-plz
+      - name: Release
+        run: release-plz release --git-token ${{ secrets.RELEASE_PLZ_TOKEN }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
