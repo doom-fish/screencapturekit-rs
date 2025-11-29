@@ -37,10 +37,14 @@ extern "C" fn sample_handler(
             return;
         }
 
-        let output_type_enum = if output_type == 1 {
-            SCStreamOutputType::Audio
-        } else {
-            SCStreamOutputType::Screen
+        let output_type_enum = match output_type {
+            0 => SCStreamOutputType::Screen,
+            1 => SCStreamOutputType::Audio,
+            2 => SCStreamOutputType::Microphone,
+            _ => {
+                eprintln!("Unknown output type: {}", output_type);
+                return;
+            }
         };
 
         let handler_count = handlers.len();
@@ -400,6 +404,11 @@ impl SCStream {
             );
         }
         completion.wait().map_err(SCError::StreamError)
+    }
+
+    /// Returns the raw pointer to the underlying Swift `SCStream` instance.
+    pub(crate) fn as_ptr(&self) -> *const c_void {
+        self.ptr
     }
 }
 
