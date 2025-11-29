@@ -86,21 +86,25 @@ public func getShareableContentSync(
 }
 
 /// Gets shareable content asynchronously
-/// - Parameter callback: Called with content pointer or error message
+/// - Parameters:
+///   - callback: Called with content pointer or error message
+///   - userData: User data passed through to callback
 @_cdecl("sc_shareable_content_get")
 public func getShareableContent(
-    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
+    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    userData: UnsafeMutableRawPointer?
 ) {
+    let userDataValue = userData
     Task {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(
                 false,
                 onScreenWindowsOnly: false
             )
-            callback(retain(content), nil)
+            callback(retain(content), nil, userDataValue)
         } catch {
             let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-            bridgeError.description.withCString { callback(nil, $0) }
+            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
         }
     }
 }
@@ -136,18 +140,22 @@ public func getShareableContentWithOptions(
 
 #if compiler(>=6.0)
 /// Gets shareable content for the current process (macOS 14.4+)
-/// - Parameter callback: Called with content pointer or error message
+/// - Parameters:
+///   - callback: Called with content pointer or error message
+///   - userData: User data passed through to callback
 @_cdecl("sc_shareable_content_get_current_process_displays")
 public func getShareableContentCurrentProcessDisplays(
-    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
+    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    userData: UnsafeMutableRawPointer?
 ) {
+    let userDataValue = userData
     if #available(macOS 14.4, *) {
         SCShareableContent.getCurrentProcessShareableContent { content, error in
             if let content = content {
-                callback(retain(content), nil)
+                callback(retain(content), nil, userDataValue)
             } else {
                 let bridgeError = SCBridgeError.contentUnavailable(error?.localizedDescription ?? "Unknown error")
-                bridgeError.description.withCString { callback(nil, $0) }
+                bridgeError.description.withCString { callback(nil, $0, userDataValue) }
             }
         }
     } else {
@@ -158,32 +166,36 @@ public func getShareableContentCurrentProcessDisplays(
                     false,
                     onScreenWindowsOnly: true
                 )
-                callback(retain(content), nil)
+                callback(retain(content), nil, userDataValue)
             } catch {
                 let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-                bridgeError.description.withCString { callback(nil, $0) }
+                bridgeError.description.withCString { callback(nil, $0, userDataValue) }
             }
         }
     }
 }
 #else
 /// Gets shareable content for the current process (fallback for older compilers)
-/// - Parameter callback: Called with content pointer or error message
+/// - Parameters:
+///   - callback: Called with content pointer or error message
+///   - userData: User data passed through to callback
 @_cdecl("sc_shareable_content_get_current_process_displays")
 public func getShareableContentCurrentProcessDisplays(
-    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?) -> Void
+    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    userData: UnsafeMutableRawPointer?
 ) {
     // Fallback for older compilers (macOS < 14.4 SDK)
+    let userDataValue = userData
     Task {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(
                 false,
                 onScreenWindowsOnly: true
             )
-            callback(retain(content), nil)
+            callback(retain(content), nil, userDataValue)
         } catch {
             let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-            bridgeError.description.withCString { callback(nil, $0) }
+            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
         }
     }
 }
