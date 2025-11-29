@@ -75,6 +75,41 @@ impl SCStreamConfiguration {
         }
     }
 
+    /// Set the target frame rate in frames per second
+    ///
+    /// This is a convenience method that creates the appropriate `CMTime` for the given FPS.
+    /// For example, 60 FPS creates a frame interval of 1/60 second.
+    ///
+    /// # Arguments
+    /// * `fps` - Target frames per second (e.g., 30, 60, 120)
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use screencapturekit::stream::configuration::SCStreamConfiguration;
+    ///
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_fps(60);
+    /// ```
+    pub fn set_fps(&mut self, fps: u32) -> &mut Self {
+        let cm_time = CMTime {
+            value: 1,
+            timescale: fps as i32,
+            flags: 1, // kCMTimeFlags_Valid
+            epoch: 0,
+        };
+        self.set_minimum_frame_interval(&cm_time)
+    }
+
+    /// Set the target frame rate (builder pattern)
+    ///
+    /// See [`set_fps`](Self::set_fps) for details.
+    #[must_use]
+    pub fn with_fps(mut self, fps: u32) -> Self {
+        self.set_fps(fps);
+        self
+    }
+
     /// Set the capture resolution for the stream
     ///
     /// Available on macOS 14.0+. Controls the resolution at which content is captured.

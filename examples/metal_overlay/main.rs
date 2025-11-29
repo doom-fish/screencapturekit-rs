@@ -407,6 +407,135 @@ impl WaveformBuffer {
 struct OverlayState {
     show_help: bool,
     show_waveform: bool,
+    show_config: bool,
+    config_selection: usize,
+}
+
+/// Stream configuration options that can be changed at runtime
+#[derive(Clone)]
+struct StreamConfig {
+    fps: u32,
+    show_cursor: bool,
+    captures_audio: bool,
+    captures_mic: bool,
+    mic_device_idx: Option<usize>,  // Index into available microphones, None = default
+}
+
+impl Default for StreamConfig {
+    fn default() -> Self {
+        Self {
+            fps: 60,
+            show_cursor: true,
+            captures_audio: true,
+            captures_mic: true,
+            mic_device_idx: None,  // Use system default
+        }
+    }
+}
+
+impl StreamConfig {
+    const OPTIONS: &'static [&'static str] = &["FPS", "Cursor", "Audio", "Mic", "Mic Device"];
+    
+    fn option_count() -> usize {
+        Self::OPTIONS.len()
+    }
+    
+    fn option_name(idx: usize) -> &'static str {
+        Self::OPTIONS.get(idx).unwrap_or(&"?")
+    }
+    
+    fn option_value(&self, idx: usize) -> String {
+        match idx {
+            0 => format!("{}", self.fps),
+            1 => if self.show_cursor { "On" } else { "Off" }.to_string(),
+            2 => if self.captures_audio { "On" } else { "Off" }.to_string(),
+            3 => if self.captures_mic { "On" } else { "Off" }.to_string(),
+            4 => {
+                // Mic device selection
+                let devices = AudioInputDevice::list();
+                match self.mic_device_idx {
+                    None => "Default".to_string(),
+                    Some(idx) => devices.get(idx)
+                        .map(|d| d.name.chars().take(15).collect::<String>())
+                        .unwrap_or_else(|| "?".to_string()),
+                }
+            }
+            _ => "?".to_string(),
+        }
+    }
+    
+    fn toggle_or_adjust(&mut self, idx: usize, increase: bool) {
+        match idx {
+            0 => {
+                // FPS: cycle through 15, 30, 60, 120
+                let fps_options = [15, 30, 60, 120];
+                let current_idx = fps_options.iter().position(|&f| f == self.fps).unwrap_or(2);
+                let new_idx = if increase {
+                    (current_idx + 1) % fps_options.len()
+                } else {
+                    (current_idx + fps_options.len() - 1) % fps_options.len()
+                };
+                self.fps = fps_options[new_idx];
+            }
+            1 => self.show_cursor = !self.show_cursor,
+            2 => self.captures_audio = !self.captures_audio,
+            3 => self.captures_mic = !self.captures_mic,
+            4 => {
+                // Cycle through available microphones
+                let devices = AudioInputDevice::list();
+                if devices.is_empty() {
+                    return;
+                }
+                match self.mic_device_idx {
+                    None => {
+                        // From default, go to first device
+                        self.mic_device_idx = Some(if increase { 0 } else { devices.len() - 1 });
+                    }
+                    Some(idx) => {
+                        if increase {
+                            if idx + 1 >= devices.len() {
+                                self.mic_device_idx = None; // Back to default
+                            } else {
+                                self.mic_device_idx = Some(idx + 1);
+                            }
+                        } else {
+                            if idx == 0 {
+                                self.mic_device_idx = None; // Back to default
+                            } else {
+                                self.mic_device_idx = Some(idx - 1);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    /// Build an SCStreamConfiguration from current settings
+    fn to_stream_config(&self, width: u32, height: u32) -> SCStreamConfiguration {
+        let mut config = SCStreamConfiguration::new()
+            .with_width(width)
+            .with_height(height)
+            .with_fps(self.fps)
+            .with_shows_cursor(self.show_cursor)
+            .with_captures_audio(self.captures_audio)
+            .with_excludes_current_process_audio(true)
+            .with_captures_microphone(self.captures_mic)
+            .with_channel_count(2)
+            .with_sample_rate(48000)
+            .with_pixel_format(screencapturekit::stream::configuration::PixelFormat::BGRA);
+        
+        // Set microphone device if specified
+        if let Some(idx) = self.mic_device_idx {
+            let devices = AudioInputDevice::list();
+            if let Some(device) = devices.get(idx) {
+                config = config.with_microphone_capture_device_id(Some(&device.id));
+            }
+        }
+        
+        config
+    }
 }
 
 impl OverlayState {
@@ -414,6 +543,8 @@ impl OverlayState {
         Self {
             show_help: true,
             show_waveform: true,
+            show_config: false,
+            config_selection: 0,
         }
     }
 }
@@ -603,34 +734,123 @@ impl VertexBufferBuilder {
     }
 
     /// Draw a simple help overlay
-    fn help_overlay(&mut self, font: &BitmapFont, x: f32, y: f32, is_capturing: bool) {
-        let scale = 2.0;
-        let line_h = 20.0;
-        let bg_color = [0.0, 0.0, 0.0, 0.7];
+    fn help_overlay(&mut self, font: &BitmapFont, viewport_w: f32, viewport_h: f32, is_capturing: bool) {
+        // Responsive scaling based on viewport
+        let base_scale = (viewport_w.min(viewport_h) / 600.0).clamp(1.0, 3.0);
+        let scale = 2.0 * base_scale;
+        let line_h = 20.0 * base_scale;
+        let padding = 12.0 * base_scale;
+        let key_col_w = 90.0 * base_scale;
+        
+        let bg_color = [0.0, 0.0, 0.0, 0.8];
         let text_color = [1.0, 1.0, 1.0, 1.0];
         let key_color = [0.4, 0.9, 1.0, 1.0];
+        let title_color = [1.0, 0.8, 0.2, 1.0];
         
-        // Background
-        self.rect(x, y, 220.0, 100.0, bg_color);
-        self.rect_outline(x, y, 220.0, 100.0, 1.0, [0.5, 0.5, 0.5, 1.0]);
+        // Calculate box dimensions
+        let box_w = (key_col_w + 120.0 * base_scale + padding * 2.0).min(viewport_w * 0.8);
+        let box_h = (line_h * 6.5 + padding * 2.0).min(viewport_h * 0.4);
         
-        let mut ly = y + 8.0;
+        // Center the box
+        let x = (viewport_w - box_w) / 2.0;
+        let y = (viewport_h - box_h) / 2.0;
+        
+        // Background with rounded feel (just rect for now)
+        self.rect(x, y, box_w, box_h, bg_color);
+        self.rect_outline(x, y, box_w, box_h, 2.0 * base_scale, [0.5, 0.5, 0.5, 1.0]);
+        
+        let mut ly = y + padding;
+        let text_x = x + padding;
+        let value_x = x + padding + key_col_w;
         
         // Title
-        self.text(font, "CONTROLS", x + 8.0, ly, scale, [1.0, 0.8, 0.2, 1.0]);
-        ly += line_h;
+        self.text(font, "CONTROLS", text_x, ly, scale, title_color);
+        ly += line_h * 1.2;
         
         // Keys
-        self.text(font, "[SPACE]", x + 8.0, ly, scale, key_color);
-        self.text(font, if is_capturing { "Stop" } else { "Pick & Start" }, x + 80.0, ly, scale, text_color);
+        self.text(font, "[SPACE]", text_x, ly, scale, key_color);
+        self.text(font, if is_capturing { "Stop" } else { "Pick" }, value_x, ly, scale, text_color);
         ly += line_h;
         
-        self.text(font, "[W]", x + 8.0, ly, scale, key_color);
-        self.text(font, "Waveform", x + 80.0, ly, scale, text_color);
+        self.text(font, "[W]", text_x, ly, scale, key_color);
+        self.text(font, "Waveform", value_x, ly, scale, text_color);
         ly += line_h;
         
-        self.text(font, "[H]", x + 8.0, ly, scale, key_color);
-        self.text(font, "Hide help", x + 80.0, ly, scale, text_color);
+        self.text(font, "[M]", text_x, ly, scale, key_color);
+        self.text(font, "Mic Toggle", value_x, ly, scale, text_color);
+        ly += line_h;
+        
+        self.text(font, "[C]", text_x, ly, scale, key_color);
+        self.text(font, "Config", value_x, ly, scale, text_color);
+        ly += line_h;
+        
+        self.text(font, "[H]", text_x, ly, scale, key_color);
+        self.text(font, "Hide", value_x, ly, scale, text_color);
+    }
+
+    /// Draw stream configuration menu
+    fn config_menu(
+        &mut self,
+        font: &BitmapFont,
+        viewport_w: f32,
+        viewport_h: f32,
+        config: &StreamConfig,
+        selection: usize,
+        is_capturing: bool,
+    ) {
+        let base_scale = (viewport_w.min(viewport_h) / 600.0).clamp(1.0, 3.0);
+        let scale = 2.0 * base_scale;
+        let line_h = 22.0 * base_scale;
+        let padding = 16.0 * base_scale;
+        let label_col_w = 80.0 * base_scale;
+        let value_col_w = 60.0 * base_scale;
+        
+        let bg_color = [0.05, 0.05, 0.15, 0.9];
+        let text_color = [1.0, 1.0, 1.0, 1.0];
+        let selected_bg = [0.2, 0.4, 0.8, 0.8];
+        let title_color = [0.4, 0.9, 1.0, 1.0];
+        let hint_color = [0.6, 0.6, 0.6, 1.0];
+        
+        let option_count = StreamConfig::option_count();
+        let box_w = (label_col_w + value_col_w + padding * 3.0).min(viewport_w * 0.6);
+        let box_h = (line_h * (option_count as f32 + 3.0) + padding * 2.0).min(viewport_h * 0.5);
+        
+        let x = (viewport_w - box_w) / 2.0;
+        let y = (viewport_h - box_h) / 2.0;
+        
+        // Background
+        self.rect(x, y, box_w, box_h, bg_color);
+        self.rect_outline(x, y, box_w, box_h, 2.0 * base_scale, [0.3, 0.5, 0.8, 1.0]);
+        
+        let mut ly = y + padding;
+        let label_x = x + padding;
+        let value_x = x + padding + label_col_w;
+        
+        // Title
+        self.text(font, "CONFIG", label_x, ly, scale, title_color);
+        ly += line_h * 1.3;
+        
+        // Options
+        for i in 0..option_count {
+            let is_selected = i == selection;
+            
+            // Selection highlight
+            if is_selected {
+                self.rect(x + 4.0, ly - 2.0, box_w - 8.0, line_h, selected_bg);
+            }
+            
+            let name = StreamConfig::option_name(i);
+            let value = config.option_value(i);
+            
+            self.text(font, name, label_x, ly, scale, text_color);
+            self.text(font, &value, value_x, ly, scale, text_color);
+            ly += line_h;
+        }
+        
+        // Hint at bottom
+        ly += line_h * 0.5;
+        let hint = if is_capturing { "ENTER=Apply" } else { "Arrow/Enter" };
+        self.text(font, hint, label_x, ly, scale * 0.8, hint_color);
     }
 
     fn build(&self, device: &Device) -> Buffer {
@@ -848,11 +1068,12 @@ fn main() {
     let font = BitmapFont::new();
     let mut overlay = OverlayState::new();
     let capturing = Arc::new(AtomicBool::new(false));
+    let mut stream_config = StreamConfig::default();
 
     // Screen capture setup
     let mut stream: Option<SCStream> = None;
     let mut current_filter: Option<SCContentFilter> = None;
-    let capture_size: (u32, u32) = (1920, 1080);
+    let mut capture_size: (u32, u32) = (1920, 1080);
     
     // Shared state for picker callback results
     type PickerResult = Option<(SCContentFilter, u32, u32)>;
@@ -872,29 +1093,17 @@ fn main() {
             if let Ok(mut pending) = pending_picker.try_lock() {
                 if let Some((filter, width, height)) = pending.take() {
                     println!("✅ Content selected: {}x{}", width, height);
+                    capture_size = (width, height);
                     
-                    let mut stream_config = SCStreamConfiguration::default();
-                    stream_config.set_width(width);
-                    stream_config.set_height(height);
-                    stream_config.set_pixel_format(PixelFormat::BGRA);
-                    stream_config.set_captures_audio(true);
-                    stream_config.set_sample_rate(48000);
-                    stream_config.set_channel_count(2);
-                    
-                    // Enable microphone capture (macOS 15.0+)
-                    #[cfg(feature = "macos_15_0")]
-                    stream_config.set_captures_microphone(true);
+                    let sc_config = stream_config.to_stream_config(width, height);
 
                     let handler = CaptureHandler {
                         state: Arc::clone(&capture_state),
                     };
 
-                    let mut s = SCStream::new(&filter, &stream_config);
+                    let mut s = SCStream::new(&filter, &sc_config);
                     s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
                     s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);
-                    
-                    // Add microphone handler (macOS 15.0+)
-                    #[cfg(feature = "macos_15_0")]
                     s.add_output_handler(handler, SCStreamOutputType::Microphone);
                     
                     match s.start_capture() {
@@ -975,7 +1184,75 @@ fn main() {
                             VirtualKeyCode::H => {
                                 overlay.show_help = !overlay.show_help;
                             }
-                            VirtualKeyCode::Escape | VirtualKeyCode::Q => {
+                            VirtualKeyCode::C => {
+                                overlay.show_config = !overlay.show_config;
+                                if overlay.show_config {
+                                    overlay.show_help = false;
+                                }
+                            }
+                            VirtualKeyCode::M => {
+                                stream_config.captures_mic = !stream_config.captures_mic;
+                                println!("🎤 Microphone: {}", if stream_config.captures_mic { "On" } else { "Off" });
+                                // Update running stream if capturing
+                                if capturing.load(Ordering::Relaxed) {
+                                    if let Some(ref s) = stream {
+                                        let new_config = stream_config.to_stream_config(capture_size.0, capture_size.1);
+                                        match s.update_configuration(&new_config) {
+                                            Ok(()) => println!("✅ Config updated"),
+                                            Err(e) => eprintln!("❌ Config update failed: {:?}", e),
+                                        }
+                                    }
+                                }
+                            }
+                            VirtualKeyCode::Up => {
+                                if overlay.show_config && overlay.config_selection > 0 {
+                                    overlay.config_selection -= 1;
+                                }
+                            }
+                            VirtualKeyCode::Down => {
+                                if overlay.show_config {
+                                    let max = StreamConfig::option_count().saturating_sub(1);
+                                    if overlay.config_selection < max {
+                                        overlay.config_selection += 1;
+                                    }
+                                }
+                            }
+                            VirtualKeyCode::Left => {
+                                if overlay.show_config {
+                                    stream_config.toggle_or_adjust(overlay.config_selection, false);
+                                }
+                            }
+                            VirtualKeyCode::Right => {
+                                if overlay.show_config {
+                                    stream_config.toggle_or_adjust(overlay.config_selection, true);
+                                }
+                            }
+                            VirtualKeyCode::Return => {
+                                if overlay.show_config {
+                                    // Apply config to running stream
+                                    if capturing.load(Ordering::Relaxed) {
+                                        if let Some(ref s) = stream {
+                                            let new_config = stream_config.to_stream_config(capture_size.0, capture_size.1);
+                                            match s.update_configuration(&new_config) {
+                                                Ok(()) => println!("✅ Config updated"),
+                                                Err(e) => eprintln!("❌ Config update failed: {:?}", e),
+                                            }
+                                        }
+                                    }
+                                    // Toggle selected option if not capturing
+                                    else {
+                                        stream_config.toggle_or_adjust(overlay.config_selection, true);
+                                    }
+                                }
+                            }
+                            VirtualKeyCode::Escape => {
+                                if overlay.show_config {
+                                    overlay.show_config = false;
+                                } else {
+                                    *control_flow = ControlFlow::ExitWithCode(0);
+                                }
+                            }
+                            VirtualKeyCode::Q => {
                                 *control_flow = ControlFlow::ExitWithCode(0);
                             }
                             _ => {}
@@ -1110,12 +1387,21 @@ fn main() {
                         );
                     }
 
-                    // Help overlay - center it
+                    // Help overlay - responsive centered
                     if overlay.show_help {
-                        let help_w = 260.0;
-                        let help_x = (width - help_w) / 2.0;
-                        let help_y = height - 140.0;
-                        vertex_builder.help_overlay(&font, help_x, help_y, capturing.load(Ordering::Relaxed));
+                        vertex_builder.help_overlay(&font, width, height, capturing.load(Ordering::Relaxed));
+                    }
+                    
+                    // Config menu overlay
+                    if overlay.show_config {
+                        vertex_builder.config_menu(
+                            &font,
+                            width,
+                            height,
+                            &stream_config,
+                            overlay.config_selection,
+                            capturing.load(Ordering::Relaxed),
+                        );
                     }
 
                     // Build GPU buffer
