@@ -6,6 +6,8 @@
 //! - System content picker (macOS 14.0+) for user-selected capture
 //! - Interactive overlay menu with bitmap font rendering
 //! - Real-time audio waveform visualization with vertical gain meters
+//! - Screenshot capture (macOS 14.0+)
+//! - Video recording (macOS 15.0+)
 //!
 //! ## Controls
 //!
@@ -18,6 +20,7 @@
 //! - `P` - Open content picker
 //! - `SPACE` - Start/stop capture
 //! - `S` - Take screenshot (when source selected)
+//! - `R` - Start/stop recording (macOS 15.0+, requires active capture)
 //! - `W` - Toggle waveform display
 //! - `C` - Open config menu
 //! - `M` - Toggle microphone
@@ -54,6 +57,8 @@ use screencapturekit::content_sharing_picker::{
     SCPickedSource, SCPickerOutcome,
 };
 use screencapturekit::prelude::*;
+#[cfg(feature = "macos_15_0")]
+use screencapturekit::recording_output::{SCRecordingOutput, SCRecordingOutputConfiguration};
 use screencapturekit::screenshot_manager::SCScreenshotManager;
 use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::ControlFlow;
@@ -240,6 +245,13 @@ fn main() {
     let mut current_filter: Option<SCContentFilter> = None;
     let mut capture_size: (u32, u32) = (1920, 1080);
     let mut picked_source = SCPickedSource::Unknown;
+
+    // Recording state (macOS 15.0+)
+    #[cfg(feature = "macos_15_0")]
+    let mut recording_output: Option<SCRecordingOutput> = None;
+    #[cfg(feature = "macos_15_0")]
+    let mut recording_path: Option<String> = None;
+    let recording = Arc::new(AtomicBool::new(false));
 
     // Shared state for picker callback results (filter, width, height, source info)
     type PickerResult = Option<(SCContentFilter, u32, u32, SCPickedSource)>;
@@ -510,11 +522,69 @@ fn main() {
                                             }
                                         }
                                         3 => {
+                                            // Record (macOS 15.0+)
+                                            #[cfg(feature = "macos_15_0")]
+                                            {
+                                                if recording.load(Ordering::Relaxed) {
+                                                    // Stop recording
+                                                    if let Some(ref s) = stream {
+                                                        if let Some(ref rec) = recording_output {
+                                                            println!("⏹️  Stopping recording...");
+                                                            let _ = s.remove_recording_output(rec);
+                                                            recording.store(false, Ordering::Relaxed);
+                                                            println!("✅ Recording stopped");
+                                                            // Open the recorded file
+                                                            if let Some(ref path) = recording_path {
+                                                                println!("📁 Saved to {}", path);
+                                                                let _ = std::process::Command::new("open").arg(path).spawn();
+                                                            }
+                                                        }
+                                                    }
+                                                    recording_output = None;
+                                                    recording_path = None;
+                                                } else if current_filter.is_some() {
+                                                    // Start recording
+                                                    let timestamp = std::time::SystemTime::now()
+                                                        .duration_since(std::time::UNIX_EPOCH)
+                                                        .map(|d| d.as_secs())
+                                                        .unwrap_or(0);
+                                                    let path = format!("/tmp/recording_{}.mp4", timestamp);
+                                                    recording_path = Some(path.clone());
+                                                    
+                                                    let config = SCRecordingOutputConfiguration::new()
+                                                        .with_output_url(std::path::Path::new(&path));
+                                                    
+                                                    if let Some(rec) = SCRecordingOutput::new(&config) {
+                                                        if let Some(ref s) = stream {
+                                                            match s.add_recording_output(&rec) {
+                                                                Ok(()) => {
+                                                                    println!("🔴 Recording started: {}", path);
+                                                                    recording.store(true, Ordering::Relaxed);
+                                                                    recording_output = Some(rec);
+                                                                }
+                                                                Err(e) => eprintln!("❌ Failed to start recording: {:?}", e),
+                                                            }
+                                                        } else {
+                                                            println!("⚠️  Start capture first, then record");
+                                                        }
+                                                    } else {
+                                                        eprintln!("❌ Failed to create recording output");
+                                                    }
+                                                } else {
+                                                    println!("⚠️  Select a source first with Picker");
+                                                }
+                                            }
+                                            #[cfg(not(feature = "macos_15_0"))]
+                                            {
+                                                println!("⚠️  Recording requires macOS 15.0+ (macos_15_0 feature)");
+                                            }
+                                        }
+                                        4 => {
                                             // Config
                                             overlay.show_config = true;
                                             overlay.show_help = false;
                                         }
-                                        4 => {
+                                        5 => {
                                             // Quit
                                             *control_flow = ControlFlow::ExitWithCode(0);
                                         }
@@ -655,6 +725,59 @@ fn main() {
                                         take_screenshot(filter, capture_size, &stream_config);
                                     } else {
                                         println!("⚠️  Select a source first with P or menu");
+                                    }
+                                }
+                                VirtualKeyCode::R => {
+                                    // Recording shortcut (macOS 15.0+)
+                                    #[cfg(feature = "macos_15_0")]
+                                    {
+                                        if recording.load(Ordering::Relaxed) {
+                                            // Stop recording
+                                            if let Some(ref s) = stream {
+                                                if let Some(ref rec) = recording_output {
+                                                    println!("⏹️  Stopping recording...");
+                                                    let _ = s.remove_recording_output(rec);
+                                                    recording.store(false, Ordering::Relaxed);
+                                                    println!("✅ Recording stopped");
+                                                    if let Some(ref path) = recording_path {
+                                                        println!("📁 Saved to {}", path);
+                                                        let _ = std::process::Command::new("open").arg(path).spawn();
+                                                    }
+                                                }
+                                            }
+                                            recording_output = None;
+                                            recording_path = None;
+                                        } else if current_filter.is_some() && stream.is_some() {
+                                            // Start recording
+                                            let timestamp = std::time::SystemTime::now()
+                                                .duration_since(std::time::UNIX_EPOCH)
+                                                .map(|d| d.as_secs())
+                                                .unwrap_or(0);
+                                            let path = format!("/tmp/recording_{}.mp4", timestamp);
+                                            recording_path = Some(path.clone());
+                                            
+                                            let config = SCRecordingOutputConfiguration::new()
+                                                .with_output_url(std::path::Path::new(&path));
+                                            
+                                            if let Some(rec) = SCRecordingOutput::new(&config) {
+                                                if let Some(ref s) = stream {
+                                                    match s.add_recording_output(&rec) {
+                                                        Ok(()) => {
+                                                            println!("🔴 Recording started: {}", path);
+                                                            recording.store(true, Ordering::Relaxed);
+                                                            recording_output = Some(rec);
+                                                        }
+                                                        Err(e) => eprintln!("❌ Failed to start recording: {:?}", e),
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            println!("⚠️  Start capture first (P then Space), then R to record");
+                                        }
+                                    }
+                                    #[cfg(not(feature = "macos_15_0"))]
+                                    {
+                                        println!("⚠️  Recording requires macOS 15.0+ (macos_15_0 feature)");
                                     }
                                 }
                                 VirtualKeyCode::Escape | VirtualKeyCode::Q => {
@@ -829,6 +952,7 @@ fn main() {
                             width,
                             height,
                             capturing.load(Ordering::Relaxed),
+                            recording.load(Ordering::Relaxed),
                             &source_str,
                             overlay.menu_selection,
                         );

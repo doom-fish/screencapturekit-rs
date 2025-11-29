@@ -406,6 +406,56 @@ impl SCStream {
         completion.wait().map_err(SCError::StreamError)
     }
 
+    /// Add a recording output to the stream (macOS 15.0+)
+    ///
+    /// Starts recording if the stream is already capturing, otherwise recording
+    /// will start when capture begins. The recording is written to the file URL
+    /// specified in the `SCRecordingOutputConfiguration`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SCError::StreamError` if adding the recording output fails.
+    #[cfg(feature = "macos_15_0")]
+    pub fn add_recording_output(
+        &self,
+        recording_output: &crate::recording_output::SCRecordingOutput,
+    ) -> Result<(), SCError> {
+        let (completion, context) = UnitCompletion::new();
+        unsafe {
+            ffi::sc_stream_add_recording_output(
+                self.ptr,
+                recording_output.as_ptr(),
+                UnitCompletion::callback,
+                context,
+            );
+        }
+        completion.wait().map_err(SCError::StreamError)
+    }
+
+    /// Remove a recording output from the stream (macOS 15.0+)
+    ///
+    /// Stops recording if the stream is currently recording.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SCError::StreamError` if removing the recording output fails.
+    #[cfg(feature = "macos_15_0")]
+    pub fn remove_recording_output(
+        &self,
+        recording_output: &crate::recording_output::SCRecordingOutput,
+    ) -> Result<(), SCError> {
+        let (completion, context) = UnitCompletion::new();
+        unsafe {
+            ffi::sc_stream_remove_recording_output(
+                self.ptr,
+                recording_output.as_ptr(),
+                UnitCompletion::callback,
+                context,
+            );
+        }
+        completion.wait().map_err(SCError::StreamError)
+    }
+
     /// Returns the raw pointer to the underlying Swift `SCStream` instance.
     pub(crate) fn as_ptr(&self) -> *const c_void {
         self.ptr
