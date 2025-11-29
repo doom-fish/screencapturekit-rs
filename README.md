@@ -175,12 +175,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Advanced API: Get filter with metadata (dimensions, scale)
     match SCContentSharingPicker::pick(&config) {
-        SCPickResult::Success(result) => {
+        SCPickerOutcome::Picked(result) => {
             // Get dimensions from the picked content
             let (width, height) = result.pixel_size();
             println!("Selected: {}x{} (scale: {})", width, height, result.scale());
             
-            let mut stream_config = SCStreamConfiguration::new()
+            let stream_config = SCStreamConfiguration::new()
                 .with_width(width)
                 .with_height(height);
             
@@ -189,15 +189,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut stream = SCStream::new(&filter, &stream_config);
             // ...
         }
-        SCPickResult::Cancelled => println!("User cancelled"),
-        SCPickResult::Error(e) => eprintln!("Error: {}", e),
+        SCPickerOutcome::Cancelled => println!("User cancelled"),
+        SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
     }
     
-    // Simple API: Get filter directly (when you don't need dimensions)
-    // match SCContentSharingPicker::show(&config) {
-    //     SCContentSharingPickerResult::Filter(filter) => { ... }
-    //     ...
-    // }
+    Ok(())
+}
+```
+
+### Async Content Picker (macOS 14.0+)
+
+Use the async version in async contexts to avoid blocking:
+
+```rust
+use screencapturekit::async_api::AsyncSCContentSharingPicker;
+use screencapturekit::content_sharing_picker::*;
+use screencapturekit::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = SCContentSharingPickerConfiguration::new();
+    
+    // Async picker - doesn't block the executor
+    match AsyncSCContentSharingPicker::pick(&config).await {
+        SCPickerOutcome::Picked(result) => {
+            let (width, height) = result.pixel_size();
+            println!("Selected: {}x{}", width, height);
+            
+            let filter = result.filter();
+            // Use filter with stream...
+        }
+        SCPickerOutcome::Cancelled => println!("User cancelled"),
+        SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
+    }
     
     Ok(())
 }
@@ -288,11 +312,13 @@ Feature flags enable APIs for specific macOS versions. They are cumulative (enab
 
 | Feature | macOS | APIs Enabled |
 |---------|-------|--------------|
-| `macos_13_0` | 13.0 Ventura | Opacity configuration |
-| `macos_14_0` | 14.0 Sonoma | Content picker, clipboard ignore, shadow displays |
-| `macos_14_2` | 14.2 | Capture fractions, shadow control, child windows |
-| `macos_14_4` | 14.4 | Future features |
-| `macos_15_0` | 15.0 Sequoia | Recording output, HDR capture |
+| `macos_13_0` | 13.0 Ventura | Audio capture, synchronization clock |
+| `macos_14_0` | 14.0 Sonoma | Content picker, screenshots, content info |
+| `macos_14_2` | 14.2 | Menu bar capture, child windows, presenter overlay |
+| `macos_14_4` | 14.4 | Current process shareable content |
+| `macos_15_0` | 15.0 Sequoia | Recording output, HDR capture, microphone |
+| `macos_15_2` | 15.2 | Screenshot in rect, stream active/inactive delegates |
+| `macos_26_0` | 26.0 | Advanced screenshot config, HDR screenshot output |
 
 ### Version-Specific Example
 
@@ -326,6 +352,7 @@ config.set_should_be_opaque(true);
 - **`AsyncSCShareableContent`** - Async content queries
 - **`AsyncSCStream`** - Async stream with frame iteration
 - **`AsyncSCScreenshotManager`** - Async screenshot capture (macOS 14.0+)
+- **`AsyncSCContentSharingPicker`** - Async content picker UI (macOS 14.0+)
 
 ### Display & Window Types
 
@@ -345,6 +372,8 @@ config.set_should_be_opaque(true);
 - **`PixelFormat`** - BGRA, YCbCr420v, YCbCr420f, l10r (10-bit)
 - **`SCPresenterOverlayAlertSetting`** - Privacy alert behavior
 - **`SCCaptureDynamicRange`** - HDR/SDR modes (macOS 15.0+)
+- **`SCScreenshotConfiguration`** - Advanced screenshot config (macOS 26.0+)
+- **`SCScreenshotDynamicRange`** - SDR/HDR screenshot output (macOS 26.0+)
 
 ## 🏃 Examples
 
@@ -355,7 +384,7 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 2. **`02_window_capture.rs`** - Capture specific windows
 3. **`03_audio_capture.rs`** - Audio + video capture
 4. **`04_pixel_access.rs`** - Read pixel data with `std::io::Cursor`
-5. **`05_screenshot.rs`** - Single screenshot (macOS 14.0+)
+5. **`05_screenshot.rs`** - Single screenshot, HDR capture (macOS 14.0+, 26.0+)
 6. **`06_iosurface.rs`** - Zero-copy GPU buffers
 7. **`07_list_content.rs`** - List available content
 8. **`08_async.rs`** - Async/await API with multiple examples
