@@ -136,9 +136,9 @@
 //! | Format | Description | Use Case |
 //! |--------|-------------|----------|
 //! | [`PixelFormat::BGRA`] | 32-bit BGRA | General purpose, easy to use |
-//! | [`PixelFormat::L10R`] | 10-bit RGB | HDR content |
-//! | [`PixelFormat::V420`] | YCbCr 4:2:0 | Video encoding (H.264/HEVC) |
-//! | [`PixelFormat::F420`] | YCbCr 4:2:0 full range | Video encoding |
+//! | [`PixelFormat::l10r`] | 10-bit RGB | HDR content |
+//! | [`PixelFormat::YCbCr_420v`] | YCbCr 4:2:0 | Video encoding (H.264/HEVC) |
+//! | [`PixelFormat::YCbCr_420f`] | YCbCr 4:2:0 full range | Video encoding |
 //!
 //! ## Accessing Frame Data
 //!
@@ -307,9 +307,9 @@
 //! ```
 //!
 //! [`PixelFormat::BGRA`]: stream::configuration::PixelFormat::BGRA
-//! [`PixelFormat::L10R`]: stream::configuration::PixelFormat::L10R
-//! [`PixelFormat::V420`]: stream::configuration::PixelFormat::V420
-//! [`PixelFormat::F420`]: stream::configuration::PixelFormat::F420
+//! [`PixelFormat::l10r`]: stream::configuration::PixelFormat::l10r
+//! [`PixelFormat::YCbCr_420v`]: stream::configuration::PixelFormat::YCbCr_420v
+//! [`PixelFormat::YCbCr_420f`]: stream::configuration::PixelFormat::YCbCr_420f
 
 #![doc(html_root_url = "https://docs.rs/screencapturekit")]
 #![cfg_attr(docsrs, feature(doc_cfg))]

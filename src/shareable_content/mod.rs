@@ -400,7 +400,7 @@ impl SCShareableContent {
     /// Returns an error if retrieval fails.
     #[cfg(feature = "macos_14_4")]
     pub fn current_process() -> Result<Self, SCError> {
-        let (completion, context) = SyncCompletion::<SCShareableContent>::new();
+        let (completion, context) = SyncCompletion::<Self>::new();
 
         unsafe {
             crate::ffi::sc_shareable_content_get_current_process_displays(
