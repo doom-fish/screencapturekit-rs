@@ -7,107 +7,46 @@
 //!
 //! | Method | Returns | Use Case |
 //! |--------|---------|----------|
-//! | `pick()` | `SCPickerOutcome` | Get filter + metadata (dimensions, picked content) |
-//! | `pick_filter()` | `SCPickerFilterOutcome` | Just get the filter |
+//! | `show()` | callback with `SCPickerOutcome` | Get filter + metadata (dimensions, picked content) |
+//! | `show_filter()` | callback with `SCPickerFilterOutcome` | Just get the filter |
+//!
+//! For async/await, use `AsyncSCContentSharingPicker` from the `async_api` module.
 //!
 //! # Examples
 //!
-//! ## Main API: Get filter with metadata and picked content
-//! ```no_run
+//! ## Callback API: Get filter with metadata
+//! ```rust,ignore
 //! use screencapturekit::content_sharing_picker::*;
 //! use screencapturekit::prelude::*;
 //!
 //! let config = SCContentSharingPickerConfiguration::new();
-//! match SCContentSharingPicker::pick(&config) {
-//!     SCPickerOutcome::Picked(result) => {
-//!         // Get dimensions for stream configuration
-//!         let (width, height) = result.pixel_size();
-//!         
-//!         // Access the picked content directly
-//!         for window in result.windows() {
-//!             println!("Picked window: {:?}", window.title());
+//! SCContentSharingPicker::show(&config, |outcome| {
+//!     match outcome {
+//!         SCPickerOutcome::Picked(result) => {
+//!             let (width, height) = result.pixel_size();
+//!             let filter = result.filter();
+//!             // Create stream with the filter...
 //!         }
-//!         for display in result.displays() {
-//!             println!("Picked display: {}", display.display_id());
-//!         }
-//!         
-//!         // Use the pre-built filter or create your own
-//!         let filter = result.filter();
-//!         let stream = SCStream::new(&filter, &SCStreamConfiguration::default());
+//!         SCPickerOutcome::Cancelled => println!("Cancelled"),
+//!         SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
 //!     }
-//!     SCPickerOutcome::Cancelled => println!("Cancelled"),
-//!     SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
-//! }
+//! });
 //! ```
 //!
-//! ## Simple API: Get filter directly
-//! ```no_run
+//! ## Async API
+//! ```rust,ignore
+//! use screencapturekit::async_api::AsyncSCContentSharingPicker;
 //! use screencapturekit::content_sharing_picker::*;
-//! use screencapturekit::prelude::*;
 //!
 //! let config = SCContentSharingPickerConfiguration::new();
-//! match SCContentSharingPicker::pick_filter(&config) {
-//!     SCPickerFilterOutcome::Filter(filter) => {
-//!         let stream = SCStream::new(&filter, &SCStreamConfiguration::default());
-//!     }
-//!     SCPickerFilterOutcome::Cancelled => println!("Cancelled"),
-//!     SCPickerFilterOutcome::Error(e) => eprintln!("Error: {}", e),
-//! }
-//! ```
-//!
-//! ## Custom filter: Build your own filter from picked content
-//! ```no_run
-//! use screencapturekit::content_sharing_picker::*;
-//! use screencapturekit::prelude::*;
-//!
-//! let config = SCContentSharingPickerConfiguration::new();
-//! match SCContentSharingPicker::pick(&config) {
-//!     SCPickerOutcome::Picked(result) => {
-//!         // Get the picked displays and windows
-//!         let displays = result.displays();
-//!         let windows = result.windows();
-//!         
-//!         // Create a custom filter - e.g. capture display but exclude some windows
-//!         if let Some(display) = displays.first() {
-//!             let custom_filter = SCContentFilter::builder()
-//!                 .display(display)
-//!                 // .exclude_windows(&windows_to_exclude)
-//!                 .build();
-//!             
-//!             let stream = SCStream::new(&custom_filter, &SCStreamConfiguration::default());
-//!         }
-//!         
-//!         // Or capture a specific window
-//!         if let Some(window) = windows.first() {
-//!             let window_filter = SCContentFilter::builder()
-//!                 .window(window)
-//!                 .build();
-//!             
-//!             let stream = SCStream::new(&window_filter, &SCStreamConfiguration::default());
-//!         }
-//!     }
-//!     SCPickerOutcome::Cancelled => println!("Cancelled"),
-//!     SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
+//! if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::pick(&config).await {
+//!     let (width, height) = result.pixel_size();
+//!     let filter = result.filter();
 //! }
 //! ```
 
 use crate::stream::content_filter::SCContentFilter;
-use crate::utils::sync_completion::SyncCompletion;
 use std::ffi::c_void;
-
-/// Result from the content sharing picker - returns a filter pointer on success
-struct PickerCallbackResult {
-    code: i32,
-    ptr: *const c_void,
-}
-
-extern "C" fn picker_callback(result_code: i32, ptr: *const c_void, user_data: *mut c_void) {
-    let result = PickerCallbackResult {
-        code: result_code,
-        ptr,
-    };
-    unsafe { SyncCompletion::complete_ok(user_data, result) };
-}
 
 /// Picker style determines what content types can be selected
 #[repr(i32)]
@@ -282,20 +221,22 @@ impl SCPickerResult {
     /// Returns the picked windows that can be used to create a custom `SCContentFilter`.
     ///
     /// # Example
-    /// ```no_run
+    /// ```rust,ignore
     /// use screencapturekit::content_sharing_picker::*;
     /// use screencapturekit::prelude::*;
     ///
     /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerOutcome::Picked(result) = SCContentSharingPicker::pick(&config) {
-    ///     let windows = result.windows();
-    ///     if let Some(window) = windows.first() {
-    ///         // Create custom filter with a picked window
-    ///         let filter = SCContentFilter::builder()
-    ///             .window(window)
-    ///             .build();
+    /// SCContentSharingPicker::show(&config, |outcome| {
+    ///     if let SCPickerOutcome::Picked(result) = outcome {
+    ///         let windows = result.windows();
+    ///         if let Some(window) = windows.first() {
+    ///             // Create custom filter with a picked window
+    ///             let filter = SCContentFilter::builder()
+    ///                 .window(window)
+    ///                 .build();
+    ///         }
     ///     }
-    /// }
+    /// });
     /// ```
     #[must_use]
     pub fn windows(&self) -> Vec<crate::shareable_content::SCWindow> {
@@ -317,20 +258,22 @@ impl SCPickerResult {
     /// Returns the picked displays that can be used to create a custom `SCContentFilter`.
     ///
     /// # Example
-    /// ```no_run
+    /// ```rust,ignore
     /// use screencapturekit::content_sharing_picker::*;
     /// use screencapturekit::prelude::*;
     ///
     /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerOutcome::Picked(result) = SCContentSharingPicker::pick(&config) {
-    ///     let displays = result.displays();
-    ///     if let Some(display) = displays.first() {
-    ///         // Create custom filter with the picked display
-    ///         let filter = SCContentFilter::builder()
-    ///             .display(display)
-    ///             .build();
+    /// SCContentSharingPicker::show(&config, |outcome| {
+    ///     if let SCPickerOutcome::Picked(result) = outcome {
+    ///         let displays = result.displays();
+    ///         if let Some(display) = displays.first() {
+    ///             // Create custom filter with the picked display
+    ///             let filter = SCContentFilter::builder()
+    ///                 .display(display)
+    ///                 .build();
+    ///         }
     ///     }
-    /// }
+    /// });
     /// ```
     #[must_use]
     pub fn displays(&self) -> Vec<crate::shareable_content::SCDisplay> {
@@ -406,83 +349,146 @@ pub enum SCPickerOutcome {
 /// System UI for selecting content to share
 ///
 /// Available on macOS 14.0+
+///
+/// The picker requires user interaction and cannot block the calling thread.
+/// Use one of these approaches:
+///
+/// - **Callback-based**: `show()` / `show_filter()` - pass a callback closure
+/// - **Async/await**: `AsyncSCContentSharingPicker` from the `async_api` module
+///
+/// # Example (callback)
+/// ```rust,ignore
+/// use screencapturekit::content_sharing_picker::*;
+///
+/// let config = SCContentSharingPickerConfiguration::new();
+/// SCContentSharingPicker::show(&config, |outcome| {
+///     if let SCPickerOutcome::Picked(result) = outcome {
+///         let (width, height) = result.pixel_size();
+///         let filter = result.filter();
+///         // ... create stream
+///     }
+/// });
+/// ```
+///
+/// # Example (async)
+/// ```rust,ignore
+/// use screencapturekit::async_api::AsyncSCContentSharingPicker;
+/// use screencapturekit::content_sharing_picker::*;
+///
+/// let config = SCContentSharingPickerConfiguration::new();
+/// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::pick(&config).await {
+///     let (width, height) = result.pixel_size();
+///     let filter = result.filter();
+///     // ... create stream
+/// }
+/// ```
 pub struct SCContentSharingPicker;
 
 impl SCContentSharingPicker {
-    /// Show the picker UI and return `SCPickerResult` with filter and metadata
+    /// Show the picker UI with a callback for the result
     ///
-    /// This is the main API - use when you need content dimensions or want to build custom filters.
+    /// This is non-blocking - the callback is invoked when the user makes a selection
+    /// or cancels the picker.
     ///
     /// # Example
-    /// ```no_run
+    /// ```rust,ignore
     /// use screencapturekit::content_sharing_picker::*;
-    /// use screencapturekit::prelude::*;
     ///
     /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerOutcome::Picked(result) = SCContentSharingPicker::pick(&config) {
-    ///     let (width, height) = result.pixel_size();
-    ///     let mut stream_config = SCStreamConfiguration::default();
-    ///     stream_config.set_width(width);
-    ///     stream_config.set_height(height);
-    ///     
-    ///     let filter = result.filter();
-    ///     let stream = SCStream::new(&filter, &stream_config);
-    /// }
+    /// SCContentSharingPicker::show(&config, |outcome| {
+    ///     match outcome {
+    ///         SCPickerOutcome::Picked(result) => {
+    ///             let (width, height) = result.pixel_size();
+    ///             let filter = result.filter();
+    ///             println!("Selected {}x{}", width, height);
+    ///         }
+    ///         SCPickerOutcome::Cancelled => println!("Cancelled"),
+    ///         SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
+    ///     }
+    /// });
     /// ```
-    pub fn pick(config: &SCContentSharingPickerConfiguration) -> SCPickerOutcome {
-        let (completion, context) = SyncCompletion::<PickerCallbackResult>::new();
+    pub fn show<F>(config: &SCContentSharingPickerConfiguration, callback: F)
+    where
+        F: FnOnce(SCPickerOutcome) + Send + 'static,
+    {
+        let callback = Box::new(callback);
+        let context = Box::into_raw(callback) as *mut std::ffi::c_void;
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_with_result(
                 config.as_ptr(),
-                picker_callback,
+                picker_callback_boxed::<F>,
                 context,
             );
         }
-
-        match completion.wait() {
-            Ok(result) => match result.code {
-                1 if !result.ptr.is_null() => {
-                    SCPickerOutcome::Picked(SCPickerResult { ptr: result.ptr })
-                }
-                0 => SCPickerOutcome::Cancelled,
-                _ => SCPickerOutcome::Error("Picker failed".to_string()),
-            },
-            Err(e) => SCPickerOutcome::Error(e),
-        }
     }
 
-    /// Show the picker UI and return an `SCContentFilter` directly
+    /// Show the picker UI with a callback that receives just the filter
     ///
     /// This is the simple API - use when you just need the filter without metadata.
     ///
     /// # Example
-    /// ```no_run
+    /// ```rust,ignore
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerFilterOutcome::Filter(filter) = SCContentSharingPicker::pick_filter(&config) {
-    ///     // Use filter with SCStream
-    /// }
+    /// SCContentSharingPicker::show_filter(&config, |outcome| {
+    ///     if let SCPickerFilterOutcome::Filter(filter) = outcome {
+    ///         // Use filter with SCStream
+    ///     }
+    /// });
     /// ```
-    pub fn pick_filter(config: &SCContentSharingPickerConfiguration) -> SCPickerFilterOutcome {
-        let (completion, context) = SyncCompletion::<PickerCallbackResult>::new();
+    pub fn show_filter<F>(config: &SCContentSharingPickerConfiguration, callback: F)
+    where
+        F: FnOnce(SCPickerFilterOutcome) + Send + 'static,
+    {
+        let callback = Box::new(callback);
+        let context = Box::into_raw(callback) as *mut std::ffi::c_void;
 
         unsafe {
-            crate::ffi::sc_content_sharing_picker_show(config.as_ptr(), picker_callback, context);
-        }
-
-        match completion.wait() {
-            Ok(result) => match result.code {
-                1 if !result.ptr.is_null() => {
-                    SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(result.ptr))
-                }
-                0 => SCPickerFilterOutcome::Cancelled,
-                _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
-            },
-            Err(e) => SCPickerFilterOutcome::Error(e),
+            crate::ffi::sc_content_sharing_picker_show(
+                config.as_ptr(),
+                picker_filter_callback_boxed::<F>,
+                context,
+            );
         }
     }
+}
+
+/// Callback trampoline for boxed closures (picker with result)
+extern "C" fn picker_callback_boxed<F>(
+    code: i32,
+    ptr: *const std::ffi::c_void,
+    context: *mut std::ffi::c_void,
+) where
+    F: FnOnce(SCPickerOutcome) + Send + 'static,
+{
+    let callback = unsafe { Box::from_raw(context as *mut F) };
+    let outcome = match code {
+        1 if !ptr.is_null() => SCPickerOutcome::Picked(SCPickerResult { ptr }),
+        0 => SCPickerOutcome::Cancelled,
+        _ => SCPickerOutcome::Error("Picker failed".to_string()),
+    };
+    callback(outcome);
+}
+
+/// Callback trampoline for boxed closures (picker filter only)
+extern "C" fn picker_filter_callback_boxed<F>(
+    code: i32,
+    ptr: *const std::ffi::c_void,
+    context: *mut std::ffi::c_void,
+) where
+    F: FnOnce(SCPickerFilterOutcome) + Send + 'static,
+{
+    let callback = unsafe { Box::from_raw(context as *mut F) };
+    let outcome = match code {
+        1 if !ptr.is_null() => {
+            SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(ptr))
+        }
+        0 => SCPickerFilterOutcome::Cancelled,
+        _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
+    };
+    callback(outcome);
 }
 
 // Safety: Configuration wraps an Objective-C object that is thread-safe
