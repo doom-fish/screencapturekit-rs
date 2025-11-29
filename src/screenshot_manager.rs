@@ -173,6 +173,43 @@ impl CGImage {
 
         Ok(data)
     }
+
+    /// Save the image to a PNG file
+    ///
+    /// # Arguments
+    /// * `path` - The file path to save the PNG to
+    ///
+    /// # Errors
+    /// Returns an error if the image cannot be saved
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use screencapturekit::screenshot_manager::SCScreenshotManager;
+    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
+    /// # use screencapturekit::shareable_content::SCShareableContent;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+    /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
+    /// image.save_png("/tmp/screenshot.png")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn save_png(&self, path: &str) -> Result<(), SCError> {
+        let c_path = std::ffi::CString::new(path)
+            .map_err(|_| SCError::internal_error("Path contains null bytes"))?;
+        
+        let success = unsafe { crate::ffi::cgimage_save_png(self.ptr, c_path.as_ptr()) };
+        
+        if success {
+            Ok(())
+        } else {
+            Err(SCError::internal_error("Failed to save image as PNG"))
+        }
+    }
 }
 
 impl Drop for CGImage {
