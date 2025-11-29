@@ -26,7 +26,9 @@ extern "C" {
         out_num_buffers: *mut u32,
         out_buffers_ptr: *mut *mut std::ffi::c_void,
         out_buffers_len: *mut usize,
+        out_block_buffer: *mut *mut std::ffi::c_void,
     );
+    pub fn cm_block_buffer_release(block_buffer: *mut std::ffi::c_void);
     pub fn cm_sample_buffer_get_data_buffer(
         sample_buffer: *mut std::ffi::c_void,
     ) -> *mut std::ffi::c_void;
