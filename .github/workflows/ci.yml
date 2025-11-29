@@ -48,10 +48,13 @@ jobs:
         include:
           - os: macos-14
             name: macOS 14 (Sonoma) ARM64
+            features: "async,macos_14_4"
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
+            features: "async,macos_15_2"
           - os: macos-13
             name: macOS 13 (Ventura) Intel
+            features: "async,macos_13_0"
     runs-on: ${{ matrix.os }}
     name: Build - ${{ matrix.name }}
     steps:
@@ -68,12 +71,14 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.os }}-cargo-
-      - name: Build
+      - name: Build (default features)
         run: cargo build --verbose
-      - name: Build with all features
-        run: cargo build --verbose --all-features
-      - name: Run tests
+      - name: Build with version-specific features (${{ matrix.features }})
+        run: cargo build --verbose --features "${{ matrix.features }}"
+      - name: Run tests (default features)
         run: cargo test --verbose
+      - name: Run tests with version-specific features
+        run: cargo test --verbose --features "${{ matrix.features }}"
 
   # ==========================================================================
   # Documentation (only on main)
