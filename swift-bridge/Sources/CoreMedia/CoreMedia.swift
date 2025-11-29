@@ -262,34 +262,66 @@ public func cm_sample_buffer_get_audio_buffer_number_channels(_ sampleBuffer: Un
 }
 
 @_cdecl("cm_sample_buffer_get_audio_buffer_list")
-public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutableRawPointer, _ outNumBuffers: UnsafeMutablePointer<UInt32>, _ outBuffersPtr: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outBuffersLen: UnsafeMutablePointer<UInt>) {
+public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutableRawPointer, _ outNumBuffers: UnsafeMutablePointer<UInt32>, _ outBuffersPtr: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outBuffersLen: UnsafeMutablePointer<UInt>, _ outBlockBuffer: UnsafeMutablePointer<UnsafeMutableRawPointer?>) {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
+    // First, query the required buffer size
+    var bufferListSizeNeeded: Int = 0
+    var status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+        buffer,
+        bufferListSizeNeededOut: &bufferListSizeNeeded,
+        bufferListOut: nil,
+        bufferListSize: 0,
+        blockBufferAllocator: nil,
+        blockBufferMemoryAllocator: nil,
+        flags: 0,
+        blockBufferOut: nil
+    )
+    
+    guard bufferListSizeNeeded > 0 else {
+        outNumBuffers.pointee = 0
+        outBuffersPtr.pointee = nil
+        outBuffersLen.pointee = 0
+        outBlockBuffer.pointee = nil
+        return
+    }
+    
+    // Allocate buffer of the required size
+    let audioBufferListPtr = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: bufferListSizeNeeded / MemoryLayout<AudioBufferList>.stride + 1)
+    defer { audioBufferListPtr.deallocate() }
+    
     var blockBuffer: CMBlockBuffer?
-    var audioBufferList = AudioBufferList()
-
-    let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+    status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
         buffer,
         bufferListSizeNeededOut: nil,
-        bufferListOut: &audioBufferList,
-        bufferListSize: MemoryLayout<AudioBufferList>.size,
+        bufferListOut: audioBufferListPtr,
+        bufferListSize: bufferListSizeNeeded,
         blockBufferAllocator: nil,
         blockBufferMemoryAllocator: nil,
         flags: 0,
         blockBufferOut: &blockBuffer
     )
 
-    guard status == noErr else {
+    guard status == noErr, let blockBuffer = blockBuffer else {
         outNumBuffers.pointee = 0
         outBuffersPtr.pointee = nil
         outBuffersLen.pointee = 0
+        outBlockBuffer.pointee = nil
         return
     }
 
-    let numBuffers = Int(audioBufferList.mNumberBuffers)
+    let numBuffers = Int(audioBufferListPtr.pointee.mNumberBuffers)
+    guard numBuffers > 0 else {
+        outNumBuffers.pointee = 0
+        outBuffersPtr.pointee = nil
+        outBuffersLen.pointee = 0
+        outBlockBuffer.pointee = nil
+        return
+    }
+    
     let buffers = UnsafeMutablePointer<AudioBufferBridge>.allocate(capacity: numBuffers)
 
-    withUnsafePointer(to: &audioBufferList.mBuffers) { buffersPtr in
+    withUnsafePointer(to: &audioBufferListPtr.pointee.mBuffers) { buffersPtr in
         let bufferArray = UnsafeBufferPointer(start: buffersPtr, count: numBuffers)
         for (index, audioBuffer) in bufferArray.enumerated() {
             buffers[index] = AudioBufferBridge(
@@ -303,6 +335,13 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
     outNumBuffers.pointee = UInt32(numBuffers)
     outBuffersPtr.pointee = UnsafeMutableRawPointer(buffers)
     outBuffersLen.pointee = UInt(numBuffers)
+    // Retain the block buffer to keep data alive, caller must release
+    outBlockBuffer.pointee = Unmanaged.passRetained(blockBuffer).toOpaque()
+}
+
+@_cdecl("cm_block_buffer_release")
+public func cm_block_buffer_release(_ blockBuffer: UnsafeMutableRawPointer) {
+    let _ = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeRetainedValue()
 }
 
 @_cdecl("cm_sample_buffer_get_audio_buffer_data_byte_size")

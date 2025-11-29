@@ -214,12 +214,14 @@ impl CMSampleBuffer {
             let mut num_buffers: u32 = 0;
             let mut buffers_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
             let mut buffers_len: usize = 0;
+            let mut block_buffer_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
 
             ffi::cm_sample_buffer_get_audio_buffer_list(
                 self.0,
                 &mut num_buffers,
                 &mut buffers_ptr,
                 &mut buffers_len,
+                &mut block_buffer_ptr,
             );
 
             if num_buffers == 0 {
@@ -231,6 +233,7 @@ impl CMSampleBuffer {
                         buffers_ptr: buffers_ptr.cast::<AudioBuffer>(),
                         buffers_len,
                     },
+                    block_buffer_ptr,
                 })
             }
         }
