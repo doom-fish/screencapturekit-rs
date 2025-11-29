@@ -16,7 +16,7 @@ impl SCStreamConfiguration {
     ///
     /// let mut config = SCStreamConfiguration::default();
     /// config.set_captures_audio(true);
-    /// assert!(config.get_captures_audio());
+    /// assert!(config.captures_audio());
     /// ```
     pub fn set_captures_audio(&mut self, captures_audio: bool) -> &mut Self {
         unsafe {
@@ -33,7 +33,7 @@ impl SCStreamConfiguration {
     }
 
     /// Check if audio capture is enabled
-    pub fn get_captures_audio(&self) -> bool {
+    pub fn captures_audio(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_captures_audio(self.as_ptr()) }
     }
 
@@ -48,7 +48,7 @@ impl SCStreamConfiguration {
     ///
     /// let mut config = SCStreamConfiguration::default();
     /// config.set_sample_rate(48000);
-    /// assert_eq!(config.get_sample_rate(), 48000);
+    /// assert_eq!(config.sample_rate(), 48000);
     /// ```
     pub fn set_sample_rate(&mut self, sample_rate: i32) -> &mut Self {
         unsafe {
@@ -68,7 +68,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get the configured audio sample rate
-    pub fn get_sample_rate(&self) -> i32 {
+    pub fn sample_rate(&self) -> i32 {
         // FFI returns isize but sample rate fits in i32 (typical values: 44100, 48000)
         #[allow(clippy::cast_possible_truncation)]
         unsafe {
@@ -87,7 +87,7 @@ impl SCStreamConfiguration {
     ///
     /// let mut config = SCStreamConfiguration::default();
     /// config.set_channel_count(2); // Stereo
-    /// assert_eq!(config.get_channel_count(), 2);
+    /// assert_eq!(config.channel_count(), 2);
     /// ```
     pub fn set_channel_count(&mut self, channel_count: i32) -> &mut Self {
         unsafe {
@@ -107,7 +107,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get the configured channel count
-    pub fn get_channel_count(&self) -> i32 {
+    pub fn channel_count(&self) -> i32 {
         // FFI returns isize but channel count fits in i32 (typical values: 1-8)
         #[allow(clippy::cast_possible_truncation)]
         unsafe {
@@ -154,7 +154,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get whether microphone capture is enabled (macOS 15.0+).
-    pub fn get_captures_microphone(&self) -> bool {
+    pub fn captures_microphone(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_captures_microphone(self.as_ptr()) }
     }
 
@@ -189,7 +189,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get whether current process audio is excluded from capture.
-    pub fn get_excludes_current_process_audio(&self) -> bool {
+    pub fn excludes_current_process_audio(&self) -> bool {
         unsafe {
             crate::ffi::sc_stream_configuration_get_excludes_current_process_audio(self.as_ptr())
         }
@@ -241,7 +241,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get microphone capture device ID (macOS 15.0+).
-    pub fn get_microphone_capture_device_id(&self) -> Option<String> {
+    pub fn microphone_capture_device_id(&self) -> Option<String> {
         unsafe {
             ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
                 crate::ffi::sc_stream_configuration_get_microphone_capture_device_id(

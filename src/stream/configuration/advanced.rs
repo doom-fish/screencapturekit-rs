@@ -36,7 +36,7 @@ impl SCStreamConfiguration {
     }
 
     #[cfg(feature = "macos_14_2")]
-    pub fn get_ignore_fraction_of_screen(&self) -> f64 {
+    pub fn ignore_fraction_of_screen(&self) -> f64 {
         unsafe { crate::ffi::sc_stream_configuration_get_ignore_fraction_of_screen(self.as_ptr()) }
     }
 
@@ -67,7 +67,7 @@ impl SCStreamConfiguration {
     }
 
     #[cfg(feature = "macos_14_2")]
-    pub fn get_ignores_shadows_single_window(&self) -> bool {
+    pub fn ignores_shadows_single_window(&self) -> bool {
         unsafe {
             crate::ffi::sc_stream_configuration_get_ignores_shadows_single_window(self.as_ptr())
         }
@@ -100,7 +100,7 @@ impl SCStreamConfiguration {
     }
 
     #[cfg(feature = "macos_13_0")]
-    pub fn get_should_be_opaque(&self) -> bool {
+    pub fn should_be_opaque(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_should_be_opaque(self.as_ptr()) }
     }
 
@@ -130,7 +130,7 @@ impl SCStreamConfiguration {
     }
 
     #[cfg(feature = "macos_14_2")]
-    pub fn get_includes_child_windows(&self) -> bool {
+    pub fn includes_child_windows(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_includes_child_windows(self.as_ptr()) }
     }
 
@@ -166,7 +166,7 @@ impl SCStreamConfiguration {
     }
 
     #[cfg(feature = "macos_14_2")]
-    pub fn get_presenter_overlay_privacy_alert_setting(&self) -> SCPresenterOverlayAlertSetting {
+    pub fn presenter_overlay_privacy_alert_setting(&self) -> SCPresenterOverlayAlertSetting {
         let value = unsafe {
             crate::ffi::sc_stream_configuration_get_presenter_overlay_privacy_alert_setting(
                 self.as_ptr(),
@@ -204,7 +204,7 @@ impl SCStreamConfiguration {
     }
 
     #[cfg(feature = "macos_14_0")]
-    pub fn get_ignore_global_clipboard(&self) -> bool {
+    pub fn ignore_global_clipboard(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_ignore_global_clipboard(self.as_ptr()) }
     }
 
@@ -233,7 +233,7 @@ impl SCStreamConfiguration {
     }
 
     #[cfg(feature = "macos_14_0")]
-    pub fn get_ignores_shadow_display_configuration(&self) -> bool {
+    pub fn ignores_shadow_display_configuration(&self) -> bool {
         unsafe {
             crate::ffi::sc_stream_configuration_get_ignores_shadow_display_configuration(
                 self.as_ptr(),
