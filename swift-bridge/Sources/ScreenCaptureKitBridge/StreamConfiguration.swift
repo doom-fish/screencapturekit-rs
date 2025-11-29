@@ -108,15 +108,19 @@ public func getStreamConfigurationChannelCount(_ config: OpaquePointer) -> Int {
 }
 
 @_cdecl("sc_stream_configuration_set_minimum_frame_interval")
-public func setStreamConfigurationMinimumFrameInterval(_ config: OpaquePointer, _ seconds: Double) {
+public func setStreamConfigurationMinimumFrameInterval(_ config: OpaquePointer, _ value: Int64, _ timescale: Int32, _ flags: UInt32, _ epoch: Int64) {
     let scConfig: SCStreamConfiguration = unretained(config)
-    scConfig.minimumFrameInterval = CMTime(seconds: seconds, preferredTimescale: 1000)
+    scConfig.minimumFrameInterval = CMTime(value: value, timescale: timescale, flags: CMTimeFlags(rawValue: flags), epoch: epoch)
 }
 
 @_cdecl("sc_stream_configuration_get_minimum_frame_interval")
-public func getStreamConfigurationMinimumFrameInterval(_ config: OpaquePointer) -> Double {
+public func getStreamConfigurationMinimumFrameInterval(_ config: OpaquePointer, _ value: UnsafeMutablePointer<Int64>, _ timescale: UnsafeMutablePointer<Int32>, _ flags: UnsafeMutablePointer<UInt32>, _ epoch: UnsafeMutablePointer<Int64>) {
     let scConfig: SCStreamConfiguration = unretained(config)
-    return scConfig.minimumFrameInterval.seconds
+    let cmTime = scConfig.minimumFrameInterval
+    value.pointee = cmTime.value
+    timescale.pointee = cmTime.timescale
+    flags.pointee = cmTime.flags.rawValue
+    epoch.pointee = cmTime.epoch
 }
 
 @_cdecl("sc_stream_configuration_set_queue_depth")

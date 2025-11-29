@@ -24,12 +24,14 @@ fn main() {
     // Set allowed picker modes
     config.set_allowed_picker_modes(&[
         SCContentSharingPickerMode::SingleWindow,
+        SCContentSharingPickerMode::MultipleWindows,
         SCContentSharingPickerMode::SingleDisplay,
-        SCContentSharingPickerMode::Multiple,
+        SCContentSharingPickerMode::SingleApplication,
+        SCContentSharingPickerMode::MultipleApplications,
     ]);
 
     println!("📋 Picker Configuration:");
-    println!("   Allowed modes: SingleWindow, SingleDisplay, Multiple");
+    println!("   Allowed modes: SingleWindow, MultipleWindows, SingleDisplay, SingleApplication, MultipleApplications");
     println!("   Pointer: {:?}", config.as_ptr());
 
     // Test configuration cloning
@@ -45,12 +47,20 @@ fn main() {
         SCContentSharingPickerMode::SingleWindow as i32
     );
     println!(
-        "   Multiple = {}",
-        SCContentSharingPickerMode::Multiple as i32
+        "   MultipleWindows = {}",
+        SCContentSharingPickerMode::MultipleWindows as i32
     );
     println!(
         "   SingleDisplay = {}",
         SCContentSharingPickerMode::SingleDisplay as i32
+    );
+    println!(
+        "   SingleApplication = {}",
+        SCContentSharingPickerMode::SingleApplication as i32
+    );
+    println!(
+        "   MultipleApplications = {}",
+        SCContentSharingPickerMode::MultipleApplications as i32
     );
 
     // Note: Actually showing the picker requires user interaction

@@ -94,6 +94,7 @@ impl SCStreamConfiguration {
     pub fn set_fps(&mut self, fps: u32) -> &mut Self {
         let cm_time = CMTime {
             value: 1,
+            #[allow(clippy::cast_possible_wrap)]
             timescale: fps as i32,
             flags: 1, // kCMTimeFlags_Valid
             epoch: 0,

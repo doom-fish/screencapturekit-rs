@@ -400,14 +400,14 @@ fn test_content_sharing_picker_mode_eq_and_hash() {
 
     let mode1 = SCContentSharingPickerMode::SingleWindow;
     let mode2 = SCContentSharingPickerMode::SingleWindow;
-    let mode3 = SCContentSharingPickerMode::Multiple;
+    let mode3 = SCContentSharingPickerMode::MultipleWindows;
 
     assert_eq!(mode1, mode2);
     assert_ne!(mode1, mode3);
 
     let mut modes = HashSet::new();
     modes.insert(SCContentSharingPickerMode::SingleWindow);
-    modes.insert(SCContentSharingPickerMode::Multiple);
+    modes.insert(SCContentSharingPickerMode::MultipleWindows);
     modes.insert(SCContentSharingPickerMode::SingleWindow); // Duplicate
     assert_eq!(modes.len(), 2);
 }
