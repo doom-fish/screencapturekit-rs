@@ -220,6 +220,12 @@ pub struct SCPickerResult {
 }
 
 impl SCPickerResult {
+    /// Create from raw pointer (used by async API)
+    #[must_use]
+    pub(crate) fn from_ptr(ptr: *const c_void) -> Self {
+        Self { ptr }
+    }
+
     /// Get the content filter for use with `SCStream::new()`
     #[must_use]
     pub fn filter(&self) -> SCContentFilter {
