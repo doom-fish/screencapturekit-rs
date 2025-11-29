@@ -6,6 +6,7 @@
 //! - Capturing a screenshot
 //! - Getting content info (scale factor, dimensions)
 //! - Capturing a specific screen region (macOS 15.2+)
+//! - Advanced HDR screenshot capture (macOS 26.0+)
 //! - Saving as PNG
 
 #[cfg(feature = "macos_14_0")]
@@ -88,6 +89,70 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Err(e) => {
                 println!("   ⚠️  Region capture failed: {e}");
+            }
+        }
+    }
+
+    // 8. Advanced HDR screenshot (macOS 26.0+)
+    #[cfg(feature = "macos_26_0")]
+    {
+        use screencapturekit::screenshot_manager::{
+            SCScreenshotConfiguration, SCScreenshotDynamicRange,
+        };
+
+        println!("\n🌈 Advanced HDR Screenshot (macOS 26.0+)...");
+
+        // Create advanced configuration with HDR support
+        let screenshot_config = SCScreenshotConfiguration::new()
+            .with_width(1920)
+            .with_height(1080)
+            .with_shows_cursor(true)
+            .with_dynamic_range(SCScreenshotDynamicRange::BothSDRAndHDR)
+            .with_ignore_shadows(false)
+            .with_include_child_windows(true);
+
+        match SCScreenshotManager::capture_screenshot(&filter, &screenshot_config) {
+            Ok(output) => {
+                // Get SDR image
+                if let Some(sdr) = output.sdr_image() {
+                    let filename = "screenshot_sdr.png";
+                    save_image_as_png(&sdr, filename)?;
+                    println!("   SDR: {}x{} → {filename}", sdr.width(), sdr.height());
+                }
+
+                // Get HDR image (if available on HDR display)
+                if let Some(hdr) = output.hdr_image() {
+                    let filename = "screenshot_hdr.png";
+                    save_image_as_png(&hdr, filename)?;
+                    println!("   HDR: {}x{} → {filename}", hdr.width(), hdr.height());
+                } else {
+                    println!("   HDR: Not available (requires HDR display)");
+                }
+
+                println!("   ✅ Advanced screenshot complete");
+            }
+            Err(e) => {
+                println!("   ⚠️  Advanced screenshot failed: {e}");
+            }
+        }
+
+        // Save directly to file
+        println!("\n💾 Screenshot with file output (macOS 26.0+)...");
+        let file_config = SCScreenshotConfiguration::new()
+            .with_width(1920)
+            .with_height(1080)
+            .with_file_path("screenshot_direct.png");
+
+        match SCScreenshotManager::capture_screenshot(&filter, &file_config) {
+            Ok(output) => {
+                if let Some(url) = output.file_url() {
+                    println!("   ✅ Saved directly to: {url}");
+                } else {
+                    println!("   ✅ Screenshot captured (file save may be async)");
+                }
+            }
+            Err(e) => {
+                println!("   ⚠️  File screenshot failed: {e}");
             }
         }
     }
