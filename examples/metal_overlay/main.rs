@@ -4,7 +4,7 @@
 //! - Metal rendering with compiled shaders
 //! - Screen capture via ScreenCaptureKit with zero-copy IOSurface textures
 //! - System content picker (macOS 14.0+) for user-selected capture
-//! - Overlay menu with bitmap font rendering
+//! - Interactive overlay menu with bitmap font rendering
 //! - Real-time audio waveform visualization with vertical gain meters
 //! - Proper Rust/Metal data structure alignment (`#[repr(C)]`)
 //!
@@ -17,9 +17,18 @@
 //!
 //! ## Controls
 //!
-//! - `SPACE` - Start/stop capture (opens system picker when starting)
+//! Menu navigation (when menu visible):
+//! - `UP/DOWN` - Navigate menu items
+//! - `SPACE/ENTER` - Select item
+//! - `ESC/H` - Hide menu
+//!
+//! Direct controls (when menu hidden):
+//! - `SPACE` - Start/stop capture (opens system picker)
+//! - `V` - Toggle video display
 //! - `W` - Toggle waveform display
-//! - `H` - Toggle help overlay
+//! - `C` - Open config menu
+//! - `M` - Toggle microphone
+//! - `H` - Show menu
 //! - `Q/ESC` - Quit
 //!
 //! ## Run
@@ -408,7 +417,9 @@ struct OverlayState {
     show_help: bool,
     show_waveform: bool,
     show_config: bool,
+    show_video: bool,
     config_selection: usize,
+    menu_selection: usize,
 }
 
 /// Stream configuration options that can be changed at runtime
@@ -530,7 +541,7 @@ impl StreamConfig {
         if let Some(idx) = self.mic_device_idx {
             let devices = AudioInputDevice::list();
             if let Some(device) = devices.get(idx) {
-                config = config.with_microphone_capture_device_id(Some(&device.id));
+                config.set_microphone_capture_device_id(&device.id);
             }
         }
         
@@ -544,8 +555,16 @@ impl OverlayState {
             show_help: true,
             show_waveform: true,
             show_config: false,
+            show_video: true,
             config_selection: 0,
+            menu_selection: 0,
         }
+    }
+    
+    const MENU_ITEMS: &'static [&'static str] = &["Capture", "Video", "Waveform", "Config", "Quit"];
+    
+    fn menu_count() -> usize {
+        Self::MENU_ITEMS.len()
     }
 }
 
@@ -733,59 +752,68 @@ impl VertexBufferBuilder {
         self.rect(x - 4.0, y, 4.0, 1.0, [0.9, 0.2, 0.2, 0.8]);
     }
 
-    /// Draw a simple help overlay
-    fn help_overlay(&mut self, font: &BitmapFont, viewport_w: f32, viewport_h: f32, is_capturing: bool) {
+    /// Draw a simple help overlay with menu navigation
+    fn help_overlay(&mut self, font: &BitmapFont, viewport_w: f32, viewport_h: f32, is_capturing: bool, menu_selection: usize) {
         // Responsive scaling based on viewport
         let base_scale = (viewport_w.min(viewport_h) / 600.0).clamp(1.0, 3.0);
         let scale = 2.0 * base_scale;
-        let line_h = 20.0 * base_scale;
-        let padding = 12.0 * base_scale;
-        let key_col_w = 90.0 * base_scale;
+        let line_h = 24.0 * base_scale;
+        let padding = 20.0 * base_scale;
         
-        let bg_color = [0.0, 0.0, 0.0, 0.8];
+        let bg_color = [0.0, 0.0, 0.0, 0.85];
         let text_color = [1.0, 1.0, 1.0, 1.0];
-        let key_color = [0.4, 0.9, 1.0, 1.0];
+        let selected_bg = [0.2, 0.5, 1.0, 0.9];
         let title_color = [1.0, 0.8, 0.2, 1.0];
+        let hint_color = [0.5, 0.5, 0.5, 1.0];
         
-        // Calculate box dimensions
-        let box_w = (key_col_w + 120.0 * base_scale + padding * 2.0).min(viewport_w * 0.8);
-        let box_h = (line_h * 6.5 + padding * 2.0).min(viewport_h * 0.4);
+        let menu_items = ["Capture", "Video", "Waveform", "Config", "Quit"];
+        let menu_values = [
+            if is_capturing { "Stop" } else { "Start" },
+            "Toggle",
+            "Toggle",
+            "Open",
+            "Exit",
+        ];
+        
+        // Calculate box dimensions - wider menu
+        let box_w = (280.0 * base_scale).min(viewport_w * 0.85);
+        let box_h = (line_h * (menu_items.len() as f32 + 3.5) + padding * 2.0).min(viewport_h * 0.6);
         
         // Center the box
         let x = (viewport_w - box_w) / 2.0;
         let y = (viewport_h - box_h) / 2.0;
         
-        // Background with rounded feel (just rect for now)
+        // Background with border
         self.rect(x, y, box_w, box_h, bg_color);
-        self.rect_outline(x, y, box_w, box_h, 2.0 * base_scale, [0.5, 0.5, 0.5, 1.0]);
+        self.rect_outline(x, y, box_w, box_h, 2.0 * base_scale, [0.4, 0.6, 1.0, 1.0]);
         
         let mut ly = y + padding;
         let text_x = x + padding;
-        let value_x = x + padding + key_col_w;
+        let value_x = x + box_w - padding - 60.0 * base_scale;
         
         // Title
-        self.text(font, "CONTROLS", text_x, ly, scale, title_color);
-        ly += line_h * 1.2;
+        self.text(font, "MENU", text_x, ly, scale * 1.2, title_color);
+        ly += line_h * 1.5;
         
-        // Keys
-        self.text(font, "[SPACE]", text_x, ly, scale, key_color);
-        self.text(font, if is_capturing { "Stop" } else { "Pick" }, value_x, ly, scale, text_color);
-        ly += line_h;
+        // Menu items
+        for (i, (item, value)) in menu_items.iter().zip(menu_values.iter()).enumerate() {
+            let is_selected = i == menu_selection;
+            
+            // Selection highlight
+            if is_selected {
+                self.rect(x + 4.0, ly - 4.0, box_w - 8.0, line_h + 4.0, selected_bg);
+                // Arrow indicator
+                self.text(font, ">", text_x - 16.0 * base_scale, ly, scale, [1.0, 1.0, 1.0, 1.0]);
+            }
+            
+            self.text(font, item, text_x, ly, scale, text_color);
+            self.text(font, value, value_x, ly, scale, if is_selected { [1.0, 1.0, 0.5, 1.0] } else { hint_color });
+            ly += line_h;
+        }
         
-        self.text(font, "[W]", text_x, ly, scale, key_color);
-        self.text(font, "Waveform", value_x, ly, scale, text_color);
-        ly += line_h;
-        
-        self.text(font, "[M]", text_x, ly, scale, key_color);
-        self.text(font, "Mic Toggle", value_x, ly, scale, text_color);
-        ly += line_h;
-        
-        self.text(font, "[C]", text_x, ly, scale, key_color);
-        self.text(font, "Config", value_x, ly, scale, text_color);
-        ly += line_h;
-        
-        self.text(font, "[H]", text_x, ly, scale, key_color);
-        self.text(font, "Hide", value_x, ly, scale, text_color);
+        // Hint at bottom
+        ly += line_h * 0.5;
+        self.text(font, "Arrows/Space/Enter", text_x, ly, scale * 0.7, hint_color);
     }
 
     /// Draw stream configuration menu
@@ -1139,96 +1167,111 @@ fn main() {
                             },
                         ..
                     } => {
-                        match keycode {
-                            VirtualKeyCode::Space => {
-                                if capturing.load(Ordering::Relaxed) {
-                                    // Stop capture
-                                    println!("⏹️  Stopping capture...");
-                                    if let Some(ref mut s) = stream {
-                                        let _ = s.stop_capture();
-                                    }
-                                    stream = None;
-                                    current_filter = None;
-                                    capturing.store(false, Ordering::Relaxed);
-                                    println!("✅ Capture stopped");
-                                } else {
-                                    // Show system picker (non-blocking callback)
-                                    println!("📺 Opening content picker...");
-                                    
-                                    let config = SCContentSharingPickerConfiguration::new();
-                                    let pending = Arc::clone(&pending_picker);
-                                    
-                                    SCContentSharingPicker::show(&config, move |outcome| {
-                                        match outcome {
-                                            SCPickerOutcome::Picked(result) => {
-                                                let (width, height) = result.pixel_size();
-                                                let filter = result.filter();
-                                                
-                                                if let Ok(mut pending) = pending.lock() {
-                                                    *pending = Some((filter, width, height));
-                                                }
-                                            }
-                                            SCPickerOutcome::Cancelled => {
-                                                println!("⚠️  Picker cancelled");
-                                            }
-                                            SCPickerOutcome::Error(e) => {
-                                                eprintln!("❌ Picker error: {}", e);
+                        // Helper closure to start/stop capture
+                        let toggle_capture = |stream: &mut Option<SCStream>, 
+                                              current_filter: &mut Option<SCContentFilter>,
+                                              capturing: &Arc<AtomicBool>,
+                                              pending_picker: &Arc<Mutex<PickerResult>>| {
+                            if capturing.load(Ordering::Relaxed) {
+                                println!("⏹️  Stopping capture...");
+                                if let Some(ref mut s) = stream {
+                                    let _ = s.stop_capture();
+                                }
+                                *stream = None;
+                                *current_filter = None;
+                                capturing.store(false, Ordering::Relaxed);
+                                println!("✅ Capture stopped");
+                            } else {
+                                println!("📺 Opening content picker...");
+                                let config = SCContentSharingPickerConfiguration::new();
+                                let pending = Arc::clone(pending_picker);
+                                
+                                SCContentSharingPicker::show(&config, move |outcome| {
+                                    match outcome {
+                                        SCPickerOutcome::Picked(result) => {
+                                            let (width, height) = result.pixel_size();
+                                            let filter = result.filter();
+                                            if let Ok(mut pending) = pending.lock() {
+                                                *pending = Some((filter, width, height));
                                             }
                                         }
-                                    });
+                                        SCPickerOutcome::Cancelled => {
+                                            println!("⚠️  Picker cancelled");
+                                        }
+                                        SCPickerOutcome::Error(e) => {
+                                            eprintln!("❌ Picker error: {}", e);
+                                        }
+                                    }
+                                });
+                            }
+                        };
+                        
+                        // Handle menu navigation when help is shown
+                        if overlay.show_help && !overlay.show_config {
+                            match keycode {
+                                VirtualKeyCode::Up => {
+                                    if overlay.menu_selection > 0 {
+                                        overlay.menu_selection -= 1;
+                                    }
                                 }
-                            }
-                            VirtualKeyCode::W => {
-                                overlay.show_waveform = !overlay.show_waveform;
-                            }
-                            VirtualKeyCode::H => {
-                                overlay.show_help = !overlay.show_help;
-                            }
-                            VirtualKeyCode::C => {
-                                overlay.show_config = !overlay.show_config;
-                                if overlay.show_config {
+                                VirtualKeyCode::Down => {
+                                    let max = OverlayState::menu_count().saturating_sub(1);
+                                    if overlay.menu_selection < max {
+                                        overlay.menu_selection += 1;
+                                    }
+                                }
+                                VirtualKeyCode::Return | VirtualKeyCode::Space => {
+                                    match overlay.menu_selection {
+                                        0 => { // Capture
+                                            toggle_capture(&mut stream, &mut current_filter, &capturing, &pending_picker);
+                                        }
+                                        1 => { // Video toggle
+                                            overlay.show_video = !overlay.show_video;
+                                            println!("🎬 Video: {}", if overlay.show_video { "On" } else { "Off" });
+                                        }
+                                        2 => { // Waveform toggle
+                                            overlay.show_waveform = !overlay.show_waveform;
+                                        }
+                                        3 => { // Config
+                                            overlay.show_config = true;
+                                            overlay.show_help = false;
+                                        }
+                                        4 => { // Quit
+                                            *control_flow = ControlFlow::ExitWithCode(0);
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                VirtualKeyCode::Escape | VirtualKeyCode::H => {
                                     overlay.show_help = false;
                                 }
+                                VirtualKeyCode::Q => {
+                                    *control_flow = ControlFlow::ExitWithCode(0);
+                                }
+                                _ => {}
                             }
-                            VirtualKeyCode::M => {
-                                stream_config.captures_mic = !stream_config.captures_mic;
-                                println!("🎤 Microphone: {}", if stream_config.captures_mic { "On" } else { "Off" });
-                                // Update running stream if capturing
-                                if capturing.load(Ordering::Relaxed) {
-                                    if let Some(ref s) = stream {
-                                        let new_config = stream_config.to_stream_config(capture_size.0, capture_size.1);
-                                        match s.update_configuration(&new_config) {
-                                            Ok(()) => println!("✅ Config updated"),
-                                            Err(e) => eprintln!("❌ Config update failed: {:?}", e),
-                                        }
+                        }
+                        // Handle config menu navigation
+                        else if overlay.show_config {
+                            match keycode {
+                                VirtualKeyCode::Up => {
+                                    if overlay.config_selection > 0 {
+                                        overlay.config_selection -= 1;
                                     }
                                 }
-                            }
-                            VirtualKeyCode::Up => {
-                                if overlay.show_config && overlay.config_selection > 0 {
-                                    overlay.config_selection -= 1;
-                                }
-                            }
-                            VirtualKeyCode::Down => {
-                                if overlay.show_config {
+                                VirtualKeyCode::Down => {
                                     let max = StreamConfig::option_count().saturating_sub(1);
                                     if overlay.config_selection < max {
                                         overlay.config_selection += 1;
                                     }
                                 }
-                            }
-                            VirtualKeyCode::Left => {
-                                if overlay.show_config {
+                                VirtualKeyCode::Left => {
                                     stream_config.toggle_or_adjust(overlay.config_selection, false);
                                 }
-                            }
-                            VirtualKeyCode::Right => {
-                                if overlay.show_config {
+                                VirtualKeyCode::Right => {
                                     stream_config.toggle_or_adjust(overlay.config_selection, true);
                                 }
-                            }
-                            VirtualKeyCode::Return => {
-                                if overlay.show_config {
+                                VirtualKeyCode::Return | VirtualKeyCode::Space => {
                                     // Apply config to running stream
                                     if capturing.load(Ordering::Relaxed) {
                                         if let Some(ref s) = stream {
@@ -1238,24 +1281,57 @@ fn main() {
                                                 Err(e) => eprintln!("❌ Config update failed: {:?}", e),
                                             }
                                         }
-                                    }
-                                    // Toggle selected option if not capturing
-                                    else {
+                                    } else {
                                         stream_config.toggle_or_adjust(overlay.config_selection, true);
                                     }
                                 }
-                            }
-                            VirtualKeyCode::Escape => {
-                                if overlay.show_config {
+                                VirtualKeyCode::Escape | VirtualKeyCode::Back => {
                                     overlay.show_config = false;
-                                } else {
+                                    overlay.show_help = true;
+                                }
+                                VirtualKeyCode::Q => {
                                     *control_flow = ControlFlow::ExitWithCode(0);
                                 }
+                                _ => {}
                             }
-                            VirtualKeyCode::Q => {
-                                *control_flow = ControlFlow::ExitWithCode(0);
+                        }
+                        // Default key handling (no menu shown)
+                        else {
+                            match keycode {
+                                VirtualKeyCode::Space => {
+                                    toggle_capture(&mut stream, &mut current_filter, &capturing, &pending_picker);
+                                }
+                                VirtualKeyCode::W => {
+                                    overlay.show_waveform = !overlay.show_waveform;
+                                }
+                                VirtualKeyCode::V => {
+                                    overlay.show_video = !overlay.show_video;
+                                    println!("🎬 Video: {}", if overlay.show_video { "On" } else { "Off" });
+                                }
+                                VirtualKeyCode::H => {
+                                    overlay.show_help = true;
+                                }
+                                VirtualKeyCode::C => {
+                                    overlay.show_config = true;
+                                }
+                                VirtualKeyCode::M => {
+                                    stream_config.captures_mic = !stream_config.captures_mic;
+                                    println!("🎤 Microphone: {}", if stream_config.captures_mic { "On" } else { "Off" });
+                                    if capturing.load(Ordering::Relaxed) {
+                                        if let Some(ref s) = stream {
+                                            let new_config = stream_config.to_stream_config(capture_size.0, capture_size.1);
+                                            match s.update_configuration(&new_config) {
+                                                Ok(()) => println!("✅ Config updated"),
+                                                Err(e) => eprintln!("❌ Config update failed: {:?}", e),
+                                            }
+                                        }
+                                    }
+                                }
+                                VirtualKeyCode::Escape | VirtualKeyCode::Q => {
+                                    *control_flow = ControlFlow::ExitWithCode(0);
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
                     }
                     _ => {}
@@ -1273,7 +1349,7 @@ fn main() {
                     let mut tex_width = capture_size.0 as f32;
                     let mut tex_height = capture_size.1 as f32;
                     
-                    if capturing.load(Ordering::Relaxed) {
+                    if capturing.load(Ordering::Relaxed) && overlay.show_video {
                         if let Ok(guard) = capture_state.latest_surface.try_lock() {
                             if let Some(ref surface) = *guard {
                                 tex_width = surface.width() as f32;
@@ -1303,8 +1379,8 @@ fn main() {
                     };
                     vertex_builder.text(&font, &status, 8.0, 8.0, 2.0, [0.2, 1.0, 0.3, 1.0]);
 
-                    // Waveform panel - centered and larger
-                    if overlay.show_waveform {
+                    // Waveform panel - only show when capturing
+                    if overlay.show_waveform && capturing.load(Ordering::Relaxed) {
                         let wave_w = 400.0;
                         let wave_h = 120.0;
                         let meter_w = 32.0;
@@ -1389,7 +1465,7 @@ fn main() {
 
                     // Help overlay - responsive centered
                     if overlay.show_help {
-                        vertex_builder.help_overlay(&font, width, height, capturing.load(Ordering::Relaxed));
+                        vertex_builder.help_overlay(&font, width, height, capturing.load(Ordering::Relaxed), overlay.menu_selection);
                     }
                     
                     // Config menu overlay
