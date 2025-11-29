@@ -515,6 +515,7 @@ extern "C" {
     ) -> bool;
     pub fn cgimage_free_data(ptr: *mut u8);
     pub fn cgimage_release(image: *const c_void);
+    pub fn cgimage_save_png(image: *const c_void, path: *const i8) -> bool;
 }
 
 // MARK: - SCScreenshotConfiguration (macOS 26.0+)
