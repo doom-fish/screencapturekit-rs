@@ -776,7 +776,7 @@ impl VertexBufferBuilder {
         ];
         
         // Calculate box dimensions - wider menu
-        let box_w = (280.0 * base_scale).min(viewport_w * 0.85);
+        let box_w = (400.0 * base_scale).min(viewport_w * 0.85);
         let box_h = (line_h * (menu_items.len() as f32 + 3.5) + padding * 2.0).min(viewport_h * 0.6);
         
         // Center the box
@@ -840,7 +840,7 @@ impl VertexBufferBuilder {
         let hint_color = [0.6, 0.6, 0.6, 1.0];
         
         let option_count = StreamConfig::option_count();
-        let box_w = (label_col_w + value_col_w + padding * 3.0).min(viewport_w * 0.6);
+        let box_w = (350.0 * base_scale).min(viewport_w * 0.7);
         let box_h = (line_h * (option_count as f32 + 3.0) + padding * 2.0).min(viewport_h * 0.5);
         
         let x = (viewport_w - box_w) / 2.0;
@@ -1275,9 +1275,12 @@ fn main() {
                                     // Apply config to running stream
                                     if capturing.load(Ordering::Relaxed) {
                                         if let Some(ref s) = stream {
+                                            println!("📝 Applying config: FPS={}, Cursor={}, Audio={}, Mic={}", 
+                                                stream_config.fps, stream_config.show_cursor, 
+                                                stream_config.captures_audio, stream_config.captures_mic);
                                             let new_config = stream_config.to_stream_config(capture_size.0, capture_size.1);
                                             match s.update_configuration(&new_config) {
-                                                Ok(()) => println!("✅ Config updated"),
+                                                Ok(()) => println!("✅ Config updated successfully"),
                                                 Err(e) => eprintln!("❌ Config update failed: {:?}", e),
                                             }
                                         }
