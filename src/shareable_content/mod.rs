@@ -215,6 +215,21 @@ impl SCShareableContent {
         }
     }
 
+    /// Get all available running applications
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::shareable_content::SCShareableContent;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let content = SCShareableContent::get()?;
+    /// for app in content.applications() {
+    ///     println!("App: {} (PID: {})", app.application_name(), app.process_id());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn applications(&self) -> Vec<SCRunningApplication> {
         unsafe {
             let count = crate::ffi::sc_shareable_content_get_applications_count(self.0);
