@@ -36,7 +36,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get the current pixel format
-    pub fn get_pixel_format(&self) -> PixelFormat {
+    pub fn pixel_format(&self) -> PixelFormat {
         unsafe {
             let value = crate::ffi::sc_stream_configuration_get_pixel_format(self.as_ptr());
             PixelFormat::from(value)
