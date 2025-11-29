@@ -64,7 +64,8 @@ public func io_surface_retain(_ surface: UnsafeMutableRawPointer) -> UnsafeMutab
     return Unmanaged.passRetained(ioSurface).toOpaque()
 }
 
-// Alternate name for compatibility
+// MARK: - Compatibility Aliases (deprecated - use io_surface_* functions)
+
 @_cdecl("iosurface_get_width")
 public func iosurface_get_width(_ surface: UnsafeMutableRawPointer) -> Int {
     io_surface_get_width(surface)
@@ -108,11 +109,6 @@ public func iosurface_is_in_use(_ surface: UnsafeMutableRawPointer) -> Bool {
 @_cdecl("iosurface_release")
 public func iosurface_release(_ surface: UnsafeMutableRawPointer) {
     io_surface_release(surface)
-}
-
-@_cdecl("iosurface_retain")
-public func iosurface_retain(_ surface: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
-    io_surface_retain(surface)
 }
 
 // MARK: - Hash Functions

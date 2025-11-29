@@ -296,7 +296,7 @@ public func setRecordingOutputAverageBitrate(_ config: OpaquePointer?, _ bitrate
 
 @_cdecl("sc_recording_output_configuration_retain")
 public func retainRecordingOutputConfiguration(_ config: OpaquePointer?) -> OpaquePointer? {
-    return nil
+    nil
 }
 
 @_cdecl("sc_recording_output_configuration_release")
@@ -329,7 +329,7 @@ public func getRecordingOutputRecordedFileSize(_ output: OpaquePointer?) -> Int6
 
 @_cdecl("sc_recording_output_retain")
 public func retainRecordingOutput(_ output: OpaquePointer?) -> OpaquePointer? {
-    return nil
+    nil
 }
 
 @_cdecl("sc_recording_output_release")

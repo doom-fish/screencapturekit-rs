@@ -58,7 +58,9 @@ public func cv_pixel_buffer_get_io_surface(_ pixelBuffer: UnsafeMutableRawPointe
     return Unmanaged.passRetained(ioSurface.takeUnretainedValue()).toOpaque()
 }
 
-// Alternate name for compatibility
+
+
+// Compatibility alias (deprecated - use cv_pixel_buffer_get_io_surface)
 @_cdecl("cv_pixel_buffer_get_iosurface")
 public func cv_pixel_buffer_get_iosurface(_ pixelBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
     cv_pixel_buffer_get_io_surface(pixelBuffer)
