@@ -145,7 +145,7 @@ impl CGImage {
     ///
     /// # Errors
     /// Returns an error if the pixel data cannot be extracted
-    pub fn get_rgba_data(&self) -> Result<Vec<u8>, SCError> {
+    pub fn rgba_data(&self) -> Result<Vec<u8>, SCError> {
         let mut data_ptr: *const u8 = std::ptr::null();
         let mut data_length: usize = 0;
 

@@ -110,11 +110,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .display(display)
                 .exclude_windows(&[])
                 .build();
-            println!("  Display filter style: {:?}", display_filter.get_style());
+            println!("  Display filter style: {:?}", display_filter.style());
         }
         if let Some(window) = windows.first() {
             let window_filter = SCContentFilter::builder().window(window).build();
-            println!("  Window filter style: {:?}", window_filter.get_style());
+            println!("  Window filter style: {:?}", window_filter.style());
         }
         println!("\n  Style values:");
         println!("    None = {:?}", SCShareableContentStyle::None);
