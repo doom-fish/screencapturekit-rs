@@ -16,10 +16,10 @@ cargo run --example 01_basic_capture
 | 02 | `window_capture` | Capture specific window | - |
 | 03 | `audio_capture` | Audio + video capture | - |
 | 04 | `pixel_access` | Read pixel data from frames | - |
-| 05 | `screenshot` | Single screenshot | `macos_14_0` |
+| 05 | `screenshot` | Single screenshot, HDR capture | `macos_14_0`, `macos_26_0` |
 | 06 | `iosurface` | Zero-copy GPU buffer access | - |
 | 07 | `list_content` | List displays/windows/apps | - |
-| 08 | `async` | Async/await API | `async` |
+| 08 | `async` | Async/await API, async picker | `async`, `macos_14_0` |
 | 09 | `closure_handlers` | Closures as handlers | - |
 | 10 | `recording_output` | Direct video recording | `macos_15_0` |
 | 11 | `content_picker` | System content picker UI | `macos_14_0` |
@@ -31,12 +31,18 @@ cargo run --example 01_basic_capture
 # Async example
 cargo run --example 08_async --features async
 
+# Async with picker
+cargo run --example 08_async --features "async,macos_14_0"
+
 # macOS 14+ examples
 cargo run --example 05_screenshot --features macos_14_0
 cargo run --example 11_content_picker --features macos_14_0
 
 # macOS 15+ examples  
 cargo run --example 10_recording_output --features macos_15_0
+
+# macOS 26+ HDR screenshot
+cargo run --example 05_screenshot --features macos_26_0
 
 # Metal GUI example
 cargo run --example metal_overlay
