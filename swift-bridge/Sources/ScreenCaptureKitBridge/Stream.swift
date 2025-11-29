@@ -280,7 +280,14 @@ private class StreamOutputHandler: NSObject, SCStreamOutput {
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        let outputType: Int32 = type == .screen ? 0 : 1
+        let outputType: Int32
+        if type == .screen {
+            outputType = 0
+        } else if #available(macOS 15.0, *), type == .microphone {
+            outputType = 2
+        } else {
+            outputType = 1  // audio
+        }
         // IMPORTANT: passRetained() is used here to retain the CMSampleBuffer for Rust
         // The Rust side will release it when CMSampleBuffer is dropped
         sampleBufferCallback(streamPtr, OpaquePointer(Unmanaged.passRetained(sampleBuffer as AnyObject).toOpaque()), outputType)
