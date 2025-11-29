@@ -6,13 +6,14 @@
 //!
 //! Run with:
 //! ```bash
-//! cargo run --example 09_async --features async
+//! cargo run --example 08_async --features async
+//! cargo run --example 08_async --features "async,macos_14_0"  # For picker example
 //! ```
 
 #[cfg(not(feature = "async"))]
 fn main() {
     println!("⚠️  This example requires the 'async' feature");
-    println!("    Run with: cargo run --example 09_async --features async");
+    println!("    Run with: cargo run --example 08_async --features async");
 }
 
 #[cfg(feature = "async")]
@@ -29,6 +30,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     async_stream_iteration().await?;
     println!();
     runtime_agnostic_demo().await?;
+
+    #[cfg(feature = "macos_14_0")]
+    {
+        println!();
+        async_content_picker().await?;
+    }
 
     println!("\n═══════════════════════════════════════════════════════════");
     println!("✨ All async examples complete!");
@@ -204,6 +211,76 @@ async fn runtime_agnostic_demo() -> Result<(), Box<dyn std::error::Error>> {
         "\n   ✅ Retrieved {} displays using executor-agnostic async",
         content.displays().len()
     );
+
+    Ok(())
+}
+
+// ============================================================================
+// Example 5: Async Content Picker (macOS 14.0+)
+// ============================================================================
+
+#[cfg(all(feature = "async", feature = "macos_14_0"))]
+async fn async_content_picker() -> Result<(), Box<dyn std::error::Error>> {
+    use screencapturekit::async_api::AsyncSCContentSharingPicker;
+    use screencapturekit::content_sharing_picker::{
+        SCContentSharingPickerConfiguration, SCPickerOutcome,
+    };
+
+    println!("🎯 5. Async Content Picker (macOS 14.0+)");
+    println!("   ─────────────────────────────────────");
+    println!("   The picker UI will appear - select content or cancel.");
+    println!("   This is truly async - the executor is NOT blocked while waiting.\n");
+
+    let config = SCContentSharingPickerConfiguration::new();
+
+    // Async picker - doesn't block the executor thread
+    match AsyncSCContentSharingPicker::pick(&config).await {
+        SCPickerOutcome::Picked(result) => {
+            let (width, height) = result.pixel_size();
+            let scale = result.scale();
+
+            println!("   ✅ User selected content:");
+            println!("      • Dimensions: {width}x{height} pixels");
+            println!("      • Scale factor: {scale}");
+
+            // Show what was picked
+            let windows = result.windows();
+            let displays = result.displays();
+
+            if !displays.is_empty() {
+                println!("      • Displays: {}", displays.len());
+                for display in displays.iter().take(2) {
+                    println!(
+                        "        - Display {}: {}x{}",
+                        display.display_id(),
+                        display.width(),
+                        display.height()
+                    );
+                }
+            }
+
+            if !windows.is_empty() {
+                println!("      • Windows: {}", windows.len());
+                for window in windows.iter().take(3) {
+                    println!(
+                        "        - {} (ID: {})",
+                        window.title().unwrap_or_else(|| "<untitled>".to_string()),
+                        window.window_id()
+                    );
+                }
+            }
+
+            // The filter is ready to use with SCStream
+            let _filter = result.filter();
+            println!("      • Filter ready for streaming ✓");
+        }
+        SCPickerOutcome::Cancelled => {
+            println!("   ℹ️  User cancelled the picker");
+        }
+        SCPickerOutcome::Error(e) => {
+            println!("   ❌ Picker error: {e}");
+        }
+    }
 
     Ok(())
 }

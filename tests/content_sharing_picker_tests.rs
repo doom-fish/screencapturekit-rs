@@ -77,3 +77,42 @@ fn test_picker_api_availability() {
 
     println!("✓ Content sharing picker API available on macOS 14.0+");
 }
+
+// MARK: - Async Picker Tests
+
+#[test]
+#[cfg(feature = "async")]
+fn test_async_picker_types_exist() {
+    use screencapturekit::async_api::{AsyncPickerFilterFuture, AsyncPickerFuture, AsyncSCContentSharingPicker};
+
+    // Verify the async types exist
+    let _picker_type = std::any::type_name::<AsyncSCContentSharingPicker>();
+    let _future_type = std::any::type_name::<AsyncPickerFuture>();
+    let _filter_future_type = std::any::type_name::<AsyncPickerFilterFuture>();
+
+    println!("✓ Async picker types available");
+}
+
+#[test]
+#[cfg(feature = "async")]
+fn test_async_picker_future_is_future() {
+    use screencapturekit::async_api::AsyncPickerFuture;
+    use std::future::Future;
+
+    fn assert_future<T: Future>() {}
+    assert_future::<AsyncPickerFuture>();
+
+    println!("✓ AsyncPickerFuture implements Future");
+}
+
+#[test]
+#[cfg(feature = "async")]
+fn test_async_picker_filter_future_is_future() {
+    use screencapturekit::async_api::AsyncPickerFilterFuture;
+    use std::future::Future;
+
+    fn assert_future<T: Future>() {}
+    assert_future::<AsyncPickerFilterFuture>();
+
+    println!("✓ AsyncPickerFilterFuture implements Future");
+}
