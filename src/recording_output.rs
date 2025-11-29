@@ -38,6 +38,7 @@ pub struct SCRecordingOutputConfiguration {
 }
 
 impl SCRecordingOutputConfiguration {
+    /// Create a new recording output configuration
     #[must_use]
     pub fn new() -> Self {
         let ptr = unsafe { crate::ffi::sc_recording_output_configuration_create() };
@@ -45,7 +46,8 @@ impl SCRecordingOutputConfiguration {
     }
 
     /// Set the output file URL
-    pub fn set_output_url(&mut self, path: &Path) {
+    #[must_use]
+    pub fn with_output_url(self, path: &Path) -> Self {
         if let Some(path_str) = path.to_str() {
             if let Ok(c_path) = std::ffi::CString::new(path_str) {
                 unsafe {
@@ -56,17 +58,20 @@ impl SCRecordingOutputConfiguration {
                 }
             }
         }
+        self
     }
 
     /// Set the video codec
-    pub fn set_video_codec(&mut self, codec: SCRecordingOutputCodec) {
+    #[must_use]
+    pub fn with_video_codec(self, codec: SCRecordingOutputCodec) -> Self {
         unsafe {
             crate::ffi::sc_recording_output_configuration_set_video_codec(self.ptr, codec as i32);
         }
+        self
     }
 
     /// Get the video codec
-    pub fn get_video_codec(&self) -> SCRecordingOutputCodec {
+    pub fn video_codec(&self) -> SCRecordingOutputCodec {
         let value =
             unsafe { crate::ffi::sc_recording_output_configuration_get_video_codec(self.ptr) };
         match value {
@@ -76,17 +81,19 @@ impl SCRecordingOutputConfiguration {
     }
 
     /// Set the output file type
-    pub fn set_output_file_type(&mut self, file_type: SCRecordingOutputFileType) {
+    #[must_use]
+    pub fn with_output_file_type(self, file_type: SCRecordingOutputFileType) -> Self {
         unsafe {
             crate::ffi::sc_recording_output_configuration_set_output_file_type(
                 self.ptr,
                 file_type as i32,
             );
         }
+        self
     }
 
     /// Get the output file type
-    pub fn get_output_file_type(&self) -> SCRecordingOutputFileType {
+    pub fn output_file_type(&self) -> SCRecordingOutputFileType {
         let value =
             unsafe { crate::ffi::sc_recording_output_configuration_get_output_file_type(self.ptr) };
         match value {
@@ -170,10 +177,12 @@ impl SCRecordingOutputConfiguration {
     }
 
     /// Set the average bitrate in bits per second
-    pub fn set_average_bitrate(&mut self, bitrate: i64) {
+    #[must_use]
+    pub fn with_average_bitrate(self, bitrate: i64) -> Self {
         unsafe {
             crate::ffi::sc_recording_output_configuration_set_average_bitrate(self.ptr, bitrate);
         }
+        self
     }
 
     #[must_use]
@@ -211,8 +220,8 @@ impl Drop for SCRecordingOutputConfiguration {
 impl std::fmt::Debug for SCRecordingOutputConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SCRecordingOutputConfiguration")
-            .field("video_codec", &self.get_video_codec())
-            .field("file_type", &self.get_output_file_type())
+            .field("video_codec", &self.video_codec())
+            .field("file_type", &self.output_file_type())
             .finish()
     }
 }

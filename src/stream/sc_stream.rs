@@ -405,7 +405,9 @@ impl SCStream {
 
 impl Drop for SCStream {
     fn drop(&mut self) {
-        unsafe { ffi::sc_stream_release(self.ptr) };
+        if !self.ptr.is_null() {
+            unsafe { ffi::sc_stream_release(self.ptr) };
+        }
     }
 }
 

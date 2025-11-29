@@ -296,8 +296,10 @@ impl From<i32> for SCShareableContentStyle {
 
 impl Drop for SCContentFilter {
     fn drop(&mut self) {
-        unsafe {
-            ffi::sc_content_filter_release(self.0);
+        if !self.0.is_null() {
+            unsafe {
+                ffi::sc_content_filter_release(self.0);
+            }
         }
     }
 }
