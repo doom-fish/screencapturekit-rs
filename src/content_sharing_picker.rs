@@ -39,7 +39,7 @@
 //! use screencapturekit::content_sharing_picker::*;
 //!
 //! let config = SCContentSharingPickerConfiguration::new();
-//! if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::pick(&config).await {
+//! if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
 //!     let (width, height) = result.pixel_size();
 //!     let filter = result.filter();
 //! }
@@ -376,7 +376,7 @@ pub enum SCPickerOutcome {
 /// use screencapturekit::content_sharing_picker::*;
 ///
 /// let config = SCContentSharingPickerConfiguration::new();
-/// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::pick(&config).await {
+/// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
 ///     let (width, height) = result.pixel_size();
 ///     let filter = result.filter();
 ///     // ... create stream
