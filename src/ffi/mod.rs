@@ -35,6 +35,18 @@ extern "C" {
         callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
         user_data: *mut c_void,
     );
+    pub fn sc_shareable_content_get_below_window(
+        exclude_desktop_windows: bool,
+        reference_window: *const c_void,
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
+    );
+    pub fn sc_shareable_content_get_above_window(
+        exclude_desktop_windows: bool,
+        reference_window: *const c_void,
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
+    );
     pub fn sc_shareable_content_retain(content: *const c_void) -> *const c_void;
     pub fn sc_shareable_content_release(content: *const c_void);
     pub fn sc_shareable_content_get_displays_count(content: *const c_void) -> isize;
