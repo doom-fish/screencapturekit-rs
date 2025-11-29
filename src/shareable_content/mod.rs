@@ -333,6 +333,84 @@ impl SCShareableContentOptions {
 
         completion.wait().map_err(SCError::NoShareableContent)
     }
+
+    /// Get shareable content with only windows below a reference window
+    ///
+    /// This returns windows that are stacked below the specified reference window
+    /// in the window layering order.
+    ///
+    /// # Arguments
+    ///
+    /// * `reference_window` - The window to use as the reference point
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if screen recording permission is not granted or retrieval fails.
+    pub fn below_window(self, reference_window: &SCWindow) -> Result<SCShareableContent, SCError> {
+        let (completion, context) = SyncCompletion::<SCShareableContent>::new();
+
+        unsafe {
+            crate::ffi::sc_shareable_content_get_below_window(
+                self.exclude_desktop_windows,
+                reference_window.as_ptr(),
+                shareable_content_callback,
+                context,
+            );
+        }
+
+        completion.wait().map_err(SCError::NoShareableContent)
+    }
+
+    /// Get shareable content with only windows above a reference window
+    ///
+    /// This returns windows that are stacked above the specified reference window
+    /// in the window layering order.
+    ///
+    /// # Arguments
+    ///
+    /// * `reference_window` - The window to use as the reference point
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if screen recording permission is not granted or retrieval fails.
+    pub fn above_window(self, reference_window: &SCWindow) -> Result<SCShareableContent, SCError> {
+        let (completion, context) = SyncCompletion::<SCShareableContent>::new();
+
+        unsafe {
+            crate::ffi::sc_shareable_content_get_above_window(
+                self.exclude_desktop_windows,
+                reference_window.as_ptr(),
+                shareable_content_callback,
+                context,
+            );
+        }
+
+        completion.wait().map_err(SCError::NoShareableContent)
+    }
+}
+
+impl SCShareableContent {
+    /// Get shareable content for the current process only (macOS 14.4+)
+    ///
+    /// This retrieves content that the current process can capture without
+    /// requiring user authorization via TCC (Transparency, Consent, and Control).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if retrieval fails.
+    #[cfg(feature = "macos_14_4")]
+    pub fn get_current_process() -> Result<Self, SCError> {
+        let (completion, context) = SyncCompletion::<SCShareableContent>::new();
+
+        unsafe {
+            crate::ffi::sc_shareable_content_get_current_process_displays(
+                shareable_content_callback,
+                context,
+            );
+        }
+
+        completion.wait().map_err(SCError::NoShareableContent)
+    }
 }
 
 // MARK: - SCShareableContentInfo (macOS 14.0+)

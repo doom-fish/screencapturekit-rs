@@ -440,3 +440,100 @@ fn test_iosurface_backed_buffer() {
         }
     }
 }
+
+#[test]
+fn test_shareable_content_below_window() {
+    // Get shareable content to find a reference window
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Skipping test: {e}");
+            return;
+        }
+    };
+
+    let windows = content.windows();
+    if windows.is_empty() {
+        eprintln!("Skipping test: no windows available");
+        return;
+    }
+
+    // Use the first window as reference
+    let reference_window = &windows[0];
+
+    // Get content below this window
+    let result = SCShareableContent::with_options()
+        .exclude_desktop_windows(false)
+        .below_window(reference_window);
+
+    match result {
+        Ok(below_content) => {
+            println!(
+                "Found {} windows below reference window",
+                below_content.windows().len()
+            );
+        }
+        Err(e) => {
+            eprintln!("Below window query failed (may be expected): {e}");
+        }
+    }
+}
+
+#[test]
+fn test_shareable_content_above_window() {
+    // Get shareable content to find a reference window
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Skipping test: {e}");
+            return;
+        }
+    };
+
+    let windows = content.windows();
+    if windows.is_empty() {
+        eprintln!("Skipping test: no windows available");
+        return;
+    }
+
+    // Use the first window as reference
+    let reference_window = &windows[0];
+
+    // Get content above this window
+    let result = SCShareableContent::with_options()
+        .exclude_desktop_windows(false)
+        .above_window(reference_window);
+
+    match result {
+        Ok(above_content) => {
+            println!(
+                "Found {} windows above reference window",
+                above_content.windows().len()
+            );
+        }
+        Err(e) => {
+            eprintln!("Above window query failed (may be expected): {e}");
+        }
+    }
+}
+
+#[cfg(feature = "macos_14_4")]
+#[test]
+fn test_shareable_content_current_process() {
+    // Get shareable content for current process only
+    let result = SCShareableContent::get_current_process();
+
+    match result {
+        Ok(content) => {
+            println!(
+                "Current process content: {} displays, {} windows, {} apps",
+                content.displays().len(),
+                content.windows().len(),
+                content.applications().len()
+            );
+        }
+        Err(e) => {
+            eprintln!("Current process content query failed: {e}");
+        }
+    }
+}
