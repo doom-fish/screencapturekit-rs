@@ -28,24 +28,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("=== Recording Output Example (macOS 15.0+) ===\n");
 
-    // Create output configuration
-    let mut config = SCRecordingOutputConfiguration::new();
-
-    // Set output file path
+    // Create output configuration using builder pattern
     let output_path = PathBuf::from("/tmp/screen_recording.mp4");
-    config.set_output_url(&output_path);
+    let config = SCRecordingOutputConfiguration::new()
+        .with_output_url(&output_path)
+        .with_video_codec(SCRecordingOutputCodec::H264)
+        .with_output_file_type(SCRecordingOutputFileType::MP4)
+        .with_average_bitrate(10_000_000);
+
     println!("📁 Output path: {}", output_path.display());
-
-    // Set video codec (H.264 or HEVC)
-    config.set_video_codec(SCRecordingOutputCodec::H264);
-    println!("🎬 Video codec: {:?}", config.get_video_codec());
-
-    // Set output file type (MP4 or MOV)
-    config.set_output_file_type(SCRecordingOutputFileType::MP4);
-    println!("📄 File type: {:?}", config.get_output_file_type());
-
-    // Set bitrate (10 Mbps)
-    config.set_average_bitrate(10_000_000);
+    println!("🎬 Video codec: {:?}", config.video_codec());
+    println!("📄 File type: {:?}", config.output_file_type());
     println!("📊 Bitrate: 10 Mbps");
 
     // Query available options
@@ -99,11 +92,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test with HEVC and MOV
     println!("\n🔄 Testing HEVC + MOV configuration...");
-    let mut hevc_config = SCRecordingOutputConfiguration::new();
-    hevc_config.set_video_codec(SCRecordingOutputCodec::HEVC);
-    hevc_config.set_output_file_type(SCRecordingOutputFileType::MOV);
-    println!("   Codec: {:?}", hevc_config.get_video_codec());
-    println!("   File type: {:?}", hevc_config.get_output_file_type());
+    let hevc_config = SCRecordingOutputConfiguration::new()
+        .with_video_codec(SCRecordingOutputCodec::HEVC)
+        .with_output_file_type(SCRecordingOutputFileType::MOV);
+    println!("   Codec: {:?}", hevc_config.video_codec());
+    println!("   File type: {:?}", hevc_config.output_file_type());
 
     println!("\n✅ Recording output example completed!");
     Ok(())
