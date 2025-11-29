@@ -15,7 +15,7 @@ impl SCStreamConfiguration {
     ///
     /// let mut config = SCStreamConfiguration::default();
     /// config.set_shows_cursor(true);
-    /// assert!(config.get_shows_cursor());
+    /// assert!(config.shows_cursor());
     /// ```
     pub fn set_shows_cursor(&mut self, shows_cursor: bool) -> &mut Self {
         unsafe {
@@ -32,7 +32,7 @@ impl SCStreamConfiguration {
     }
 
     /// Check if cursor is shown in capture
-    pub fn get_shows_cursor(&self) -> bool {
+    pub fn shows_cursor(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_shows_cursor(self.as_ptr()) }
     }
 
@@ -73,7 +73,7 @@ impl SCStreamConfiguration {
 
     /// Check if mouse click indicators are shown (macOS 15.0+)
     #[cfg(feature = "macos_15_0")]
-    pub fn get_shows_mouse_clicks(&self) -> bool {
+    pub fn shows_mouse_clicks(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_shows_mouse_clicks(self.as_ptr()) }
     }
 
@@ -113,7 +113,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get whether only window shadows are captured (macOS 14.0+).
-    pub fn get_captures_shadows_only(&self) -> bool {
+    pub fn captures_shadows_only(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_captures_shadows_only(self.as_ptr()) }
     }
 
@@ -144,7 +144,7 @@ impl SCStreamConfiguration {
 
     /// Check if shadows are ignored for display capture (macOS 14.0+)
     #[cfg(feature = "macos_14_0")]
-    pub fn get_ignores_shadows_display(&self) -> bool {
+    pub fn ignores_shadows_display(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_ignores_shadows_display(self.as_ptr()) }
     }
 
@@ -172,7 +172,7 @@ impl SCStreamConfiguration {
 
     /// Check if global clip is ignored for display capture (macOS 14.0+)
     #[cfg(feature = "macos_14_0")]
-    pub fn get_ignore_global_clip_display(&self) -> bool {
+    pub fn ignore_global_clip_display(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_ignore_global_clip_display(self.as_ptr()) }
     }
 
@@ -203,7 +203,7 @@ impl SCStreamConfiguration {
 
     /// Check if global clip is ignored for single window capture (macOS 14.0+)
     #[cfg(feature = "macos_14_0")]
-    pub fn get_ignore_global_clip_single_window(&self) -> bool {
+    pub fn ignore_global_clip_single_window(&self) -> bool {
         unsafe {
             crate::ffi::sc_stream_configuration_get_ignore_global_clip_single_window(self.as_ptr())
         }

@@ -22,7 +22,7 @@ impl SCStreamConfiguration {
         self
     }
 
-    pub fn get_queue_depth(&self) -> u32 {
+    pub fn queue_depth(&self) -> u32 {
         // FFI returns isize but queue depth is always positive and fits in u32
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         unsafe {
@@ -51,7 +51,7 @@ impl SCStreamConfiguration {
         self
     }
 
-    pub fn get_minimum_frame_interval(&self) -> CMTime {
+    pub fn minimum_frame_interval(&self) -> CMTime {
         unsafe {
             let mut value: i64 = 0;
             let mut timescale: i32 = 0;
@@ -81,7 +81,7 @@ impl SCStreamConfiguration {
     /// Returns 0 if the frame interval is invalid.
     #[allow(clippy::cast_possible_truncation)]
     pub fn fps(&self) -> u32 {
-        let cm_time = self.get_minimum_frame_interval();
+        let cm_time = self.minimum_frame_interval();
         if cm_time.value == 0 {
             return 0;
         }
@@ -156,7 +156,7 @@ impl SCStreamConfiguration {
     /// Get the configured capture resolution
     ///
     /// Returns (width, height) tuple
-    pub fn get_capture_resolution(&self) -> (usize, usize) {
+    pub fn capture_resolution(&self) -> (usize, usize) {
         // FFI returns isize but dimensions are always positive
         #[allow(clippy::cast_sign_loss)]
         unsafe {

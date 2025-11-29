@@ -61,7 +61,7 @@ impl SCStreamConfiguration {
     /// Get the configured stream name
     ///
     /// Returns the name assigned to this stream, if any.
-    pub fn get_stream_name(&self) -> Option<String> {
+    pub fn stream_name(&self) -> Option<String> {
         unsafe {
             ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
                 crate::ffi::sc_stream_configuration_get_stream_name(self.as_ptr(), buf, len)
@@ -118,7 +118,7 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_15_0` feature flag to be enabled.
     #[cfg(feature = "macos_15_0")]
-    pub fn get_capture_dynamic_range(&self) -> SCCaptureDynamicRange {
+    pub fn capture_dynamic_range(&self) -> SCCaptureDynamicRange {
         let value =
             unsafe { crate::ffi::sc_stream_configuration_get_capture_dynamic_range(self.as_ptr()) };
         match value {

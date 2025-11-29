@@ -16,8 +16,8 @@ fn test_set_dimensions() {
     config.set_width(1920);
     config.set_height(1080);
 
-    assert_eq!(config.get_width(), 1920);
-    assert_eq!(config.get_height(), 1080);
+    assert_eq!(config.width(), 1920);
+    assert_eq!(config.height(), 1080);
 }
 
 #[test]
@@ -28,8 +28,8 @@ fn test_set_dimensions_multiple() {
     config.set_width(1280);
     config.set_height(720);
 
-    assert_eq!(config.get_width(), 1280);
-    assert_eq!(config.get_height(), 720);
+    assert_eq!(config.width(), 1280);
+    assert_eq!(config.height(), 720);
 }
 
 #[test]
@@ -108,12 +108,12 @@ fn test_various_resolutions() {
         config.set_height(height);
 
         assert_eq!(
-            config.get_width(),
+            config.width(),
             width,
             "Width mismatch for {width}x{height}"
         );
         assert_eq!(
-            config.get_height(),
+            config.height(),
             height,
             "Height mismatch for {width}x{height}"
         );
@@ -166,7 +166,7 @@ fn test_pixel_format_in_collections() {
 fn test_configuration_set_width() {
     let mut config = SCStreamConfiguration::default();
     config.set_width(1920);
-    assert_eq!(config.get_width(), 1920);
+    assert_eq!(config.width(), 1920);
 }
 
 #[test]
@@ -190,8 +190,8 @@ fn test_configuration_modification_order() {
     config2.set_height(1080);
     config2.set_width(1920);
 
-    assert_eq!(config1.get_width(), config2.get_width());
-    assert_eq!(config1.get_height(), config2.get_height());
+    assert_eq!(config1.width(), config2.width());
+    assert_eq!(config1.height(), config2.height());
 }
 
 #[test]
@@ -217,7 +217,7 @@ fn test_stream_name() {
     config.set_stream_name(Some("test-stream"));
 
     // The getter may not work on all macOS versions
-    let _ = config.get_stream_name();
+    let _ = config.stream_name();
 }
 
 #[test]
@@ -229,7 +229,7 @@ fn test_dynamic_range() {
     config.set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
 
     // May return SDR on macOS < 15.0
-    let _ = config.get_capture_dynamic_range();
+    let _ = config.capture_dynamic_range();
 }
 
 #[test]
@@ -247,9 +247,9 @@ fn test_queue_depth_and_frame_interval() {
     config.set_queue_depth(queue_depth);
     config.set_minimum_frame_interval(&cm_time);
 
-    assert_eq!(config.get_queue_depth(), queue_depth);
+    assert_eq!(config.queue_depth(), queue_depth);
 
-    let acquired_cm_time = config.get_minimum_frame_interval();
+    let acquired_cm_time = config.minimum_frame_interval();
     // Note: minimum_frame_interval may not be supported on all macOS versions
     // If supported, values should match
     if acquired_cm_time.is_valid() {
@@ -283,18 +283,18 @@ fn test_advanced_setters() {
 
     // Verify setters worked without errors
     // Note: getters may return default values on older macOS versions
-    let _ = config.get_ignore_fraction_of_screen();
-    let _ = config.get_ignores_shadows_single_window();
-    let _ = config.get_should_be_opaque();
-    let _ = config.get_includes_child_windows();
-    let _ = config.get_presenter_overlay_privacy_alert_setting();
+    let _ = config.ignore_fraction_of_screen();
+    let _ = config.ignores_shadows_single_window();
+    let _ = config.should_be_opaque();
+    let _ = config.includes_child_windows();
+    let _ = config.presenter_overlay_privacy_alert_setting();
 }
 
 #[test]
 fn test_shows_cursor() {
     let mut config = SCStreamConfiguration::default();
     config.set_shows_cursor(true);
-    assert!(config.get_shows_cursor());
+    assert!(config.shows_cursor());
 }
 
 #[test]
@@ -308,8 +308,8 @@ fn test_mutable_configuration() {
     config.set_sample_rate(48000);
     config.set_channel_count(2);
 
-    assert_eq!(config.get_width(), 1920);
-    assert_eq!(config.get_height(), 1080);
+    assert_eq!(config.width(), 1920);
+    assert_eq!(config.height(), 1080);
 }
 
 // MARK: - New Features Tests (macOS 14.0+)
@@ -319,7 +319,7 @@ fn test_captures_shadows_only() {
     let mut config = SCStreamConfiguration::default();
     config.set_captures_shadows_only(true);
     // On macOS 14.0+, this should return true; on older versions, false
-    let _ = config.get_captures_shadows_only();
+    let _ = config.captures_shadows_only();
 }
 
 #[test]
@@ -330,7 +330,7 @@ fn test_captures_shadows_only_builder() {
         .with_captures_shadows_only(true);
     
     // Verify builder pattern works
-    assert_eq!(config.get_width(), 1920);
+    assert_eq!(config.width(), 1920);
 }
 
 #[test]
@@ -339,7 +339,7 @@ fn test_shows_mouse_clicks() {
     let mut config = SCStreamConfiguration::default();
     config.set_shows_mouse_clicks(true);
     // On macOS 15.0+, this should return true
-    let result = config.get_shows_mouse_clicks();
+    let result = config.shows_mouse_clicks();
     // Note: May return false on older macOS versions
     let _ = result;
 }
@@ -352,7 +352,7 @@ fn test_shows_mouse_clicks_builder() {
         .with_shows_mouse_clicks(true);
     
     // Verify builder pattern works
-    assert!(config.get_shows_cursor());
+    assert!(config.shows_cursor());
 }
 
 #[test]
@@ -361,7 +361,7 @@ fn test_ignores_shadows_display() {
     let mut config = SCStreamConfiguration::default();
     config.set_ignores_shadows_display(true);
     // On macOS 14.0+, this should return true
-    let _ = config.get_ignores_shadows_display();
+    let _ = config.ignores_shadows_display();
 }
 
 #[test]
@@ -369,7 +369,7 @@ fn test_ignores_shadows_display() {
 fn test_ignore_global_clip_display() {
     let mut config = SCStreamConfiguration::default();
     config.set_ignore_global_clip_display(true);
-    let _ = config.get_ignore_global_clip_display();
+    let _ = config.ignore_global_clip_display();
 }
 
 #[test]
@@ -377,7 +377,7 @@ fn test_ignore_global_clip_display() {
 fn test_ignore_global_clip_single_window() {
     let mut config = SCStreamConfiguration::default();
     config.set_ignore_global_clip_single_window(true);
-    let _ = config.get_ignore_global_clip_single_window();
+    let _ = config.ignore_global_clip_single_window();
 }
 
 #[test]
@@ -390,7 +390,7 @@ fn test_ignore_global_clip_builder_pattern() {
         .with_ignore_global_clip_display(true)
         .with_ignore_global_clip_single_window(true);
     
-    assert_eq!(config.get_width(), 1920);
+    assert_eq!(config.width(), 1920);
 }
 
 #[test]
@@ -401,7 +401,7 @@ fn test_preset_configuration() {
     // Test creating configurations from presets
     let config = SCStreamConfiguration::from_preset(SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay);
     // Just verify it doesn't crash
-    let _ = config.get_width();
+    let _ = config.width();
 }
 
 #[test]
@@ -420,7 +420,7 @@ fn test_all_presets() {
     for preset in presets {
         let config = SCStreamConfiguration::from_preset(preset);
         // Just verify they don't crash
-        let _ = config.get_width();
+        let _ = config.width();
     }
 }
 
@@ -435,8 +435,8 @@ fn test_hdr_recording_preset() {
     );
     
     // Verify configuration was created
-    assert!(config.get_width() > 0 || config.get_width() == 0); // Some default value
-    println!("HDR Recording Preset: width={}", config.get_width());
+    assert!(config.width() > 0 || config.width() == 0); // Some default value
+    println!("HDR Recording Preset: width={}", config.width());
 }
 
 #[test]
@@ -446,10 +446,10 @@ fn test_preserves_aspect_ratio() {
     
     // Test setting preserves_aspect_ratio
     config.set_preserves_aspect_ratio(true);
-    assert!(config.get_preserves_aspect_ratio());
+    assert!(config.preserves_aspect_ratio());
     
     config.set_preserves_aspect_ratio(false);
-    assert!(!config.get_preserves_aspect_ratio());
+    assert!(!config.preserves_aspect_ratio());
 }
 
 #[test]
@@ -458,7 +458,7 @@ fn test_preserves_aspect_ratio_builder() {
     let config = SCStreamConfiguration::new()
         .with_preserves_aspect_ratio(true);
     
-    assert!(config.get_preserves_aspect_ratio());
+    assert!(config.preserves_aspect_ratio());
 }
 
 #[test]
@@ -468,7 +468,7 @@ fn test_capture_resolution() {
     
     // Test setting capture resolution
     config.set_capture_resolution(1920, 1080);
-    let (width, height) = config.get_capture_resolution();
+    let (width, height) = config.capture_resolution();
     
     // Note: The actual values may differ based on implementation
     println!("Capture resolution: {}x{}", width, height);
@@ -480,6 +480,6 @@ fn test_capture_resolution_builder() {
     let config = SCStreamConfiguration::new()
         .with_capture_resolution(3840, 2160);
     
-    let (width, height) = config.get_capture_resolution();
+    let (width, height) = config.capture_resolution();
     println!("Capture resolution (builder): {}x{}", width, height);
 }

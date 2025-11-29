@@ -52,8 +52,8 @@ impl From<PixelFormat> for FourCharCode {
 }
 impl From<u32> for PixelFormat {
     fn from(value: u32) -> Self {
-        // Use infallible byte array constructor
-        let c = FourCharCode::from_bytes(value.to_le_bytes());
+        // FourCharCode stores u32 directly, no byte conversion needed
+        let c = FourCharCode::from_u32(value);
         c.into()
     }
 }
@@ -64,7 +64,7 @@ impl From<FourCharCode> for PixelFormat {
             "l10r" => Self::l10r,
             "420v" => Self::YCbCr_420v,
             "420f" => Self::YCbCr_420f,
-            _ => unreachable!("Unknown pixel format"),
+            _ => Self::BGRA, // Default to BGRA for unknown formats
         }
     }
 }
