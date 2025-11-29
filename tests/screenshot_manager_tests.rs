@@ -144,3 +144,181 @@ fn test_capture_image_in_rect_small_region() {
         }
     }
 }
+
+// MARK: - Advanced Screenshot Configuration (macOS 26.0+)
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_creation() {
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+
+    let config = SCScreenshotConfiguration::new();
+    assert!(!config.as_ptr().is_null());
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_builder() {
+    use screencapturekit::cg::CGRect;
+    use screencapturekit::screenshot_manager::{
+        SCScreenshotConfiguration, SCScreenshotDisplayIntent, SCScreenshotDynamicRange,
+    };
+
+    let config = SCScreenshotConfiguration::new()
+        .with_width(1920)
+        .with_height(1080)
+        .with_shows_cursor(true)
+        .with_source_rect(CGRect::new(0.0, 0.0, 1920.0, 1080.0))
+        .with_destination_rect(CGRect::new(0.0, 0.0, 1920.0, 1080.0))
+        .with_ignore_shadows(true)
+        .with_ignore_clipping(false)
+        .with_include_child_windows(true)
+        .with_display_intent(SCScreenshotDisplayIntent::Canonical)
+        .with_dynamic_range(SCScreenshotDynamicRange::SDR);
+
+    assert!(!config.as_ptr().is_null());
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_hdr() {
+    use screencapturekit::screenshot_manager::{SCScreenshotConfiguration, SCScreenshotDynamicRange};
+
+    // Test each dynamic range option
+    let sdr_config = SCScreenshotConfiguration::new()
+        .with_dynamic_range(SCScreenshotDynamicRange::SDR);
+    assert!(!sdr_config.as_ptr().is_null());
+
+    let hdr_config = SCScreenshotConfiguration::new()
+        .with_dynamic_range(SCScreenshotDynamicRange::HDR);
+    assert!(!hdr_config.as_ptr().is_null());
+
+    let both_config = SCScreenshotConfiguration::new()
+        .with_dynamic_range(SCScreenshotDynamicRange::BothSDRAndHDR);
+    assert!(!both_config.as_ptr().is_null());
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_file_path() {
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+
+    let config = SCScreenshotConfiguration::new()
+        .with_file_path("/tmp/test_screenshot.png");
+    assert!(!config.as_ptr().is_null());
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_send_sync() {
+    use screencapturekit::screenshot_manager::{SCScreenshotConfiguration, SCScreenshotOutput};
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+
+    assert_send::<SCScreenshotConfiguration>();
+    assert_sync::<SCScreenshotConfiguration>();
+    assert_send::<SCScreenshotOutput>();
+    assert_sync::<SCScreenshotOutput>();
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_display_intent_enum() {
+    use screencapturekit::screenshot_manager::SCScreenshotDisplayIntent;
+
+    assert_eq!(SCScreenshotDisplayIntent::Canonical as i32, 0);
+    assert_eq!(SCScreenshotDisplayIntent::Local as i32, 1);
+
+    // Test default
+    let default: SCScreenshotDisplayIntent = Default::default();
+    assert_eq!(default, SCScreenshotDisplayIntent::Canonical);
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_dynamic_range_enum() {
+    use screencapturekit::screenshot_manager::SCScreenshotDynamicRange;
+
+    assert_eq!(SCScreenshotDynamicRange::SDR as i32, 0);
+    assert_eq!(SCScreenshotDynamicRange::HDR as i32, 1);
+    assert_eq!(SCScreenshotDynamicRange::BothSDRAndHDR as i32, 2);
+
+    // Test default
+    let default: SCScreenshotDynamicRange = Default::default();
+    assert_eq!(default, SCScreenshotDynamicRange::SDR);
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_capture_screenshot_with_configuration() {
+    use screencapturekit::screenshot_manager::{SCScreenshotConfiguration, SCScreenshotDynamicRange};
+
+    cg_init_for_headless_ci();
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let display = &content.displays()[0];
+
+    let filter = SCContentFilter::builder()
+        .display(display)
+        .exclude_windows(&[])
+        .build();
+
+    let config = SCScreenshotConfiguration::new()
+        .with_width(640)
+        .with_height(480)
+        .with_shows_cursor(true)
+        .with_dynamic_range(SCScreenshotDynamicRange::SDR);
+
+    let result = SCScreenshotManager::capture_screenshot(&filter, &config);
+
+    match result {
+        Ok(output) => {
+            // Should have at least SDR image
+            if let Some(sdr) = output.sdr_image() {
+                assert!(sdr.width() > 0);
+                assert!(sdr.height() > 0);
+                println!(
+                    "✓ Advanced screenshot SDR: {}x{}",
+                    sdr.width(),
+                    sdr.height()
+                );
+            }
+        }
+        Err(e) => {
+            // Expected on macOS < 26.0 or without permission
+            println!("⚠ capture_screenshot not available: {}", e);
+        }
+    }
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_capture_screenshot_in_rect_with_configuration() {
+    use screencapturekit::cg::CGRect;
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+
+    cg_init_for_headless_ci();
+
+    let rect = CGRect::new(0.0, 0.0, 640.0, 480.0);
+    let config = SCScreenshotConfiguration::new()
+        .with_width(640)
+        .with_height(480);
+
+    let result = SCScreenshotManager::capture_screenshot_in_rect(rect, &config);
+
+    match result {
+        Ok(output) => {
+            if let Some(image) = output.sdr_image() {
+                assert!(image.width() > 0);
+                println!(
+                    "✓ Advanced screenshot in rect: {}x{}",
+                    image.width(),
+                    image.height()
+                );
+            }
+        }
+        Err(e) => {
+            println!("⚠ capture_screenshot_in_rect not available: {}", e);
+        }
+    }
+}
