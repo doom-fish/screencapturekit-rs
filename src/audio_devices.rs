@@ -1,4 +1,4 @@
-//! Audio input device enumeration using AVFoundation.
+//! Audio input device enumeration using `AVFoundation`.
 //!
 //! This module provides access to available microphone devices on macOS.
 
@@ -29,8 +29,8 @@ impl AudioInputDevice {
     ///         if device.is_default { "(default)" } else { "" });
     /// }
     /// ```
-    #[allow(clippy::cast_possible_wrap)]
-    pub fn list() -> Vec<AudioInputDevice> {
+    #[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
+    pub fn list() -> Vec<Self> {
         let count = unsafe { crate::ffi::sc_audio_get_input_device_count() };
         let mut devices = Vec::with_capacity(count as usize);
 
@@ -48,7 +48,7 @@ impl AudioInputDevice {
             let is_default = unsafe { crate::ffi::sc_audio_is_default_input_device(i) };
 
             if let (Some(id), Some(name)) = (id, name) {
-                devices.push(AudioInputDevice {
+                devices.push(Self {
                     id,
                     name,
                     is_default,
@@ -70,7 +70,7 @@ impl AudioInputDevice {
     ///     println!("Default microphone: {}", device.name);
     /// }
     /// ```
-    pub fn default_device() -> Option<AudioInputDevice> {
+    pub fn default_device() -> Option<Self> {
         let id = unsafe {
             ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
                 crate::ffi::sc_audio_get_default_input_device_id(buf, len)
@@ -83,7 +83,7 @@ impl AudioInputDevice {
         };
 
         match (id, name) {
-            (Some(id), Some(name)) => Some(AudioInputDevice {
+            (Some(id), Some(name)) => Some(Self {
                 id,
                 name,
                 is_default: true,
