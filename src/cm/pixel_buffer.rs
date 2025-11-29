@@ -382,7 +382,7 @@ impl CVPixelBuffer {
         }
     }
 
-    /// Get the IOSurface backing this pixel buffer
+    /// Get the `IOSurface` backing this pixel buffer
     pub fn io_surface(&self) -> Option<IOSurface> {
         unsafe {
             let ptr = ffi::cv_pixel_buffer_get_io_surface(self.0);

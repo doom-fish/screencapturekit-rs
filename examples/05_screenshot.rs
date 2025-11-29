@@ -1,6 +1,6 @@
 //! Screenshot Capture (macOS 14.0+)
 //!
-//! Demonstrates taking screenshots using SCScreenshotManager.
+//! Demonstrates taking screenshots using `SCScreenshotManager`.
 //! This example shows:
 //! - Using `SCScreenshotManager` (macOS 14.0+)
 //! - Capturing a screenshot
