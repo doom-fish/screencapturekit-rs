@@ -3,20 +3,21 @@
 //! A real GUI application demonstrating:
 //! - Metal rendering with compiled shaders
 //! - Screen capture via ScreenCaptureKit with zero-copy IOSurface textures
+//! - System content picker (macOS 14.0+) for user-selected capture
 //! - Overlay menu with bitmap font rendering
 //! - Real-time audio waveform visualization with vertical gain meters
 //! - Proper Rust/Metal data structure alignment (`#[repr(C)]`)
 //!
 //! ## Features Demonstrated
 //!
-//! - **SCShareableContent**: Query available displays and windows
-//! - **SCContentFilter**: Create filters for display capture
+//! - **SCContentSharingPicker**: System UI for selecting displays/windows
+//! - **SCPickerResult**: Get filter + metadata (dimensions, scale) from picker
 //! - **IOSurface**: Zero-copy GPU texture access for Metal rendering
 //! - **Audio capture**: Real-time system audio + microphone with waveform visualization
 //!
 //! ## Controls
 //!
-//! - `SPACE` - Start/stop capture (captures primary display)
+//! - `SPACE` - Start/stop capture (opens system picker when starting)
 //! - `W` - Toggle waveform display
 //! - `H` - Toggle help overlay
 //! - `Q/ESC` - Quit
@@ -37,7 +38,9 @@ use metal::foreign_types::ForeignType;
 use objc::rc::autoreleasepool;
 use objc::runtime::YES;
 use objc::{msg_send, sel, sel_impl};
-use screencapturekit::shareable_content::SCShareableContent;
+use screencapturekit::content_sharing_picker::{
+    SCContentSharingPicker, SCContentSharingPickerConfiguration, SCPickerOutcome,
+};
 use screencapturekit::output::CVPixelBufferIOSurface;
 use screencapturekit::prelude::*;
 use std::ffi::c_void;
@@ -619,7 +622,7 @@ impl VertexBufferBuilder {
         
         // Keys
         self.text(font, "[SPACE]", x + 8.0, ly, scale, key_color);
-        self.text(font, if is_capturing { "Stop" } else { "Start" }, x + 80.0, ly, scale, text_color);
+        self.text(font, if is_capturing { "Stop" } else { "Pick & Start" }, x + 80.0, ly, scale, text_color);
         ly += line_h;
         
         self.text(font, "[W]", x + 8.0, ly, scale, key_color);
@@ -850,6 +853,10 @@ fn main() {
     let mut stream: Option<SCStream> = None;
     let mut current_filter: Option<SCContentFilter> = None;
     let capture_size: (u32, u32) = (1920, 1080);
+    
+    // Shared state for picker callback results
+    type PickerResult = Option<(SCContentFilter, u32, u32)>;
+    let pending_picker: Arc<Mutex<PickerResult>> = Arc::new(Mutex::new(None));
 
     let mut vertex_builder = VertexBufferBuilder::new();
     let mut time = 0.0f32;
@@ -860,6 +867,49 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         autoreleasepool(|| {
             *control_flow = ControlFlow::Poll;
+            
+            // Check for pending picker results
+            if let Ok(mut pending) = pending_picker.try_lock() {
+                if let Some((filter, width, height)) = pending.take() {
+                    println!("✅ Content selected: {}x{}", width, height);
+                    
+                    let mut stream_config = SCStreamConfiguration::default();
+                    stream_config.set_width(width);
+                    stream_config.set_height(height);
+                    stream_config.set_pixel_format(PixelFormat::BGRA);
+                    stream_config.set_captures_audio(true);
+                    stream_config.set_sample_rate(48000);
+                    stream_config.set_channel_count(2);
+                    
+                    // Enable microphone capture (macOS 15.0+)
+                    #[cfg(feature = "macos_15_0")]
+                    stream_config.set_captures_microphone(true);
+
+                    let handler = CaptureHandler {
+                        state: Arc::clone(&capture_state),
+                    };
+
+                    let mut s = SCStream::new(&filter, &stream_config);
+                    s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
+                    s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);
+                    
+                    // Add microphone handler (macOS 15.0+)
+                    #[cfg(feature = "macos_15_0")]
+                    s.add_output_handler(handler, SCStreamOutputType::Microphone);
+                    
+                    match s.start_capture() {
+                        Ok(()) => {
+                            capturing.store(true, Ordering::Relaxed);
+                            stream = Some(s);
+                            current_filter = Some(filter);
+                            println!("✅ Capture started");
+                        }
+                        Err(e) => {
+                            eprintln!("❌ Failed to start capture: {:?}", e);
+                        }
+                    }
+                }
+            }
 
             match event {
                 Event::MainEventsCleared => window.request_redraw(),
@@ -893,68 +943,30 @@ fn main() {
                                     capturing.store(false, Ordering::Relaxed);
                                     println!("✅ Capture stopped");
                                 } else {
-                                    // Get shareable content (this works without blocking the UI)
-                                    println!("📺 Getting shareable content...");
+                                    // Show system picker (non-blocking callback)
+                                    println!("📺 Opening content picker...");
                                     
-                                    match SCShareableContent::get() {
-                                        Ok(content) => {
-                                            let displays = content.displays();
-                                            if displays.is_empty() {
-                                                eprintln!("❌ No displays found");
-                                            } else {
-                                                // Use the first display
-                                                let display = &displays[0];
-                                                let width = display.width();
-                                                let height = display.height();
-                                                println!("✅ Using display: {}x{}", width, height);
+                                    let config = SCContentSharingPickerConfiguration::new();
+                                    let pending = Arc::clone(&pending_picker);
+                                    
+                                    SCContentSharingPicker::show(&config, move |outcome| {
+                                        match outcome {
+                                            SCPickerOutcome::Picked(result) => {
+                                                let (width, height) = result.pixel_size();
+                                                let filter = result.filter();
                                                 
-                                                let filter = SCContentFilter::builder()
-                                                    .display(display)
-                                                    .exclude_windows(&[])
-                                                    .build();
-                                                
-                                                let mut stream_config = SCStreamConfiguration::default();
-                                                stream_config.set_width(width);
-                                                stream_config.set_height(height);
-                                                stream_config.set_pixel_format(PixelFormat::BGRA);
-                                                stream_config.set_captures_audio(true);
-                                                stream_config.set_sample_rate(48000);
-                                                stream_config.set_channel_count(2);
-                                                
-                                                // Enable microphone capture (macOS 15.0+)
-                                                #[cfg(feature = "macos_15_0")]
-                                                stream_config.set_captures_microphone(true);
-
-                                                let handler = CaptureHandler {
-                                                    state: Arc::clone(&capture_state),
-                                                };
-
-                                                let mut s = SCStream::new(&filter, &stream_config);
-                                                s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
-                                                s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);
-                                                
-                                                // Add microphone handler (macOS 15.0+)
-                                                #[cfg(feature = "macos_15_0")]
-                                                s.add_output_handler(handler, SCStreamOutputType::Microphone);
-                                                
-                                                match s.start_capture() {
-                                                    Ok(()) => {
-                                                        capturing.store(true, Ordering::Relaxed);
-                                                        stream = Some(s);
-                                                        current_filter = Some(filter);
-                                                        println!("✅ Capture started");
-                                                    }
-                                                    Err(e) => {
-                                                        eprintln!("❌ Failed to start capture: {:?}", e);
-                                                    }
+                                                if let Ok(mut pending) = pending.lock() {
+                                                    *pending = Some((filter, width, height));
                                                 }
                                             }
+                                            SCPickerOutcome::Cancelled => {
+                                                println!("⚠️  Picker cancelled");
+                                            }
+                                            SCPickerOutcome::Error(e) => {
+                                                eprintln!("❌ Picker error: {}", e);
+                                            }
                                         }
-                                        Err(e) => {
-                                            eprintln!("❌ Failed to get shareable content: {:?}", e);
-                                            eprintln!("   Make sure screen recording permission is granted.");
-                                        }
-                                    }
+                                    });
                                 }
                             }
                             VirtualKeyCode::W => {
