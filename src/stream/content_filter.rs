@@ -103,13 +103,6 @@ impl SCContentFilter {
         SCContentFilterBuilder::new()
     }
 
-    /// Creates a new content filter builder (deprecated alias)
-    #[deprecated(since = "1.0.0", note = "Use `builder()` instead")]
-    #[must_use]
-    pub fn build() -> SCContentFilterBuilder {
-        SCContentFilterBuilder::new()
-    }
-
     /// Creates a content filter from a picker-returned pointer
     ///
     /// This is used internally when the content sharing picker returns a filter.
