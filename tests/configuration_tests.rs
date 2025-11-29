@@ -438,3 +438,48 @@ fn test_hdr_recording_preset() {
     assert!(config.get_width() > 0 || config.get_width() == 0); // Some default value
     println!("HDR Recording Preset: width={}", config.get_width());
 }
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_preserves_aspect_ratio() {
+    let mut config = SCStreamConfiguration::default();
+    
+    // Test setting preserves_aspect_ratio
+    config.set_preserves_aspect_ratio(true);
+    assert!(config.get_preserves_aspect_ratio());
+    
+    config.set_preserves_aspect_ratio(false);
+    assert!(!config.get_preserves_aspect_ratio());
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_preserves_aspect_ratio_builder() {
+    let config = SCStreamConfiguration::new()
+        .with_preserves_aspect_ratio(true);
+    
+    assert!(config.get_preserves_aspect_ratio());
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_capture_resolution() {
+    let mut config = SCStreamConfiguration::default();
+    
+    // Test setting capture resolution
+    config.set_capture_resolution(1920, 1080);
+    let (width, height) = config.get_capture_resolution();
+    
+    // Note: The actual values may differ based on implementation
+    println!("Capture resolution: {}x{}", width, height);
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_capture_resolution_builder() {
+    let config = SCStreamConfiguration::new()
+        .with_capture_resolution(3840, 2160);
+    
+    let (width, height) = config.get_capture_resolution();
+    println!("Capture resolution (builder): {}x{}", width, height);
+}

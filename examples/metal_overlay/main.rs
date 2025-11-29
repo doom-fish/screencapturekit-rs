@@ -619,7 +619,7 @@ impl SCStreamOutputTrait for CaptureHandler {
                 self.state.frame_count.fetch_add(1, Ordering::Relaxed);
 
                 // Get the IOSurface from the sample buffer
-                if let Some(pixel_buffer) = sample.get_image_buffer() {
+                if let Some(pixel_buffer) = sample.image_buffer() {
                     if pixel_buffer.is_backed_by_iosurface() {
                         if let Some(surface) = pixel_buffer.iosurface() {
                             // Store the IOSurface - it's reference counted so this keeps it alive
