@@ -201,10 +201,6 @@ pub enum SCPickerFilterOutcome {
     Error(String),
 }
 
-/// Deprecated: Use `SCPickerFilterOutcome` instead
-#[deprecated(since = "1.3.0", note = "Use SCPickerFilterOutcome instead")]
-pub type SCContentSharingPickerResult = SCPickerFilterOutcome;
-
 // ============================================================================
 // Main API: Returns SCPickerResult with metadata
 // ============================================================================
@@ -403,10 +399,6 @@ pub enum SCPickerOutcome {
     Error(String),
 }
 
-/// Deprecated: Use `SCPickerOutcome` instead
-#[deprecated(since = "1.3.0", note = "Use SCPickerOutcome instead")]
-pub type SCPickResult = SCPickerOutcome;
-
 // ============================================================================
 // SCContentSharingPicker
 // ============================================================================
@@ -490,12 +482,6 @@ impl SCContentSharingPicker {
             },
             Err(e) => SCPickerFilterOutcome::Error(e),
         }
-    }
-
-    /// Deprecated: Use `pick()` instead
-    #[deprecated(since = "1.3.0", note = "Use pick() instead")]
-    pub fn show(config: &SCContentSharingPickerConfiguration) -> SCPickerOutcome {
-        Self::pick(config)
     }
 }
 

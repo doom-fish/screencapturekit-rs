@@ -429,9 +429,9 @@ fn test_iosurface_backed_buffer() {
         assert!(iosurface.is_some(), "Pixel buffer is not IOSurface-backed");
 
         if let Some(surface) = iosurface {
-            let width = surface.get_width();
-            let height = surface.get_height();
-            let bytes_per_row = surface.get_bytes_per_row();
+            let width = surface.width();
+            let height = surface.height();
+            let bytes_per_row = surface.bytes_per_row();
 
             println!("IOSurface: {width}x{height}, {bytes_per_row} bytes/row");
             assert!(width > 0, "Invalid IOSurface width");

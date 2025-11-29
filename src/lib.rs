@@ -170,9 +170,9 @@
 //!
 //! # fn handle(sample: CMSampleBuffer) {
 //! if let Some(buffer) = sample.get_image_buffer() {
-//!     if let Some(surface) = buffer.get_iosurface() {
-//!         let width = surface.get_width();
-//!         let height = surface.get_height();
+//!     if let Some(surface) = buffer.io_surface() {
+//!         let width = surface.width();
+//!         let height = surface.height();
 //!         // Create Metal texture from IOSurface...
 //!     }
 //! }

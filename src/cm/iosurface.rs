@@ -41,15 +41,18 @@ impl IOSurface {
         self.0
     }
 
-    pub fn get_width(&self) -> usize {
+    /// Get the width of the surface in pixels
+    pub fn width(&self) -> usize {
         unsafe { ffi::io_surface_get_width(self.0) }
     }
 
-    pub fn get_height(&self) -> usize {
+    /// Get the height of the surface in pixels
+    pub fn height(&self) -> usize {
         unsafe { ffi::io_surface_get_height(self.0) }
     }
 
-    pub fn get_bytes_per_row(&self) -> usize {
+    /// Get the bytes per row of the surface
+    pub fn bytes_per_row(&self) -> usize {
         unsafe { ffi::io_surface_get_bytes_per_row(self.0) }
     }
 }
@@ -79,9 +82,9 @@ impl fmt::Display for IOSurface {
         write!(
             f,
             "IOSurface({}x{}, {} bytes/row)",
-            self.get_width(),
-            self.get_height(),
-            self.get_bytes_per_row()
+            self.width(),
+            self.height(),
+            self.bytes_per_row()
         )
     }
 }
