@@ -649,12 +649,12 @@ impl AsyncSCContentSharingPicker {
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::pick(&config).await {
+    /// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
     ///     let (width, height) = result.pixel_size();
     ///     let filter = result.filter();
     /// }
     /// ```
-    pub fn pick(
+    pub fn show(
         config: &crate::content_sharing_picker::SCContentSharingPickerConfiguration,
     ) -> AsyncPickerFuture {
         let (future, context) = AsyncCompletion::create();
@@ -680,11 +680,11 @@ impl AsyncSCContentSharingPicker {
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerFilterOutcome::Filter(filter) = AsyncSCContentSharingPicker::pick_filter(&config).await {
+    /// if let SCPickerFilterOutcome::Filter(filter) = AsyncSCContentSharingPicker::show_filter(&config).await {
     ///     // Use filter with SCStream
     /// }
     /// ```
-    pub fn pick_filter(
+    pub fn show_filter(
         config: &crate::content_sharing_picker::SCContentSharingPickerConfiguration,
     ) -> AsyncPickerFilterFuture {
         let (future, context) = AsyncCompletion::create();
