@@ -523,3 +523,180 @@ impl AsyncSCScreenshotManager {
         AsyncScreenshotFuture { inner: future }
     }
 }
+
+// ============================================================================
+// AsyncSCContentSharingPicker - Async content sharing picker (macOS 14.0+)
+// ============================================================================
+
+/// Result from the async picker callback
+#[cfg(feature = "macos_14_0")]
+struct AsyncPickerCallbackResult {
+    code: i32,
+    ptr: *const c_void,
+}
+
+#[cfg(feature = "macos_14_0")]
+unsafe impl Send for AsyncPickerCallbackResult {}
+
+/// Callback for async picker
+#[cfg(feature = "macos_14_0")]
+extern "C" fn async_picker_callback(result_code: i32, ptr: *const c_void, user_data: *mut c_void) {
+    let result = AsyncPickerCallbackResult {
+        code: result_code,
+        ptr,
+    };
+    unsafe { AsyncCompletion::complete_ok(user_data, result) };
+}
+
+/// Future for async picker with full result
+#[cfg(feature = "macos_14_0")]
+pub struct AsyncPickerFuture {
+    inner: AsyncCompletionFuture<AsyncPickerCallbackResult>,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl Future for AsyncPickerFuture {
+    type Output = crate::content_sharing_picker::SCPickerOutcome;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        use crate::content_sharing_picker::{SCPickerOutcome, SCPickerResult};
+
+        match Pin::new(&mut self.inner).poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(result)) => {
+                let outcome = match result.code {
+                    1 if !result.ptr.is_null() => {
+                        SCPickerOutcome::Picked(SCPickerResult::from_ptr(result.ptr))
+                    }
+                    0 => SCPickerOutcome::Cancelled,
+                    _ => SCPickerOutcome::Error("Picker failed".to_string()),
+                };
+                Poll::Ready(outcome)
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(SCPickerOutcome::Error(e)),
+        }
+    }
+}
+
+/// Future for async picker returning filter only
+#[cfg(feature = "macos_14_0")]
+pub struct AsyncPickerFilterFuture {
+    inner: AsyncCompletionFuture<AsyncPickerCallbackResult>,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl Future for AsyncPickerFilterFuture {
+    type Output = crate::content_sharing_picker::SCPickerFilterOutcome;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        use crate::content_sharing_picker::SCPickerFilterOutcome;
+
+        match Pin::new(&mut self.inner).poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(result)) => {
+                let outcome = match result.code {
+                    1 if !result.ptr.is_null() => {
+                        SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(result.ptr))
+                    }
+                    0 => SCPickerFilterOutcome::Cancelled,
+                    _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
+                };
+                Poll::Ready(outcome)
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(SCPickerFilterOutcome::Error(e)),
+        }
+    }
+}
+
+/// Async wrapper for `SCContentSharingPicker` (macOS 14.0+)
+///
+/// Provides async methods to show the system content sharing picker UI.
+/// **Executor-agnostic** - works with any async runtime.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use screencapturekit::async_api::AsyncSCContentSharingPicker;
+/// use screencapturekit::content_sharing_picker::*;
+///
+/// async fn pick_content() {
+///     let config = SCContentSharingPickerConfiguration::new();
+///     match AsyncSCContentSharingPicker::pick(&config).await {
+///         SCPickerOutcome::Picked(result) => {
+///             let (width, height) = result.pixel_size();
+///             let filter = result.filter();
+///             println!("Selected content: {}x{}", width, height);
+///         }
+///         SCPickerOutcome::Cancelled => println!("User cancelled"),
+///         SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
+///     }
+/// }
+/// ```
+#[cfg(feature = "macos_14_0")]
+pub struct AsyncSCContentSharingPicker;
+
+#[cfg(feature = "macos_14_0")]
+impl AsyncSCContentSharingPicker {
+    /// Show the picker UI asynchronously and return `SCPickerResult` with filter and metadata
+    ///
+    /// This is the main API - use when you need content dimensions or want to build custom filters.
+    /// The picker UI will be shown on the main thread, and the future will resolve when the user
+    /// makes a selection or cancels.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use screencapturekit::async_api::AsyncSCContentSharingPicker;
+    /// use screencapturekit::content_sharing_picker::*;
+    ///
+    /// let config = SCContentSharingPickerConfiguration::new();
+    /// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::pick(&config).await {
+    ///     let (width, height) = result.pixel_size();
+    ///     let filter = result.filter();
+    /// }
+    /// ```
+    pub fn pick(
+        config: &crate::content_sharing_picker::SCContentSharingPickerConfiguration,
+    ) -> AsyncPickerFuture {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_show_with_result(
+                config.as_ptr(),
+                async_picker_callback,
+                context,
+            );
+        }
+
+        AsyncPickerFuture { inner: future }
+    }
+
+    /// Show the picker UI asynchronously and return an `SCContentFilter` directly
+    ///
+    /// This is the simple API - use when you just need the filter without metadata.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use screencapturekit::async_api::AsyncSCContentSharingPicker;
+    /// use screencapturekit::content_sharing_picker::*;
+    ///
+    /// let config = SCContentSharingPickerConfiguration::new();
+    /// if let SCPickerFilterOutcome::Filter(filter) = AsyncSCContentSharingPicker::pick_filter(&config).await {
+    ///     // Use filter with SCStream
+    /// }
+    /// ```
+    pub fn pick_filter(
+        config: &crate::content_sharing_picker::SCContentSharingPickerConfiguration,
+    ) -> AsyncPickerFilterFuture {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_show(
+                config.as_ptr(),
+                async_picker_callback,
+                context,
+            );
+        }
+
+        AsyncPickerFilterFuture { inner: future }
+    }
+}
