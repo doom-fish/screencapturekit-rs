@@ -29,7 +29,7 @@ mod leak_tests {
     impl SCStreamOutputTrait for Capturer {
         fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
             // Just get the timestamp to verify the sample buffer works
-            let _timestamp = sample.get_presentation_timestamp();
+            let _timestamp = sample.presentation_timestamp();
         }
     }
 
