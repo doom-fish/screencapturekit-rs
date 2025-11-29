@@ -779,10 +779,16 @@ mod ui {
             let line_h = 18.0 * base_scale;
             let padding = 16.0 * base_scale;
             let has_source = !source_name.is_empty() && source_name != "None";
-            let menu_values: [&str; 4] = ["Open", if is_capturing { "Stop" } else if has_source { "Start" } else { "-" }, "Open", ""];
+            // Menu values: Picker(Open), Capture(Start/Stop), Config(Open), Quit(empty)
+            let menu_values: [&str; 4] = [
+                "Open",  // Picker
+                if is_capturing { "Stop" } else { "Start" },  // Capture (works even without source for mic-only)
+                "Open",  // Config
+                ""       // Quit
+            ];
             
             let box_w = (320.0 * base_scale).min(vw * 0.8);
-            let box_h = (line_h * 6.0 + padding * 2.0).min(vh * 0.6);
+            let box_h = (line_h * 7.5 + padding * 2.0).min(vh * 0.7);
             let x = (vw - box_w) / 2.0;
             let y = (vh - box_h) / 2.0;
             
@@ -822,7 +828,12 @@ mod ui {
                     self.text(font, ">", x + padding * 0.5, text_y, scale, Self::NEON_YELLOW);
                 }
                 
-                let item_color = if is_selected { Self::NEON_CYAN } else { [0.8, 0.8, 0.9, 1.0] };
+                let item_color = if is_selected {
+                    Self::NEON_CYAN
+                } else {
+                    [0.8, 0.8, 0.9, 1.0]
+                };
+                
                 self.text(font, item, text_x, text_y, scale, item_color);
                 
                 if !value.is_empty() {
@@ -1177,35 +1188,61 @@ fn main() {
                                             capture_size: (u32, u32),
                                             stream_config: &SCStreamConfiguration,
                                             capture_state: &Arc<CaptureState>,
-                                            capturing: &Arc<AtomicBool>| {
-                            if let Some(ref filter) = current_filter {
-                                let (width, height) = capture_size;
-                                // Clone config and update dimensions
-                                let mut sc_config = stream_config.clone();
-                                sc_config.set_width(width);
-                                sc_config.set_height(height);
-                                
-                                let handler = CaptureHandler {
-                                    state: Arc::clone(capture_state),
-                                };
-
-                                let mut s = SCStream::new(filter, &sc_config);
-                                s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
-                                s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);
-                                s.add_output_handler(handler, SCStreamOutputType::Microphone);
-                                
-                                match s.start_capture() {
-                                    Ok(()) => {
-                                        capturing.store(true, Ordering::Relaxed);
-                                        *stream = Some(s);
-                                        println!("✅ Capture started");
+                                            capturing: &Arc<AtomicBool>,
+                                            mic_only: bool| {
+                            // Get the filter to use
+                            let filter_to_use = if let Some(ref filter) = current_filter {
+                                filter.clone()
+                            } else if mic_only {
+                                // For mic-only capture, we still need a valid display filter
+                                // macOS requires a content filter even for audio-only capture
+                                println!("🎤 Starting mic-only capture (using main display)");
+                                match screencapturekit::shareable_content::SCShareableContent::get() {
+                                    Ok(content) => {
+                                        let displays = content.displays();
+                                        if let Some(display) = displays.first() {
+                                            SCContentFilter::builder().display(display).build()
+                                        } else {
+                                            println!("❌ No displays available for mic-only capture");
+                                            return;
+                                        }
                                     }
                                     Err(e) => {
-                                        eprintln!("❌ Failed to start capture: {:?}", e);
+                                        println!("❌ Failed to get shareable content: {:?}", e);
+                                        return;
                                     }
                                 }
                             } else {
                                 println!("⚠️  No content selected. Open picker first.");
+                                return;
+                            };
+                            
+                            let (width, height) = capture_size;
+                            // Clone config and update dimensions
+                            let mut sc_config = stream_config.clone();
+                            sc_config.set_width(width);
+                            sc_config.set_height(height);
+                            
+                            let handler = CaptureHandler {
+                                state: Arc::clone(capture_state),
+                            };
+
+                            let mut s = SCStream::new(&filter_to_use, &sc_config);
+                            if !mic_only {
+                                s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
+                                s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);
+                            }
+                            s.add_output_handler(handler, SCStreamOutputType::Microphone);
+                            
+                            match s.start_capture() {
+                                Ok(()) => {
+                                    capturing.store(true, Ordering::Relaxed);
+                                    *stream = Some(s);
+                                    println!("✅ Capture started");
+                                }
+                                Err(e) => {
+                                    eprintln!("❌ Failed to start capture: {:?}", e);
+                                }
                             }
                         };
                         
@@ -1227,12 +1264,14 @@ fn main() {
                                 VirtualKeyCode::Up => {
                                     if overlay.menu_selection > 0 {
                                         overlay.menu_selection -= 1;
+                                        println!("⬆️  Menu selection: {} ({})", overlay.menu_selection, OverlayState::MENU_ITEMS[overlay.menu_selection]);
                                     }
                                 }
                                 VirtualKeyCode::Down => {
                                     let max = OverlayState::menu_count().saturating_sub(1);
                                     if overlay.menu_selection < max {
                                         overlay.menu_selection += 1;
+                                        println!("⬇️  Menu selection: {} ({})", overlay.menu_selection, OverlayState::MENU_ITEMS[overlay.menu_selection]);
                                     }
                                 }
                                 VirtualKeyCode::Return | VirtualKeyCode::Space => {
@@ -1244,11 +1283,13 @@ fn main() {
                                                 open_picker_no_stream(&pending_picker);
                                             }
                                         }
-                                        1 => { // Capture start/stop
+                                        1 => { // Capture start/stop (works with or without source)
                                             if capturing.load(Ordering::Relaxed) {
                                                 stop_capture(&mut stream, &capturing);
                                             } else {
-                                                start_capture(&mut stream, &current_filter, capture_size, &stream_config, &capture_state, &capturing);
+                                                // If we have a filter, use it; otherwise capture mic-only
+                                                let mic_only = current_filter.is_none();
+                                                start_capture(&mut stream, &current_filter, capture_size, &stream_config, &capture_state, &capturing, mic_only);
                                             }
                                         }
                                         2 => { // Config
@@ -1331,7 +1372,7 @@ fn main() {
                                     if capturing.load(Ordering::Relaxed) {
                                         stop_capture(&mut stream, &capturing);
                                     } else {
-                                        start_capture(&mut stream, &current_filter, capture_size, &stream_config, &capture_state, &capturing);
+                                        start_capture(&mut stream, &current_filter, capture_size, &stream_config, &capture_state, &capturing, false);
                                     }
                                 }
                                 VirtualKeyCode::P => {
