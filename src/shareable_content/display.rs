@@ -127,8 +127,10 @@ impl SCDisplay {
 
 impl Drop for SCDisplay {
     fn drop(&mut self) {
-        unsafe {
-            crate::ffi::sc_display_release(self.0);
+        if !self.0.is_null() {
+            unsafe {
+                crate::ffi::sc_display_release(self.0);
+            }
         }
     }
 }

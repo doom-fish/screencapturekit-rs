@@ -90,6 +90,16 @@ impl DispatchQueue {
     }
 }
 
+impl Clone for DispatchQueue {
+    fn clone(&self) -> Self {
+        unsafe {
+            Self {
+                ptr: crate::ffi::dispatch_queue_retain(self.ptr),
+            }
+        }
+    }
+}
+
 impl Drop for DispatchQueue {
     fn drop(&mut self) {
         unsafe {

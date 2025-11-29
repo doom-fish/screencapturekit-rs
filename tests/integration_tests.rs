@@ -110,8 +110,8 @@ fn test_video_capture() {
     // Verify sample properties
     if let Some(sample) = collected_samples.first() {
         if let Some(image_buffer) = sample.get_image_buffer() {
-            let width = image_buffer.get_width();
-            let height = image_buffer.get_height();
+            let width = image_buffer.width();
+            let height = image_buffer.height();
 
             println!("Video frame size: {width}x{height}");
             assert!(width > 0, "Invalid video width");
@@ -346,9 +346,9 @@ fn test_pixel_buffer_locking() {
             let base_address = lock_guard.get_base_address();
             assert!(!base_address.is_null(), "Base address is null");
 
-            let width = pixel_buffer.get_width();
-            let height = pixel_buffer.get_height();
-            let bytes_per_row = pixel_buffer.get_bytes_per_row();
+            let width = pixel_buffer.width();
+            let height = pixel_buffer.height();
+            let bytes_per_row = pixel_buffer.bytes_per_row();
 
             println!("Locked pixel buffer: {width}x{height}, {bytes_per_row} bytes/row");
 
@@ -425,7 +425,7 @@ fn test_iosurface_backed_buffer() {
         };
 
         // Check if backed by IOSurface
-        let iosurface = pixel_buffer.get_iosurface();
+        let iosurface = pixel_buffer.io_surface();
         assert!(iosurface.is_some(), "Pixel buffer is not IOSurface-backed");
 
         if let Some(surface) = iosurface {
