@@ -21,7 +21,7 @@ impl OverlayState {
         }
     }
 
-    pub const MENU_ITEMS: &'static [&'static str] = &["Picker", "Capture", "Screenshot", "Config", "Quit"];
+    pub const MENU_ITEMS: &'static [&'static str] = &["Picker", "Capture", "Screenshot", "Record", "Config", "Quit"];
 
     pub fn menu_count() -> usize {
         Self::MENU_ITEMS.len()

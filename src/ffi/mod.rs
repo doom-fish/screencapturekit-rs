@@ -398,6 +398,18 @@ extern "C" {
         context: *mut c_void,
         callback: extern "C" fn(*mut c_void, bool, *const i8),
     );
+    pub fn sc_stream_add_recording_output(
+        stream: *const c_void,
+        recording_output: *const c_void,
+        callback: extern "C" fn(*mut c_void, bool, *const i8),
+        context: *mut c_void,
+    );
+    pub fn sc_stream_remove_recording_output(
+        stream: *const c_void,
+        recording_output: *const c_void,
+        callback: extern "C" fn(*mut c_void, bool, *const i8),
+        context: *mut c_void,
+    );
     pub fn sc_stream_retain(stream: *const c_void) -> *const c_void;
     pub fn sc_stream_release(stream: *const c_void);
 }

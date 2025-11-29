@@ -21,6 +21,7 @@ impl VertexBufferBuilder {
         vw: f32,
         vh: f32,
         is_capturing: bool,
+        is_recording: bool,
         source_name: &str,
         menu_selection: usize,
     ) {
@@ -29,17 +30,18 @@ impl VertexBufferBuilder {
         let line_h = 18.0 * base_scale;
         let padding = 16.0 * base_scale;
         let has_source = !source_name.is_empty() && source_name != "None";
-        // Menu values: Picker(Open), Capture(Start/Stop), Screenshot(Take), Config(Open), Quit(empty)
-        let menu_values: [&str; 5] = [
+        // Menu values: Picker, Capture, Screenshot, Record, Config, Quit
+        let menu_values: [&str; 6] = [
             "Open",                                          // Picker
             if is_capturing { "Stop" } else { "Start" },     // Capture
-            if has_source { "Take" } else { "" },            // Screenshot (only if source selected)
+            if has_source { "Take" } else { "" },            // Screenshot
+            if is_recording { "Stop" } else if has_source { "Start" } else { "" }, // Record
             "Open",                                          // Config
             "",                                              // Quit
         ];
 
         let box_w = (320.0 * base_scale).min(vw * 0.8);
-        let box_h = (line_h * 7.5 + padding * 2.0).min(vh * 0.7);
+        let box_h = (line_h * 8.5 + padding * 2.0).min(vh * 0.75);
         let x = (vw - box_w) / 2.0;
         let y = (vh - box_h) / 2.0;
 
