@@ -134,7 +134,7 @@ impl SCContentFilter {
     }
 
     /// Gets the content rectangle for this filter (macOS 14.2+)
-    pub fn get_content_rect(&self) -> crate::stream::configuration::Rect {
+    pub fn content_rect(&self) -> crate::stream::configuration::Rect {
         unsafe {
             let mut x = 0.0;
             let mut y = 0.0;
@@ -158,7 +158,7 @@ impl SCContentFilter {
     ///
     /// Returns the type of content being captured (window, display, application, or none).
     #[cfg(feature = "macos_14_0")]
-    pub fn get_style(&self) -> SCShareableContentStyle {
+    pub fn style(&self) -> SCShareableContentStyle {
         let value = unsafe { ffi::sc_content_filter_get_style(self.0) };
         SCShareableContentStyle::from(value)
     }
@@ -168,7 +168,7 @@ impl SCContentFilter {
     /// Returns the scaling factor used to convert points to pixels.
     /// Typically 2.0 for Retina displays.
     #[cfg(feature = "macos_14_0")]
-    pub fn get_point_pixel_scale(&self) -> f32 {
+    pub fn point_pixel_scale(&self) -> f32 {
         unsafe { ffi::sc_content_filter_get_point_pixel_scale(self.0) }
     }
 
@@ -185,7 +185,7 @@ impl SCContentFilter {
 
     /// Check if menu bar is included in capture (macOS 14.2+)
     #[cfg(feature = "macos_14_2")]
-    pub fn get_include_menu_bar(&self) -> bool {
+    pub fn include_menu_bar(&self) -> bool {
         unsafe { ffi::sc_content_filter_get_include_menu_bar(self.0) }
     }
 
@@ -193,7 +193,7 @@ impl SCContentFilter {
     ///
     /// Returns the displays currently included in this filter.
     #[cfg(feature = "macos_15_2")]
-    pub fn get_included_displays(&self) -> Vec<SCDisplay> {
+    pub fn included_displays(&self) -> Vec<SCDisplay> {
         let count = unsafe { ffi::sc_content_filter_get_included_displays_count(self.0) };
         if count <= 0 {
             return Vec::new();
@@ -216,7 +216,7 @@ impl SCContentFilter {
     ///
     /// Returns the windows currently included in this filter.
     #[cfg(feature = "macos_15_2")]
-    pub fn get_included_windows(&self) -> Vec<SCWindow> {
+    pub fn included_windows(&self) -> Vec<SCWindow> {
         let count = unsafe { ffi::sc_content_filter_get_included_windows_count(self.0) };
         if count <= 0 {
             return Vec::new();
@@ -239,7 +239,7 @@ impl SCContentFilter {
     ///
     /// Returns the applications currently included in this filter.
     #[cfg(feature = "macos_15_2")]
-    pub fn get_included_applications(&self) -> Vec<SCRunningApplication> {
+    pub fn included_applications(&self) -> Vec<SCRunningApplication> {
         let count = unsafe { ffi::sc_content_filter_get_included_applications_count(self.0) };
         if count <= 0 {
             return Vec::new();

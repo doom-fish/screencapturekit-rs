@@ -343,7 +343,7 @@ fn test_pixel_buffer_locking() {
                 .lock_base_address(true)
                 .expect("Failed to lock base address for reading");
 
-            let base_address = lock_guard.get_base_address();
+            let base_address = lock_guard.base_address();
             assert!(!base_address.is_null(), "Base address is null");
 
             let width = pixel_buffer.width();
@@ -361,7 +361,7 @@ fn test_pixel_buffer_locking() {
                 .lock_base_address(false)
                 .expect("Failed to lock base address for writing");
 
-            let base_address_mut = lock_guard.get_base_address_mut();
+            let base_address_mut = lock_guard.base_address_mut();
             assert!(!base_address_mut.is_null(), "Mutable base address is null");
 
             // Lock guard automatically unlocks when dropped
@@ -521,7 +521,7 @@ fn test_shareable_content_above_window() {
 #[test]
 fn test_shareable_content_current_process() {
     // Get shareable content for current process only
-    let result = SCShareableContent::get_current_process();
+    let result = SCShareableContent::current_process();
 
     match result {
         Ok(content) => {
