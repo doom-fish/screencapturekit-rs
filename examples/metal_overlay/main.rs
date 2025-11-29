@@ -529,6 +529,58 @@ impl VertexBufferBuilder {
         self.rect_outline(x, y, w, h, 1.0, [1.0, 1.0, 1.0, 0.8]);
     }
 
+    /// Draw a vertical VU meter (for gain visualization)
+    fn vu_meter_vertical(&mut self, level: f32, x: f32, y: f32, w: f32, h: f32, label: &str, font: &BitmapFont) {
+        // Background
+        self.rect(x, y, w, h, [0.1, 0.1, 0.1, 0.9]);
+
+        // Calculate fill height from bottom
+        let db = if level > 0.0 {
+            20.0 * level.log10()
+        } else {
+            -60.0
+        };
+        let normalized = ((db + 60.0) / 60.0).clamp(0.0, 1.0);
+        let fill_h = normalized * h;
+
+        // Color segments (from bottom: green -> yellow -> red)
+        let green_end = h * 0.6;
+        let yellow_end = h * 0.85;
+
+        // Green section (bottom)
+        if fill_h > 0.0 {
+            let segment_h = fill_h.min(green_end);
+            self.rect(x, y + h - segment_h, w, segment_h, [0.2, 0.9, 0.2, 1.0]);
+        }
+        // Yellow section (middle)
+        if fill_h > green_end {
+            let segment_h = (fill_h - green_end).min(yellow_end - green_end);
+            self.rect(x, y + h - green_end - segment_h, w, segment_h, [0.9, 0.9, 0.2, 1.0]);
+        }
+        // Red section (top)
+        if fill_h > yellow_end {
+            let segment_h = fill_h - yellow_end;
+            self.rect(x, y + h - yellow_end - segment_h, w, segment_h, [0.9, 0.2, 0.2, 1.0]);
+        }
+
+        // Border
+        self.rect_outline(x, y, w, h, 1.0, [0.5, 0.5, 0.5, 0.8]);
+
+        // Label below meter
+        self.text(font, label, x, y + h + 4.0, 1.0, [0.8, 0.8, 0.8, 1.0]);
+        
+        // dB markers
+        let marker_color = [0.4, 0.4, 0.4, 0.8];
+        // -60dB (bottom)
+        self.rect(x - 4.0, y + h - 2.0, 4.0, 1.0, marker_color);
+        // -30dB (middle-low)
+        self.rect(x - 4.0, y + h * 0.5 - 1.0, 4.0, 1.0, marker_color);
+        // -12dB (middle-high)
+        self.rect(x - 4.0, y + h * 0.2 - 1.0, 4.0, 1.0, marker_color);
+        // 0dB (top)
+        self.rect(x - 4.0, y, 4.0, 1.0, [0.9, 0.2, 0.2, 0.8]);
+    }
+
     /// Draw a simple help overlay
     fn help_overlay(&mut self, font: &BitmapFont, x: f32, y: f32, is_capturing: bool) {
         let scale = 2.0;
@@ -582,7 +634,8 @@ use screencapturekit::output::IOSurface;
 /// Shared capture state accessible from both handler and render loop
 struct CaptureState {
     frame_count: AtomicUsize,
-    waveform: Mutex<WaveformBuffer>,
+    audio_waveform: Mutex<WaveformBuffer>,
+    mic_waveform: Mutex<WaveformBuffer>,
     /// The latest captured frame's IOSurface (retained)
     latest_surface: Mutex<Option<IOSurface>>,
 }
@@ -591,7 +644,8 @@ impl CaptureState {
     fn new() -> Self {
         Self {
             frame_count: AtomicUsize::new(0),
-            waveform: Mutex::new(WaveformBuffer::new(4096)),
+            audio_waveform: Mutex::new(WaveformBuffer::new(4096)),
+            mic_waveform: Mutex::new(WaveformBuffer::new(4096)),
             latest_surface: Mutex::new(None),
         }
     }
@@ -630,19 +684,47 @@ impl SCStreamOutputTrait for CaptureHandler {
                 }
             }
             SCStreamOutputType::Audio => {
-                // Generate synthetic audio visualization based on frame count
-                let frame = self.state.frame_count.load(Ordering::Relaxed) as f32;
-                let samples: Vec<f32> = (0..256)
-                    .map(|i| {
-                        let t = frame * 0.01 + i as f32 * 0.02;
-                        (t.sin() * 0.5 + (t * 2.3).sin() * 0.3).clamp(-1.0, 1.0)
-                    })
-                    .collect();
-
-                let mut waveform = self.state.waveform.lock().unwrap();
-                waveform.push(&samples);
+                // Extract real audio samples from the buffer
+                if let Some(audio_buffer_list) = sample.audio_buffer_list() {
+                    if let Some(buffer) = audio_buffer_list.get(0) {
+                        let data = buffer.data();
+                        // Convert bytes to f32 samples (assuming 32-bit float audio)
+                        let samples: Vec<f32> = data
+                            .chunks_exact(4)
+                            .map(|chunk| {
+                                let bytes: [u8; 4] = chunk.try_into().unwrap_or([0; 4]);
+                                f32::from_le_bytes(bytes)
+                            })
+                            .collect();
+                        
+                        if !samples.is_empty() {
+                            let mut waveform = self.state.audio_waveform.lock().unwrap();
+                            waveform.push(&samples);
+                        }
+                    }
+                }
             }
-            SCStreamOutputType::Microphone => {}
+            SCStreamOutputType::Microphone => {
+                // Extract microphone audio samples
+                if let Some(audio_buffer_list) = sample.audio_buffer_list() {
+                    if let Some(buffer) = audio_buffer_list.get(0) {
+                        let data = buffer.data();
+                        // Convert bytes to f32 samples (assuming 32-bit float audio)
+                        let samples: Vec<f32> = data
+                            .chunks_exact(4)
+                            .map(|chunk| {
+                                let bytes: [u8; 4] = chunk.try_into().unwrap_or([0; 4]);
+                                f32::from_le_bytes(bytes)
+                            })
+                            .collect();
+                        
+                        if !samples.is_empty() {
+                            let mut waveform = self.state.mic_waveform.lock().unwrap();
+                            waveform.push(&samples);
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -811,6 +893,10 @@ fn main() {
                                             stream_config.set_captures_audio(true);
                                             stream_config.set_sample_rate(48000);
                                             stream_config.set_channel_count(2);
+                                            
+                                            // Enable microphone capture (macOS 15.0+)
+                                            #[cfg(feature = "macos_15_0")]
+                                            stream_config.set_captures_microphone(true);
 
                                             let handler = CaptureHandler {
                                                 state: Arc::clone(&capture_state),
@@ -820,7 +906,11 @@ fn main() {
                                             let filter = result.filter();
                                             let mut s = SCStream::new(&filter, &stream_config);
                                             s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
-                                            s.add_output_handler(handler, SCStreamOutputType::Audio);
+                                            s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);
+                                            
+                                            // Add microphone handler (macOS 15.0+)
+                                            #[cfg(feature = "macos_15_0")]
+                                            s.add_output_handler(handler, SCStreamOutputType::Microphone);
                                             
                                             match s.start_capture() {
                                                 Ok(()) => {
@@ -903,23 +993,27 @@ fn main() {
                     // Waveform panel
                     if overlay.show_waveform {
                         let wave_x = 16.0;
-                        let wave_y = (height - 140.0).floor();
-                        let wave_w = 320.0;
-                        let wave_h = 120.0;
+                        let wave_y = (height - 180.0).floor();
+                        let wave_w = 280.0;
+                        let wave_h = 80.0;
+                        let meter_w = 24.0;
+                        let meter_h = 120.0;
+                        let panel_w = wave_w + meter_w * 2.0 + 48.0;
+                        let panel_h = 160.0;
 
                         // Panel background
                         vertex_builder.rect(
                             wave_x - 8.0,
                             wave_y - 24.0,
-                            wave_w + 16.0,
-                            wave_h + 48.0,
+                            panel_w,
+                            panel_h,
                             [0.12, 0.12, 0.15, 0.9],
                         );
                         vertex_builder.rect_outline(
                             wave_x - 8.0,
                             wave_y - 24.0,
-                            wave_w + 16.0,
-                            wave_h + 48.0,
+                            panel_w,
+                            panel_h,
                             2.0,
                             [0.4, 0.4, 0.5, 1.0],
                         );
@@ -934,20 +1028,46 @@ fn main() {
                             [1.0, 1.0, 1.0, 1.0],
                         );
 
-                        // Waveform
-                        let samples = capture_state.waveform.lock().unwrap().display_samples(256);
+                        // System audio waveform
+                        let audio_samples = capture_state.audio_waveform.lock().unwrap().display_samples(256);
                         vertex_builder.waveform(
-                            &samples,
+                            &audio_samples,
                             wave_x,
                             wave_y,
                             wave_w,
-                            wave_h - 32.0,
+                            wave_h,
                             [0.3, 1.0, 0.4, 0.9],
                         );
 
-                        // VU meter
-                        let level = capture_state.waveform.lock().unwrap().rms(2048);
-                        vertex_builder.vu_meter(level, wave_x, wave_y + wave_h - 16.0, wave_w, 16.0);
+                        // Horizontal VU meter for system audio
+                        let audio_level = capture_state.audio_waveform.lock().unwrap().rms(2048);
+                        vertex_builder.vu_meter(audio_level, wave_x, wave_y + wave_h + 8.0, wave_w, 12.0);
+
+                        // Vertical meters on the right side
+                        let meters_x = wave_x + wave_w + 16.0;
+                        
+                        // System audio vertical meter
+                        vertex_builder.vu_meter_vertical(
+                            audio_level,
+                            meters_x,
+                            wave_y - 8.0,
+                            meter_w,
+                            meter_h,
+                            "SYS",
+                            &font,
+                        );
+
+                        // Microphone vertical meter
+                        let mic_level = capture_state.mic_waveform.lock().unwrap().rms(2048);
+                        vertex_builder.vu_meter_vertical(
+                            mic_level,
+                            meters_x + meter_w + 8.0,
+                            wave_y - 8.0,
+                            meter_w,
+                            meter_h,
+                            "MIC",
+                            &font,
+                        );
                     }
 
                     // Help overlay
