@@ -119,8 +119,9 @@ struct TexturedVertex {
 // Uniforms buffer
 struct Uniforms {
     float2 viewport_size;
+    float2 texture_size;
     float time;
-    float padding;
+    float padding[3];
 };
 
 struct VertexOut {
@@ -153,15 +154,35 @@ fragment float4 fragment_colored(VertexOut in [[stage_in]]) {
     return in.color;
 }
 
-// Fullscreen quad vertex shader
-vertex TexturedVertexOut vertex_fullscreen(uint vid [[vertex_id]]) {
+// Fullscreen quad vertex shader with aspect ratio preservation
+vertex TexturedVertexOut vertex_fullscreen(
+    uint vid [[vertex_id]],
+    constant Uniforms& uniforms [[buffer(0)]]
+) {
     TexturedVertexOut out;
-    // Generate fullscreen triangle strip from vertex id
+    
+    // Calculate aspect ratios
+    float viewportAspect = uniforms.viewport_size.x / uniforms.viewport_size.y;
+    float textureAspect = uniforms.texture_size.x / uniforms.texture_size.y;
+    
+    // Scale to fit while preserving aspect ratio (letterbox/pillarbox)
+    float scaleX = 1.0;
+    float scaleY = 1.0;
+    
+    if (textureAspect > viewportAspect) {
+        // Texture is wider - pillarbox (black bars top/bottom)
+        scaleY = viewportAspect / textureAspect;
+    } else {
+        // Texture is taller - letterbox (black bars left/right)
+        scaleX = textureAspect / viewportAspect;
+    }
+    
+    // Generate quad vertices centered in viewport
     float2 positions[4] = {
-        float2(-1.0, -1.0),
-        float2( 1.0, -1.0),
-        float2(-1.0,  1.0),
-        float2( 1.0,  1.0)
+        float2(-scaleX, -scaleY),
+        float2( scaleX, -scaleY),
+        float2(-scaleX,  scaleY),
+        float2( scaleX,  scaleY)
     };
     float2 texcoords[4] = {
         float2(0.0, 1.0),
@@ -226,13 +247,14 @@ impl TexturedVertex {
     }
 }
 
-/// Uniforms buffer (16 bytes, 16-byte aligned for GPU)
+/// Uniforms buffer (32 bytes, 16-byte aligned for GPU)
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 struct Uniforms {
     viewport_size: [f32; 2], // 8 bytes
+    texture_size: [f32; 2],  // 8 bytes - for aspect ratio calculation
     time: f32,               // 4 bytes
-    _padding: f32,           // 4 bytes (ensures 16-byte alignment)
+    _padding: [f32; 3],      // 12 bytes (ensures 32-byte alignment)
 }
 
 // ============================================================================
@@ -992,28 +1014,32 @@ fn main() {
                     };
                     vertex_builder.text(&font, &status, 8.0, 8.0, 2.0, [0.2, 1.0, 0.3, 1.0]);
 
-                    // Waveform panel
+                    // Waveform panel - centered and larger
                     if overlay.show_waveform {
-                        let wave_x = 16.0;
-                        let wave_y = (height - 180.0).floor();
-                        let wave_w = 280.0;
-                        let wave_h = 80.0;
-                        let meter_w = 24.0;
-                        let meter_h = 120.0;
-                        let panel_w = wave_w + meter_w * 2.0 + 48.0;
-                        let panel_h = 160.0;
+                        let wave_w = 400.0;
+                        let wave_h = 120.0;
+                        let meter_w = 32.0;
+                        let meter_h = 160.0;
+                        let panel_w = wave_w + meter_w * 2.0 + 64.0;
+                        let panel_h = 220.0;
+                        
+                        // Center the panel
+                        let panel_x = (width - panel_w) / 2.0;
+                        let panel_y = (height - panel_h) / 2.0;
+                        let wave_x = panel_x + 16.0;
+                        let wave_y = panel_y + 40.0;
 
                         // Panel background
                         vertex_builder.rect(
-                            wave_x - 8.0,
-                            wave_y - 24.0,
+                            panel_x,
+                            panel_y,
                             panel_w,
                             panel_h,
-                            [0.12, 0.12, 0.15, 0.9],
+                            [0.12, 0.12, 0.15, 0.95],
                         );
                         vertex_builder.rect_outline(
-                            wave_x - 8.0,
-                            wave_y - 24.0,
+                            panel_x,
+                            panel_y,
                             panel_w,
                             panel_h,
                             2.0,
@@ -1023,10 +1049,10 @@ fn main() {
                         // Title
                         vertex_builder.text(
                             &font,
-                            "AUDIO",
-                            wave_x,
-                            wave_y - 20.0,
-                            2.0,
+                            "AUDIO MONITOR",
+                            panel_x + 16.0,
+                            panel_y + 12.0,
+                            2.5,
                             [1.0, 1.0, 1.0, 1.0],
                         );
 
@@ -1043,16 +1069,16 @@ fn main() {
 
                         // Horizontal VU meter for system audio
                         let audio_level = capture_state.audio_waveform.lock().unwrap().rms(2048);
-                        vertex_builder.vu_meter(audio_level, wave_x, wave_y + wave_h + 8.0, wave_w, 12.0);
+                        vertex_builder.vu_meter(audio_level, wave_x, wave_y + wave_h + 12.0, wave_w, 16.0);
 
                         // Vertical meters on the right side
-                        let meters_x = wave_x + wave_w + 16.0;
+                        let meters_x = wave_x + wave_w + 24.0;
                         
                         // System audio vertical meter
                         vertex_builder.vu_meter_vertical(
                             audio_level,
                             meters_x,
-                            wave_y - 8.0,
+                            wave_y,
                             meter_w,
                             meter_h,
                             "SYS",
@@ -1063,8 +1089,8 @@ fn main() {
                         let mic_level = capture_state.mic_waveform.lock().unwrap().rms(2048);
                         vertex_builder.vu_meter_vertical(
                             mic_level,
-                            meters_x + meter_w + 8.0,
-                            wave_y - 8.0,
+                            meters_x + meter_w + 12.0,
+                            wave_y,
                             meter_w,
                             meter_h,
                             "MIC",
@@ -1072,9 +1098,12 @@ fn main() {
                         );
                     }
 
-                    // Help overlay
+                    // Help overlay - center it
                     if overlay.show_help {
-                        vertex_builder.help_overlay(&font, width - 230.0, 40.0, capturing.load(Ordering::Relaxed));
+                        let help_w = 260.0;
+                        let help_x = (width - help_w) / 2.0;
+                        let help_y = height - 140.0;
+                        vertex_builder.help_overlay(&font, help_x, help_y, capturing.load(Ordering::Relaxed));
                     }
 
                     // Build GPU buffer
@@ -1087,8 +1116,9 @@ fn main() {
                     // Uniforms - pass capture texture dimensions for aspect ratio
                     let uniforms = Uniforms {
                         viewport_size: [width, height],
+                        texture_size: [tex_width, tex_height],
                         time,
-                        _padding: 0.0,
+                        _padding: [0.0; 3],
                     };
                     let uniforms_buffer = device.new_buffer_with_data(
                         (&uniforms as *const Uniforms).cast(),
@@ -1115,6 +1145,7 @@ fn main() {
                     // First pass: Draw captured frame as background (if available)
                     if let Some(ref texture) = capture_texture {
                         encoder.set_render_pipeline_state(&fullscreen_pipeline);
+                        encoder.set_vertex_buffer(0, Some(&uniforms_buffer), 0);
                         encoder.set_fragment_texture(0, Some(texture));
                         encoder.draw_primitives(MTLPrimitiveType::TriangleStrip, 0, 4);
                     }
