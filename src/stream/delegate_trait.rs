@@ -80,7 +80,7 @@ pub trait SCStreamDelegateTrait: Send {
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let content = SCShareableContent::get()?;
 /// # let display = &content.displays()[0];
-/// # let filter = SCContentFilter::build().display(display).exclude_windows(&[]).build();
+/// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
 /// # let config = SCStreamConfiguration::default();
 ///
 /// let error_handler = ErrorHandler::new(|error| {

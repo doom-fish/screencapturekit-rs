@@ -323,54 +323,6 @@ impl CVPixelBuffer {
     }
 
     /// Get the width of the pixel buffer in pixels
-    ///
-    /// Alias for [`width()`](Self::width).
-    #[deprecated(since = "1.1.0", note = "Use width() instead")]
-    pub fn get_width(&self) -> usize {
-        self.width()
-    }
-
-    /// Get the height of the pixel buffer in pixels
-    ///
-    /// Alias for [`height()`](Self::height).
-    #[deprecated(since = "1.1.0", note = "Use height() instead")]
-    pub fn get_height(&self) -> usize {
-        self.height()
-    }
-
-    /// Get the pixel format type
-    ///
-    /// Alias for [`pixel_format()`](Self::pixel_format).
-    #[deprecated(since = "1.1.0", note = "Use pixel_format() instead")]
-    pub fn get_pixel_format_type(&self) -> u32 {
-        self.pixel_format()
-    }
-
-    /// Get the bytes per row
-    ///
-    /// Alias for [`bytes_per_row()`](Self::bytes_per_row).
-    #[deprecated(since = "1.1.0", note = "Use bytes_per_row() instead")]
-    pub fn get_bytes_per_row(&self) -> usize {
-        self.bytes_per_row()
-    }
-
-    /// Get the base address
-    ///
-    /// Alias for [`base_address()`](Self::base_address).
-    #[deprecated(since = "1.1.0", note = "Use base_address() instead")]
-    pub fn get_base_address(&self) -> Option<*mut u8> {
-        self.base_address()
-    }
-
-    /// Get the IOSurface
-    ///
-    /// Alias for [`io_surface()`](Self::io_surface).
-    #[deprecated(since = "1.1.0", note = "Use io_surface() instead")]
-    pub fn get_iosurface(&self) -> Option<IOSurface> {
-        self.io_surface()
-    }
-
-    /// Get the width of the pixel buffer in pixels
     pub fn width(&self) -> usize {
         unsafe { ffi::cv_pixel_buffer_get_width(self.0) }
     }
@@ -436,14 +388,6 @@ impl CVPixelBuffer {
             let ptr = ffi::cv_pixel_buffer_get_io_surface(self.0);
             IOSurface::from_raw(ptr)
         }
-    }
-
-    /// Get the IOSurface backing this pixel buffer
-    ///
-    /// Alias for [`io_surface()`](Self::io_surface).
-    #[deprecated(since = "1.1.0", note = "Use io_surface() instead")]
-    pub fn get_io_surface(&self) -> Option<IOSurface> {
-        self.io_surface()
     }
 
     /// Lock the base address and return a guard for RAII-style access
