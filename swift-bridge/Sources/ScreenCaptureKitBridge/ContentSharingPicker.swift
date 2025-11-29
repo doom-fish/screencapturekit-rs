@@ -23,16 +23,18 @@ public func setContentSharingPickerAllowedModes(
 ) {
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
     let modesArray = Array(UnsafeBufferPointer(start: modes, count: count))
-    var pickerModes: [SCContentSharingPickerMode] = []
+    var pickerModes: SCContentSharingPickerMode = []
     for mode in modesArray {
         switch mode {
-        case 0: pickerModes.append(.singleWindow)
-        case 1: pickerModes.append(.multipleWindows)
-        case 2: pickerModes.append(.singleDisplay)
+        case 0: pickerModes.insert(.singleWindow)
+        case 1: pickerModes.insert(.multipleWindows)
+        case 2: pickerModes.insert(.singleDisplay)
+        case 3: pickerModes.insert(.singleApplication)
+        case 4: pickerModes.insert(.multipleApplications)
         default: break
         }
     }
-    box.value.allowedPickerModes = pickerModes.first ?? .singleWindow
+    box.value.allowedPickerModes = pickerModes
 }
 
 @available(macOS 14.0, *)

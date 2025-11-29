@@ -48,17 +48,36 @@
 use crate::stream::content_filter::SCContentFilter;
 use std::ffi::c_void;
 
-/// Picker style determines what content types can be selected
+/// Represents the type of content selected in the picker
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SCPickedSource {
+    /// A window was selected, with its title
+    Window(String),
+    /// A display was selected, with its ID
+    Display(u32),
+    /// An application was selected, with its name
+    Application(String),
+    /// No specific source identified
+    Unknown,
+}
+
+/// Picker mode determines what content types can be selected
+///
+/// These modes can be combined to allow users to pick from different source types.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SCContentSharingPickerMode {
     /// Allow selection of a single window
     #[default]
     SingleWindow = 0,
-    /// Allow selection of multiple items
-    Multiple = 1,
-    /// Only allow display selection
+    /// Allow selection of multiple windows
+    MultipleWindows = 1,
+    /// Allow selection of a single display/screen
     SingleDisplay = 2,
+    /// Allow selection of a single application
+    SingleApplication = 3,
+    /// Allow selection of multiple applications
+    MultipleApplications = 4,
 }
 
 /// Configuration for the content sharing picker
@@ -307,6 +326,38 @@ impl SCPickerResult {
             })
             .collect()
     }
+
+    /// Get the source type that was picked
+    ///
+    /// Returns information about what the user selected: window, display, or application.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use screencapturekit::content_sharing_picker::*;
+    ///
+    /// SCContentSharingPicker::show(&config, |outcome| {
+    ///     if let SCPickerOutcome::Picked(result) = outcome {
+    ///         match result.source() {
+    ///             SCPickedSource::Window(title) => println!("[W] {}", title),
+    ///             SCPickedSource::Display(id) => println!("[D] Display {}", id),
+    ///             SCPickedSource::Application(name) => println!("[A] {}", name),
+    ///             SCPickedSource::Unknown => println!("Unknown source"),
+    ///         }
+    ///     }
+    /// });
+    /// ```
+    #[must_use]
+    pub fn source(&self) -> SCPickedSource {
+        if let Some(window) = self.windows().first() {
+            SCPickedSource::Window(window.title().unwrap_or_else(|| "Untitled".to_string()))
+        } else if let Some(display) = self.displays().first() {
+            SCPickedSource::Display(display.display_id())
+        } else if let Some(app) = self.applications().first() {
+            SCPickedSource::Application(app.application_name())
+        } else {
+            SCPickedSource::Unknown
+        }
+    }
 }
 
 impl Drop for SCPickerResult {
@@ -412,7 +463,7 @@ impl SCContentSharingPicker {
         F: FnOnce(SCPickerOutcome) + Send + 'static,
     {
         let callback = Box::new(callback);
-        let context = Box::into_raw(callback) as *mut std::ffi::c_void;
+        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_with_result(
@@ -443,7 +494,7 @@ impl SCContentSharingPicker {
         F: FnOnce(SCPickerFilterOutcome) + Send + 'static,
     {
         let callback = Box::new(callback);
-        let context = Box::into_raw(callback) as *mut std::ffi::c_void;
+        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show(
@@ -463,7 +514,7 @@ extern "C" fn picker_callback_boxed<F>(
 ) where
     F: FnOnce(SCPickerOutcome) + Send + 'static,
 {
-    let callback = unsafe { Box::from_raw(context as *mut F) };
+    let callback = unsafe { Box::from_raw(context.cast::<F>()) };
     let outcome = match code {
         1 if !ptr.is_null() => SCPickerOutcome::Picked(SCPickerResult { ptr }),
         0 => SCPickerOutcome::Cancelled,
@@ -480,7 +531,7 @@ extern "C" fn picker_filter_callback_boxed<F>(
 ) where
     F: FnOnce(SCPickerFilterOutcome) + Send + 'static,
 {
-    let callback = unsafe { Box::from_raw(context as *mut F) };
+    let callback = unsafe { Box::from_raw(context.cast::<F>()) };
     let outcome = match code {
         1 if !ptr.is_null() => {
             SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(ptr))

@@ -26,16 +26,20 @@ fn test_picker_configuration_modes() {
 
     let modes = vec![
         vec![SCContentSharingPickerMode::SingleWindow],
-        vec![SCContentSharingPickerMode::Multiple],
+        vec![SCContentSharingPickerMode::MultipleWindows],
         vec![SCContentSharingPickerMode::SingleDisplay],
+        vec![SCContentSharingPickerMode::SingleApplication],
+        vec![SCContentSharingPickerMode::MultipleApplications],
         vec![
             SCContentSharingPickerMode::SingleWindow,
             SCContentSharingPickerMode::SingleDisplay,
         ],
         vec![
             SCContentSharingPickerMode::SingleWindow,
-            SCContentSharingPickerMode::Multiple,
+            SCContentSharingPickerMode::MultipleWindows,
             SCContentSharingPickerMode::SingleDisplay,
+            SCContentSharingPickerMode::SingleApplication,
+            SCContentSharingPickerMode::MultipleApplications,
         ],
     ];
 
@@ -49,8 +53,10 @@ fn test_picker_configuration_modes() {
 fn test_picker_mode_values() {
     // Test that picker mode enum values are correct
     assert_eq!(SCContentSharingPickerMode::SingleWindow as i32, 0);
-    assert_eq!(SCContentSharingPickerMode::Multiple as i32, 1);
+    assert_eq!(SCContentSharingPickerMode::MultipleWindows as i32, 1);
     assert_eq!(SCContentSharingPickerMode::SingleDisplay as i32, 2);
+    assert_eq!(SCContentSharingPickerMode::SingleApplication as i32, 3);
+    assert_eq!(SCContentSharingPickerMode::MultipleApplications as i32, 4);
     println!("✅ Picker mode values correct");
 }
 
@@ -111,7 +117,7 @@ fn test_picker_mode_equality() {
     // Test that picker modes can be compared
     let mode1 = SCContentSharingPickerMode::SingleWindow;
     let mode2 = SCContentSharingPickerMode::SingleWindow;
-    let mode3 = SCContentSharingPickerMode::Multiple;
+    let mode3 = SCContentSharingPickerMode::MultipleWindows;
 
     assert_eq!(mode1, mode2, "Same modes should be equal");
     assert_ne!(mode1, mode3, "Different modes should not be equal");
@@ -125,7 +131,7 @@ fn test_picker_mode_hash() {
 
     let mut modes = HashSet::new();
     modes.insert(SCContentSharingPickerMode::SingleWindow);
-    modes.insert(SCContentSharingPickerMode::Multiple);
+    modes.insert(SCContentSharingPickerMode::MultipleWindows);
     modes.insert(SCContentSharingPickerMode::SingleWindow); // Duplicate
 
     assert_eq!(modes.len(), 2, "Should have 2 unique modes");
@@ -147,8 +153,10 @@ fn test_picker_mode_debug() {
     // Test that picker modes have debug formatting
     let modes = vec![
         SCContentSharingPickerMode::SingleWindow,
-        SCContentSharingPickerMode::Multiple,
+        SCContentSharingPickerMode::MultipleWindows,
         SCContentSharingPickerMode::SingleDisplay,
+        SCContentSharingPickerMode::SingleApplication,
+        SCContentSharingPickerMode::MultipleApplications,
     ];
 
     for mode in modes {
