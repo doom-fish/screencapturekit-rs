@@ -109,7 +109,7 @@ fn test_video_capture() {
 
     // Verify sample properties
     if let Some(sample) = collected_samples.first() {
-        if let Some(image_buffer) = sample.get_image_buffer() {
+        if let Some(image_buffer) = sample.image_buffer() {
             let width = image_buffer.width();
             let height = image_buffer.height();
 
@@ -186,12 +186,12 @@ fn test_audio_capture() {
     // Verify audio buffer properties (may be empty if no audio playing)
     let mut samples_with_data = 0;
     for sample in collected_samples.iter() {
-        if let Some(audio_buffer_list) = sample.get_audio_buffer_list() {
-            let num_buffers = audio_buffer_list.get_number_buffers();
+        if let Some(audio_buffer_list) = sample.audio_buffer_list() {
+            let num_buffers = audio_buffer_list.num_buffers();
             if num_buffers > 0 {
                 samples_with_data += 1;
-                if let Some(buffer) = audio_buffer_list.get_buffer(0) {
-                    let data_size = buffer.get_data_byte_size();
+                if let Some(buffer) = audio_buffer_list.buffer(0) {
+                    let data_size = buffer.data_byte_size();
                     println!("Audio buffer: {num_buffers} buffers, {data_size} bytes");
                 }
             }
@@ -332,7 +332,7 @@ fn test_pixel_buffer_locking() {
     // Test pixel buffer locking
     let collected_samples = samples.lock().unwrap();
     if let Some(sample) = collected_samples.first() {
-        let Some(pixel_buffer) = sample.get_image_buffer() else {
+        let Some(pixel_buffer) = sample.image_buffer() else {
             println!("⚠️  First sample has no image buffer (may be idle frame)");
             return;
         };
@@ -419,7 +419,7 @@ fn test_iosurface_backed_buffer() {
     // Test IOSurface backing
     let collected_samples = samples.lock().unwrap();
     if let Some(sample) = collected_samples.first() {
-        let Some(pixel_buffer) = sample.get_image_buffer() else {
+        let Some(pixel_buffer) = sample.image_buffer() else {
             println!("⚠️  First sample has no image buffer (may be idle frame)");
             return;
         };

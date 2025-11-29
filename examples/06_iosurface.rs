@@ -23,7 +23,7 @@ impl SCStreamOutputTrait for Handler {
             let n = self.count.fetch_add(1, Ordering::Relaxed);
 
             if n % 60 == 0 {
-                if let Some(pixel_buffer) = sample.get_image_buffer() {
+                if let Some(pixel_buffer) = sample.image_buffer() {
                     // Check if IOSurface-backed
                     if pixel_buffer.is_backed_by_iosurface() {
                         if let Some(iosurface) = pixel_buffer.iosurface() {

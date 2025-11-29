@@ -24,7 +24,7 @@ impl SCStreamOutputTrait for Handler {
 
             // Process every 60th frame
             if n % 60 == 0 {
-                if let Some(pixel_buffer) = sample.get_image_buffer() {
+                if let Some(pixel_buffer) = sample.image_buffer() {
                     if let Ok(guard) = pixel_buffer.lock(PixelBufferLockFlags::ReadOnly) {
                         println!("\n📹 Frame {n}");
                         println!("   Size: {}x{}", guard.width(), guard.height());

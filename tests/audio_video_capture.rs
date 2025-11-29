@@ -27,8 +27,8 @@ impl SCStreamOutput for TestVideoOutput {
         println!(
             "Video frame {}: pts={:?}, duration={:?}",
             count,
-            sample_buffer.get_presentation_timestamp(),
-            sample_buffer.get_duration()
+            sample_buffer.presentation_timestamp(),
+            sample_buffer.duration()
         );
     }
 }
@@ -47,8 +47,8 @@ impl SCStreamOutput for TestAudioOutput {
             println!(
                 "Audio sample {}: pts={:?}, duration={:?}",
                 count,
-                sample_buffer.get_presentation_timestamp(),
-                sample_buffer.get_duration()
+                sample_buffer.presentation_timestamp(),
+                sample_buffer.duration()
             );
         }
     }
