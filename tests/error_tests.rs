@@ -215,6 +215,6 @@ fn test_all_error_variants_display() {
 
     for err in errors {
         let display = format!("{err}");
-        assert!(!display.is_empty(), "Display should not be empty for {:?}", err);
+        assert!(!display.is_empty(), "Display should not be empty for {err:?}");
     }
 }

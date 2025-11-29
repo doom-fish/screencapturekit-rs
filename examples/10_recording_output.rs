@@ -8,7 +8,7 @@
 //! - Querying available codecs and file types
 //! - Getting recording duration and file size
 //!
-//! Run with: cargo run --example 10_recording_output --features macos_15_0
+//! Run with: `cargo run --example 10_recording_output --features macos_15_0`
 
 #![allow(clippy::unnecessary_wraps)]
 

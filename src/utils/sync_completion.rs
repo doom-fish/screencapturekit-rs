@@ -354,7 +354,7 @@ mod tests {
 
         // Poll should return Ready immediately
         let waker = std::task::Waker::noop();
-        let mut cx = Context::from_waker(&waker);
+        let mut cx = Context::from_waker(waker);
         let mut pinned = std::pin::pin!(future);
 
         match pinned.as_mut().poll(&mut cx) {
