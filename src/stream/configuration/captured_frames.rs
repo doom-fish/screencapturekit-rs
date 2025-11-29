@@ -75,6 +75,21 @@ impl SCStreamConfiguration {
         }
     }
 
+    /// Get the target frame rate in frames per second
+    ///
+    /// Converts the minimum frame interval (`CMTime`) to FPS.
+    /// Returns 0 if the frame interval is invalid.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn fps(&self) -> u32 {
+        let cm_time = self.get_minimum_frame_interval();
+        if cm_time.value == 0 {
+            return 0;
+        }
+        #[allow(clippy::cast_sign_loss)]
+        let fps = (i64::from(cm_time.timescale) / cm_time.value) as u32;
+        fps
+    }
+
     /// Set the target frame rate in frames per second
     ///
     /// This is a convenience method that creates the appropriate `CMTime` for the given FPS.
