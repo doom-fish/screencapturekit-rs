@@ -9,6 +9,7 @@ use crate::vertex::VertexBufferBuilder;
 // Synthwave color constants
 const NEON_PINK: [f32; 4] = [1.0, 0.2, 0.6, 1.0];
 const NEON_CYAN: [f32; 4] = [0.0, 1.0, 0.9, 1.0];
+#[allow(dead_code)]
 const NEON_PURPLE: [f32; 4] = [0.7, 0.3, 1.0, 1.0];
 const NEON_YELLOW: [f32; 4] = [1.0, 0.95, 0.3, 1.0];
 const DARK_BG: [f32; 4] = [0.04, 0.02, 0.08, 0.95];
@@ -28,12 +29,13 @@ impl VertexBufferBuilder {
         let line_h = 18.0 * base_scale;
         let padding = 16.0 * base_scale;
         let has_source = !source_name.is_empty() && source_name != "None";
-        // Menu values: Picker(Open), Capture(Start/Stop), Config(Open), Quit(empty)
-        let menu_values: [&str; 4] = [
-            "Open", // Picker
-            if is_capturing { "Stop" } else { "Start" }, // Capture (works even without source for mic-only)
-            "Open", // Config
-            "",     // Quit
+        // Menu values: Picker(Open), Capture(Start/Stop), Screenshot(Take), Config(Open), Quit(empty)
+        let menu_values: [&str; 5] = [
+            "Open",                                          // Picker
+            if is_capturing { "Stop" } else { "Start" },     // Capture
+            if has_source { "Take" } else { "" },            // Screenshot (only if source selected)
+            "Open",                                          // Config
+            "",                                              // Quit
         ];
 
         let box_w = (320.0 * base_scale).min(vw * 0.8);
