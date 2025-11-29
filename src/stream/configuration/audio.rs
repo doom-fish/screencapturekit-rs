@@ -197,8 +197,7 @@ impl SCStreamConfiguration {
 
     /// Set microphone capture device ID (macOS 15.0+).
     ///
-    /// Specifies which microphone device to capture from. Use `None` for the
-    /// default system microphone.
+    /// Specifies which microphone device to capture from.
     ///
     /// # Availability
     /// macOS 15.0+. On earlier versions, this setting has no effect.
@@ -207,23 +206,16 @@ impl SCStreamConfiguration {
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCStreamConfiguration::new()
-    ///     .with_captures_microphone(true)
-    ///     .with_microphone_capture_device_id(Some("AppleHDAEngineInput:1B,0,1,0:1"));
+    /// let mut config = SCStreamConfiguration::new()
+    ///     .with_captures_microphone(true);
+    /// config.set_microphone_capture_device_id("AppleHDAEngineInput:1B,0,1,0:1");
     /// ```
-    pub fn set_microphone_capture_device_id(&mut self, device_id: Option<&str>) -> &mut Self {
+    pub fn set_microphone_capture_device_id(&mut self, device_id: &str) -> &mut Self {
         unsafe {
-            if let Some(id) = device_id {
-                if let Ok(c_id) = std::ffi::CString::new(id) {
-                    crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
-                        self.as_ptr(),
-                        c_id.as_ptr(),
-                    );
-                }
-            } else {
+            if let Ok(c_id) = std::ffi::CString::new(device_id) {
                 crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
                     self.as_ptr(),
-                    std::ptr::null(),
+                    c_id.as_ptr(),
                 );
             }
         }
@@ -232,8 +224,19 @@ impl SCStreamConfiguration {
 
     /// Set microphone capture device ID (builder pattern)
     #[must_use]
-    pub fn with_microphone_capture_device_id(mut self, device_id: Option<&str>) -> Self {
+    pub fn with_microphone_capture_device_id(mut self, device_id: &str) -> Self {
         self.set_microphone_capture_device_id(device_id);
+        self
+    }
+
+    /// Clear microphone capture device ID, reverting to default system microphone
+    pub fn clear_microphone_capture_device_id(&mut self) -> &mut Self {
+        unsafe {
+            crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
+                self.as_ptr(),
+                std::ptr::null(),
+            );
+        }
         self
     }
 

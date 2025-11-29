@@ -234,7 +234,7 @@ async fn async_content_picker() -> Result<(), Box<dyn std::error::Error>> {
     let config = SCContentSharingPickerConfiguration::new();
 
     // Async picker - doesn't block the executor thread
-    match AsyncSCContentSharingPicker::pick(&config).await {
+    match AsyncSCContentSharingPicker::show(&config).await {
         SCPickerOutcome::Picked(result) => {
             let (width, height) = result.pixel_size();
             let scale = result.scale();
