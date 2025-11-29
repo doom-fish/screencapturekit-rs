@@ -138,6 +138,64 @@ public func getShareableContentWithOptions(
     }
 }
 
+/// Gets shareable content with windows below a reference window
+/// - Parameters:
+///   - excludeDesktopWindows: Whether to exclude desktop windows
+///   - referenceWindow: The reference window pointer
+///   - callback: Called with content pointer or error message
+///   - userData: User data passed through to callback
+@_cdecl("sc_shareable_content_get_below_window")
+public func getShareableContentBelowWindow(
+    excludeDesktopWindows: Bool,
+    referenceWindow: OpaquePointer,
+    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    userData: UnsafeMutableRawPointer?
+) {
+    let userDataValue = userData
+    let window: SCWindow = unretained(referenceWindow)
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(
+                excludeDesktopWindows,
+                onScreenWindowsOnlyBelow: window
+            )
+            callback(retain(content), nil, userDataValue)
+        } catch {
+            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
+            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
+        }
+    }
+}
+
+/// Gets shareable content with windows above a reference window
+/// - Parameters:
+///   - excludeDesktopWindows: Whether to exclude desktop windows
+///   - referenceWindow: The reference window pointer
+///   - callback: Called with content pointer or error message
+///   - userData: User data passed through to callback
+@_cdecl("sc_shareable_content_get_above_window")
+public func getShareableContentAboveWindow(
+    excludeDesktopWindows: Bool,
+    referenceWindow: OpaquePointer,
+    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    userData: UnsafeMutableRawPointer?
+) {
+    let userDataValue = userData
+    let window: SCWindow = unretained(referenceWindow)
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(
+                excludeDesktopWindows,
+                onScreenWindowsOnlyAbove: window
+            )
+            callback(retain(content), nil, userDataValue)
+        } catch {
+            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
+            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
+        }
+    }
+}
+
 #if compiler(>=6.0)
 /// Gets shareable content for the current process (macOS 14.4+)
 /// - Parameters:
