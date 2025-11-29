@@ -2,6 +2,8 @@
 
 import CoreGraphics
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 // MARK: - CGRect Bridge
 
@@ -140,6 +142,20 @@ public func getCGImageData(_ image: OpaquePointer, _ outPtr: UnsafeMutablePointe
 @_cdecl("cgimage_free_data")
 public func freeCGImageData(_ ptr: UnsafeMutableRawPointer) {
     ptr.deallocate()
+}
+
+@_cdecl("cgimage_save_png")
+public func saveCGImageToPNG(_ image: OpaquePointer, _ pathPtr: UnsafePointer<CChar>) -> Bool {
+    let cgImage = Unmanaged<CGImage>.fromOpaque(UnsafeRawPointer(image)).takeUnretainedValue()
+    let path = String(cString: pathPtr)
+    let url = URL(fileURLWithPath: path)
+    
+    guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
+        return false
+    }
+    
+    CGImageDestinationAddImage(destination, cgImage, nil)
+    return CGImageDestinationFinalize(destination)
 }
 
 @_cdecl("cgimage_hash")

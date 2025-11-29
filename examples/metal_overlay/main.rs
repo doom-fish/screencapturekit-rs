@@ -445,13 +445,16 @@ fn main() {
                                                             .duration_since(std::time::UNIX_EPOCH)
                                                             .map(|d| d.as_secs())
                                                             .unwrap_or(0);
-                                                        let filename = format!("screenshot_{}.png", timestamp);
+                                                        let path = format!("/tmp/screenshot_{}.png", timestamp);
                                                         println!("✅ Screenshot captured: {}x{}", image.width(), image.height());
                                                         
-                                                        // Try to save the image
-                                                        if let Ok(data) = image.rgba_data() {
-                                                            // Note: In a real app you'd use image crate to save as PNG
-                                                            println!("📁 Image data: {} bytes (save as {} manually)", data.len(), filename);
+                                                        // Save and open the image
+                                                        match image.save_png(&path) {
+                                                            Ok(()) => {
+                                                                println!("📁 Saved to {}", path);
+                                                                let _ = std::process::Command::new("open").arg(&path).spawn();
+                                                            }
+                                                            Err(e) => eprintln!("❌ Failed to save: {:?}", e),
                                                         }
                                                     }
                                                     Err(e) => {
@@ -616,10 +619,14 @@ fn main() {
                                                     .duration_since(std::time::UNIX_EPOCH)
                                                     .map(|d| d.as_secs())
                                                     .unwrap_or(0);
-                                                let filename = format!("screenshot_{}.png", timestamp);
+                                                let path = format!("/tmp/screenshot_{}.png", timestamp);
                                                 println!("✅ Screenshot captured: {}x{}", image.width(), image.height());
-                                                if let Ok(data) = image.rgba_data() {
-                                                    println!("📁 Image data: {} bytes (save as {} manually)", data.len(), filename);
+                                                match image.save_png(&path) {
+                                                    Ok(()) => {
+                                                        println!("📁 Saved to {}", path);
+                                                        let _ = std::process::Command::new("open").arg(&path).spawn();
+                                                    }
+                                                    Err(e) => eprintln!("❌ Failed to save: {:?}", e),
                                                 }
                                             }
                                             Err(e) => {
