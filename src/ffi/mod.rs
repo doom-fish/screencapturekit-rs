@@ -689,3 +689,32 @@ extern "C" {
     );
     pub fn sc_recording_output_get_recorded_file_size(output: *const c_void) -> i64;
 }
+
+// MARK: - Audio Input Devices (AVFoundation)
+extern "C" {
+    /// Get the count of available audio input devices
+    pub fn sc_audio_get_input_device_count() -> isize;
+
+    /// Get audio input device ID at index into buffer
+    pub fn sc_audio_get_input_device_id(
+        index: isize,
+        buffer: *mut i8,
+        buffer_size: isize,
+    ) -> bool;
+
+    /// Get audio input device name at index into buffer
+    pub fn sc_audio_get_input_device_name(
+        index: isize,
+        buffer: *mut i8,
+        buffer_size: isize,
+    ) -> bool;
+
+    /// Check if the device at index is the default audio input device
+    pub fn sc_audio_is_default_input_device(index: isize) -> bool;
+
+    /// Get the default audio input device ID into buffer
+    pub fn sc_audio_get_default_input_device_id(buffer: *mut i8, buffer_size: isize) -> bool;
+
+    /// Get the default audio input device name into buffer
+    pub fn sc_audio_get_default_input_device_name(buffer: *mut i8, buffer_size: isize) -> bool;
+}

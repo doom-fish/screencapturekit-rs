@@ -114,11 +114,11 @@ fn test_recording_configuration() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
     use std::path::PathBuf;
 
-    let mut config = SCRecordingOutputConfiguration::new();
     let path = PathBuf::from("/tmp/test_recording.mp4");
-    config.set_output_url(&path);
-    config.set_video_codec(SCRecordingOutputCodec::H264);
-    config.set_average_bitrate(5_000_000);
+    let config = SCRecordingOutputConfiguration::new()
+        .with_output_url(&path)
+        .with_video_codec(SCRecordingOutputCodec::H264)
+        .with_average_bitrate(5_000_000);
     // Just verify it doesn't crash
     assert!(!config.as_ptr().is_null());
 }
@@ -129,30 +129,30 @@ fn test_recording_configuration() {
 fn test_recording_output_video_codec_get_set() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
 
-    let mut config = SCRecordingOutputConfiguration::new();
-    
     // Test H264
-    config.set_video_codec(SCRecordingOutputCodec::H264);
-    assert_eq!(config.get_video_codec(), SCRecordingOutputCodec::H264);
+    let config = SCRecordingOutputConfiguration::new()
+        .with_video_codec(SCRecordingOutputCodec::H264);
+    assert_eq!(config.video_codec(), SCRecordingOutputCodec::H264);
     
     // Test HEVC
-    config.set_video_codec(SCRecordingOutputCodec::HEVC);
-    assert_eq!(config.get_video_codec(), SCRecordingOutputCodec::HEVC);
+    let config = SCRecordingOutputConfiguration::new()
+        .with_video_codec(SCRecordingOutputCodec::HEVC);
+    assert_eq!(config.video_codec(), SCRecordingOutputCodec::HEVC);
 }
 
 #[test]
 fn test_recording_output_file_type() {
     use screencapturekit::recording_output::SCRecordingOutputFileType;
 
-    let mut config = SCRecordingOutputConfiguration::new();
-    
     // Test MP4
-    config.set_output_file_type(SCRecordingOutputFileType::MP4);
-    assert_eq!(config.get_output_file_type(), SCRecordingOutputFileType::MP4);
+    let config = SCRecordingOutputConfiguration::new()
+        .with_output_file_type(SCRecordingOutputFileType::MP4);
+    assert_eq!(config.output_file_type(), SCRecordingOutputFileType::MP4);
     
     // Test MOV
-    config.set_output_file_type(SCRecordingOutputFileType::MOV);
-    assert_eq!(config.get_output_file_type(), SCRecordingOutputFileType::MOV);
+    let config = SCRecordingOutputConfiguration::new()
+        .with_output_file_type(SCRecordingOutputFileType::MOV);
+    assert_eq!(config.output_file_type(), SCRecordingOutputFileType::MOV);
 }
 
 #[test]
@@ -247,8 +247,8 @@ fn test_recording_output_file_type_hash() {
 fn test_recording_output_configuration_debug() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
 
-    let mut config = SCRecordingOutputConfiguration::new();
-    config.set_video_codec(SCRecordingOutputCodec::HEVC);
+    let config = SCRecordingOutputConfiguration::new()
+        .with_video_codec(SCRecordingOutputCodec::HEVC);
 
     let debug_str = format!("{:?}", config);
     assert!(debug_str.contains("SCRecordingOutputConfiguration"));

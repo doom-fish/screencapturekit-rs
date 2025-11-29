@@ -158,12 +158,11 @@ public func showContentSharingPicker(
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
     
     DispatchQueue.main.async {
-        // Activate the app to ensure picker can show
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         
         let picker = SCContentSharingPicker.shared
         
-        // Remove old observer if any
         if let old = currentObserver {
             picker.remove(old)
         }
@@ -171,8 +170,8 @@ public func showContentSharingPicker(
         let observer = PickerObserver(callback: callback, userData: userData)
         currentObserver = observer
         
-        picker.add(observer)
         picker.isActive = true
+        picker.add(observer)
         picker.defaultConfiguration = configBox.value
         picker.present()
     }
@@ -189,12 +188,11 @@ public func showContentSharingPickerWithResult(
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
     
     DispatchQueue.main.async {
-        // Activate the app to ensure picker can show
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         
         let picker = SCContentSharingPicker.shared
         
-        // Remove old observer if any
         if let old = currentObserver {
             picker.remove(old)
         }
@@ -202,8 +200,8 @@ public func showContentSharingPickerWithResult(
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         currentObserver = observer
         
-        picker.add(observer)
         picker.isActive = true
+        picker.add(observer)
         picker.defaultConfiguration = configBox.value
         picker.present()
     }
