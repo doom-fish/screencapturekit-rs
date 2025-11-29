@@ -444,6 +444,12 @@ extern "C" {
         callback: extern "C" fn(i32, *const c_void, *mut c_void),
         user_data: *mut c_void,
     );
+    pub fn sc_content_sharing_picker_show_for_stream(
+        config: *const c_void,
+        stream: *const c_void,
+        callback: extern "C" fn(i32, *const c_void, *mut c_void),
+        user_data: *mut c_void,
+    );
     pub fn sc_picker_result_get_filter(result: *const c_void) -> *const c_void;
     pub fn sc_picker_result_get_content_rect(
         result: *const c_void,

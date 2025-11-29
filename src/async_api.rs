@@ -699,4 +699,38 @@ impl AsyncSCContentSharingPicker {
 
         AsyncPickerFilterFuture { inner: future }
     }
+
+    /// Show the picker UI for an existing stream to change source while capturing
+    ///
+    /// Use this when you have an active `SCStream` and want to let the user
+    /// select a new content source. The result can be used with `stream.update_content_filter()`.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use screencapturekit::async_api::AsyncSCContentSharingPicker;
+    /// use screencapturekit::content_sharing_picker::*;
+    ///
+    /// // When stream is active and user wants to change source
+    /// let config = SCContentSharingPickerConfiguration::new();
+    /// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show_for_stream(&config, &stream).await {
+    ///     stream.update_content_filter(&result.filter());
+    /// }
+    /// ```
+    pub fn show_for_stream(
+        config: &crate::content_sharing_picker::SCContentSharingPickerConfiguration,
+        stream: &crate::stream::SCStream,
+    ) -> AsyncPickerFuture {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_show_for_stream(
+                config.as_ptr(),
+                stream.as_ptr(),
+                async_picker_callback,
+                context,
+            );
+        }
+
+        AsyncPickerFuture { inner: future }
+    }
 }

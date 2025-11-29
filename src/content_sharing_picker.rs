@@ -175,6 +175,7 @@ pub struct SCPickerResult {
 
 impl SCPickerResult {
     /// Create from raw pointer (used by async API)
+    #[cfg(feature = "async")]
     #[must_use]
     pub(crate) fn from_ptr(ptr: *const c_void) -> Self {
         Self { ptr }
@@ -347,6 +348,7 @@ impl SCPickerResult {
     /// });
     /// ```
     #[must_use]
+    #[allow(clippy::option_if_let_else)]
     pub fn source(&self) -> SCPickedSource {
         if let Some(window) = self.windows().first() {
             SCPickedSource::Window(window.title().unwrap_or_else(|| "Untitled".to_string()))
@@ -468,6 +470,44 @@ impl SCContentSharingPicker {
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_with_result(
                 config.as_ptr(),
+                picker_callback_boxed::<F>,
+                context,
+            );
+        }
+    }
+
+    /// Show the picker UI for an existing stream (to change source while capturing)
+    ///
+    /// Use this when you have an active SCStream and want to let the user
+    /// select a new content source. The callback receives the new filter
+    /// which can be used with `stream.update_content_filter()`.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use screencapturekit::content_sharing_picker::*;
+    ///
+    /// // When stream is active and user wants to change source
+    /// let config = SCContentSharingPickerConfiguration::new();
+    /// SCContentSharingPicker::show_for_stream(&config, &stream, |outcome| {
+    ///     if let SCPickerOutcome::Result(result) = outcome {
+    ///         stream.update_content_filter(&result.filter);
+    ///     }
+    /// });
+    /// ```
+    pub fn show_for_stream<F>(
+        config: &SCContentSharingPickerConfiguration,
+        stream: &crate::stream::SCStream,
+        callback: F,
+    ) where
+        F: FnOnce(SCPickerOutcome) + Send + 'static,
+    {
+        let callback = Box::new(callback);
+        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
+
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_show_for_stream(
+                config.as_ptr(),
+                stream.as_ptr(),
                 picker_callback_boxed::<F>,
                 context,
             );

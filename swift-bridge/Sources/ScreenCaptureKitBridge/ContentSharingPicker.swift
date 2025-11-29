@@ -209,6 +209,38 @@ public func showContentSharingPickerWithResult(
     }
 }
 
+/// Show picker for an existing stream (to update filter while capturing)
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_show_for_stream")
+public func showContentSharingPickerForStream(
+    _ config: OpaquePointer,
+    _ streamPtr: OpaquePointer,
+    _ callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    let scStream: SCStream = unretained(streamPtr)
+    
+    DispatchQueue.main.async {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let picker = SCContentSharingPicker.shared
+        
+        if let old = currentObserver {
+            picker.remove(old)
+        }
+        
+        let observer = PickerObserverWithResult(callback: callback, userData: userData)
+        currentObserver = observer
+        
+        picker.isActive = true
+        picker.add(observer)
+        picker.setConfiguration(configBox.value, for: scStream)
+        picker.present(for: scStream)
+    }
+}
+
 // MARK: - PickerResult accessors
 
 @available(macOS 14.0, *)
