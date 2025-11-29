@@ -1,7 +1,9 @@
 //! Audio buffer types
 
+use super::ffi;
 use std::fmt;
 
+#[repr(C)]
 pub struct AudioBuffer {
     pub number_channels: u32,
     pub data_bytes_size: u32,
@@ -96,6 +98,8 @@ pub struct AudioBufferListRaw {
 
 pub struct AudioBufferList {
     pub(crate) inner: AudioBufferListRaw,
+    /// Block buffer that owns the audio data - must be kept alive
+    pub(crate) block_buffer_ptr: *mut std::ffi::c_void,
 }
 
 impl AudioBufferList {
@@ -136,6 +140,7 @@ impl AudioBufferList {
 
 impl Drop for AudioBufferList {
     fn drop(&mut self) {
+        // Free the buffers array allocated in Swift
         if !self.inner.buffers_ptr.is_null() {
             unsafe {
                 Vec::from_raw_parts(
@@ -143,6 +148,12 @@ impl Drop for AudioBufferList {
                     self.inner.buffers_len,
                     self.inner.buffers_len,
                 );
+            }
+        }
+        // Release the block buffer that owns the audio data
+        if !self.block_buffer_ptr.is_null() {
+            unsafe {
+                ffi::cm_block_buffer_release(self.block_buffer_ptr);
             }
         }
     }
