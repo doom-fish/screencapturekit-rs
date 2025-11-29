@@ -494,6 +494,78 @@ extern "C" {
     pub fn cgimage_release(image: *const c_void);
 }
 
+// MARK: - SCScreenshotConfiguration (macOS 26.0+)
+extern "C" {
+    pub fn sc_screenshot_configuration_create() -> *const c_void;
+    pub fn sc_screenshot_configuration_set_width(config: *const c_void, width: isize);
+    pub fn sc_screenshot_configuration_set_height(config: *const c_void, height: isize);
+    pub fn sc_screenshot_configuration_set_shows_cursor(config: *const c_void, shows_cursor: bool);
+    pub fn sc_screenshot_configuration_set_source_rect(
+        config: *const c_void,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    );
+    pub fn sc_screenshot_configuration_set_destination_rect(
+        config: *const c_void,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    );
+    pub fn sc_screenshot_configuration_set_ignore_shadows(
+        config: *const c_void,
+        ignore_shadows: bool,
+    );
+    pub fn sc_screenshot_configuration_set_ignore_clipping(
+        config: *const c_void,
+        ignore_clipping: bool,
+    );
+    pub fn sc_screenshot_configuration_set_include_child_windows(
+        config: *const c_void,
+        include_child_windows: bool,
+    );
+    pub fn sc_screenshot_configuration_set_display_intent(
+        config: *const c_void,
+        display_intent: i32,
+    );
+    pub fn sc_screenshot_configuration_set_dynamic_range(
+        config: *const c_void,
+        dynamic_range: i32,
+    );
+    pub fn sc_screenshot_configuration_set_file_url(config: *const c_void, path: *const i8);
+    pub fn sc_screenshot_configuration_release(config: *const c_void);
+}
+
+// MARK: - SCScreenshotOutput (macOS 26.0+)
+extern "C" {
+    pub fn sc_screenshot_output_get_sdr_image(output: *const c_void) -> *const c_void;
+    pub fn sc_screenshot_output_get_hdr_image(output: *const c_void) -> *const c_void;
+    pub fn sc_screenshot_output_get_file_url(
+        output: *const c_void,
+        buffer: *mut i8,
+        buffer_size: isize,
+    ) -> bool;
+    pub fn sc_screenshot_output_release(output: *const c_void);
+
+    pub fn sc_screenshot_manager_capture_screenshot(
+        content_filter: *const c_void,
+        config: *const c_void,
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
+    );
+    pub fn sc_screenshot_manager_capture_screenshot_in_rect(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        config: *const c_void,
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
+    );
+}
+
 // MARK: - SCStreamConfiguration additional properties
 extern "C" {
     // macOS 15.0+ - showMouseClicks

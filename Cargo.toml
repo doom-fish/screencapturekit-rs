@@ -48,6 +48,7 @@ macos_14_2 = ["macos_14_0"]
 macos_14_4 = ["macos_14_2"]
 macos_15_0 = ["macos_14_4"]
 macos_15_2 = ["macos_15_0"]
+macos_26_0 = ["macos_15_2"]
 
 [dependencies]
 
