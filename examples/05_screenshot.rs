@@ -166,7 +166,7 @@ fn save_image_as_png(
     image: &screencapturekit::screenshot_manager::CGImage,
     filename: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let rgba_data = image.get_rgba_data()?;
+    let rgba_data = image.rgba_data()?;
     let file = std::fs::File::create(filename)?;
     let buf_writer = std::io::BufWriter::new(file);
     #[allow(clippy::cast_possible_truncation)]

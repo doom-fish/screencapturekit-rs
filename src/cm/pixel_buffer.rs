@@ -253,12 +253,12 @@ impl CVPixelBuffer {
     }
 
     /// Get the Core Foundation type ID for `CVPixelBuffer`
-    pub fn get_type_id() -> usize {
+    pub fn type_id() -> usize {
         unsafe { ffi::cv_pixel_buffer_get_type_id() }
     }
 
     /// Get the data size of the pixel buffer
-    pub fn get_data_size(&self) -> usize {
+    pub fn data_size(&self) -> usize {
         unsafe { ffi::cv_pixel_buffer_get_data_size(self.0) }
     }
 
@@ -268,22 +268,22 @@ impl CVPixelBuffer {
     }
 
     /// Get the number of planes in the pixel buffer
-    pub fn get_plane_count(&self) -> usize {
+    pub fn plane_count(&self) -> usize {
         unsafe { ffi::cv_pixel_buffer_get_plane_count(self.0) }
     }
 
     /// Get the width of a specific plane
-    pub fn get_width_of_plane(&self, plane_index: usize) -> usize {
+    pub fn width_of_plane(&self, plane_index: usize) -> usize {
         unsafe { ffi::cv_pixel_buffer_get_width_of_plane(self.0, plane_index) }
     }
 
     /// Get the height of a specific plane
-    pub fn get_height_of_plane(&self, plane_index: usize) -> usize {
+    pub fn height_of_plane(&self, plane_index: usize) -> usize {
         unsafe { ffi::cv_pixel_buffer_get_height_of_plane(self.0, plane_index) }
     }
 
     /// Get the base address of a specific plane
-    pub fn get_base_address_of_plane(&self, plane_index: usize) -> Option<*mut u8> {
+    pub fn base_address_of_plane(&self, plane_index: usize) -> Option<*mut u8> {
         unsafe {
             let ptr = ffi::cv_pixel_buffer_get_base_address_of_plane(self.0, plane_index);
             if ptr.is_null() {
@@ -295,12 +295,12 @@ impl CVPixelBuffer {
     }
 
     /// Get the bytes per row of a specific plane
-    pub fn get_bytes_per_row_of_plane(&self, plane_index: usize) -> usize {
+    pub fn bytes_per_row_of_plane(&self, plane_index: usize) -> usize {
         unsafe { ffi::cv_pixel_buffer_get_bytes_per_row_of_plane(self.0, plane_index) }
     }
 
     /// Get the extended pixel information (left, right, top, bottom)
-    pub fn get_extended_pixels(&self) -> (usize, usize, usize, usize) {
+    pub fn extended_pixels(&self) -> (usize, usize, usize, usize) {
         unsafe {
             let mut left: usize = 0;
             let mut right: usize = 0;
@@ -412,14 +412,14 @@ pub struct CVPixelBufferLockGuard<'a> {
 }
 
 impl CVPixelBufferLockGuard<'_> {
-    pub fn get_base_address(&self) -> *const u8 {
+    pub fn base_address(&self) -> *const u8 {
         self.buffer
             .base_address()
             .unwrap_or(std::ptr::null_mut())
             .cast_const()
     }
 
-    pub fn get_base_address_mut(&mut self) -> *mut u8 {
+    pub fn base_address_mut(&mut self) -> *mut u8 {
         if self.read_only {
             std::ptr::null_mut()
         } else {
@@ -573,7 +573,7 @@ impl CVPixelBufferPool {
     }
 
     /// Get the Core Foundation type ID for `CVPixelBufferPool`
-    pub fn get_type_id() -> usize {
+    pub fn type_id() -> usize {
         unsafe { ffi::cv_pixel_buffer_pool_get_type_id() }
     }
 
@@ -620,7 +620,7 @@ impl CVPixelBufferPool {
     /// Get the pool attributes
     ///
     /// Returns the raw pointer to the `CFDictionary` containing pool attributes
-    pub fn get_attributes(&self) -> Option<*const std::ffi::c_void> {
+    pub fn attributes(&self) -> Option<*const std::ffi::c_void> {
         unsafe {
             let ptr = ffi::cv_pixel_buffer_pool_get_attributes(self.0);
             if ptr.is_null() {
@@ -634,7 +634,7 @@ impl CVPixelBufferPool {
     /// Get the pixel buffer attributes
     ///
     /// Returns the raw pointer to the `CFDictionary` containing pixel buffer attributes
-    pub fn get_pixel_buffer_attributes(&self) -> Option<*const std::ffi::c_void> {
+    pub fn pixel_buffer_attributes(&self) -> Option<*const std::ffi::c_void> {
         unsafe {
             let ptr = ffi::cv_pixel_buffer_pool_get_pixel_buffer_attributes(self.0);
             if ptr.is_null() {

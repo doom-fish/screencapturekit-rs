@@ -112,7 +112,7 @@ fn test_content_filter_content_rect() {
         .build();
 
     // Test get_content_rect
-    let retrieved_rect = filter.get_content_rect();
+    let retrieved_rect = filter.content_rect();
     // The rect should be set (though exact values may vary based on macOS version)
     assert!(retrieved_rect.size.width >= 0.0);
     assert!(retrieved_rect.size.height >= 0.0);
@@ -232,7 +232,7 @@ fn test_content_filter_style() {
         .exclude_windows(&[])
         .build();
 
-    let style = filter.get_style();
+    let style = filter.style();
     // Display filters should have Display style
     assert!(matches!(style, SCShareableContentStyle::Display | SCShareableContentStyle::None));
 }
@@ -247,7 +247,7 @@ fn test_content_filter_style_window() {
 
     if let Some(window) = content.windows().first() {
         let filter = SCContentFilter::builder().window(window).build();
-        let style = filter.get_style();
+        let style = filter.style();
         // Window filters should have Window style
         assert!(matches!(style, SCShareableContentStyle::Window | SCShareableContentStyle::None));
     }
@@ -266,7 +266,7 @@ fn test_content_filter_point_pixel_scale() {
         .exclude_windows(&[])
         .build();
 
-    let scale = filter.get_point_pixel_scale();
+    let scale = filter.point_pixel_scale();
     // Scale should be positive (typically 1.0 or 2.0 for Retina)
     assert!(scale > 0.0);
 }
@@ -286,7 +286,7 @@ fn test_content_filter_include_menu_bar() {
 
     // Set include menu bar
     filter.set_include_menu_bar(true);
-    let includes_menu_bar = filter.get_include_menu_bar();
+    let includes_menu_bar = filter.include_menu_bar();
     // May return false on older macOS versions
     let _ = includes_menu_bar;
 }
@@ -304,7 +304,7 @@ fn test_content_filter_included_displays() {
         .exclude_windows(&[])
         .build();
 
-    let included_displays = filter.get_included_displays();
+    let included_displays = filter.included_displays();
     // Display filters should have at least one included display
     // (Note: may return empty on older macOS)
     let _ = included_displays;
@@ -319,7 +319,7 @@ fn test_content_filter_included_windows() {
 
     if let Some(window) = content.windows().first() {
         let filter = SCContentFilter::builder().window(window).build();
-        let included_windows = filter.get_included_windows();
+        let included_windows = filter.included_windows();
         // Window filters should have at least one included window
         // (Note: may return empty on older macOS)
         let _ = included_windows;
@@ -342,7 +342,7 @@ fn test_content_filter_included_applications() {
             .include_applications(&app_refs, &[])
             .build();
 
-        let included_apps = filter.get_included_applications();
+        let included_apps = filter.included_applications();
         // Application filters should have included applications
         // (Note: may return empty on older macOS)
         let _ = included_apps;

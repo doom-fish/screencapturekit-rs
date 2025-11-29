@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Show filter info (macOS 14.0+)
     #[cfg(feature = "macos_14_0")]
     {
-        let scale = filter.get_point_pixel_scale();
+        let scale = filter.point_pixel_scale();
         println!("Filter scale: {:.1}x", scale);
     }
 

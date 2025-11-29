@@ -399,7 +399,7 @@ impl SCShareableContent {
     ///
     /// Returns an error if retrieval fails.
     #[cfg(feature = "macos_14_4")]
-    pub fn get_current_process() -> Result<Self, SCError> {
+    pub fn current_process() -> Result<Self, SCError> {
         let (completion, context) = SyncCompletion::<SCShareableContent>::new();
 
         unsafe {

@@ -92,7 +92,7 @@ fn test_cgimage_rgba_data() {
         .with_height(100);
 
     if let Ok(image) = SCScreenshotManager::capture_image(&filter, &config) {
-        if let Ok(data) = image.get_rgba_data() {
+        if let Ok(data) = image.rgba_data() {
             // RGBA is 4 bytes per pixel
             let expected_min_size = image.width() * image.height() * 4;
             assert!(data.len() >= expected_min_size);
