@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "macos_15_0")]
     {
         // Show mouse click indicators (circle around cursor when clicking)
-        config = config.with_shows_mouse_clicks(true);
+        config.set_shows_mouse_clicks(true);
         println!("Mouse click indicators: enabled");
     }
 
