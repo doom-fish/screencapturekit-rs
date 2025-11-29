@@ -21,7 +21,7 @@
 //! use screencapturekit::output::{CVImageBufferLockExt, PixelBufferLockFlags, PixelBufferCursorExt};
 //!
 //! # fn example(sample: screencapturekit::cm::CMSampleBuffer) -> Result<(), Box<dyn std::error::Error>> {
-//! if let Some(pixel_buffer) = sample.get_image_buffer() {
+//! if let Some(pixel_buffer) = sample.image_buffer() {
 //!     let guard = pixel_buffer.lock(PixelBufferLockFlags::ReadOnly)?;
 //!     
 //!     // Get a standard io::Cursor
@@ -48,7 +48,7 @@
 //! use screencapturekit::output::{CVImageBufferLockExt, PixelBufferLockFlags};
 //!
 //! # fn example(sample: screencapturekit::cm::CMSampleBuffer) -> Result<(), Box<dyn std::error::Error>> {
-//! if let Some(pixel_buffer) = sample.get_image_buffer() {
+//! if let Some(pixel_buffer) = sample.image_buffer() {
 //!     let guard = pixel_buffer.lock(PixelBufferLockFlags::ReadOnly)?;
 //!     
 //!     // Direct slice access (no cursor overhead)

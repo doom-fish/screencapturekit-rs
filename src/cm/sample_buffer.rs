@@ -81,8 +81,8 @@ impl CMSampleBuffer {
     /// ).expect("Failed to create sample buffer");
     ///
     /// assert!(sample.is_valid());
-    /// assert_eq!(sample.get_presentation_timestamp().value, 0);
-    /// assert_eq!(sample.get_presentation_timestamp().timescale, 30);
+    /// assert_eq!(sample.presentation_timestamp().value, 0);
+    /// assert_eq!(sample.presentation_timestamp().timescale, 30);
     /// ```
     pub fn create_for_image_buffer(
         image_buffer: &CVPixelBuffer,
@@ -108,7 +108,8 @@ impl CMSampleBuffer {
         }
     }
 
-    pub fn get_image_buffer(&self) -> Option<CVPixelBuffer> {
+    /// Get the image buffer (pixel buffer) from this sample
+    pub fn image_buffer(&self) -> Option<CVPixelBuffer> {
         unsafe {
             let ptr = ffi::cm_sample_buffer_get_image_buffer(self.0);
             CVPixelBuffer::from_raw(ptr)
@@ -126,7 +127,7 @@ impl CMSampleBuffer {
     /// use screencapturekit::cm::{CMSampleBuffer, SCFrameStatus};
     ///
     /// fn handle_frame(sample: CMSampleBuffer) {
-    ///     if let Some(status) = sample.get_frame_status() {
+    ///     if let Some(status) = sample.frame_status() {
     ///         match status {
     ///             SCFrameStatus::Complete => {
     ///                 println!("Frame is complete, process it");
@@ -141,7 +142,7 @@ impl CMSampleBuffer {
     ///     }
     /// }
     /// ```
-    pub fn get_frame_status(&self) -> Option<SCFrameStatus> {
+    pub fn frame_status(&self) -> Option<SCFrameStatus> {
         unsafe {
             let status = ffi::cm_sample_buffer_get_frame_status(self.0);
             if status >= 0 {
@@ -152,7 +153,8 @@ impl CMSampleBuffer {
         }
     }
 
-    pub fn get_presentation_timestamp(&self) -> CMTime {
+    /// Get the presentation timestamp
+    pub fn presentation_timestamp(&self) -> CMTime {
         unsafe {
             let mut value: i64 = 0;
             let mut timescale: i32 = 0;
@@ -174,7 +176,8 @@ impl CMSampleBuffer {
         }
     }
 
-    pub fn get_duration(&self) -> CMTime {
+    /// Get the duration of the sample
+    pub fn duration(&self) -> CMTime {
         unsafe {
             let mut value: i64 = 0;
             let mut timescale: i32 = 0;
@@ -200,11 +203,13 @@ impl CMSampleBuffer {
         unsafe { ffi::cm_sample_buffer_is_valid(self.0) }
     }
 
-    pub fn get_num_samples(&self) -> usize {
+    /// Get the number of samples in this buffer
+    pub fn num_samples(&self) -> usize {
         unsafe { ffi::cm_sample_buffer_get_num_samples(self.0) }
     }
 
-    pub fn get_audio_buffer_list(&self) -> Option<AudioBufferList> {
+    /// Get the audio buffer list from this sample
+    pub fn audio_buffer_list(&self) -> Option<AudioBufferList> {
         unsafe {
             let mut num_buffers: u32 = 0;
             let mut buffers_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
@@ -231,7 +236,8 @@ impl CMSampleBuffer {
         }
     }
 
-    pub fn get_data_buffer(&self) -> Option<CMBlockBuffer> {
+    /// Get the data buffer (for compressed data)
+    pub fn data_buffer(&self) -> Option<CMBlockBuffer> {
         unsafe {
             let ptr = ffi::cm_sample_buffer_get_data_buffer(self.0);
             CMBlockBuffer::from_raw(ptr)
@@ -239,7 +245,7 @@ impl CMSampleBuffer {
     }
 
     /// Get the decode timestamp of the sample buffer
-    pub fn get_decode_timestamp(&self) -> CMTime {
+    pub fn decode_timestamp(&self) -> CMTime {
         unsafe {
             let mut value: i64 = 0;
             let mut timescale: i32 = 0;
@@ -262,7 +268,7 @@ impl CMSampleBuffer {
     }
 
     /// Get the output presentation timestamp
-    pub fn get_output_presentation_timestamp(&self) -> CMTime {
+    pub fn output_presentation_timestamp(&self) -> CMTime {
         unsafe {
             let mut value: i64 = 0;
             let mut timescale: i32 = 0;
@@ -307,12 +313,12 @@ impl CMSampleBuffer {
     }
 
     /// Get the size of a specific sample
-    pub fn get_sample_size(&self, index: usize) -> usize {
+    pub fn sample_size(&self, index: usize) -> usize {
         unsafe { ffi::cm_sample_buffer_get_sample_size(self.0, index) }
     }
 
     /// Get the total size of all samples
-    pub fn get_total_sample_size(&self) -> usize {
+    pub fn total_sample_size(&self) -> usize {
         unsafe { ffi::cm_sample_buffer_get_total_sample_size(self.0) }
     }
 
@@ -338,7 +344,7 @@ impl CMSampleBuffer {
     }
 
     /// Get the format description
-    pub fn get_format_description(&self) -> Option<CMFormatDescription> {
+    pub fn format_description(&self) -> Option<CMFormatDescription> {
         unsafe {
             let ptr = ffi::cm_sample_buffer_get_format_description(self.0);
             CMFormatDescription::from_raw(ptr)
@@ -350,7 +356,7 @@ impl CMSampleBuffer {
     /// # Errors
     ///
     /// Returns a Core Media error code if the timing info cannot be retrieved.
-    pub fn get_sample_timing_info(&self, index: usize) -> Result<CMSampleTimingInfo, i32> {
+    pub fn sample_timing_info(&self, index: usize) -> Result<CMSampleTimingInfo, i32> {
         unsafe {
             let mut timing_info = CMSampleTimingInfo {
                 duration: CMTime::INVALID,
@@ -386,11 +392,11 @@ impl CMSampleBuffer {
     /// # Errors
     ///
     /// Returns a Core Media error code if any timing info cannot be retrieved.
-    pub fn get_sample_timing_info_array(&self) -> Result<Vec<CMSampleTimingInfo>, i32> {
-        let num_samples = self.get_num_samples();
+    pub fn sample_timing_info_array(&self) -> Result<Vec<CMSampleTimingInfo>, i32> {
+        let num_samples = self.num_samples();
         let mut result = Vec::with_capacity(num_samples);
         for i in 0..num_samples {
-            result.push(self.get_sample_timing_info(i)?);
+            result.push(self.sample_timing_info(i)?);
         }
         Ok(result)
     }
@@ -479,9 +485,9 @@ impl fmt::Display for CMSampleBuffer {
         write!(
             f,
             "CMSampleBuffer(pts: {}, duration: {}, samples: {})",
-            self.get_presentation_timestamp(),
-            self.get_duration(),
-            self.get_num_samples()
+            self.presentation_timestamp(),
+            self.duration(),
+            self.num_samples()
         )
     }
 }

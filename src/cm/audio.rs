@@ -63,7 +63,8 @@ impl AudioBuffer {
         }
     }
 
-    pub fn get_data_byte_size(&self) -> usize {
+    /// Get the size of the data in bytes
+    pub fn data_byte_size(&self) -> usize {
         self.data_bytes_size as usize
     }
 }
@@ -74,8 +75,9 @@ pub struct AudioBufferRef<'a> {
 }
 
 impl AudioBufferRef<'_> {
-    pub fn get_data_byte_size(&self) -> usize {
-        self.buffer.get_data_byte_size()
+    /// Get the size of the data in bytes
+    pub fn data_byte_size(&self) -> usize {
+        self.buffer.data_byte_size()
     }
 
     pub fn data(&self) -> &[u8] {
@@ -97,14 +99,12 @@ pub struct AudioBufferList {
 }
 
 impl AudioBufferList {
+    /// Get the number of buffers in the list
     pub fn num_buffers(&self) -> usize {
         self.inner.num_buffers as usize
     }
 
-    pub fn get_number_buffers(&self) -> usize {
-        self.num_buffers()
-    }
-
+    /// Get a buffer by index
     pub fn get(&self, index: usize) -> Option<&AudioBuffer> {
         if index >= self.num_buffers() {
             None
@@ -113,7 +113,8 @@ impl AudioBufferList {
         }
     }
 
-    pub fn get_buffer(&self, index: usize) -> Option<AudioBufferRef<'_>> {
+    /// Get a buffer reference by index
+    pub fn buffer(&self, index: usize) -> Option<AudioBufferRef<'_>> {
         self.get(index).map(|buffer| AudioBufferRef { buffer })
     }
 

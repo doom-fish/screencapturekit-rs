@@ -94,28 +94,28 @@ impl CMFormatDescription {
         self.0
     }
 
-    /// Get the media type (video, audio, etc.)
-    pub fn get_media_type(&self) -> u32 {
+    /// Get the media type as a raw u32 value
+    pub fn media_type_raw(&self) -> u32 {
         unsafe { ffi::cm_format_description_get_media_type(self.0) }
     }
 
     /// Get the media type as `FourCharCode`
     pub fn media_type(&self) -> crate::utils::four_char_code::FourCharCode {
-        crate::utils::four_char_code::FourCharCode::from(self.get_media_type())
+        crate::utils::four_char_code::FourCharCode::from(self.media_type_raw())
     }
 
-    /// Get the media subtype (codec type)
-    pub fn get_media_subtype(&self) -> u32 {
+    /// Get the media subtype (codec type) as a raw u32 value
+    pub fn media_subtype_raw(&self) -> u32 {
         unsafe { ffi::cm_format_description_get_media_subtype(self.0) }
     }
 
     /// Get the media subtype as `FourCharCode`
     pub fn media_subtype(&self) -> crate::utils::four_char_code::FourCharCode {
-        crate::utils::four_char_code::FourCharCode::from(self.get_media_subtype())
+        crate::utils::four_char_code::FourCharCode::from(self.media_subtype_raw())
     }
 
     /// Get format description extensions
-    pub fn get_extensions(&self) -> Option<*const std::ffi::c_void> {
+    pub fn extensions(&self) -> Option<*const std::ffi::c_void> {
         unsafe {
             let ptr = ffi::cm_format_description_get_extensions(self.0);
             if ptr.is_null() {
@@ -229,8 +229,8 @@ impl fmt::Display for CMFormatDescription {
         write!(
             f,
             "CMFormatDescription(type: 0x{:08X}, subtype: 0x{:08X})",
-            self.get_media_type(),
-            self.get_media_subtype()
+            self.media_type_raw(),
+            self.media_subtype_raw()
         )
     }
 }

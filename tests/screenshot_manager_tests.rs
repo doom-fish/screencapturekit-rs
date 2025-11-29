@@ -64,7 +64,7 @@ fn test_capture_sample_buffer() {
     // Note: May fail if screen recording permission not granted
     if let Ok(buffer) = result {
         // The buffer should have a presentation timestamp
-        let _pts = buffer.get_presentation_timestamp();
+        let _pts = buffer.presentation_timestamp();
     }
 }
 

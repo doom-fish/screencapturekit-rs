@@ -149,7 +149,7 @@
 //! use screencapturekit::output::{CVImageBufferLockExt, PixelBufferLockFlags};
 //!
 //! # fn handle(sample: CMSampleBuffer) {
-//! if let Some(buffer) = sample.get_image_buffer() {
+//! if let Some(buffer) = sample.image_buffer() {
 //!     // Lock for CPU access
 //!     if let Ok(guard) = buffer.lock(PixelBufferLockFlags::ReadOnly) {
 //!         let pixels = guard.as_slice();
@@ -169,7 +169,7 @@
 //! use screencapturekit::prelude::*;
 //!
 //! # fn handle(sample: CMSampleBuffer) {
-//! if let Some(buffer) = sample.get_image_buffer() {
+//! if let Some(buffer) = sample.image_buffer() {
 //!     if let Some(surface) = buffer.io_surface() {
 //!         let width = surface.width();
 //!         let height = surface.height();
