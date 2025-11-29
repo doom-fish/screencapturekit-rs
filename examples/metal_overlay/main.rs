@@ -17,6 +17,7 @@
 //! Direct controls (when menu hidden):
 //! - `P` - Open content picker
 //! - `SPACE` - Start/stop capture
+//! - `S` - Take screenshot (when source selected)
 //! - `W` - Toggle waveform display
 //! - `C` - Open config menu
 //! - `M` - Toggle microphone
@@ -53,6 +54,7 @@ use screencapturekit::content_sharing_picker::{
     SCPickedSource, SCPickerOutcome,
 };
 use screencapturekit::prelude::*;
+use screencapturekit::screenshot_manager::SCScreenshotManager;
 use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::ControlFlow;
 
@@ -430,11 +432,42 @@ fn main() {
                                             }
                                         }
                                         2 => {
+                                            // Screenshot
+                                            if let Some(ref filter) = current_filter {
+                                                println!("📸 Taking screenshot...");
+                                                let screenshot_config = SCStreamConfiguration::new()
+                                                    .with_width(capture_size.0)
+                                                    .with_height(capture_size.1)
+                                                    .with_shows_cursor(stream_config.shows_cursor());
+                                                match SCScreenshotManager::capture_image(filter, &screenshot_config) {
+                                                    Ok(image) => {
+                                                        let timestamp = std::time::SystemTime::now()
+                                                            .duration_since(std::time::UNIX_EPOCH)
+                                                            .map(|d| d.as_secs())
+                                                            .unwrap_or(0);
+                                                        let filename = format!("screenshot_{}.png", timestamp);
+                                                        println!("✅ Screenshot captured: {}x{}", image.width(), image.height());
+                                                        
+                                                        // Try to save the image
+                                                        if let Ok(data) = image.rgba_data() {
+                                                            // Note: In a real app you'd use image crate to save as PNG
+                                                            println!("📁 Image data: {} bytes (save as {} manually)", data.len(), filename);
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        eprintln!("❌ Screenshot failed: {:?}", e);
+                                                    }
+                                                }
+                                            } else {
+                                                println!("⚠️  Select a source first with Picker");
+                                            }
+                                        }
+                                        3 => {
                                             // Config
                                             overlay.show_config = true;
                                             overlay.show_help = false;
                                         }
-                                        3 => {
+                                        4 => {
                                             // Quit
                                             *control_flow = ControlFlow::ExitWithCode(0);
                                         }
@@ -567,6 +600,34 @@ fn main() {
                                                 }
                                             }
                                         }
+                                    }
+                                }
+                                VirtualKeyCode::S => {
+                                    // Screenshot shortcut
+                                    if let Some(ref filter) = current_filter {
+                                        println!("📸 Taking screenshot...");
+                                        let screenshot_config = SCStreamConfiguration::new()
+                                            .with_width(capture_size.0)
+                                            .with_height(capture_size.1)
+                                            .with_shows_cursor(stream_config.shows_cursor());
+                                        match SCScreenshotManager::capture_image(filter, &screenshot_config) {
+                                            Ok(image) => {
+                                                let timestamp = std::time::SystemTime::now()
+                                                    .duration_since(std::time::UNIX_EPOCH)
+                                                    .map(|d| d.as_secs())
+                                                    .unwrap_or(0);
+                                                let filename = format!("screenshot_{}.png", timestamp);
+                                                println!("✅ Screenshot captured: {}x{}", image.width(), image.height());
+                                                if let Ok(data) = image.rgba_data() {
+                                                    println!("📁 Image data: {} bytes (save as {} manually)", data.len(), filename);
+                                                }
+                                            }
+                                            Err(e) => {
+                                                eprintln!("❌ Screenshot failed: {:?}", e);
+                                            }
+                                        }
+                                    } else {
+                                        println!("⚠️  Select a source first with P or menu");
                                     }
                                 }
                                 VirtualKeyCode::Escape | VirtualKeyCode::Q => {
