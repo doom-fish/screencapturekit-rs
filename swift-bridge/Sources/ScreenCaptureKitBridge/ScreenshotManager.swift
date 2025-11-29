@@ -27,8 +27,8 @@ public func captureScreenshot(
             )
             callback(retain(image), nil, userData)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(nil, $0, userData) }
+            let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+            bridgeError.description.withCString { callback(nil, $0, userData) }
         }
     }
 }
@@ -53,8 +53,8 @@ public func captureScreenshotSampleBuffer(
             let retained = Unmanaged.passRetained(sampleBuffer as AnyObject)
             callback(OpaquePointer(retained.toOpaque()), nil, userData)
         } catch {
-            let errorMsg = error.localizedDescription
-            errorMsg.withCString { callback(nil, $0, userData) }
+            let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+            bridgeError.description.withCString { callback(nil, $0, userData) }
         }
     }
 }
@@ -78,12 +78,13 @@ public func captureScreenshotInRect(
                 let image = try await SCScreenshotManager.captureImage(in: rect)
                 callback(retain(image), nil, userData)
             } catch {
-                let errorMsg = error.localizedDescription
-                errorMsg.withCString { callback(nil, $0, userData) }
+                let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+                bridgeError.description.withCString { callback(nil, $0, userData) }
             }
         }
     } else {
-        "captureImageInRect requires macOS 15.2+".withCString { callback(nil, $0, userData) }
+        let bridgeError = SCBridgeError.screenshotError("captureImageInRect requires macOS 15.2+")
+        bridgeError.description.withCString { callback(nil, $0, userData) }
     }
 }
 #else
@@ -96,7 +97,8 @@ public func captureScreenshotInRect(
     _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
     _ userData: UnsafeMutableRawPointer?
 ) {
-    "captureImageInRect requires macOS 15.2+".withCString { callback(nil, $0, userData) }
+    let bridgeError = SCBridgeError.screenshotError("captureImageInRect requires macOS 15.2+")
+    bridgeError.description.withCString { callback(nil, $0, userData) }
 }
 #endif
 
@@ -278,12 +280,13 @@ public func captureScreenshotWithConfiguration(
                 )
                 callback(retain(output), nil, userData)
             } catch {
-                let errorMsg = error.localizedDescription
-                errorMsg.withCString { callback(nil, $0, userData) }
+                let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+                bridgeError.description.withCString { callback(nil, $0, userData) }
             }
         }
     } else {
-        "captureScreenshot requires macOS 26.0+".withCString { callback(nil, $0, userData) }
+        let bridgeError = SCBridgeError.screenshotError("captureScreenshot requires macOS 26.0+")
+        bridgeError.description.withCString { callback(nil, $0, userData) }
     }
 }
 
@@ -309,12 +312,13 @@ public func captureScreenshotInRectWithConfiguration(
                 )
                 callback(retain(output), nil, userData)
             } catch {
-                let errorMsg = error.localizedDescription
-                errorMsg.withCString { callback(nil, $0, userData) }
+                let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+                bridgeError.description.withCString { callback(nil, $0, userData) }
             }
         }
     } else {
-        "captureScreenshotInRect requires macOS 26.0+".withCString { callback(nil, $0, userData) }
+        let bridgeError = SCBridgeError.screenshotError("captureScreenshotInRect requires macOS 26.0+")
+        bridgeError.description.withCString { callback(nil, $0, userData) }
     }
 }
 #else
@@ -377,7 +381,8 @@ public func captureScreenshotWithConfiguration(
     _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
     _ userData: UnsafeMutableRawPointer?
 ) {
-    "captureScreenshot requires macOS 26.0+".withCString { callback(nil, $0, userData) }
+    let bridgeError = SCBridgeError.screenshotError("captureScreenshot requires macOS 26.0+")
+    bridgeError.description.withCString { callback(nil, $0, userData) }
 }
 
 @_cdecl("sc_screenshot_manager_capture_screenshot_in_rect")
@@ -390,6 +395,7 @@ public func captureScreenshotInRectWithConfiguration(
     _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
     _ userData: UnsafeMutableRawPointer?
 ) {
-    "captureScreenshotInRect requires macOS 26.0+".withCString { callback(nil, $0, userData) }
+    let bridgeError = SCBridgeError.screenshotError("captureScreenshotInRect requires macOS 26.0+")
+    bridgeError.description.withCString { callback(nil, $0, userData) }
 }
 #endif

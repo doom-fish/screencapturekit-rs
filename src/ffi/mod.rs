@@ -27,9 +27,13 @@ extern "C" {
         user_data: *mut c_void,
     );
 
-    pub fn sc_shareable_content_get(callback: extern "C" fn(*const c_void, *const i8));
+    pub fn sc_shareable_content_get(
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
+    );
     pub fn sc_shareable_content_get_current_process_displays(
-        callback: extern "C" fn(*const c_void, *const i8),
+        callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
+        user_data: *mut c_void,
     );
     pub fn sc_shareable_content_retain(content: *const c_void) -> *const c_void;
     pub fn sc_shareable_content_release(content: *const c_void);
