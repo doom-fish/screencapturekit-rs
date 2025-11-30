@@ -103,6 +103,26 @@ impl SCStreamConfiguration {
         self
     }
 
+    /// Get the color matrix for captured content
+    ///
+    /// Returns the color matrix as a string, or None if not set.
+    pub fn color_matrix(&self) -> Option<String> {
+        let mut buffer = [0i8; 256];
+        let success = unsafe {
+            crate::ffi::sc_stream_configuration_get_color_matrix(
+                self.as_ptr(),
+                buffer.as_mut_ptr(),
+                buffer.len(),
+            )
+        };
+        if success {
+            let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
+            c_str.to_str().ok().map(|s| s.to_string())
+        } else {
+            None
+        }
+    }
+
     /// Set the color matrix (builder pattern)
     #[must_use]
     pub fn with_color_matrix(mut self, matrix: &str) -> Self {
