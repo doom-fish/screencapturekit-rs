@@ -11,9 +11,18 @@ use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+// Initialize CoreGraphics to prevent CGS_REQUIRE_INIT crashes in CI
+fn init_cg() {
+    extern "C" {
+        fn sc_initialize_core_graphics();
+    }
+    unsafe { sc_initialize_core_graphics() }
+}
+
 /// Test that `SCShareableContent` properly releases memory
 #[test]
 fn test_shareable_content_drop() {
+    init_cg();
     // Create and drop multiple times to check for leaks
     for _ in 0..10 {
         let content = SCShareableContent::get().expect("Failed to get content");
@@ -27,6 +36,7 @@ fn test_shareable_content_drop() {
 /// Test that cloning and dropping works correctly
 #[test]
 fn test_clone_and_drop() {
+    init_cg();
     let content = SCShareableContent::get().expect("Failed to get content");
 
     // Clone displays multiple times
@@ -53,6 +63,7 @@ fn test_clone_and_drop() {
 /// Test `SCContentFilter` memory management
 #[test]
 fn test_content_filter_memory() {
+    init_cg();
     let content = SCShareableContent::get().expect("Failed to get content");
     let displays = content.displays();
 
@@ -100,6 +111,7 @@ fn test_stream_configuration_memory() {
 /// Test that stream creation and destruction doesn't leak
 #[test]
 fn test_stream_lifecycle() {
+    init_cg();
     let content = SCShareableContent::get().expect("Failed to get content");
     let displays = content.displays();
 
@@ -124,6 +136,7 @@ fn test_stream_lifecycle() {
 /// Test handler registration and cleanup
 #[test]
 fn test_handler_registration_cleanup() {
+    init_cg();
     struct TestHandler {
         count: Arc<AtomicUsize>,
     }
@@ -170,6 +183,7 @@ fn test_handler_registration_cleanup() {
 /// Test closure handler memory management
 #[test]
 fn test_closure_handler_memory() {
+    init_cg();
     let content = SCShareableContent::get().expect("Failed to get content");
     let displays = content.displays();
 
@@ -254,6 +268,7 @@ fn test_dispatch_queue_memory() {
 /// Test that multiple streams with handlers don't leak
 #[test]
 fn test_multiple_streams_memory() {
+    init_cg();
     let content = SCShareableContent::get().expect("Failed to get content");
     let displays = content.displays();
 
@@ -293,6 +308,7 @@ fn test_multiple_streams_memory() {
 /// Test window filter creation doesn't leak
 #[test]
 fn test_window_filter_memory() {
+    init_cg();
     let content = SCShareableContent::get().expect("Failed to get content");
     let windows = content.windows();
 
@@ -333,6 +349,7 @@ mod macos_14_tests {
     /// Test `SCShareableContentInfo` memory management
     #[test]
     fn test_content_info_memory() {
+        init_cg();
         let content = SCShareableContent::get().expect("Failed to get content");
         let displays = content.displays();
 
