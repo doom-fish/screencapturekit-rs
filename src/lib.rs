@@ -257,6 +257,12 @@
 //! - `06_iosurface` - Zero-copy GPU buffers
 //! - `08_async` - Async/await API
 //! - `09_closure_handlers` - Closure-based handlers
+//! - `10_recording_output` - Direct video recording (macOS 15.0+)
+//! - `11_content_picker` - System content picker UI (macOS 14.0+)
+//! - `12_stream_updates` - Dynamic config/filter updates
+//! - `13_advanced_config` - HDR, presets, microphone (macOS 15.0+)
+//! - `14_app_capture` - Application-based filtering
+//! - `15_memory_leak_check` - Memory leak detection
 //!
 //! ## Common Patterns
 //!
