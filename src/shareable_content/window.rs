@@ -1,5 +1,5 @@
 use crate::cg::CGRect;
-use crate::utils::ffi_string::{ffi_string_from_buffer, DEFAULT_BUFFER_SIZE};
+use crate::utils::ffi_string::ffi_string_owned;
 use core::fmt;
 use std::ffi::c_void;
 
@@ -77,23 +77,19 @@ impl SCWindow {
 
     /// Get the window frame (position and size)
     pub fn frame(&self) -> CGRect {
+        let mut x = 0.0;
+        let mut y = 0.0;
+        let mut width = 0.0;
+        let mut height = 0.0;
         unsafe {
-            let mut x = 0.0;
-            let mut y = 0.0;
-            let mut width = 0.0;
-            let mut height = 0.0;
-            crate::ffi::sc_window_get_frame(self.0, &mut x, &mut y, &mut width, &mut height);
-            CGRect::new(x, y, width, height)
+            crate::ffi::sc_window_get_frame_packed(self.0, &mut x, &mut y, &mut width, &mut height);
         }
+        CGRect::new(x, y, width, height)
     }
 
     /// Get the window title (if available)
     pub fn title(&self) -> Option<String> {
-        unsafe {
-            ffi_string_from_buffer(DEFAULT_BUFFER_SIZE, |buf, len| {
-                crate::ffi::sc_window_get_title(self.0, buf, len)
-            })
-        }
+        unsafe { ffi_string_owned(|| crate::ffi::sc_window_get_title_owned(self.0)) }
     }
 
     /// Get window layer

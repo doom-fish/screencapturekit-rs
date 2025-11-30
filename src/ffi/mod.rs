@@ -1,6 +1,55 @@
 //! Swift FFI bridge to `ScreenCaptureKit`
 use std::ffi::c_void;
 
+// MARK: - FFI Packed Data Structures
+
+/// Packed CGRect for efficient FFI transfer (32 bytes)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FFIRect {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+/// Packed display data for batch retrieval (48 bytes)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct FFIDisplayData {
+    pub display_id: u32,
+    pub width: i32,
+    pub height: i32,
+    pub frame: FFIRect,
+}
+
+/// Packed window data for batch retrieval
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct FFIWindowData {
+    pub window_id: u32,
+    pub window_layer: i32,
+    pub is_on_screen: bool,
+    pub is_active: bool,
+    pub frame: FFIRect,
+    pub title_offset: u32,
+    pub title_length: u32,
+    pub owning_app_index: i32,
+    pub _padding: i32,
+}
+
+/// Packed application data for batch retrieval
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct FFIApplicationData {
+    pub process_id: i32,
+    pub _padding: i32,
+    pub bundle_id_offset: u32,
+    pub bundle_id_length: u32,
+    pub app_name_offset: u32,
+    pub app_name_length: u32,
+}
+
 // MARK: - CoreGraphics Initialization
 extern "C" {
     /// Force CoreGraphics initialization by calling `CGMainDisplayID`
@@ -64,6 +113,34 @@ extern "C" {
         content: *const c_void,
         index: isize,
     ) -> *const c_void;
+
+    // Batch retrieval functions (optimized FFI)
+    pub fn sc_shareable_content_get_displays_batch(
+        content: *const c_void,
+        buffer: *mut c_void, // Actually *mut FFIDisplayData
+        max_displays: isize,
+    ) -> isize;
+
+    pub fn sc_shareable_content_get_applications_batch(
+        content: *const c_void,
+        buffer: *mut c_void, // Actually *mut FFIApplicationData
+        max_apps: isize,
+        string_buffer: *mut i8,
+        string_buffer_size: isize,
+        string_buffer_used: *mut isize,
+    ) -> isize;
+
+    pub fn sc_shareable_content_get_windows_batch(
+        content: *const c_void,
+        buffer: *mut c_void, // Actually *mut FFIWindowData
+        max_windows: isize,
+        string_buffer: *mut i8,
+        string_buffer_size: isize,
+        string_buffer_used: *mut isize,
+        app_pointers: *mut *const c_void,
+        max_apps: isize,
+        app_count: *mut isize,
+    ) -> isize;
 }
 
 // MARK: - SCDisplay
@@ -74,6 +151,14 @@ extern "C" {
     pub fn sc_display_get_width(display: *const c_void) -> isize;
     pub fn sc_display_get_height(display: *const c_void) -> isize;
     pub fn sc_display_get_frame(
+        display: *const c_void,
+        x: *mut f64,
+        y: *mut f64,
+        width: *mut f64,
+        height: *mut f64,
+    );
+    /// Get display frame (same as sc_display_get_frame, kept for API compatibility)
+    pub fn sc_display_get_frame_packed(
         display: *const c_void,
         x: *mut f64,
         y: *mut f64,
@@ -94,7 +179,17 @@ extern "C" {
         width: *mut f64,
         height: *mut f64,
     );
+    /// Get window frame (same as sc_window_get_frame, kept for API compatibility)
+    pub fn sc_window_get_frame_packed(
+        window: *const c_void,
+        x: *mut f64,
+        y: *mut f64,
+        width: *mut f64,
+        height: *mut f64,
+    );
     pub fn sc_window_get_title(window: *const c_void, buffer: *mut i8, buffer_size: isize) -> bool;
+    /// Get window title as owned string (caller must free with sc_free_string)
+    pub fn sc_window_get_title_owned(window: *const c_void) -> *mut i8;
     pub fn sc_window_get_window_layer(window: *const c_void) -> isize;
     pub fn sc_window_is_on_screen(window: *const c_void) -> bool;
     pub fn sc_window_get_owning_application(window: *const c_void) -> *const c_void;
@@ -110,12 +205,22 @@ extern "C" {
         buffer: *mut i8,
         buffer_size: isize,
     ) -> bool;
+    /// Get bundle identifier as owned string (caller must free with sc_free_string)
+    pub fn sc_running_application_get_bundle_identifier_owned(app: *const c_void) -> *mut i8;
     pub fn sc_running_application_get_application_name(
         app: *const c_void,
         buffer: *mut i8,
         buffer_size: isize,
     ) -> bool;
+    /// Get application name as owned string (caller must free with sc_free_string)
+    pub fn sc_running_application_get_application_name_owned(app: *const c_void) -> *mut i8;
     pub fn sc_running_application_get_process_id(app: *const c_void) -> i32;
+}
+
+// MARK: - String memory management
+extern "C" {
+    /// Free a string allocated by Swift (strdup)
+    pub fn sc_free_string(str: *mut i8);
 }
 
 // MARK: - SCStreamConfiguration
@@ -355,6 +460,14 @@ extern "C" {
         height: f64,
     );
     pub fn sc_content_filter_get_content_rect(
+        filter: *const c_void,
+        x: *mut f64,
+        y: *mut f64,
+        width: *mut f64,
+        height: *mut f64,
+    );
+    /// Get content filter content rect (same as sc_content_filter_get_content_rect)
+    pub fn sc_content_filter_get_content_rect_packed(
         filter: *const c_void,
         x: *mut f64,
         y: *mut f64,
@@ -733,6 +846,14 @@ extern "C" {
     pub fn sc_shareable_content_info_get_style(info: *const c_void) -> i32;
     pub fn sc_shareable_content_info_get_point_pixel_scale(info: *const c_void) -> f32;
     pub fn sc_shareable_content_info_get_content_rect(
+        info: *const c_void,
+        x: *mut f64,
+        y: *mut f64,
+        width: *mut f64,
+        height: *mut f64,
+    );
+    /// Get shareable content info rect (same as sc_shareable_content_info_get_content_rect)
+    pub fn sc_shareable_content_info_get_content_rect_packed(
         info: *const c_void,
         x: *mut f64,
         y: *mut f64,

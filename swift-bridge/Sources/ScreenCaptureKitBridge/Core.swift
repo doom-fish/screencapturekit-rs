@@ -3,6 +3,70 @@
 import CoreGraphics
 import Foundation
 
+// MARK: - FFI Data Structures
+
+/// Packed CGRect for efficient FFI transfer (32 bytes)
+@frozen
+public struct FFIRect {
+    public var x: Double
+    public var y: Double
+    public var width: Double
+    public var height: Double
+    
+    public init(_ rect: CGRect) {
+        self.x = rect.origin.x
+        self.y = rect.origin.y
+        self.width = rect.size.width
+        self.height = rect.size.height
+    }
+    
+    public static let zero = FFIRect(x: 0, y: 0, width: 0, height: 0)
+    
+    public init(x: Double, y: Double, width: Double, height: Double) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+    }
+}
+
+/// Packed display data for batch retrieval (48 bytes)
+@frozen
+public struct FFIDisplayData {
+    public var displayId: UInt32
+    public var width: Int32
+    public var height: Int32
+    public var frame: FFIRect
+}
+
+/// Packed window data for batch retrieval
+@frozen
+public struct FFIWindowData {
+    public var windowId: UInt32
+    public var windowLayer: Int32
+    public var isOnScreen: Bool
+    public var isActive: Bool
+    public var frame: FFIRect
+    // Title handled separately via titleOffset/titleLength into string buffer
+    public var titleOffset: UInt32
+    public var titleLength: UInt32
+    // Owning app index (-1 if none)
+    public var owningAppIndex: Int32
+    public var _padding: Int32
+}
+
+/// Packed application data for batch retrieval
+@frozen
+public struct FFIApplicationData {
+    public var processId: Int32
+    public var _padding: Int32
+    // Bundle ID and app name via offsets into string buffer
+    public var bundleIdOffset: UInt32
+    public var bundleIdLength: UInt32
+    public var appNameOffset: UInt32
+    public var appNameLength: UInt32
+}
+
 // MARK: - CoreGraphics Initialization
 
 /// Force CoreGraphics initialization by calling CGMainDisplayID

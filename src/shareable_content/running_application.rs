@@ -1,7 +1,7 @@
 use core::fmt;
 use std::ffi::c_void;
 
-use crate::utils::ffi_string::{ffi_string_from_buffer_or_empty, DEFAULT_BUFFER_SIZE};
+use crate::utils::ffi_string::ffi_string_owned_or_empty;
 
 /// Wrapper around `SCRunningApplication` from `ScreenCaptureKit`
 ///
@@ -65,8 +65,8 @@ impl SCRunningApplication {
     /// Get application name
     pub fn application_name(&self) -> String {
         unsafe {
-            ffi_string_from_buffer_or_empty(DEFAULT_BUFFER_SIZE, |buf, len| {
-                crate::ffi::sc_running_application_get_application_name(self.0, buf, len)
+            ffi_string_owned_or_empty(|| {
+                crate::ffi::sc_running_application_get_application_name_owned(self.0)
             })
         }
     }
@@ -74,8 +74,8 @@ impl SCRunningApplication {
     /// Get bundle identifier
     pub fn bundle_identifier(&self) -> String {
         unsafe {
-            ffi_string_from_buffer_or_empty(DEFAULT_BUFFER_SIZE, |buf, len| {
-                crate::ffi::sc_running_application_get_bundle_identifier(self.0, buf, len)
+            ffi_string_owned_or_empty(|| {
+                crate::ffi::sc_running_application_get_bundle_identifier_owned(self.0)
             })
         }
     }
