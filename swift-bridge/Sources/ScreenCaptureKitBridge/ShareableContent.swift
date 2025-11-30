@@ -533,3 +533,293 @@ public func retainShareableContentInfo(_ info: OpaquePointer) -> OpaquePointer {
 public func releaseShareableContentInfo(_ info: OpaquePointer) {
     release(info)
 }
+
+// MARK: - Batch Data Retrieval (Optimized FFI)
+
+/// Get all displays as packed data in a single call
+/// Returns: number of displays written, or -1 on error
+/// The buffer should be pre-allocated by Rust with enough space for maxDisplays * sizeof(FFIDisplayData)
+@_cdecl("sc_shareable_content_get_displays_batch")
+public func getDisplaysBatch(
+    _ content: OpaquePointer,
+    _ rawBuffer: UnsafeMutableRawPointer,
+    _ maxDisplays: Int
+) -> Int {
+    let buffer = rawBuffer.assumingMemoryBound(to: FFIDisplayData.self)
+    let sc: SCShareableContent = unretained(content)
+    let displays = sc.displays
+    let count = min(displays.count, maxDisplays)
+    
+    for i in 0..<count {
+        let d = displays[i]
+        buffer[i] = FFIDisplayData(
+            displayId: d.displayID,
+            width: Int32(d.width),
+            height: Int32(d.height),
+            frame: FFIRect(d.frame)
+        )
+    }
+    
+    return count
+}
+
+/// Get all applications as packed data with strings in a separate buffer
+/// Returns: number of applications written
+/// stringBuffer receives null-terminated strings packed together
+/// stringBufferUsed receives actual bytes used in stringBuffer
+@_cdecl("sc_shareable_content_get_applications_batch")
+public func getApplicationsBatch(
+    _ content: OpaquePointer,
+    _ rawBuffer: UnsafeMutableRawPointer,
+    _ maxApps: Int,
+    _ stringBuffer: UnsafeMutablePointer<CChar>,
+    _ stringBufferSize: Int,
+    _ stringBufferUsed: UnsafeMutablePointer<Int>
+) -> Int {
+    let buffer = rawBuffer.assumingMemoryBound(to: FFIApplicationData.self)
+    let sc: SCShareableContent = unretained(content)
+    let apps = sc.applications
+    let count = min(apps.count, maxApps)
+    var stringOffset: UInt32 = 0
+    
+    for i in 0..<count {
+        let app = apps[i]
+        
+        // Write bundle ID
+        let bundleId = app.bundleIdentifier
+        let bundleIdStart = stringOffset
+        if let cStr = bundleId.cString(using: .utf8) {
+            let len = cStr.count
+            if Int(stringOffset) + len <= stringBufferSize {
+                for (j, c) in cStr.enumerated() {
+                    stringBuffer[Int(stringOffset) + j] = c
+                }
+                stringOffset += UInt32(len)
+            }
+        }
+        let bundleIdLen = stringOffset - bundleIdStart
+        
+        // Write app name
+        let appName = app.applicationName
+        let appNameStart = stringOffset
+        if let cStr = appName.cString(using: .utf8) {
+            let len = cStr.count
+            if Int(stringOffset) + len <= stringBufferSize {
+                for (j, c) in cStr.enumerated() {
+                    stringBuffer[Int(stringOffset) + j] = c
+                }
+                stringOffset += UInt32(len)
+            }
+        }
+        let appNameLen = stringOffset - appNameStart
+        
+        buffer[i] = FFIApplicationData(
+            processId: app.processID,
+            _padding: 0,
+            bundleIdOffset: bundleIdStart,
+            bundleIdLength: bundleIdLen > 0 ? bundleIdLen - 1 : 0,  // exclude null terminator from length
+            appNameOffset: appNameStart,
+            appNameLength: appNameLen > 0 ? appNameLen - 1 : 0
+        )
+    }
+    
+    stringBufferUsed.pointee = Int(stringOffset)
+    return count
+}
+
+/// Get all windows as packed data with strings in a separate buffer
+/// Also provides application pointers for ownership lookup
+@_cdecl("sc_shareable_content_get_windows_batch")
+public func getWindowsBatch(
+    _ content: OpaquePointer,
+    _ rawBuffer: UnsafeMutableRawPointer,
+    _ maxWindows: Int,
+    _ stringBuffer: UnsafeMutablePointer<CChar>,
+    _ stringBufferSize: Int,
+    _ stringBufferUsed: UnsafeMutablePointer<Int>,
+    _ appPointers: UnsafeMutablePointer<OpaquePointer?>,
+    _ maxApps: Int,
+    _ appCount: UnsafeMutablePointer<Int>
+) -> Int {
+    let buffer = rawBuffer.assumingMemoryBound(to: FFIWindowData.self)
+    let sc: SCShareableContent = unretained(content)
+    let windows = sc.windows
+    let apps = sc.applications
+    let count = min(windows.count, maxWindows)
+    var stringOffset: UInt32 = 0
+    
+    // Build app lookup map and populate app pointers
+    var appIndexMap: [ObjectIdentifier: Int32] = [:]
+    let actualAppCount = min(apps.count, maxApps)
+    for i in 0..<actualAppCount {
+        appIndexMap[ObjectIdentifier(apps[i])] = Int32(i)
+        appPointers[i] = retain(apps[i])
+    }
+    appCount.pointee = actualAppCount
+    
+    for i in 0..<count {
+        let w = windows[i]
+        
+        // Write title
+        let titleStart = stringOffset
+        if let title = w.title, let cStr = title.cString(using: .utf8) {
+            let len = cStr.count
+            if Int(stringOffset) + len <= stringBufferSize {
+                for (j, c) in cStr.enumerated() {
+                    stringBuffer[Int(stringOffset) + j] = c
+                }
+                stringOffset += UInt32(len)
+            }
+        } else {
+            // Write empty string
+            if Int(stringOffset) < stringBufferSize {
+                stringBuffer[Int(stringOffset)] = 0
+                stringOffset += 1
+            }
+        }
+        let titleLen = stringOffset - titleStart
+        
+        // Find owning app index
+        var owningAppIndex: Int32 = -1
+        if let owningApp = w.owningApplication {
+            owningAppIndex = appIndexMap[ObjectIdentifier(owningApp)] ?? -1
+        }
+        
+        var isActive = false
+        if #available(macOS 13.1, *) {
+            isActive = w.isActive
+        }
+        
+        buffer[i] = FFIWindowData(
+            windowId: w.windowID,
+            windowLayer: Int32(w.windowLayer),
+            isOnScreen: w.isOnScreen,
+            isActive: isActive,
+            frame: FFIRect(w.frame),
+            titleOffset: titleStart,
+            titleLength: titleLen > 0 ? titleLen - 1 : 0,
+            owningAppIndex: owningAppIndex,
+            _padding: 0
+        )
+    }
+    
+    stringBufferUsed.pointee = Int(stringOffset)
+    return count
+}
+
+// MARK: - Packed Return Types for Simple Getters
+
+/// Get display frame as packed struct (single call instead of 4 out params)
+/// Uses out parameters since Swift @_cdecl can't return structs
+@_cdecl("sc_display_get_frame_packed")
+public func getDisplayFramePacked(
+    _ display: OpaquePointer,
+    _ outX: UnsafeMutablePointer<Double>,
+    _ outY: UnsafeMutablePointer<Double>,
+    _ outW: UnsafeMutablePointer<Double>,
+    _ outH: UnsafeMutablePointer<Double>
+) {
+    let d: SCDisplay = unretained(display)
+    let frame = d.frame
+    outX.pointee = frame.origin.x
+    outY.pointee = frame.origin.y
+    outW.pointee = frame.size.width
+    outH.pointee = frame.size.height
+}
+
+/// Get window frame as packed struct
+@_cdecl("sc_window_get_frame_packed")
+public func getWindowFramePacked(
+    _ window: OpaquePointer,
+    _ outX: UnsafeMutablePointer<Double>,
+    _ outY: UnsafeMutablePointer<Double>,
+    _ outW: UnsafeMutablePointer<Double>,
+    _ outH: UnsafeMutablePointer<Double>
+) {
+    let w: SCWindow = unretained(window)
+    let frame = w.frame
+    outX.pointee = frame.origin.x
+    outY.pointee = frame.origin.y
+    outW.pointee = frame.size.width
+    outH.pointee = frame.size.height
+}
+
+/// Get content filter content rect as packed struct (macOS 14.0+)
+@_cdecl("sc_content_filter_get_content_rect_packed")
+public func getContentFilterContentRectPacked(
+    _ filter: OpaquePointer,
+    _ outX: UnsafeMutablePointer<Double>,
+    _ outY: UnsafeMutablePointer<Double>,
+    _ outW: UnsafeMutablePointer<Double>,
+    _ outH: UnsafeMutablePointer<Double>
+) {
+    if #available(macOS 14.0, *) {
+        let f: SCContentFilter = unretained(filter)
+        let rect = f.contentRect
+        outX.pointee = rect.origin.x
+        outY.pointee = rect.origin.y
+        outW.pointee = rect.size.width
+        outH.pointee = rect.size.height
+    } else {
+        outX.pointee = 0
+        outY.pointee = 0
+        outW.pointee = 0
+        outH.pointee = 0
+    }
+}
+
+/// Get shareable content info rect as packed struct
+@_cdecl("sc_shareable_content_info_get_content_rect_packed")
+public func getShareableContentInfoContentRectPacked(
+    _ info: OpaquePointer,
+    _ outX: UnsafeMutablePointer<Double>,
+    _ outY: UnsafeMutablePointer<Double>,
+    _ outW: UnsafeMutablePointer<Double>,
+    _ outH: UnsafeMutablePointer<Double>
+) {
+    if #available(macOS 14.0, *) {
+        let i: SCShareableContentInfo = unretained(info)
+        let rect = i.contentRect
+        outX.pointee = rect.origin.x
+        outY.pointee = rect.origin.y
+        outW.pointee = rect.size.width
+        outH.pointee = rect.size.height
+    } else {
+        outX.pointee = 0
+        outY.pointee = 0
+        outW.pointee = 0
+        outH.pointee = 0
+    }
+}
+
+// MARK: - Owned String Returns
+
+/// Get window title as owned string (caller must free with sc_free_string)
+@_cdecl("sc_window_get_title_owned")
+public func getWindowTitleOwned(_ window: OpaquePointer) -> UnsafeMutablePointer<CChar>? {
+    let w: SCWindow = unretained(window)
+    guard let title = w.title else { return nil }
+    return strdup(title)
+}
+
+/// Get application bundle identifier as owned string
+@_cdecl("sc_running_application_get_bundle_identifier_owned")
+public func getRunningApplicationBundleIdentifierOwned(_ app: OpaquePointer) -> UnsafeMutablePointer<CChar>? {
+    let a: SCRunningApplication = unretained(app)
+    return strdup(a.bundleIdentifier)
+}
+
+/// Get application name as owned string
+@_cdecl("sc_running_application_get_application_name_owned")
+public func getRunningApplicationNameOwned(_ app: OpaquePointer) -> UnsafeMutablePointer<CChar>? {
+    let a: SCRunningApplication = unretained(app)
+    return strdup(a.applicationName)
+}
+
+/// Free a string allocated by Swift (strdup)
+@_cdecl("sc_free_string")
+public func freeString(_ str: UnsafeMutablePointer<CChar>?) {
+    if let str = str {
+        free(str)
+    }
+}

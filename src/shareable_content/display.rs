@@ -77,14 +77,14 @@ impl SCDisplay {
 
     /// Get display frame (position and size)
     pub fn frame(&self) -> CGRect {
+        let mut x = 0.0;
+        let mut y = 0.0;
+        let mut width = 0.0;
+        let mut height = 0.0;
         unsafe {
-            let mut x = 0.0;
-            let mut y = 0.0;
-            let mut width = 0.0;
-            let mut height = 0.0;
-            crate::ffi::sc_display_get_frame(self.0, &mut x, &mut y, &mut width, &mut height);
-            CGRect::new(x, y, width, height)
+            crate::ffi::sc_display_get_frame_packed(self.0, &mut x, &mut y, &mut width, &mut height);
         }
+        CGRect::new(x, y, width, height)
     }
 
     /// Get display height in pixels

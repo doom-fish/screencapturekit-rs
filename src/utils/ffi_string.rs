@@ -83,6 +83,51 @@ where
     ffi_string_from_buffer(buffer_size, ffi_call).unwrap_or_default()
 }
 
+/// Retrieves a string from an FFI function that returns an owned C string pointer.
+///
+/// This is more efficient than buffer-based retrieval as it avoids pre-allocation.
+/// The FFI function allocates the string (via `strdup`) and this function takes
+/// ownership and frees it.
+///
+/// # Arguments
+/// * `ffi_call` - A closure that returns an owned C string pointer (or null)
+///
+/// # Returns
+/// * `Some(String)` if the pointer was non-null and valid UTF-8
+/// * `None` if the pointer was null
+///
+/// # Safety
+/// The caller must ensure the returned pointer was allocated by Swift's `strdup`
+/// or equivalent, and that `sc_free_string` properly frees it.
+pub unsafe fn ffi_string_owned<F>(ffi_call: F) -> Option<String>
+where
+    F: FnOnce() -> *mut i8,
+{
+    let ptr = ffi_call();
+    if ptr.is_null() {
+        return None;
+    }
+    let c_str = CStr::from_ptr(ptr);
+    let result = c_str.to_string_lossy().to_string();
+    crate::ffi::sc_free_string(ptr);
+    if result.is_empty() {
+        None
+    } else {
+        Some(result)
+    }
+}
+
+/// Same as [`ffi_string_owned`] but returns an empty string on failure.
+///
+/// # Safety
+/// Same requirements as [`ffi_string_owned`].
+pub unsafe fn ffi_string_owned_or_empty<F>(ffi_call: F) -> String
+where
+    F: FnOnce() -> *mut i8,
+{
+    ffi_string_owned(ffi_call).unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
