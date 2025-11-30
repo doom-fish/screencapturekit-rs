@@ -33,13 +33,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SCRecordingOutputConfiguration::new()
         .with_output_url(&output_path)
         .with_video_codec(SCRecordingOutputCodec::H264)
-        .with_output_file_type(SCRecordingOutputFileType::MP4)
-        .with_average_bitrate(10_000_000);
+        .with_output_file_type(SCRecordingOutputFileType::MP4);
 
     println!("📁 Output path: {}", output_path.display());
     println!("🎬 Video codec: {:?}", config.video_codec());
     println!("📄 File type: {:?}", config.output_file_type());
-    println!("📊 Bitrate: 10 Mbps");
 
     // Query available options
     println!("\n📋 Available Options:");
