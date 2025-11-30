@@ -173,25 +173,27 @@ use screencapturekit::prelude::*;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SCContentSharingPickerConfiguration::new();
     
-    // Advanced API: Get filter with metadata (dimensions, scale)
-    match SCContentSharingPicker::pick(&config) {
-        SCPickerOutcome::Picked(result) => {
-            // Get dimensions from the picked content
-            let (width, height) = result.pixel_size();
-            println!("Selected: {}x{} (scale: {})", width, height, result.scale());
-            
-            let stream_config = SCStreamConfiguration::new()
-                .with_width(width)
-                .with_height(height);
-            
-            // Get filter for streaming
-            let filter = result.filter();
-            let mut stream = SCStream::new(&filter, &stream_config);
-            // ...
+    // Show picker - callback receives result when user selects or cancels
+    SCContentSharingPicker::show(&config, |outcome| {
+        match outcome {
+            SCPickerOutcome::Picked(result) => {
+                // Get dimensions from the picked content
+                let (width, height) = result.pixel_size();
+                println!("Selected: {}x{} (scale: {})", width, height, result.scale());
+                
+                let stream_config = SCStreamConfiguration::new()
+                    .with_width(width)
+                    .with_height(height);
+                
+                // Get filter for streaming
+                let filter = result.filter();
+                let mut stream = SCStream::new(&filter, &stream_config);
+                // ...
+            }
+            SCPickerOutcome::Cancelled => println!("User cancelled"),
+            SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
         }
-        SCPickerOutcome::Cancelled => println!("User cancelled"),
-        SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
-    }
+    });
     
     Ok(())
 }
@@ -211,7 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SCContentSharingPickerConfiguration::new();
     
     // Async picker - doesn't block the executor
-    match AsyncSCContentSharingPicker::pick(&config).await {
+    match AsyncSCContentSharingPicker::show(&config).await {
         SCPickerOutcome::Picked(result) => {
             let (width, height) = result.pixel_size();
             println!("Selected: {}x{}", width, height);
