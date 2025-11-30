@@ -6,7 +6,11 @@ pub struct OverlayState {
     pub show_help: bool,
     pub show_waveform: bool,
     pub show_config: bool,
+    #[cfg(feature = "macos_15_0")]
+    pub show_recording_config: bool,
     pub config_selection: usize,
+    #[cfg(feature = "macos_15_0")]
+    pub recording_config_selection: usize,
     pub menu_selection: usize,
 }
 
@@ -16,11 +20,19 @@ impl OverlayState {
             show_help: true,
             show_waveform: true,
             show_config: false,
+            #[cfg(feature = "macos_15_0")]
+            show_recording_config: false,
             config_selection: 0,
+            #[cfg(feature = "macos_15_0")]
+            recording_config_selection: 0,
             menu_selection: 0,
         }
     }
 
+    #[cfg(feature = "macos_15_0")]
+    pub const MENU_ITEMS: &'static [&'static str] = &["Picker", "Capture", "Screenshot", "Record", "Config", "Rec Config", "Quit"];
+    
+    #[cfg(not(feature = "macos_15_0"))]
     pub const MENU_ITEMS: &'static [&'static str] = &["Picker", "Capture", "Screenshot", "Record", "Config", "Quit"];
 
     pub fn menu_count() -> usize {

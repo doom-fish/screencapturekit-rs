@@ -285,10 +285,10 @@ impl VertexBufferBuilder {
         font: &BitmapFont,
         vw: f32,
         vh: f32,
-        config: &crate::overlay::RecordingConfig,
+        config: &crate::recording::RecordingConfig,
         selection: usize,
     ) {
-        use crate::overlay::RecordingConfigMenu;
+        use crate::recording::RecordingConfigMenu;
 
         let base_scale = (vw.min(vh) / 800.0).clamp(0.8, 2.0);
         let scale = 1.5 * base_scale;
