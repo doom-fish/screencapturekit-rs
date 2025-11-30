@@ -2,69 +2,57 @@
 //!
 //! This module provides multiple ways to integrate `ScreenCaptureKit` audio with cpal:
 //!
-//! 1. **Low-level adapters** - `AudioSamples`, `CpalAudioExt` for manual integration
-//! 2. **Audio input stream** - `SckAudioInputStream` for easy cpal-style callbacks
-//! 3. **Ring buffer** - `AudioRingBuffer` for producer/consumer patterns
+//! 1. **Zero-copy stream** - `ZeroCopyAudioStream` for lowest latency (recommended)
+//! 2. **Buffered stream** - `SckAudioInputStream` with ring buffer for cpal output
+//! 3. **Low-level adapters** - `AudioSamples`, `CpalAudioExt` for manual integration
 //!
-//! # Example: Audio Input Stream (Recommended)
+//! # Example: Zero-Copy (Recommended for processing)
 //!
 //! ```ignore
-//! use screencapturekit::cpal_adapter::SckAudioInputStream;
+//! use screencapturekit::cpal_adapter::ZeroCopyAudioStream;
 //! use screencapturekit::prelude::*;
 //!
-//! let content = SCShareableContent::get()?;
-//! let display = &content.displays()[0];
 //! let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
 //!
-//! let mut stream = SckAudioInputStream::new(&filter)?;
-//! stream.start(|samples, info| {
-//!     println!("Got {} samples at {}Hz", samples.len(), info.sample_rate);
+//! // Callback receives direct pointer to CMSampleBuffer data - no copies!
+//! let stream = ZeroCopyAudioStream::start(&filter, |samples, info| {
+//!     // WARNING: This runs on SCStream's thread - don't block!
+//!     analyze_audio(samples);
 //! })?;
 //!
-//! // Later...
-//! stream.stop()?;
+//! std::thread::sleep(std::time::Duration::from_secs(10));
+//! drop(stream); // Stops capture
 //! ```
 //!
-//! # Example: With cpal output
+//! # Example: Buffered (for cpal output playback)
 //!
 //! ```ignore
-//! use screencapturekit::cpal_adapter::{SckAudioInputStream, AudioRingBuffer};
+//! use screencapturekit::cpal_adapter::{SckAudioInputStream, create_output_callback};
 //! use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-//! use std::sync::{Arc, Mutex};
 //!
-//! // Shared ring buffer
-//! let buffer = Arc::new(Mutex::new(AudioRingBuffer::new(48000 * 2)));
-//! let buffer_clone = Arc::clone(&buffer);
-//!
-//! // SCK input -> ring buffer
 //! let mut input = SckAudioInputStream::new(&filter)?;
-//! input.start(move |samples, _| {
-//!     buffer_clone.lock().unwrap().write(samples);
-//! })?;
+//! let buffer = input.ring_buffer().clone();
+//! input.start(|_, _| {})?;
 //!
-//! // Ring buffer -> cpal output
+//! // Play captured audio through speakers
 //! let host = cpal::default_host();
 //! let device = host.default_output_device().unwrap();
-//! let config = cpal::StreamConfig { channels: 2, sample_rate: cpal::SampleRate(48000), .. };
-//! let output = device.build_output_stream(&config, move |data: &mut [f32], _| {
-//!     buffer.lock().unwrap().read(data);
-//! }, |_| {}, None)?;
+//! let output = device.build_output_stream(
+//!     &input.cpal_config(),
+//!     create_output_callback(buffer),
+//!     |_| {},
+//!     None,
+//! )?;
 //! output.play()?;
 //! ```
 //!
-//! # Example: Low-level adapter
+//! # Performance Comparison
 //!
-//! ```ignore
-//! use screencapturekit::cpal_adapter::{AudioSamples, CpalAudioExt};
-//!
-//! fn process_audio(sample: &CMSampleBuffer) {
-//!     if let Some(samples) = sample.audio_f32_samples() {
-//!         for s in samples.iter_f32() {
-//!             // Process sample
-//!         }
-//!     }
-//! }
-//! ```
+//! | API | Copies | Latency | Use Case |
+//! |-----|--------|---------|----------|
+//! | `ZeroCopyAudioStream` | 0 | Lowest | Audio analysis, effects |
+//! | `SckAudioInputStream` | 2 | Low | cpal output, buffering needed |
+//! | `AudioSamples` (manual) | 0 | Lowest | Custom integration |
 
 use crate::cm::{AudioBufferList, CMSampleBuffer};
 use crate::stream::configuration::SCStreamConfiguration;
@@ -712,5 +700,135 @@ pub fn create_output_callback(
                 *sample = 0.0;
             }
         }
+    }
+}
+
+// ============================================================================
+// Zero-Copy Audio Stream
+// ============================================================================
+
+/// Zero-copy audio handler that calls callback directly from SCStream thread
+struct ZeroCopyAudioHandler<F>
+where
+    F: FnMut(&[f32], SckAudioCallbackInfo) + Send,
+{
+    callback: std::sync::Mutex<F>,
+    sample_rate: u32,
+    channels: u16,
+}
+
+impl<F> SCStreamOutputTrait for ZeroCopyAudioHandler<F>
+where
+    F: FnMut(&[f32], SckAudioCallbackInfo) + Send,
+{
+    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, of_type: SCStreamOutputType) {
+        if of_type != SCStreamOutputType::Audio {
+            return;
+        }
+
+        // Zero-copy: get slice directly from CMSampleBuffer
+        if let Some(audio_samples) = sample.audio_f32_samples() {
+            let slice = audio_samples.as_f32_slice();
+            if !slice.is_empty() {
+                let info = SckAudioCallbackInfo {
+                    sample_rate: self.sample_rate,
+                    channels: self.channels,
+                };
+                if let Ok(mut callback) = self.callback.lock() {
+                    callback(slice, info);
+                }
+            }
+        }
+    }
+}
+
+/// Zero-copy audio input stream
+///
+/// Unlike `SckAudioInputStream`, this calls your callback directly from the
+/// SCStream capture thread with a reference to the audio data - no copies.
+///
+/// **Trade-offs:**
+/// - ✅ Zero-copy: data is read directly from `CMSampleBuffer`
+/// - ✅ Lower latency: no intermediate buffering
+/// - ⚠️ Callback runs on SCStream's thread (don't block!)
+/// - ⚠️ Cannot be used with `create_output_callback` (no ring buffer)
+///
+/// # Example
+///
+/// ```ignore
+/// use screencapturekit::cpal_adapter::ZeroCopyAudioStream;
+/// use screencapturekit::prelude::*;
+///
+/// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+///
+/// let stream = ZeroCopyAudioStream::start(&filter, |samples, info| {
+///     // This runs on SCStream's thread - don't block!
+///     // `samples` points directly into CMSampleBuffer memory
+///     process_audio(samples);
+/// })?;
+///
+/// // Stream runs until dropped
+/// std::thread::sleep(std::time::Duration::from_secs(10));
+/// drop(stream); // Stops capture
+/// ```
+pub struct ZeroCopyAudioStream {
+    stream: SCStream,
+}
+
+impl ZeroCopyAudioStream {
+    /// Start zero-copy audio capture
+    ///
+    /// The callback receives a direct reference to audio data in the `CMSampleBuffer`.
+    /// **Important:** The callback runs on SCStream's internal thread - avoid blocking!
+    pub fn start<F>(filter: &SCContentFilter, callback: F) -> Result<Self, SckAudioError>
+    where
+        F: FnMut(&[f32], SckAudioCallbackInfo) + Send + 'static,
+    {
+        Self::start_with_config(filter, 48000, 2, callback)
+    }
+
+    /// Start with custom sample rate and channels
+    pub fn start_with_config<F>(
+        filter: &SCContentFilter,
+        sample_rate: u32,
+        channels: u16,
+        callback: F,
+    ) -> Result<Self, SckAudioError>
+    where
+        F: FnMut(&[f32], SckAudioCallbackInfo) + Send + 'static,
+    {
+        let stream_config = SCStreamConfiguration::new()
+            .with_width(1)
+            .with_height(1)
+            .with_captures_audio(true)
+            .with_sample_rate(sample_rate as i32)
+            .with_channel_count(channels as i32);
+
+        let handler = ZeroCopyAudioHandler {
+            callback: std::sync::Mutex::new(callback),
+            sample_rate,
+            channels,
+        };
+
+        let mut stream = SCStream::new(filter, &stream_config);
+        stream.add_output_handler(handler, SCStreamOutputType::Audio);
+
+        stream
+            .start_capture()
+            .map_err(|e| SckAudioError::StreamStartFailed(e.to_string()))?;
+
+        Ok(Self { stream })
+    }
+
+    /// Stop capture explicitly (also happens on drop)
+    pub fn stop(self) -> Result<(), SckAudioError> {
+        // Drop will handle cleanup
+        Ok(())
+    }
+}
+
+impl Drop for ZeroCopyAudioStream {
+    fn drop(&mut self) {
+        let _ = self.stream.stop_capture();
     }
 }
