@@ -1,18 +1,47 @@
-//! Metal Renderer with Overlay UI
+//! Full Metal Application
 //!
-//! A real GUI application demonstrating:
-//! - Metal rendering with compiled shaders
-//! - Screen capture via `ScreenCaptureKit` with zero-copy `IOSurface` textures
-//! - System content picker (macOS 14.0+) for user-selected capture
-//! - Interactive overlay menu with bitmap font rendering
-//! - Real-time audio waveform visualization with vertical gain meters
-//! - Screenshot capture (macOS 14.0+)
-//! - Video recording (macOS 15.0+)
+//! A complete macOS application demonstrating the full ScreenCaptureKit API:
+//!
+//! - **Metal GPU Rendering** - Hardware-accelerated graphics with runtime shader compilation
+//! - **Screen Capture** - Real-time display/window capture via ScreenCaptureKit
+//! - **Content Picker** - System UI for selecting capture source (macOS 14.0+)
+//! - **Audio Visualization** - Real-time waveform display with VU meters
+//! - **Screenshot Capture** - Single-frame capture with HDR support (macOS 14.0+/26.0+)
+//! - **Video Recording** - Direct-to-file recording (macOS 15.0+)
+//! - **Microphone Capture** - Audio input with device selection (macOS 15.0+)
+//! - **Bitmap Font Rendering** - Custom 8x8 pixel glyph overlay text
+//! - **Interactive Menu** - Keyboard-navigable settings UI
+//!
+//! ## Running
+//!
+//! ```bash
+//! # Basic (macOS 14.0+)
+//! cargo run --example 16_full_metal_app --features macos_14_0
+//!
+//! # With recording support (macOS 15.0+)
+//! cargo run --example 16_full_metal_app --features macos_15_0
+//!
+//! # With HDR screenshots (macOS 26.0+)
+//! cargo run --example 16_full_metal_app --features macos_26_0
+//! ```
 //!
 //! ## Controls
 //!
-//! Menu navigation (when menu visible):
-//! - `UP/DOWN` - Navigate menu items
+//! **Menu Navigation** (when menu visible):
+//! - `↑`/`↓` - Navigate menu items
+//! - `Space`/`Enter` - Select item
+//! - `Esc`/`H` - Hide menu
+//!
+//! **Direct Controls** (when menu hidden):
+//! - `P` - Open content picker
+//! - `Space` - Start/stop capture
+//! - `S` - Take screenshot
+//! - `R` - Start/stop recording (macOS 15.0+)
+//! - `W` - Toggle waveform display
+//! - `M` - Toggle microphone
+//! - `C` - Open config menu
+//! - `H` - Show menu
+//! - `Q`/`Esc` - Quit
 
 #![allow(
     clippy::too_many_lines,
@@ -21,25 +50,6 @@
     clippy::cast_sign_loss,
     clippy::cast_possible_truncation
 )]
-//! - `SPACE/ENTER` - Select item
-//! - `ESC/H` - Hide menu
-//!
-//! Direct controls (when menu hidden):
-//! - `P` - Open content picker
-//! - `SPACE` - Start/stop capture
-//! - `S` - Take screenshot (when source selected)
-//! - `R` - Start/stop recording (macOS 15.0+, requires active capture)
-//! - `W` - Toggle waveform display
-//! - `C` - Open config menu
-//! - `M` - Toggle microphone
-//! - `H` - Show menu
-//! - `Q/ESC` - Quit
-//!
-//! ## Run
-//!
-//! ```bash
-//! cargo run --example 16_metal_overlay --features macos_14_0
-//! ```
 
 mod capture;
 mod font;
