@@ -194,7 +194,7 @@ public func getShareableContentAboveWindow(
     }
 }
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     /// Gets shareable content for the current process (macOS 14.4+)
     /// - Parameters:
     ///   - callback: Called with content pointer or error message

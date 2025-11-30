@@ -179,7 +179,7 @@ class PickerResult {
         pointPixelScale = Double(filter.pointPixelScale)
 
         // Use public APIs on macOS 15.2+, fall back to KVC on older versions
-        #if compiler(>=6.0)
+        #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
             if #available(macOS 15.2, *) {
                 windows = filter.includedWindows
                 displays = filter.includedDisplays

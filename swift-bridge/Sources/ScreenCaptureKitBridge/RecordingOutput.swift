@@ -11,8 +11,8 @@ public typealias RecordingStartedCallback = @convention(c) (UnsafeMutableRawPoin
 public typealias RecordingFailedCallback = @convention(c) (UnsafeMutableRawPointer?, Int32, UnsafePointer<CChar>) -> Void
 public typealias RecordingFinishedCallback = @convention(c) (UnsafeMutableRawPointer?) -> Void
 
-#if compiler(>=6.0)
-    // Full implementation for Xcode 16+ / Swift 6+ (macOS 15 SDK)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
+    // Full implementation for macOS 15 SDK
 
     @available(macOS 15.0, *)
     private class RecordingDelegate: NSObject, SCRecordingOutputDelegate {
@@ -249,7 +249,7 @@ public typealias RecordingFinishedCallback = @convention(c) (UnsafeMutableRawPoi
     }
 
 #else
-    // Stub implementation for older compilers (macOS < 15 SDK)
+    // Stub implementation for older SDKs (macOS < 15 SDK)
 
     @_cdecl("sc_recording_output_configuration_create")
     public func createRecordingOutputConfiguration() -> OpaquePointer? {
