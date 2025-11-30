@@ -27,9 +27,13 @@
 //!
 //! ## Controls
 //!
-//! **Menu Navigation** (when menu visible):
+//! **Initial Menu** (before picking a source):
 //! - `↑`/`↓` - Navigate menu items
-//! - `Space`/`Enter` - Select item
+//! - `Enter` - Pick Source / Quit
+//!
+//! **Main Menu** (after picking - capture auto-starts):
+//! - `↑`/`↓` - Navigate menu items
+//! - `Enter` - Select (Stop/Start, Screenshot, Record, Config, Change Source, Quit)
 //! - `Esc`/`H` - Hide menu
 //!
 //! **Direct Controls** (when menu hidden):
@@ -207,14 +211,14 @@ fn main() {
     let mut vertex_builder = VertexBufferBuilder::new();
     let mut time = 0.0f32;
 
-    println!("🎮 Press SPACE to open content picker");
+    println!("🎮 Press ENTER to pick a source");
 
     // Event loop
     event_loop.run(move |event, _, control_flow| {
         autoreleasepool(|| {
             *control_flow = ControlFlow::Poll;
 
-            // Check for pending picker results - update filter if capturing, otherwise just store
+            // Check for pending picker results - auto-start capture after picking
             if let Ok(mut pending) = pending_picker.try_lock() {
                 if let Some((filter, width, height, source)) = pending.take() {
                     println!(
@@ -234,8 +238,23 @@ fn main() {
                                 Err(e) => eprintln!("❌ Failed to update source: {e:?}"),
                             }
                         }
+                        current_filter = Some(filter);
+                    } else {
+                        // Auto-start capture after picking
+                        current_filter = Some(filter);
+                        start_capture(
+                            &mut stream,
+                            current_filter.as_ref(),
+                            capture_size,
+                            &stream_config,
+                            &capture_state,
+                            &capturing,
+                            false,
+                        );
                     }
-                    current_filter = Some(filter);
+
+                    // Switch to full menu mode
+                    overlay.switch_to_full_menu();
                 }
             }
 
@@ -265,6 +284,7 @@ fn main() {
                         let show_any_config = overlay.show_config;
 
                         if overlay.show_help && !show_any_config {
+                            let menu_items = overlay.menu_items();
                             match keycode {
                                 VirtualKeyCode::Up => {
                                     if overlay.menu_selection > 0 {
@@ -272,38 +292,37 @@ fn main() {
                                         println!(
                                             "⬆️  Menu selection: {} ({})",
                                             overlay.menu_selection,
-                                            OverlayState::MENU_ITEMS[overlay.menu_selection]
+                                            menu_items[overlay.menu_selection]
                                         );
                                     }
                                 }
                                 VirtualKeyCode::Down => {
-                                    let max = OverlayState::menu_count().saturating_sub(1);
+                                    let max = overlay.menu_count().saturating_sub(1);
                                     if overlay.menu_selection < max {
                                         overlay.menu_selection += 1;
                                         println!(
                                             "⬇️  Menu selection: {} ({})",
                                             overlay.menu_selection,
-                                            OverlayState::MENU_ITEMS[overlay.menu_selection]
+                                            menu_items[overlay.menu_selection]
                                         );
                                     }
                                 }
                                 VirtualKeyCode::Return | VirtualKeyCode::Space => {
-                                    match overlay.menu_selection {
-                                        0 => {
-                                            // Picker
+                                    let selected_item = menu_items[overlay.menu_selection];
+                                    match selected_item {
+                                        "Pick Source" | "Change Source" => {
+                                            // Open picker
                                             if let Some(ref s) = stream {
                                                 open_picker_for_stream(&pending_picker, s);
                                             } else {
                                                 open_picker(&pending_picker);
                                             }
                                         }
-                                        1 => {
-                                            // Capture start/stop (works with or without source)
+                                        "Capture" => {
+                                            // Toggle capture
                                             if capturing.load(Ordering::Relaxed) {
                                                 stop_capture(&mut stream, &capturing);
                                             } else {
-                                                // If we have a filter, use it; otherwise capture mic-only
-                                                let mic_only = current_filter.is_none();
                                                 start_capture(
                                                     &mut stream,
                                                     current_filter.as_ref(),
@@ -311,63 +330,51 @@ fn main() {
                                                     &stream_config,
                                                     &capture_state,
                                                     &capturing,
-                                                    mic_only,
+                                                    false,
                                                 );
                                             }
                                         }
-                                        2 => {
-                                            // Screenshot
+                                        "Screenshot" => {
                                             if let Some(ref filter) = current_filter {
                                                 take_screenshot(filter, capture_size, &stream_config);
                                             } else {
-                                                println!("⚠️  Select a source first with Picker");
+                                                println!("⚠️  Select a source first");
                                             }
                                         }
-                                        3 => {
-                                            // Record (macOS 15.0+)
+                                        "Record" => {
                                             #[cfg(feature = "macos_15_0")]
                                             {
                                                 if recording_state.is_active() {
-                                                    // Stop recording
                                                     if let Some(ref s) = stream {
                                                         recording_state.stop(s);
                                                     }
-                                                } else if current_filter.is_some() && stream.is_some() {
-                                                    // Start recording - requires active capture
+                                                } else if stream.is_some() {
                                                     if let Some(ref s) = stream {
                                                         if let Err(e) = recording_state.start(s, &recording_config) {
                                                             eprintln!("❌ {e}");
                                                         }
                                                     }
                                                 } else {
-                                                    println!("⚠️  Start capture first (Picker then Capture), then Record");
+                                                    println!("⚠️  Start capture first");
                                                 }
                                             }
                                             #[cfg(not(feature = "macos_15_0"))]
                                             {
-                                                println!("⚠️  Recording requires macOS 15.0+ (macos_15_0 feature)");
+                                                println!("⚠️  Recording requires macOS 15.0+");
                                             }
                                         }
-                                        4 => {
-                                            // Config
+                                        "Config" => {
                                             overlay.show_config = true;
                                             overlay.show_help = false;
                                         }
-                                        5 => {
-                                            // Recording Config (macOS 15.0+) or Quit
+                                        "Rec Config" => {
                                             #[cfg(feature = "macos_15_0")]
                                             {
                                                 overlay.show_recording_config = true;
                                                 overlay.show_help = false;
                                             }
-                                            #[cfg(not(feature = "macos_15_0"))]
-                                            {
-                                                *control_flow = ControlFlow::ExitWithCode(0);
-                                            }
                                         }
-                                        #[cfg(feature = "macos_15_0")]
-                                        6 => {
-                                            // Quit
+                                        "Quit" => {
                                             *control_flow = ControlFlow::ExitWithCode(0);
                                         }
                                         _ => {}
@@ -752,6 +759,7 @@ fn main() {
                             recording.load(Ordering::Relaxed),
                             &source_str,
                             overlay.menu_selection,
+                            overlay.menu_items(),
                         );
                     }
 

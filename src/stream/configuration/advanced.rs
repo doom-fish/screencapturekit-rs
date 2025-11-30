@@ -16,44 +16,14 @@ pub enum SCPresenterOverlayAlertSetting {
 }
 
 impl SCStreamConfiguration {
-    /// Sets the ignore fraction of screen for this [`SCStreamConfiguration`].
-    ///
-    /// Specifies the percentage of the content filter that the stream omits from the captured image.
-    /// Available on macOS 14.2+
-    ///
-    /// Requires the `macos_14_2` feature flag to be enabled.
-    #[cfg(feature = "macos_14_2")]
-    pub fn set_ignore_fraction_of_screen(&mut self, ignore_fraction: f64) -> &mut Self {
-        unsafe {
-            crate::ffi::sc_stream_configuration_set_ignore_fraction_of_screen(
-                self.as_ptr(),
-                ignore_fraction,
-            );
-        }
-        self
-    }
-
-    /// Sets the ignore fraction of screen (builder pattern)
-    #[cfg(feature = "macos_14_2")]
-    #[must_use]
-    pub fn with_ignore_fraction_of_screen(mut self, ignore_fraction: f64) -> Self {
-        self.set_ignore_fraction_of_screen(ignore_fraction);
-        self
-    }
-
-    #[cfg(feature = "macos_14_2")]
-    pub fn ignore_fraction_of_screen(&self) -> f64 {
-        unsafe { crate::ffi::sc_stream_configuration_get_ignore_fraction_of_screen(self.as_ptr()) }
-    }
-
     /// Sets whether to ignore shadows for single window capture.
     ///
     /// A Boolean value that indicates whether the stream omits the shadow effects
     /// of the windows it captures.
-    /// Available on macOS 14.2+
+    /// Available on macOS 14.0+
     ///
-    /// Requires the `macos_14_2` feature flag to be enabled.
-    #[cfg(feature = "macos_14_2")]
+    /// Requires the `macos_14_0` feature flag to be enabled.
+    #[cfg(feature = "macos_14_0")]
     pub fn set_ignores_shadows_single_window(&mut self, ignores_shadows: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_ignores_shadows_single_window(
@@ -65,14 +35,14 @@ impl SCStreamConfiguration {
     }
 
     /// Sets whether to ignore shadows for single window capture (builder pattern)
-    #[cfg(feature = "macos_14_2")]
+    #[cfg(feature = "macos_14_0")]
     #[must_use]
     pub fn with_ignores_shadows_single_window(mut self, ignores_shadows: bool) -> Self {
         self.set_ignores_shadows_single_window(ignores_shadows);
         self
     }
 
-    #[cfg(feature = "macos_14_2")]
+    #[cfg(feature = "macos_14_0")]
     pub fn ignores_shadows_single_window(&self) -> bool {
         unsafe {
             crate::ffi::sc_stream_configuration_get_ignores_shadows_single_window(self.as_ptr())
@@ -183,35 +153,6 @@ impl SCStreamConfiguration {
             2 => SCPresenterOverlayAlertSetting::Always,
             _ => SCPresenterOverlayAlertSetting::System,
         }
-    }
-
-    /// Sets whether to ignore the global clipboard when capturing.
-    ///
-    /// Available on macOS 14.0+
-    ///
-    /// Requires the `macos_14_0` feature flag to be enabled.
-    #[cfg(feature = "macos_14_0")]
-    pub fn set_ignore_global_clipboard(&mut self, ignore_global_clipboard: bool) -> &mut Self {
-        unsafe {
-            crate::ffi::sc_stream_configuration_set_ignore_global_clipboard(
-                self.as_ptr(),
-                ignore_global_clipboard,
-            );
-        }
-        self
-    }
-
-    /// Sets whether to ignore the global clipboard (builder pattern)
-    #[cfg(feature = "macos_14_0")]
-    #[must_use]
-    pub fn with_ignore_global_clipboard(mut self, ignore_global_clipboard: bool) -> Self {
-        self.set_ignore_global_clipboard(ignore_global_clipboard);
-        self
-    }
-
-    #[cfg(feature = "macos_14_0")]
-    pub fn ignore_global_clipboard(&self) -> bool {
-        unsafe { crate::ffi::sc_stream_configuration_get_ignore_global_clipboard(self.as_ptr()) }
     }
 
     /// Sets whether to ignore shadow display configuration.

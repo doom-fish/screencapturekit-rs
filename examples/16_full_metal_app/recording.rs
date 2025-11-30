@@ -2,8 +2,8 @@
 
 #[cfg(feature = "macos_15_0")]
 use screencapturekit::recording_output::{
-    RecordingCallbacks, SCRecordingOutput, SCRecordingOutputCodec,
-    SCRecordingOutputConfiguration, SCRecordingOutputFileType,
+    RecordingCallbacks, SCRecordingOutput, SCRecordingOutputCodec, SCRecordingOutputConfiguration,
+    SCRecordingOutputFileType,
 };
 #[cfg(feature = "macos_15_0")]
 use screencapturekit::stream::sc_stream::SCStream;
@@ -170,7 +170,7 @@ impl RecordingState {
         if let Some(ref p) = path {
             // Small delay to ensure file is fully written
             std::thread::sleep(std::time::Duration::from_millis(100));
-            
+
             if std::path::Path::new(p).exists() {
                 println!("✅ Recording saved: {p}");
                 let _ = std::process::Command::new("open").arg(p).spawn();

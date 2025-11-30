@@ -296,25 +296,16 @@ fn test_builder_advanced_options() {
     use screencapturekit::stream::configuration::SCPresenterOverlayAlertSetting;
 
     let config = SCStreamConfiguration::new()
-        .with_ignore_fraction_of_screen(0.1)
         .with_ignores_shadows_single_window(true)
         .with_should_be_opaque(false)
         .with_includes_child_windows(true)
         .with_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Never);
 
     // Verify setters worked (getters may return defaults on older macOS)
-    let _ = config.ignore_fraction_of_screen();
     let _ = config.ignores_shadows_single_window();
     let _ = config.should_be_opaque();
     let _ = config.includes_child_windows();
     let _ = config.presenter_overlay_privacy_alert_setting();
-}
-
-#[test]
-#[cfg(feature = "macos_14_0")]
-fn test_builder_ignore_global_clipboard() {
-    let config = SCStreamConfiguration::new().with_ignore_global_clipboard(true);
-    let _ = config.ignore_global_clipboard();
 }
 
 #[test]

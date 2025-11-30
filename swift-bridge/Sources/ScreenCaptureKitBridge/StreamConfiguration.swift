@@ -261,12 +261,6 @@ public func getStreamConfigurationPreserveAspectRatio(_ config: OpaquePointer) -
     getStreamConfigurationPreservesAspectRatio(config)
 }
 
-@_cdecl("sc_stream_configuration_set_ignore_global_clipboard")
-public func setStreamConfigurationIgnoreGlobalClipboard(_: OpaquePointer, _: Bool) {}
-
-@_cdecl("sc_stream_configuration_get_ignore_global_clipboard")
-public func getStreamConfigurationIgnoreGlobalClipboard(_: OpaquePointer) -> Bool { false }
-
 @_cdecl("sc_stream_configuration_set_capture_resolution_type")
 public func setStreamConfigurationCaptureResolutionType(_ config: OpaquePointer, _ resolution: Int32) {
     if #available(macOS 14.0, *) {
@@ -310,18 +304,6 @@ public func getStreamConfigurationColorMatrix(_ config: OpaquePointer, _ buffer:
         return true
     }
 }
-
-@_cdecl("sc_stream_configuration_set_increase_resolution_for_retina_displays")
-public func setStreamConfigurationIncreaseResolutionForRetinaDisplays(_: OpaquePointer, _: Bool) {}
-
-@_cdecl("sc_stream_configuration_get_increase_resolution_for_retina_displays")
-public func getStreamConfigurationIncreaseResolutionForRetinaDisplays(_: OpaquePointer) -> Bool { false }
-
-@_cdecl("sc_stream_configuration_set_ignore_fraction_of_screen")
-public func setStreamConfigurationIgnoreFractionOfScreen(_: OpaquePointer, _: Double) {}
-
-@_cdecl("sc_stream_configuration_get_ignore_fraction_of_screen")
-public func getStreamConfigurationIgnoreFractionOfScreen(_: OpaquePointer) -> Double { 0.0 }
 
 @_cdecl("sc_stream_configuration_set_ignores_shadows_single_window")
 public func setStreamConfigurationIgnoresShadowsSingleWindow(_ config: OpaquePointer, _ ignoresShadows: Bool) {
