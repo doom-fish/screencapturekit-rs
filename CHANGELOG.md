@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Memory Leak Example** - `15_memory_leak_check.rs` for comprehensive memory leak testing with `leaks`
+- **New Examples** - `12_stream_updates.rs`, `13_advanced_config.rs`, `14_app_capture.rs`
+- **Batch FFI Retrieval** - Optimized batch retrieval functions for displays, windows, and applications
+- **Comprehensive Memory Tests** - Tests covering audio, microphone, filters, and all content types
+
+### Changed
+
+- **Input Module** - Extracted input handling from metal_overlay to reusable module
+- **Swift FFI Boundary** - Moved parsing/validation logic to Swift side for cleaner Rust code
+- **Owned Strings** - Changed FFI string functions to return owned strings where appropriate
+
+### Fixed
+
+- Memory leak fixes in stream lifecycle and content filter creation
+- Removed dead code and stub implementations
+- Fixed clippy warnings across codebase
+- Corrected non-existent API method calls
+
 ## [1.2.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.1.0...v1.2.0) - 2025-11-28
 
 ### Added
