@@ -456,12 +456,17 @@ fn check_for_leaks() -> LeakResult {
         return LeakResult::NoLeaks;
     }
 
-    // Parse leak count from output like "56 leaks for 2688 total leaked bytes"
+    // Parse leak count from output like "Process 21326: 56 leaks for 2688 total leaked bytes"
     let leak_count = stdout
         .lines()
         .find(|line| line.contains("leaks for") && line.contains("total leaked bytes"))
-        .and_then(|line| line.split_whitespace().next())
-        .and_then(|s| s.parse::<usize>().ok())
+        .and_then(|line| {
+            // Find the number before "leaks for"
+            line.split("leaks for")
+                .next()
+                .and_then(|prefix| prefix.split_whitespace().last())
+                .and_then(|s| s.parse::<usize>().ok())
+        })
         .unwrap_or(0);
 
     // Check if all leaks are from Apple frameworks (not our code)
