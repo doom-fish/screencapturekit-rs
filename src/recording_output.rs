@@ -229,6 +229,49 @@ impl std::fmt::Debug for SCRecordingOutputConfiguration {
 /// Delegate for recording output events
 ///
 /// Implement this trait to receive notifications about recording lifecycle events.
+///
+/// # Examples
+///
+/// ## Using a struct
+///
+/// ```
+/// use screencapturekit::recording_output::SCRecordingOutputDelegate;
+///
+/// struct MyRecordingDelegate;
+///
+/// impl SCRecordingOutputDelegate for MyRecordingDelegate {
+///     fn recording_did_start(&self) {
+///         println!("Recording started!");
+///     }
+///     fn recording_did_fail(&self, error: String) {
+///         eprintln!("Recording failed: {}", error);
+///     }
+///     fn recording_did_finish(&self) {
+///         println!("Recording finished!");
+///     }
+/// }
+/// ```
+///
+/// ## Using closures
+///
+/// Use [`RecordingCallbacks`] to create a delegate from closures:
+///
+/// ```rust,no_run
+/// use screencapturekit::recording_output::{
+///     SCRecordingOutput, SCRecordingOutputConfiguration, RecordingCallbacks
+/// };
+/// use std::path::Path;
+///
+/// let config = SCRecordingOutputConfiguration::new()
+///     .with_output_url(Path::new("/tmp/recording.mp4"));
+///
+/// let delegate = RecordingCallbacks::new()
+///     .on_start(|| println!("Started!"))
+///     .on_finish(|| println!("Finished!"))
+///     .on_fail(|e| eprintln!("Error: {}", e));
+///
+/// let recording = SCRecordingOutput::new_with_delegate(&config, delegate);
+/// ```
 pub trait SCRecordingOutputDelegate: Send + 'static {
     /// Called when recording starts successfully
     fn recording_did_start(&self) {}
@@ -238,11 +281,157 @@ pub trait SCRecordingOutputDelegate: Send + 'static {
     fn recording_did_finish(&self) {}
 }
 
+/// Builder for closure-based recording delegate
+///
+/// Provides a convenient way to create a recording delegate using closures
+/// instead of implementing the [`SCRecordingOutputDelegate`] trait.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use screencapturekit::recording_output::{
+///     SCRecordingOutput, SCRecordingOutputConfiguration, RecordingCallbacks
+/// };
+/// use std::path::Path;
+///
+/// let config = SCRecordingOutputConfiguration::new()
+///     .with_output_url(Path::new("/tmp/recording.mp4"));
+///
+/// // Create delegate with all callbacks
+/// let delegate = RecordingCallbacks::new()
+///     .on_start(|| println!("Recording started!"))
+///     .on_finish(|| println!("Recording finished!"))
+///     .on_fail(|error| eprintln!("Recording failed: {}", error));
+///
+/// let recording = SCRecordingOutput::new_with_delegate(&config, delegate);
+///
+/// // Or just handle specific events
+/// let delegate = RecordingCallbacks::new()
+///     .on_fail(|error| eprintln!("Error: {}", error));
+/// ```
+pub struct RecordingCallbacks {
+    on_start: Option<Box<dyn Fn() + Send + 'static>>,
+    on_fail: Option<Box<dyn Fn(String) + Send + 'static>>,
+    on_finish: Option<Box<dyn Fn() + Send + 'static>>,
+}
+
+impl RecordingCallbacks {
+    /// Create a new empty callbacks builder
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            on_start: None,
+            on_fail: None,
+            on_finish: None,
+        }
+    }
+
+    /// Set the callback for when recording starts
+    #[must_use]
+    pub fn on_start<F>(mut self, f: F) -> Self
+    where
+        F: Fn() + Send + 'static,
+    {
+        self.on_start = Some(Box::new(f));
+        self
+    }
+
+    /// Set the callback for when recording fails
+    #[must_use]
+    pub fn on_fail<F>(mut self, f: F) -> Self
+    where
+        F: Fn(String) + Send + 'static,
+    {
+        self.on_fail = Some(Box::new(f));
+        self
+    }
+
+    /// Set the callback for when recording finishes
+    #[must_use]
+    pub fn on_finish<F>(mut self, f: F) -> Self
+    where
+        F: Fn() + Send + 'static,
+    {
+        self.on_finish = Some(Box::new(f));
+        self
+    }
+}
+
+impl Default for RecordingCallbacks {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SCRecordingOutputDelegate for RecordingCallbacks {
+    fn recording_did_start(&self) {
+        if let Some(ref f) = self.on_start {
+            f();
+        }
+    }
+
+    fn recording_did_fail(&self, error: String) {
+        if let Some(ref f) = self.on_fail {
+            f(error);
+        }
+    }
+
+    fn recording_did_finish(&self) {
+        if let Some(ref f) = self.on_finish {
+            f();
+        }
+    }
+}
+
 /// Recording output for direct video file encoding
 ///
 /// Available on macOS 15.0+
 pub struct SCRecordingOutput {
     ptr: *const c_void,
+    /// Raw pointer to the delegate box, kept alive for the lifetime of the recording output.
+    /// The Swift side uses this pointer for callbacks.
+    delegate_ptr: Option<*mut Box<dyn SCRecordingOutputDelegate>>,
+}
+
+// C callback trampolines for delegate
+extern "C" fn recording_started_callback(ctx: *mut c_void) {
+    if !ctx.is_null() {
+        let delegate = unsafe { &**(ctx as *const Box<dyn SCRecordingOutputDelegate>) };
+        delegate.recording_did_start();
+    }
+}
+
+extern "C" fn recording_failed_callback(ctx: *mut c_void, error_code: i32, error: *const i8) {
+    if !ctx.is_null() {
+        let delegate = unsafe { &**(ctx as *const Box<dyn SCRecordingOutputDelegate>) };
+        let error_str = if error.is_null() {
+            String::from("Unknown error")
+        } else {
+            unsafe { std::ffi::CStr::from_ptr(error) }
+                .to_string_lossy()
+                .into_owned()
+        };
+        
+        // Include error code in the message if it's a known SCStreamError
+        let full_error = if error_code != 0 {
+            if let Some(code) = crate::error::SCStreamErrorCode::from_raw(error_code) {
+                format!("{} ({})", error_str, code)
+            } else {
+                format!("{} (code: {})", error_str, error_code)
+            }
+        } else {
+            error_str
+        };
+        
+        delegate.recording_did_fail(full_error);
+    }
+}
+
+extern "C" fn recording_finished_callback(ctx: *mut c_void) {
+    if !ctx.is_null() {
+        let delegate = unsafe { &**(ctx as *const Box<dyn SCRecordingOutputDelegate>) };
+        delegate.recording_did_finish();
+    }
 }
 
 impl SCRecordingOutput {
@@ -255,7 +444,53 @@ impl SCRecordingOutput {
         if ptr.is_null() {
             None
         } else {
-            Some(Self { ptr })
+            Some(Self {
+                ptr,
+                delegate_ptr: None,
+            })
+        }
+    }
+
+    /// Create a new recording output with configuration and delegate
+    ///
+    /// The delegate receives callbacks for recording lifecycle events:
+    /// - `recording_did_start` - Called when recording begins
+    /// - `recording_did_fail` - Called if recording fails with an error
+    /// - `recording_did_finish` - Called when recording completes successfully
+    ///
+    /// # Errors
+    /// Returns None if the system is not macOS 15.0+ or creation fails
+    pub fn new_with_delegate<D: SCRecordingOutputDelegate>(
+        config: &SCRecordingOutputConfiguration,
+        delegate: D,
+    ) -> Option<Self> {
+        let boxed_delegate: Box<dyn SCRecordingOutputDelegate> = Box::new(delegate);
+        // We need a stable pointer to the Box itself, so we box the box
+        let boxed_box = Box::new(boxed_delegate);
+        let raw_ptr = Box::into_raw(boxed_box);
+        let ctx = raw_ptr as *mut c_void;
+
+        let ptr = unsafe {
+            crate::ffi::sc_recording_output_create_with_delegate(
+                config.as_ptr(),
+                Some(recording_started_callback),
+                Some(recording_failed_callback),
+                Some(recording_finished_callback),
+                ctx,
+            )
+        };
+        if ptr.is_null() {
+            // Clean up the leaked box on failure
+            unsafe {
+                let _ = Box::from_raw(raw_ptr);
+            }
+            None
+        } else {
+            // Keep the raw pointer so we can clean it up on drop
+            Some(Self {
+                ptr,
+                delegate_ptr: Some(raw_ptr),
+            })
         }
     }
 
@@ -294,6 +529,7 @@ impl Clone for SCRecordingOutput {
         unsafe {
             Self {
                 ptr: crate::ffi::sc_recording_output_retain(self.ptr),
+                delegate_ptr: None, // Delegate is not cloned - only one owner
             }
         }
     }
@@ -301,6 +537,12 @@ impl Clone for SCRecordingOutput {
 
 impl Drop for SCRecordingOutput {
     fn drop(&mut self) {
+        // Clean up the delegate if we own it
+        if let Some(delegate_ptr) = self.delegate_ptr.take() {
+            unsafe {
+                let _ = Box::from_raw(delegate_ptr);
+            }
+        }
         if !self.ptr.is_null() {
             unsafe {
                 crate::ffi::sc_recording_output_release(self.ptr);
