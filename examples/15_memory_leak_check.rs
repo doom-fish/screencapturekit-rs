@@ -182,8 +182,11 @@ fn main() {
         LeakResult::NoLeaks => {
             println!("✅ No memory leaks detected!");
         }
-        LeakResult::AppleFrameworkLeaksOnly => {
-            println!("✅ No leaks in our code (Apple framework leaks detected but ignored)");
+        LeakResult::AppleFrameworkLeaksOnly(count) => {
+            println!("❌ Apple framework leaks detected: {count} leaks");
+            println!("   These are bugs in Apple's ScreenCaptureKit, not our code.");
+            println!("   However, we fail the test to track which platforms have this issue.");
+            std::process::exit(1);
         }
         LeakResult::LeaksDetected(details) => {
             println!("❌ Memory leaks detected in our code!");
@@ -416,7 +419,7 @@ fn test_configuration_variations() {
 
 enum LeakResult {
     NoLeaks,
-    AppleFrameworkLeaksOnly,
+    AppleFrameworkLeaksOnly(usize),
     LeaksDetected(String),
     NotDebuggable,
     Error(String),
@@ -454,6 +457,14 @@ fn check_for_leaks() -> LeakResult {
         return LeakResult::NoLeaks;
     }
 
+    // Parse leak count from output like "56 leaks for 2688 total leaked bytes"
+    let leak_count = stdout
+        .lines()
+        .find(|line| line.contains("leaks for") && line.contains("total leaked bytes"))
+        .and_then(|line| line.split_whitespace().next())
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(0);
+
     // Check if all leaks are from Apple frameworks (not our code)
     let apple_framework_leaks = stdout.contains("CMCapture")
         || stdout.contains("FigRemoteOperationReceiver")
@@ -464,7 +475,7 @@ fn check_for_leaks() -> LeakResult {
     let our_code_leaks = stdout.contains("screencapturekit");
 
     if apple_framework_leaks && !our_code_leaks {
-        return LeakResult::AppleFrameworkLeaksOnly;
+        return LeakResult::AppleFrameworkLeaksOnly(leak_count);
     }
 
     LeakResult::LeaksDetected(stdout.to_string())
