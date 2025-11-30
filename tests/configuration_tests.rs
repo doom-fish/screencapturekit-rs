@@ -461,25 +461,3 @@ fn test_preserves_aspect_ratio_builder() {
     assert!(config.preserves_aspect_ratio());
 }
 
-#[test]
-#[cfg(feature = "macos_14_0")]
-fn test_capture_resolution() {
-    let mut config = SCStreamConfiguration::default();
-    
-    // Test setting capture resolution
-    config.set_capture_resolution(1920, 1080);
-    let (width, height) = config.capture_resolution();
-    
-    // Note: The actual values may differ based on implementation
-    println!("Capture resolution: {}x{}", width, height);
-}
-
-#[test]
-#[cfg(feature = "macos_14_0")]
-fn test_capture_resolution_builder() {
-    let config = SCStreamConfiguration::new()
-        .with_capture_resolution(3840, 2160);
-    
-    let (width, height) = config.capture_resolution();
-    println!("Capture resolution (builder): {}x{}", width, height);
-}

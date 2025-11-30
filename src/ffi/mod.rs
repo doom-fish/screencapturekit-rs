@@ -247,17 +247,6 @@ extern "C" {
     pub fn sc_stream_configuration_set_ignore_global_clipboard(config: *const c_void, ignore: bool);
     pub fn sc_stream_configuration_get_ignore_global_clipboard(config: *const c_void) -> bool;
 
-    pub fn sc_stream_configuration_set_capture_resolution(
-        config: *const c_void,
-        width: isize,
-        height: isize,
-    );
-    pub fn sc_stream_configuration_get_capture_resolution(
-        config: *const c_void,
-        width: *mut isize,
-        height: *mut isize,
-    );
-
     // macOS 14.0+ - capture resolution type
     pub fn sc_stream_configuration_set_capture_resolution_type(config: *const c_void, value: i32);
     pub fn sc_stream_configuration_get_capture_resolution_type(config: *const c_void) -> i32;
