@@ -117,7 +117,7 @@ impl SCStreamOutputTrait for SharedHandler {
 fn main() {
     // Initialize CoreGraphics first
     init_cg();
-    
+
     println!("🔍 Memory Leak Detection Test");
     println!("==============================\n");
 
