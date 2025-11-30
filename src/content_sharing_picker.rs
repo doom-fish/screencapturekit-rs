@@ -104,6 +104,106 @@ impl SCContentSharingPickerConfiguration {
         }
     }
 
+    /// Set whether the user can change the selected content while sharing
+    ///
+    /// When `true`, the user can modify their selection during an active session.
+    pub fn set_allows_changing_selected_content(&mut self, allows: bool) {
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_configuration_set_allows_changing_selected_content(
+                self.ptr,
+                allows,
+            );
+        }
+    }
+
+    /// Get whether changing selected content is allowed
+    pub fn allows_changing_selected_content(&self) -> bool {
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_configuration_get_allows_changing_selected_content(
+                self.ptr,
+            )
+        }
+    }
+
+    /// Set bundle identifiers to exclude from the picker
+    ///
+    /// Applications with these bundle IDs will not appear in the picker.
+    pub fn set_excluded_bundle_ids(&mut self, bundle_ids: &[&str]) {
+        let c_strings: Vec<std::ffi::CString> = bundle_ids
+            .iter()
+            .filter_map(|s| std::ffi::CString::new(*s).ok())
+            .collect();
+        let ptrs: Vec<*const i8> = c_strings.iter().map(|s| s.as_ptr()).collect();
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_configuration_set_excluded_bundle_ids(
+                self.ptr,
+                ptrs.as_ptr(),
+                ptrs.len(),
+            );
+        }
+    }
+
+    /// Get the list of excluded bundle identifiers
+    pub fn excluded_bundle_ids(&self) -> Vec<String> {
+        let count = unsafe {
+            crate::ffi::sc_content_sharing_picker_configuration_get_excluded_bundle_ids_count(
+                self.ptr,
+            )
+        };
+        let mut result = Vec::with_capacity(count);
+        for i in 0..count {
+            let mut buffer = vec![0i8; 256];
+            let success = unsafe {
+                crate::ffi::sc_content_sharing_picker_configuration_get_excluded_bundle_id_at(
+                    self.ptr,
+                    i,
+                    buffer.as_mut_ptr(),
+                    buffer.len(),
+                )
+            };
+            if success {
+                let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
+                if let Ok(s) = c_str.to_str() {
+                    result.push(s.to_string());
+                }
+            }
+        }
+        result
+    }
+
+    /// Set window IDs to exclude from the picker
+    ///
+    /// Windows with these IDs will not appear in the picker.
+    pub fn set_excluded_window_ids(&mut self, window_ids: &[u32]) {
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_configuration_set_excluded_window_ids(
+                self.ptr,
+                window_ids.as_ptr(),
+                window_ids.len(),
+            );
+        }
+    }
+
+    /// Get the list of excluded window IDs
+    pub fn excluded_window_ids(&self) -> Vec<u32> {
+        let count = unsafe {
+            crate::ffi::sc_content_sharing_picker_configuration_get_excluded_window_ids_count(
+                self.ptr,
+            )
+        };
+        let mut result = Vec::with_capacity(count);
+        for i in 0..count {
+            let id = unsafe {
+                crate::ffi::sc_content_sharing_picker_configuration_get_excluded_window_id_at(
+                    self.ptr,
+                    i,
+                )
+            };
+            result.push(id);
+        }
+        result
+    }
+
     #[must_use]
     pub const fn as_ptr(&self) -> *const c_void {
         self.ptr
@@ -478,7 +578,7 @@ impl SCContentSharingPicker {
 
     /// Show the picker UI for an existing stream (to change source while capturing)
     ///
-    /// Use this when you have an active SCStream and want to let the user
+    /// Use this when you have an active `SCStream` and want to let the user
     /// select a new content source. The callback receives the new filter
     /// which can be used with `stream.update_content_filter()`.
     ///
@@ -543,6 +643,79 @@ impl SCContentSharingPicker {
                 context,
             );
         }
+    }
+
+    /// Show the picker UI with a specific content style
+    ///
+    /// Presents the picker pre-filtered to a specific content type.
+    ///
+    /// # Arguments
+    /// * `config` - The picker configuration
+    /// * `style` - The content style to show (Window, Display, Application)
+    /// * `callback` - Called with the picker result
+    pub fn show_using_style<F>(
+        config: &SCContentSharingPickerConfiguration,
+        style: crate::stream::content_filter::SCShareableContentStyle,
+        callback: F,
+    ) where
+        F: FnOnce(SCPickerOutcome) + Send + 'static,
+    {
+        let callback = Box::new(callback);
+        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
+
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_show_using_style(
+                config.as_ptr(),
+                style as i32,
+                picker_callback_boxed::<F>,
+                context,
+            );
+        }
+    }
+
+    /// Show the picker for an existing stream with a specific content style
+    ///
+    /// # Arguments
+    /// * `config` - The picker configuration
+    /// * `stream` - The stream to update
+    /// * `style` - The content style to show (Window, Display, Application)
+    /// * `callback` - Called with the picker result
+    pub fn show_for_stream_using_style<F>(
+        config: &SCContentSharingPickerConfiguration,
+        stream: &crate::stream::SCStream,
+        style: crate::stream::content_filter::SCShareableContentStyle,
+        callback: F,
+    ) where
+        F: FnOnce(SCPickerOutcome) + Send + 'static,
+    {
+        let callback = Box::new(callback);
+        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
+
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_show_for_stream_using_style(
+                config.as_ptr(),
+                stream.as_ptr(),
+                style as i32,
+                picker_callback_boxed::<F>,
+                context,
+            );
+        }
+    }
+
+    /// Set the maximum number of streams that can be created from the picker
+    ///
+    /// Pass 0 to allow unlimited streams.
+    pub fn set_maximum_stream_count(count: usize) {
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_set_maximum_stream_count(count);
+        }
+    }
+
+    /// Get the maximum number of streams allowed
+    ///
+    /// Returns 0 if unlimited streams are allowed.
+    pub fn maximum_stream_count() -> usize {
+        unsafe { crate::ffi::sc_content_sharing_picker_get_maximum_stream_count() }
     }
 }
 
