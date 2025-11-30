@@ -93,7 +93,7 @@ impl AsyncSCShareableContent {
     /// - Screen recording permission is not granted
     /// - The system fails to retrieve shareable content
     pub fn get() -> AsyncShareableContentFuture {
-        Self::with_options().get_async()
+        Self::with_options().get()
     }
 
     /// Create options builder for customizing shareable content retrieval
@@ -126,7 +126,7 @@ impl AsyncSCShareableContentOptions {
     }
 
     /// Asynchronously get the shareable content with these options
-    pub fn get_async(self) -> AsyncShareableContentFuture {
+    pub fn get(self) -> AsyncShareableContentFuture {
         let (future, context) = AsyncCompletion::create();
 
         unsafe {
@@ -522,6 +522,126 @@ impl AsyncSCScreenshotManager {
 
         AsyncScreenshotFuture { inner: future }
     }
+
+    /// Capture a screenshot of a specific screen region asynchronously (macOS 15.2+)
+    ///
+    /// This method captures the content within the specified rectangle,
+    /// which can span multiple displays.
+    ///
+    /// # Arguments
+    /// * `rect` - The rectangle to capture, in screen coordinates (points)
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - The system is not macOS 15.2+
+    /// - Screen recording permission is not granted
+    /// - The capture fails for any reason
+    #[cfg(feature = "macos_15_2")]
+    pub fn capture_image_in_rect(
+        rect: crate::cg::CGRect,
+    ) -> AsyncScreenshotFuture<crate::screenshot_manager::CGImage> {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_screenshot_manager_capture_image_in_rect(
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                screenshot_image_callback,
+                context,
+            );
+        }
+
+        AsyncScreenshotFuture { inner: future }
+    }
+
+    /// Capture a screenshot with advanced configuration asynchronously (macOS 26.0+)
+    ///
+    /// This method uses the new `SCScreenshotConfiguration` for more control
+    /// over the screenshot output, including HDR support and file saving.
+    ///
+    /// # Arguments
+    /// * `content_filter` - The content filter specifying what to capture
+    /// * `configuration` - The screenshot configuration
+    ///
+    /// # Errors
+    /// Returns an error if the capture fails
+    #[cfg(feature = "macos_26_0")]
+    pub fn capture_screenshot(
+        content_filter: &crate::stream::content_filter::SCContentFilter,
+        configuration: &crate::screenshot_manager::SCScreenshotConfiguration,
+    ) -> AsyncScreenshotFuture<crate::screenshot_manager::SCScreenshotOutput> {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_screenshot_manager_capture_screenshot(
+                content_filter.as_ptr(),
+                configuration.as_ptr(),
+                screenshot_output_callback,
+                context,
+            );
+        }
+
+        AsyncScreenshotFuture { inner: future }
+    }
+
+    /// Capture a screenshot of a specific region with advanced configuration asynchronously (macOS 26.0+)
+    ///
+    /// # Arguments
+    /// * `rect` - The rectangle to capture, in screen coordinates (points)
+    /// * `configuration` - The screenshot configuration
+    ///
+    /// # Errors
+    /// Returns an error if the capture fails
+    #[cfg(feature = "macos_26_0")]
+    pub fn capture_screenshot_in_rect(
+        rect: crate::cg::CGRect,
+        configuration: &crate::screenshot_manager::SCScreenshotConfiguration,
+    ) -> AsyncScreenshotFuture<crate::screenshot_manager::SCScreenshotOutput> {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_screenshot_manager_capture_screenshot_in_rect(
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                configuration.as_ptr(),
+                screenshot_output_callback,
+                context,
+            );
+        }
+
+        AsyncScreenshotFuture { inner: future }
+    }
+}
+
+/// Callback for async `SCScreenshotOutput` capture (macOS 26.0+)
+#[cfg(feature = "macos_26_0")]
+extern "C" fn screenshot_output_callback(
+    output_ptr: *const c_void,
+    error_ptr: *const i8,
+    user_data: *mut c_void,
+) {
+    if !error_ptr.is_null() {
+        let error = unsafe { error_from_cstr(error_ptr) };
+        unsafe {
+            AsyncCompletion::<crate::screenshot_manager::SCScreenshotOutput>::complete_err(
+                user_data, error,
+            );
+        }
+    } else if !output_ptr.is_null() {
+        let output = crate::screenshot_manager::SCScreenshotOutput::from_ptr(output_ptr);
+        unsafe { AsyncCompletion::complete_ok(user_data, output) };
+    } else {
+        unsafe {
+            AsyncCompletion::<crate::screenshot_manager::SCScreenshotOutput>::complete_err(
+                user_data,
+                "Unknown error".to_string(),
+            );
+        };
+    }
 }
 
 // ============================================================================
@@ -732,5 +852,197 @@ impl AsyncSCContentSharingPicker {
         }
 
         AsyncPickerFuture { inner: future }
+    }
+}
+
+// ============================================================================
+// AsyncSCRecordingOutput - Async recording with event stream (macOS 15.0+)
+// ============================================================================
+
+/// Recording lifecycle event
+#[cfg(feature = "macos_15_0")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordingEvent {
+    /// Recording started successfully
+    Started,
+    /// Recording finished successfully
+    Finished,
+    /// Recording failed with an error
+    Failed(String),
+}
+
+#[cfg(feature = "macos_15_0")]
+struct AsyncRecordingState {
+    events: std::collections::VecDeque<RecordingEvent>,
+    waker: Option<Waker>,
+    finished: bool,
+}
+
+#[cfg(feature = "macos_15_0")]
+struct AsyncRecordingDelegate {
+    state: Arc<Mutex<AsyncRecordingState>>,
+}
+
+#[cfg(feature = "macos_15_0")]
+impl crate::recording_output::SCRecordingOutputDelegate for AsyncRecordingDelegate {
+    fn recording_did_start(&self) {
+        if let Ok(mut state) = self.state.lock() {
+            state.events.push_back(RecordingEvent::Started);
+            if let Some(waker) = state.waker.take() {
+                waker.wake();
+            }
+        }
+    }
+
+    fn recording_did_fail(&self, error: String) {
+        if let Ok(mut state) = self.state.lock() {
+            state.events.push_back(RecordingEvent::Failed(error));
+            state.finished = true;
+            if let Some(waker) = state.waker.take() {
+                waker.wake();
+            }
+        }
+    }
+
+    fn recording_did_finish(&self) {
+        if let Ok(mut state) = self.state.lock() {
+            state.events.push_back(RecordingEvent::Finished);
+            state.finished = true;
+            if let Some(waker) = state.waker.take() {
+                waker.wake();
+            }
+        }
+    }
+}
+
+/// Future for getting the next recording event
+#[cfg(feature = "macos_15_0")]
+pub struct NextRecordingEvent<'a> {
+    state: &'a Arc<Mutex<AsyncRecordingState>>,
+}
+
+#[cfg(feature = "macos_15_0")]
+impl Future for NextRecordingEvent<'_> {
+    type Output = Option<RecordingEvent>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let Ok(mut state) = self.state.lock() else {
+            return Poll::Ready(None);
+        };
+
+        if let Some(event) = state.events.pop_front() {
+            return Poll::Ready(Some(event));
+        }
+
+        if state.finished {
+            Poll::Ready(None)
+        } else {
+            state.waker = Some(cx.waker().clone());
+            Poll::Pending
+        }
+    }
+}
+
+/// Async wrapper for `SCRecordingOutput` with event stream (macOS 15.0+)
+///
+/// Provides async iteration over recording lifecycle events.
+/// **Executor-agnostic** - works with any async runtime.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCRecordingOutput, RecordingEvent};
+/// use screencapturekit::recording_output::SCRecordingOutputConfiguration;
+/// use screencapturekit::stream::{SCStream, configuration::SCStreamConfiguration, content_filter::SCContentFilter};
+/// use std::path::Path;
+///
+/// async fn record_screen() -> Result<(), Box<dyn std::error::Error>> {
+///     let content = AsyncSCShareableContent::get().await?;
+///     let display = &content.displays()[0];
+///     let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+///     let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+///
+///     let rec_config = SCRecordingOutputConfiguration::new()
+///         .with_output_url(Path::new("/tmp/recording.mp4"));
+///
+///     let (recording, events) = AsyncSCRecordingOutput::new(&rec_config)?;
+///
+///     let mut stream = SCStream::new(&filter, &config);
+///     stream.add_recording_output(&recording)?;
+///     stream.start_capture()?;
+///
+///     // Wait for recording events
+///     while let Some(event) = events.next().await {
+///         match event {
+///             RecordingEvent::Started => println!("Recording started!"),
+///             RecordingEvent::Finished => {
+///                 println!("Recording finished!");
+///                 break;
+///             }
+///             RecordingEvent::Failed(e) => {
+///                 eprintln!("Recording failed: {}", e);
+///                 break;
+///             }
+///         }
+///     }
+///
+///     Ok(())
+/// }
+/// ```
+#[cfg(feature = "macos_15_0")]
+pub struct AsyncSCRecordingOutput {
+    state: Arc<Mutex<AsyncRecordingState>>,
+}
+
+#[cfg(feature = "macos_15_0")]
+impl AsyncSCRecordingOutput {
+    /// Create a new async recording output
+    ///
+    /// Returns a tuple of (`SCRecordingOutput`, `AsyncSCRecordingOutput`).
+    /// The `SCRecordingOutput` should be added to an `SCStream`, while
+    /// the `AsyncSCRecordingOutput` provides async event iteration.
+    ///
+    /// # Errors
+    ///
+    /// Returns `None` if the recording output cannot be created (requires macOS 15.0+).
+    #[must_use]
+    pub fn new(
+        config: &crate::recording_output::SCRecordingOutputConfiguration,
+    ) -> Option<(crate::recording_output::SCRecordingOutput, Self)> {
+        let state = Arc::new(Mutex::new(AsyncRecordingState {
+            events: std::collections::VecDeque::new(),
+            waker: None,
+            finished: false,
+        }));
+
+        let delegate = AsyncRecordingDelegate {
+            state: Arc::clone(&state),
+        };
+
+        let recording = crate::recording_output::SCRecordingOutput::new_with_delegate(config, delegate)?;
+
+        Some((recording, Self { state }))
+    }
+
+    /// Get the next recording event asynchronously
+    ///
+    /// Returns `None` when the recording has finished or failed.
+    pub fn next(&self) -> NextRecordingEvent<'_> {
+        NextRecordingEvent { state: &self.state }
+    }
+
+    /// Check if the recording has finished
+    #[must_use]
+    pub fn is_finished(&self) -> bool {
+        self.state
+            .lock()
+            .map(|s| s.finished)
+            .unwrap_or(true)
+    }
+
+    /// Get any pending events without waiting
+    #[must_use]
+    pub fn try_next(&self) -> Option<RecordingEvent> {
+        self.state.lock().ok()?.events.pop_front()
     }
 }
