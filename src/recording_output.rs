@@ -176,15 +176,6 @@ impl SCRecordingOutputConfiguration {
         file_types
     }
 
-    /// Set the average bitrate in bits per second
-    #[must_use]
-    pub fn with_average_bitrate(self, bitrate: i64) -> Self {
-        unsafe {
-            crate::ffi::sc_recording_output_configuration_set_average_bitrate(self.ptr, bitrate);
-        }
-        self
-    }
-
     #[must_use]
     pub fn as_ptr(&self) -> *const c_void {
         self.ptr

@@ -544,10 +544,6 @@ extern "C" {
     pub fn sc_recording_output_configuration_create() -> *const c_void;
     pub fn sc_recording_output_configuration_set_output_url(config: *const c_void, path: *const i8);
     pub fn sc_recording_output_configuration_set_video_codec(config: *const c_void, codec: i32);
-    pub fn sc_recording_output_configuration_set_average_bitrate(
-        config: *const c_void,
-        bitrate: i64,
-    );
     pub fn sc_recording_output_configuration_retain(config: *const c_void) -> *const c_void;
     pub fn sc_recording_output_configuration_release(config: *const c_void);
     pub fn sc_recording_output_create(config: *const c_void) -> *const c_void;

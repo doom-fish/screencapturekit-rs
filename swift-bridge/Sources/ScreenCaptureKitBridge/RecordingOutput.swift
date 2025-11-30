@@ -163,11 +163,6 @@ public func getRecordingOutputAvailableFileTypeAt(_ config: OpaquePointer, _ ind
 }
 
 @available(macOS 15.0, *)
-@_cdecl("sc_recording_output_configuration_set_average_bitrate")
-public func setRecordingOutputAverageBitrate(_ config: OpaquePointer, _ bitrate: Int64) {
-}
-
-@available(macOS 15.0, *)
 @_cdecl("sc_recording_output_configuration_retain")
 public func retainRecordingOutputConfiguration(_ config: OpaquePointer) -> OpaquePointer {
     let box: Box<SCRecordingOutputConfiguration> = unretained(config)
@@ -290,10 +285,6 @@ public func getRecordingOutputAvailableFileTypesCount(_ config: OpaquePointer?) 
 
 @_cdecl("sc_recording_output_configuration_get_available_output_file_type_at")
 public func getRecordingOutputAvailableFileTypeAt(_ config: OpaquePointer?, _ index: Int) -> Int32 { -1 }
-
-@_cdecl("sc_recording_output_configuration_set_average_bitrate")
-public func setRecordingOutputAverageBitrate(_ config: OpaquePointer?, _ bitrate: Int64) {
-}
 
 @_cdecl("sc_recording_output_configuration_retain")
 public func retainRecordingOutputConfiguration(_ config: OpaquePointer?) -> OpaquePointer? {
