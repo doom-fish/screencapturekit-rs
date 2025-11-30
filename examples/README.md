@@ -27,7 +27,7 @@ cargo run --example 01_basic_capture
 | 13 | `advanced_config` | HDR, presets, microphone | `macos_15_0` |
 | 14 | `app_capture` | Application-based filtering | - |
 | 15 | `memory_leak_check` | Memory leak detection with `leaks` | - |
-| 16 | `metal_overlay` | Metal GPU rendering + overlay UI | `macos_14_0` |
+| 16 | `full_metal_app` | Full Metal GUI application | `macos_14_0` |
 
 ## Running with Features
 
@@ -56,7 +56,7 @@ cargo run --example 13_advanced_config --features macos_15_0
 cargo run --example 05_screenshot --features macos_26_0
 
 # Metal GUI example
-cargo run --example 16_metal_overlay --features macos_14_0
+cargo run --example 16_full_metal_app --features macos_14_0
 
 # All features
 cargo run --example 08_async --all-features
@@ -68,22 +68,52 @@ cargo run --example 08_async --all-features
 - Each example focuses on one API concept
 - Check source code for detailed comments
 
-## Metal Overlay Example
+## Full Metal App Example
 
-Example 16 (`16_metal_overlay`) is a full GUI application demonstrating:
-- **Metal GPU rendering** with runtime shader compilation
-- **Bitmap font** rendering for overlay text (8x8 pixel glyphs)
-- **Audio waveform** visualization with VU meter
-- **Interactive menu** with keyboard navigation
-- **Screen capture** integration via ScreenCaptureKit
+Example 16 (`16_full_metal_app`) is a complete macOS application showcasing the full ScreenCaptureKit API:
+
+### Features
+
+- **Metal GPU Rendering** - Hardware-accelerated graphics with runtime shader compilation
+- **Screen Capture** - Real-time display/window capture via ScreenCaptureKit
+- **Content Picker** - System UI for selecting capture source (macOS 14.0+)
+- **Audio Visualization** - Real-time waveform display with VU meters
+- **Screenshot Capture** - Single-frame capture with HDR support (macOS 14.0+/26.0+)
+- **Video Recording** - Direct-to-file recording (macOS 15.0+)
+- **Microphone Capture** - Audio input with device selection (macOS 15.0+)
+- **Bitmap Font Rendering** - Custom 8x8 pixel glyph overlay text
+- **Interactive Menu** - Keyboard-navigable settings UI
+
+### Running
+
+```bash
+# Basic (macOS 14.0+)
+cargo run --example 16_full_metal_app --features macos_14_0
+
+# With recording support (macOS 15.0+)
+cargo run --example 16_full_metal_app --features macos_15_0
+
+# With HDR screenshots (macOS 26.0+)
+cargo run --example 16_full_metal_app --features macos_26_0
+```
 
 ### Controls
-- `S` - Start screen capture
-- `X` - Stop capture
+
+**Menu Navigation** (when menu visible):
+- `↑`/`↓` - Navigate menu items
+- `Space`/`Enter` - Select item
+- `Esc`/`H` - Hide menu
+
+**Direct Controls** (when menu hidden):
+- `P` - Open content picker
+- `Space` - Start/stop capture
+- `S` - Take screenshot
+- `R` - Start/stop recording (macOS 15.0+)
 - `W` - Toggle waveform display
-- `M` / `Escape` - Toggle menu
-- `↑`/`↓` - Navigate menu
-- `Q` - Quit
+- `M` - Toggle microphone
+- `C` - Open config menu
+- `H` - Show menu
+- `Q`/`Esc` - Quit
 
 ### Data Structure Alignment
 
