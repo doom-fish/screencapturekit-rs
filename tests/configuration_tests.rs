@@ -311,6 +311,7 @@ fn test_mutable_configuration() {
 // MARK: - New Features Tests (macOS 14.0+)
 
 #[test]
+#[cfg(feature = "macos_14_0")]
 fn test_captures_shadows_only() {
     let mut config = SCStreamConfiguration::default();
     config.set_captures_shadows_only(true);
@@ -319,6 +320,7 @@ fn test_captures_shadows_only() {
 }
 
 #[test]
+#[cfg(feature = "macos_14_0")]
 fn test_captures_shadows_only_builder() {
     let config = SCStreamConfiguration::new()
         .with_width(1920)
