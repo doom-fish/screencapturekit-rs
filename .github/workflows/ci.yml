@@ -84,11 +84,37 @@ jobs:
         run: cargo test --verbose --features "${{ matrix.features }}"
 
   # ==========================================================================
+  # Memory Leak Check
+  # ==========================================================================
+  leak-check:
+    runs-on: macos-14
+    name: Memory Leak Check
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-leak-check-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-leak-check-cargo-
+      - name: Build leak check example
+        run: cargo build --example 15_memory_leak_check --features "async,macos_14_4"
+      - name: Run memory leak check
+        run: cargo run --example 15_memory_leak_check --features "async,macos_14_4"
+
+  # ==========================================================================
   # Documentation (only on main)
   # ==========================================================================
   docs:
     runs-on: macos-latest
-    needs: [lint, build]
+    needs: [lint, build, leak-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read

@@ -202,7 +202,7 @@ impl<T> AsyncCompletion<T> {
     ///
     /// # Safety
     ///
-    /// The `context` pointer must be a valid pointer obtained from `AsyncCompletion::new()`.
+    /// The `context` pointer must be a valid pointer obtained from `AsyncCompletion::create()`.
     /// This function consumes the Arc reference, so it must only be called once per context.
     ///
     /// # Panics
@@ -224,8 +224,9 @@ impl<T> AsyncCompletion<T> {
             w.wake();
         }
 
-        // Keep the Arc alive - it will be dropped when the future is dropped
-        std::mem::forget(inner);
+        // Drop the Arc here - the refcount was incremented in create() via Arc::clone(),
+        // so the data stays alive via the AsyncCompletionFuture's Arc until it's dropped.
+        // Dropping here decrements the refcount from the into_raw() call.
     }
 }
 
