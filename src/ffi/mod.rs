@@ -243,6 +243,11 @@ extern "C" {
     );
     pub fn sc_stream_configuration_set_color_space_name(config: *const c_void, name: *const i8);
     pub fn sc_stream_configuration_set_color_matrix(config: *const c_void, matrix: *const i8);
+    pub fn sc_stream_configuration_get_color_matrix(
+        config: *const c_void,
+        buffer: *mut i8,
+        buffer_size: usize,
+    ) -> bool;
 
     pub fn sc_stream_configuration_set_ignore_global_clipboard(config: *const c_void, ignore: bool);
     pub fn sc_stream_configuration_get_ignore_global_clipboard(config: *const c_void) -> bool;
