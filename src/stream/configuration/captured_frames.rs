@@ -129,51 +129,6 @@ impl SCStreamConfiguration {
         self
     }
 
-    /// Set the capture resolution for the stream
-    ///
-    /// Available on macOS 14.0+. Controls the resolution at which content is captured.
-    ///
-    /// # Arguments
-    /// * `width` - The width in pixels
-    /// * `height` - The height in pixels
-    pub fn set_capture_resolution(&mut self, width: usize, height: usize) -> &mut Self {
-        // FFI expects isize for dimensions (Objective-C NSInteger)
-        #[allow(clippy::cast_possible_wrap)]
-        unsafe {
-            crate::ffi::sc_stream_configuration_set_capture_resolution(
-                self.as_ptr(),
-                width as isize,
-                height as isize,
-            );
-        }
-        self
-    }
-
-    /// Set the capture resolution (builder pattern)
-    #[must_use]
-    pub fn with_capture_resolution(mut self, width: usize, height: usize) -> Self {
-        self.set_capture_resolution(width, height);
-        self
-    }
-
-    /// Get the configured capture resolution
-    ///
-    /// Returns (width, height) tuple
-    pub fn capture_resolution(&self) -> (usize, usize) {
-        // FFI returns isize but dimensions are always positive
-        #[allow(clippy::cast_sign_loss)]
-        unsafe {
-            let mut width: isize = 0;
-            let mut height: isize = 0;
-            crate::ffi::sc_stream_configuration_get_capture_resolution(
-                self.as_ptr(),
-                &mut width,
-                &mut height,
-            );
-            (width as usize, height as usize)
-        }
-    }
-
     /// Set the capture resolution type (macOS 14.0+)
     ///
     /// Controls how the capture resolution is determined.
