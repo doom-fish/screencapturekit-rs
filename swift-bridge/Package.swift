@@ -2,9 +2,9 @@
 import PackageDescription
 import Foundation
 
-// Detect SDK version to enable macOS 15+ APIs (SCRecordingOutput, etc.)
+// Detect SDK version to enable version-gated APIs
 // The SDK version determines what APIs are available at compile time
-func detectMacOS15SDK() -> Bool {
+func detectSDKMajorVersion() -> Int {
     // Try to detect SDK version via xcrun
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
@@ -23,23 +23,25 @@ func detectMacOS15SDK() -> Bool {
             // Parse version like "15.0" or "14.5"
             let components = versionString.split(separator: ".")
             if let major = components.first, let majorInt = Int(major) {
-                return majorInt >= 15
+                return majorInt
             }
         }
     } catch {
         // Fall back to checking ProcessInfo
     }
     
-    // Fallback: check if we're on macOS 15+ at build time
-    let osVersion = ProcessInfo.processInfo.operatingSystemVersion
-    return osVersion.majorVersion >= 15
+    // Fallback: check if we're on macOS at build time
+    return ProcessInfo.processInfo.operatingSystemVersion.majorVersion
 }
 
-let hasMacOS15SDK = detectMacOS15SDK()
+let sdkMajorVersion = detectSDKMajorVersion()
 
 var swiftSettings: [SwiftSetting] = []
-if hasMacOS15SDK {
+if sdkMajorVersion >= 15 {
     swiftSettings.append(.define("SCREENCAPTUREKIT_HAS_MACOS15_SDK"))
+}
+if sdkMajorVersion >= 26 {
+    swiftSettings.append(.define("SCREENCAPTUREKIT_HAS_MACOS26_SDK"))
 }
 
 let package = Package(
