@@ -1,7 +1,16 @@
 //! `CMBlockBuffer` - Block of contiguous data
+//!
+//! A `CMBlockBuffer` represents a contiguous range of data, typically used
+//! for audio samples. It manages memory ownership and is usually accessed
+//! indirectly through [`AudioBufferList`](super::AudioBufferList).
 
 use super::ffi;
 
+/// Block buffer containing contiguous media data
+///
+/// `CMBlockBuffer` is a Core Media type that represents a contiguous block
+/// of data, commonly used for audio samples. The data is managed by Core Media
+/// and released when the buffer is dropped.
 pub struct CMBlockBuffer(*mut std::ffi::c_void);
 
 impl PartialEq for CMBlockBuffer {
@@ -22,6 +31,7 @@ impl std::hash::Hash for CMBlockBuffer {
 }
 
 impl CMBlockBuffer {
+    /// Create from a raw pointer, returning `None` if null
     pub fn from_raw(ptr: *mut std::ffi::c_void) -> Option<Self> {
         if ptr.is_null() {
             None
@@ -36,6 +46,7 @@ impl CMBlockBuffer {
         Self(ptr)
     }
 
+    /// Get the raw pointer to the block buffer
     pub fn as_ptr(&self) -> *mut std::ffi::c_void {
         self.0
     }
