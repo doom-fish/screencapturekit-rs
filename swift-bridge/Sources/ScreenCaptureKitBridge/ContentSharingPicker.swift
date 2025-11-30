@@ -38,6 +38,95 @@ public func setContentSharingPickerAllowedModes(
 }
 
 @available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_set_allows_changing_selected_content")
+public func setContentSharingPickerAllowsChangingSelectedContent(_ config: OpaquePointer, _ allows: Bool) {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    box.value.allowsChangingSelectedContent = allows
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_get_allows_changing_selected_content")
+public func getContentSharingPickerAllowsChangingSelectedContent(_ config: OpaquePointer) -> Bool {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    return box.value.allowsChangingSelectedContent
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_set_excluded_bundle_ids")
+public func setContentSharingPickerExcludedBundleIDs(
+    _ config: OpaquePointer,
+    _ bundleIDs: UnsafePointer<UnsafePointer<CChar>?>?,
+    _ count: Int
+) {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    var ids: [String] = []
+    if let bundleIDs = bundleIDs {
+        for i in 0..<count {
+            if let ptr = bundleIDs[i] {
+                ids.append(String(cString: ptr))
+            }
+        }
+    }
+    box.value.excludedBundleIDs = ids
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_get_excluded_bundle_ids_count")
+public func getContentSharingPickerExcludedBundleIDsCount(_ config: OpaquePointer) -> Int {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    return box.value.excludedBundleIDs.count
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_get_excluded_bundle_id_at")
+public func getContentSharingPickerExcludedBundleIDAt(
+    _ config: OpaquePointer,
+    _ index: Int,
+    _ buffer: UnsafeMutablePointer<CChar>,
+    _ bufferSize: Int
+) -> Bool {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    guard index >= 0 && index < box.value.excludedBundleIDs.count else { return false }
+    let bundleID = box.value.excludedBundleIDs[index]
+    return bundleID.withCString { src in
+        strlcpy(buffer, src, bufferSize)
+        return true
+    }
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_set_excluded_window_ids")
+public func setContentSharingPickerExcludedWindowIDs(
+    _ config: OpaquePointer,
+    _ windowIDs: UnsafePointer<UInt32>?,
+    _ count: Int
+) {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    var ids: [Int] = []
+    if let windowIDs = windowIDs {
+        for i in 0..<count {
+            ids.append(Int(windowIDs[i]))
+        }
+    }
+    box.value.excludedWindowIDs = ids
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_get_excluded_window_ids_count")
+public func getContentSharingPickerExcludedWindowIDsCount(_ config: OpaquePointer) -> Int {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    return box.value.excludedWindowIDs.count
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_get_excluded_window_id_at")
+public func getContentSharingPickerExcludedWindowIDAt(_ config: OpaquePointer, _ index: Int) -> UInt32 {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    guard index >= 0 && index < box.value.excludedWindowIDs.count else { return 0 }
+    return UInt32(box.value.excludedWindowIDs[index])
+}
+
+@available(macOS 14.0, *)
 @_cdecl("sc_content_sharing_picker_configuration_retain")
 public func retainContentSharingPickerConfiguration(_ config: OpaquePointer) -> OpaquePointer {
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
@@ -48,6 +137,26 @@ public func retainContentSharingPickerConfiguration(_ config: OpaquePointer) -> 
 @_cdecl("sc_content_sharing_picker_configuration_release")
 public func releaseContentSharingPickerConfiguration(_ config: OpaquePointer) {
     release(config)
+}
+
+// MARK: - Picker maximumStreamCount
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_set_maximum_stream_count")
+public func setContentSharingPickerMaximumStreamCount(_ count: Int) {
+    let picker = SCContentSharingPicker.shared
+    if count > 0 {
+        picker.maximumStreamCount = count
+    } else {
+        picker.maximumStreamCount = nil
+    }
+}
+
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_get_maximum_stream_count")
+public func getContentSharingPickerMaximumStreamCount() -> Int {
+    let picker = SCContentSharingPicker.shared
+    return picker.maximumStreamCount ?? 0
 }
 
 // MARK: - Picker Result with content info
@@ -238,6 +347,86 @@ public func showContentSharingPickerForStream(
         picker.add(observer)
         picker.setConfiguration(configBox.value, for: scStream)
         picker.present(for: scStream)
+    }
+}
+
+/// Show picker with a specific content style
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_show_using_style")
+public func showContentSharingPickerUsingStyle(
+    _ config: OpaquePointer,
+    _ style: Int32,
+    _ callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    
+    let contentStyle: SCShareableContentStyle
+    switch style {
+    case 1: contentStyle = .window
+    case 2: contentStyle = .display
+    case 3: contentStyle = .application
+    default: contentStyle = .none
+    }
+    
+    DispatchQueue.main.async {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let picker = SCContentSharingPicker.shared
+        
+        if let old = currentObserver {
+            picker.remove(old)
+        }
+        
+        let observer = PickerObserverWithResult(callback: callback, userData: userData)
+        currentObserver = observer
+        
+        picker.isActive = true
+        picker.add(observer)
+        picker.defaultConfiguration = configBox.value
+        picker.present(using: contentStyle)
+    }
+}
+
+/// Show picker for an existing stream with a specific content style
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_show_for_stream_using_style")
+public func showContentSharingPickerForStreamUsingStyle(
+    _ config: OpaquePointer,
+    _ streamPtr: OpaquePointer,
+    _ style: Int32,
+    _ callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    let scStream: SCStream = unretained(streamPtr)
+    
+    let contentStyle: SCShareableContentStyle
+    switch style {
+    case 1: contentStyle = .window
+    case 2: contentStyle = .display
+    case 3: contentStyle = .application
+    default: contentStyle = .none
+    }
+    
+    DispatchQueue.main.async {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let picker = SCContentSharingPicker.shared
+        
+        if let old = currentObserver {
+            picker.remove(old)
+        }
+        
+        let observer = PickerObserverWithResult(callback: callback, userData: userData)
+        currentObserver = observer
+        
+        picker.isActive = true
+        picker.add(observer)
+        picker.setConfiguration(configBox.value, for: scStream)
+        picker.present(for: scStream, using: contentStyle)
     }
 }
 
