@@ -324,9 +324,11 @@ private class StreamOutputHandler: NSObject, SCStreamOutput {
     }
 
     func stream(_: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
+        // Use rawValue comparison to avoid SDK availability issues
+        // .screen = 0, .audio = 1, .microphone = 2 (macOS 15+)
         let outputType: Int32 = if type == .screen {
             0
-        } else if #available(macOS 15.0, *), type == .microphone {
+        } else if type.rawValue == 2 { // microphone (macOS 15+)
             2
         } else {
             1 // audio
