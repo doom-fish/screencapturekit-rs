@@ -614,6 +614,79 @@ impl SCScreenshotConfiguration {
         self
     }
 
+    /// Set the content type (output format) using UTType identifier
+    ///
+    /// Common identifiers include:
+    /// - `"public.png"` - PNG format
+    /// - `"public.jpeg"` - JPEG format
+    /// - `"public.heic"` - HEIC format
+    /// - `"public.tiff"` - TIFF format
+    ///
+    /// Use [`supported_content_types()`](Self::supported_content_types) to get
+    /// available formats.
+    ///
+    /// # Panics
+    /// Panics if the identifier contains null bytes
+    #[must_use]
+    pub fn with_content_type(self, identifier: &str) -> Self {
+        let c_id = std::ffi::CString::new(identifier).expect("identifier should not contain null bytes");
+        unsafe {
+            crate::ffi::sc_screenshot_configuration_set_content_type(self.ptr, c_id.as_ptr());
+        }
+        self
+    }
+
+    /// Get the current content type as UTType identifier
+    pub fn content_type(&self) -> Option<String> {
+        let mut buffer = vec![0i8; 256];
+        let success = unsafe {
+            crate::ffi::sc_screenshot_configuration_get_content_type(
+                self.ptr,
+                buffer.as_mut_ptr(),
+                buffer.len(),
+            )
+        };
+        if success {
+            let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
+            c_str.to_str().ok().map(|s| s.to_string())
+        } else {
+            None
+        }
+    }
+
+    /// Get the list of supported content types (UTType identifiers)
+    ///
+    /// Returns a list of UTType identifiers that can be used with
+    /// [`with_content_type()`](Self::with_content_type).
+    ///
+    /// Common types include:
+    /// - `"public.png"` - PNG format
+    /// - `"public.jpeg"` - JPEG format
+    /// - `"public.heic"` - HEIC format
+    pub fn supported_content_types() -> Vec<String> {
+        let count = unsafe {
+            crate::ffi::sc_screenshot_configuration_get_supported_content_types_count()
+        };
+        let mut result = Vec::with_capacity(count);
+        for i in 0..count {
+            let mut buffer = vec![0i8; 256];
+            let success = unsafe {
+                crate::ffi::sc_screenshot_configuration_get_supported_content_type_at(
+                    i,
+                    buffer.as_mut_ptr(),
+                    buffer.len(),
+                )
+            };
+            if success {
+                let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
+                if let Ok(s) = c_str.to_str() {
+                    result.push(s.to_string());
+                }
+            }
+        }
+        result
+    }
+
     #[must_use]
     pub const fn as_ptr(&self) -> *const c_void {
         self.ptr

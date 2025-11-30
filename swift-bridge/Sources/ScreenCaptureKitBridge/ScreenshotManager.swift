@@ -217,6 +217,61 @@ public func releaseScreenshotConfiguration(_ config: OpaquePointer) {
     release(config)
 }
 
+// MARK: - Content Type Support (macOS 26.0+)
+
+/// Set the content type (output format) using UTType identifier
+@_cdecl("sc_screenshot_configuration_set_content_type")
+public func setScreenshotConfigurationContentType(_ config: OpaquePointer, _ identifier: UnsafePointer<CChar>) {
+    if #available(macOS 26.0, *) {
+        let c: SCScreenshotConfiguration = unretained(config)
+        let typeIdentifier = String(cString: identifier)
+        if let utType = UTType(typeIdentifier) {
+            // UTTypeReference is bridged from UTType
+            c.contentType = utType as UTTypeReference
+        }
+    }
+}
+
+/// Get the content type (output format) as UTType identifier
+@_cdecl("sc_screenshot_configuration_get_content_type")
+public func getScreenshotConfigurationContentType(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+    if #available(macOS 26.0, *) {
+        let c: SCScreenshotConfiguration = unretained(config)
+        // UTTypeReference is type-aliased to UTType
+        let utType = c.contentType as UTType
+        let identifier = utType.identifier
+        return identifier.withCString { src in
+            strlcpy(buffer, src, bufferSize)
+            return true
+        }
+    }
+    return false
+}
+
+/// Get the number of supported content types
+@_cdecl("sc_screenshot_configuration_get_supported_content_types_count")
+public func getScreenshotConfigurationSupportedContentTypesCount() -> Int {
+    if #available(macOS 26.0, *) {
+        return SCScreenshotConfiguration.supportedContentTypes.count
+    }
+    return 0
+}
+
+/// Get a supported content type at index as UTType identifier
+@_cdecl("sc_screenshot_configuration_get_supported_content_type_at")
+public func getScreenshotConfigurationSupportedContentTypeAt(_ index: Int, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+    if #available(macOS 26.0, *) {
+        let types = SCScreenshotConfiguration.supportedContentTypes
+        guard index >= 0 && index < types.count else { return false }
+        let identifier = types[index].identifier
+        return identifier.withCString { src in
+            strlcpy(buffer, src, bufferSize)
+            return true
+        }
+    }
+    return false
+}
+
 // MARK: - SCScreenshotOutput (macOS 26.0+)
 
 @_cdecl("sc_screenshot_output_get_sdr_image")
