@@ -27,7 +27,7 @@ cargo run --example 01_basic_capture
 | 13 | `advanced_config` | HDR, presets, microphone | `macos_15_0` |
 | 14 | `app_capture` | Application-based filtering | - |
 | 15 | `memory_leak_check` | Memory leak detection with `leaks` | - |
-| - | `metal_overlay` | Metal GPU rendering + overlay UI | `macos_14_0` |
+| 16 | `metal_overlay` | Metal GPU rendering + overlay UI | `macos_14_0` |
 
 ## Running with Features
 
@@ -56,7 +56,7 @@ cargo run --example 13_advanced_config --features macos_15_0
 cargo run --example 05_screenshot --features macos_26_0
 
 # Metal GUI example
-cargo run --example metal_overlay --features macos_14_0
+cargo run --example 16_metal_overlay --features macos_14_0
 
 # All features
 cargo run --example 08_async --all-features
@@ -70,7 +70,7 @@ cargo run --example 08_async --all-features
 
 ## Metal Overlay Example
 
-Example 12 (`metal_overlay`) is a full GUI application demonstrating:
+Example 16 (`16_metal_overlay`) is a full GUI application demonstrating:
 - **Metal GPU rendering** with runtime shader compilation
 - **Bitmap font** rendering for overlay text (8x8 pixel glyphs)
 - **Audio waveform** visualization with VU meter
