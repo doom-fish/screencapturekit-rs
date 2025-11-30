@@ -3,7 +3,7 @@ use std::ffi::c_void;
 
 // MARK: - FFI Packed Data Structures
 
-/// Packed CGRect for efficient FFI transfer (32 bytes)
+/// Packed `CGRect` for efficient FFI transfer (32 bytes)
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FFIRect {
@@ -35,6 +35,7 @@ pub struct FFIWindowData {
     pub title_offset: u32,
     pub title_length: u32,
     pub owning_app_index: i32,
+    #[doc(hidden)]
     pub _padding: i32,
 }
 
@@ -43,6 +44,7 @@ pub struct FFIWindowData {
 #[derive(Debug, Clone, Copy)]
 pub struct FFIApplicationData {
     pub process_id: i32,
+    #[doc(hidden)]
     pub _padding: i32,
     pub bundle_id_offset: u32,
     pub bundle_id_length: u32,
@@ -157,7 +159,7 @@ extern "C" {
         width: *mut f64,
         height: *mut f64,
     );
-    /// Get display frame (same as sc_display_get_frame, kept for API compatibility)
+    /// Get display frame (same as `sc_display_get_frame`, kept for API compatibility)
     pub fn sc_display_get_frame_packed(
         display: *const c_void,
         x: *mut f64,
@@ -179,7 +181,7 @@ extern "C" {
         width: *mut f64,
         height: *mut f64,
     );
-    /// Get window frame (same as sc_window_get_frame, kept for API compatibility)
+    /// Get window frame (same as `sc_window_get_frame`, kept for API compatibility)
     pub fn sc_window_get_frame_packed(
         window: *const c_void,
         x: *mut f64,
@@ -188,7 +190,7 @@ extern "C" {
         height: *mut f64,
     );
     pub fn sc_window_get_title(window: *const c_void, buffer: *mut i8, buffer_size: isize) -> bool;
-    /// Get window title as owned string (caller must free with sc_free_string)
+    /// Get window title as owned string (caller must free with `sc_free_string`)
     pub fn sc_window_get_title_owned(window: *const c_void) -> *mut i8;
     pub fn sc_window_get_window_layer(window: *const c_void) -> isize;
     pub fn sc_window_is_on_screen(window: *const c_void) -> bool;
@@ -205,14 +207,14 @@ extern "C" {
         buffer: *mut i8,
         buffer_size: isize,
     ) -> bool;
-    /// Get bundle identifier as owned string (caller must free with sc_free_string)
+    /// Get bundle identifier as owned string (caller must free with `sc_free_string`)
     pub fn sc_running_application_get_bundle_identifier_owned(app: *const c_void) -> *mut i8;
     pub fn sc_running_application_get_application_name(
         app: *const c_void,
         buffer: *mut i8,
         buffer_size: isize,
     ) -> bool;
-    /// Get application name as owned string (caller must free with sc_free_string)
+    /// Get application name as owned string (caller must free with `sc_free_string`)
     pub fn sc_running_application_get_application_name_owned(app: *const c_void) -> *mut i8;
     pub fn sc_running_application_get_process_id(app: *const c_void) -> i32;
 }
@@ -466,7 +468,7 @@ extern "C" {
         width: *mut f64,
         height: *mut f64,
     );
-    /// Get content filter content rect (same as sc_content_filter_get_content_rect)
+    /// Get content filter content rect (same as `sc_content_filter_get_content_rect`)
     pub fn sc_content_filter_get_content_rect_packed(
         filter: *const c_void,
         x: *mut f64,
@@ -852,7 +854,7 @@ extern "C" {
         width: *mut f64,
         height: *mut f64,
     );
-    /// Get shareable content info rect (same as sc_shareable_content_info_get_content_rect)
+    /// Get shareable content info rect (same as `sc_shareable_content_info_get_content_rect`)
     pub fn sc_shareable_content_info_get_content_rect_packed(
         info: *const c_void,
         x: *mut f64,
