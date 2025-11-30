@@ -57,7 +57,7 @@ struct Handler;
 
 impl SCStreamOutputTrait for Handler {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
-        println!("📹 Received frame at {} pts", sample.get_presentation_timestamp());
+        println!("📹 Received frame at {:?}", sample.presentation_timestamp());
     }
 }
 
@@ -284,14 +284,13 @@ Zero-copy GPU texture access:
 ```rust
 impl SCStreamOutputTrait for Handler {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
-        if let Some(pixel_buffer) = sample.get_image_buffer() {
-            if let Some(surface) = pixel_buffer.get_iosurface() {
-                let width = surface.get_width();
-                let height = surface.get_height();
-                let pixel_format = surface.get_pixel_format();
+        if let Some(pixel_buffer) = sample.image_buffer() {
+            if let Some(surface) = pixel_buffer.io_surface() {
+                let width = surface.width();
+                let height = surface.height();
                 
                 // Use with Metal/OpenGL...
-                println!("IOSurface: {}x{} format: {}", width, height, pixel_format);
+                println!("IOSurface: {}x{}", width, height);
             }
         }
     }
@@ -475,6 +474,7 @@ screencapturekit/
 - **macOS 13.0+** (Ventura) - Additional features with `macos_13_0`
 - **macOS 14.0+** (Sonoma) - Content picker, advanced config
 - **macOS 15.0+** (Sequoia) - Recording output, HDR capture
+- **macOS 26.0+** (Tahoe) - Advanced screenshot config, HDR screenshot output
 
 ## 🤝 Contributing
 
