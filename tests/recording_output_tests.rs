@@ -117,8 +117,7 @@ fn test_recording_configuration() {
     let path = PathBuf::from("/tmp/test_recording.mp4");
     let config = SCRecordingOutputConfiguration::new()
         .with_output_url(&path)
-        .with_video_codec(SCRecordingOutputCodec::H264)
-        .with_average_bitrate(5_000_000);
+        .with_video_codec(SCRecordingOutputCodec::H264);
     // Just verify it doesn't crash
     assert!(!config.as_ptr().is_null());
 }
