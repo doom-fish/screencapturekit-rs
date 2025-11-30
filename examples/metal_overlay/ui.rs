@@ -1,5 +1,12 @@
 //! UI drawing functions
 
+#![allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::too_many_arguments,
+    clippy::too_many_lines
+)]
+
 use screencapturekit::prelude::*;
 
 use crate::font::BitmapFont;
@@ -32,12 +39,18 @@ impl VertexBufferBuilder {
         let has_source = !source_name.is_empty() && source_name != "None";
         // Menu values: Picker, Capture, Screenshot, Record, Config, Quit
         let menu_values: [&str; 6] = [
-            "Open",                                          // Picker
-            if is_capturing { "Stop" } else { "Start" },     // Capture
-            if has_source { "Take" } else { "" },            // Screenshot
-            if is_recording { "Stop" } else if has_source { "Start" } else { "" }, // Record
-            "Open",                                          // Config
-            "",                                              // Quit
+            "Open",                                      // Picker
+            if is_capturing { "Stop" } else { "Start" }, // Capture
+            if has_source { "Take" } else { "" },        // Screenshot
+            if is_recording {
+                "Stop"
+            } else if has_source {
+                "Start"
+            } else {
+                ""
+            }, // Record
+            "Open",                                      // Config
+            "",                                          // Quit
         ];
 
         let box_w = (320.0 * base_scale).min(vw * 0.8);
@@ -48,10 +61,7 @@ impl VertexBufferBuilder {
         // Source name as large centered title above the menu
         let source_display = if has_source {
             if source_name.len() > 30 {
-                format!(
-                    "{}...",
-                    &source_name.chars().take(27).collect::<String>()
-                )
+                format!("{}...", &source_name.chars().take(27).collect::<String>())
             } else {
                 source_name.to_string()
             }
@@ -68,7 +78,14 @@ impl VertexBufferBuilder {
         } else {
             [0.5, 0.4, 0.6, 1.0]
         };
-        self.text(font, &source_display, title_x, title_y, title_scale, title_color);
+        self.text(
+            font,
+            &source_display,
+            title_x,
+            title_y,
+            title_scale,
+            title_color,
+        );
 
         // Dark purple background with neon border
         self.rect(x, y, box_w, box_h, DARK_BG);
@@ -83,7 +100,7 @@ impl VertexBufferBuilder {
         );
 
         let mut ly = y + padding;
-        let text_x = x + padding + 12.0 * base_scale;
+        let text_x = 12.0f32.mul_add(base_scale, x + padding);
 
         let actual_scale = (scale as i32) as f32;
         let text_h = 8.0 * actual_scale;
@@ -112,7 +129,7 @@ impl VertexBufferBuilder {
             self.text(font, item, text_x, text_y, scale, item_color);
 
             if !value.is_empty() {
-                let vx = x + box_w - padding - value.len() as f32 * 8.0 * actual_scale;
+                let vx = (value.len() as f32 * 8.0).mul_add(-actual_scale, x + box_w - padding);
                 let val_color = if is_selected {
                     NEON_YELLOW
                 } else {
@@ -177,7 +194,7 @@ impl VertexBufferBuilder {
         );
 
         let mut ly = y + padding;
-        let text_x = x + padding + 12.0 * base_scale;
+        let text_x = 12.0f32.mul_add(base_scale, x + padding);
 
         // Source heading (larger, centered)
         let source_display = if source_name.is_empty() || source_name == "None" {
@@ -191,7 +208,13 @@ impl VertexBufferBuilder {
         ly += line_h * 1.5;
 
         // Separator line
-        self.rect(x + padding, ly - 4.0, box_w - padding * 2.0, 1.0, NEON_PURPLE);
+        self.rect(
+            x + padding,
+            ly - 4.0,
+            box_w - padding * 2.0,
+            1.0,
+            NEON_PURPLE,
+        );
         ly += line_h * 0.3;
 
         // Title row with live indicator
@@ -199,7 +222,7 @@ impl VertexBufferBuilder {
 
         // Live indicator
         if is_capturing {
-            let live_x = x + box_w - padding - 32.0 * base_scale;
+            let live_x = 32.0f32.mul_add(-base_scale, x + box_w - padding);
             self.rect(
                 live_x - 3.0,
                 ly - 1.0,
@@ -240,7 +263,7 @@ impl VertexBufferBuilder {
             } else {
                 value
             };
-            let vx = x + box_w - padding - t.len() as f32 * 8.0 * actual_scale;
+            let vx = (t.len() as f32 * 8.0).mul_add(-actual_scale, x + box_w - padding);
 
             let value_color = if is_selected {
                 if t == "On" {
@@ -313,14 +336,20 @@ impl VertexBufferBuilder {
         );
 
         let mut ly = y + padding;
-        let text_x = x + padding + 12.0 * base_scale;
+        let text_x = 12.0f32.mul_add(base_scale, x + padding);
 
         // Title
         self.text(font, "RECORDING", text_x - 4.0, ly, scale * 0.9, NEON_PINK);
         ly += line_h * 1.2;
 
         // Separator line
-        self.rect(x + padding, ly - 4.0, box_w - padding * 2.0, 1.0, NEON_PURPLE);
+        self.rect(
+            x + padding,
+            ly - 4.0,
+            box_w - padding * 2.0,
+            1.0,
+            NEON_PURPLE,
+        );
         ly += line_h * 0.3;
 
         let actual_scale = (scale as i32) as f32;
@@ -347,7 +376,7 @@ impl VertexBufferBuilder {
 
             self.text(font, item, text_x, text_y, scale, item_color);
 
-            let vx = x + box_w - padding - value.len() as f32 * 8.0 * actual_scale;
+            let vx = (value.len() as f32 * 8.0).mul_add(-actual_scale, x + box_w - padding);
             let value_color = if is_selected {
                 NEON_YELLOW
             } else {

@@ -161,7 +161,10 @@ impl SCStreamConfiguration {
     /// Set the capture resolution type (builder pattern, macOS 14.0+)
     #[cfg(feature = "macos_14_0")]
     #[must_use]
-    pub fn with_capture_resolution_type(mut self, resolution_type: SCCaptureResolutionType) -> Self {
+    pub fn with_capture_resolution_type(
+        mut self,
+        resolution_type: SCCaptureResolutionType,
+    ) -> Self {
         self.set_capture_resolution_type(resolution_type);
         self
     }

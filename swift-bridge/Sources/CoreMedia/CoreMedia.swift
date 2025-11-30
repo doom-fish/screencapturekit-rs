@@ -36,7 +36,8 @@ public func cm_sample_buffer_get_frame_status(_ sampleBuffer: UnsafeMutableRawPo
 
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
           let firstAttachment = attachments.first,
-          let status = firstAttachment[SCStreamFrameInfo.status.rawValue as CFString] as? SCFrameStatus else {
+          let status = firstAttachment[SCStreamFrameInfo.status.rawValue as CFString] as? SCFrameStatus
+    else {
         return -1
     }
 
@@ -251,7 +252,7 @@ public func cm_sample_buffer_get_audio_buffer_number_channels(_ sampleBuffer: Un
         blockBufferOut: &blockBuffer
     )
 
-    guard status == noErr && index < audioBufferList.mNumberBuffers else {
+    guard status == noErr, index < audioBufferList.mNumberBuffers else {
         return 0
     }
 
@@ -266,7 +267,7 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
     // First, query the required buffer size
-    var bufferListSizeNeeded: Int = 0
+    var bufferListSizeNeeded = 0
     var status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
         buffer,
         bufferListSizeNeededOut: &bufferListSizeNeeded,
@@ -277,7 +278,7 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
         flags: 0,
         blockBufferOut: nil
     )
-    
+
     guard bufferListSizeNeeded > 0 else {
         outNumBuffers.pointee = 0
         outBuffersPtr.pointee = nil
@@ -285,11 +286,11 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
         outBlockBuffer.pointee = nil
         return
     }
-    
+
     // Allocate buffer of the required size
     let audioBufferListPtr = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: bufferListSizeNeeded / MemoryLayout<AudioBufferList>.stride + 1)
     defer { audioBufferListPtr.deallocate() }
-    
+
     var blockBuffer: CMBlockBuffer?
     status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
         buffer,
@@ -302,7 +303,7 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
         blockBufferOut: &blockBuffer
     )
 
-    guard status == noErr, let blockBuffer = blockBuffer else {
+    guard status == noErr, let blockBuffer else {
         outNumBuffers.pointee = 0
         outBuffersPtr.pointee = nil
         outBuffersLen.pointee = 0
@@ -318,7 +319,7 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
         outBlockBuffer.pointee = nil
         return
     }
-    
+
     let buffers = UnsafeMutablePointer<AudioBufferBridge>.allocate(capacity: numBuffers)
 
     withUnsafePointer(to: &audioBufferListPtr.pointee.mBuffers) { buffersPtr in
@@ -341,7 +342,7 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
 
 @_cdecl("cm_block_buffer_release")
 public func cm_block_buffer_release(_ blockBuffer: UnsafeMutableRawPointer) {
-    let _ = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeRetainedValue()
+    _ = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeRetainedValue()
 }
 
 @_cdecl("cm_sample_buffer_get_audio_buffer_data_byte_size")
@@ -362,7 +363,7 @@ public func cm_sample_buffer_get_audio_buffer_data_byte_size(_ sampleBuffer: Uns
         blockBufferOut: &blockBuffer
     )
 
-    guard status == noErr && index < audioBufferList.mNumberBuffers else {
+    guard status == noErr, index < audioBufferList.mNumberBuffers else {
         return 0
     }
 
@@ -390,7 +391,7 @@ public func cm_sample_buffer_get_audio_buffer_data(_ sampleBuffer: UnsafeMutable
         blockBufferOut: &blockBuffer
     )
 
-    guard status == noErr && index < audioBufferList.mNumberBuffers else {
+    guard status == noErr, index < audioBufferList.mNumberBuffers else {
         return nil
     }
 

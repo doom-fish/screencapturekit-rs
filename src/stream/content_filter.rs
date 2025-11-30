@@ -212,7 +212,8 @@ impl SCContentFilter {
         (0..count as usize)
             .filter_map(|i| {
                 #[allow(clippy::cast_possible_wrap)]
-                let ptr = unsafe { ffi::sc_content_filter_get_included_display_at(self.0, i as isize) };
+                let ptr =
+                    unsafe { ffi::sc_content_filter_get_included_display_at(self.0, i as isize) };
                 if ptr.is_null() {
                     None
                 } else {
@@ -235,7 +236,8 @@ impl SCContentFilter {
         (0..count as usize)
             .filter_map(|i| {
                 #[allow(clippy::cast_possible_wrap)]
-                let ptr = unsafe { ffi::sc_content_filter_get_included_window_at(self.0, i as isize) };
+                let ptr =
+                    unsafe { ffi::sc_content_filter_get_included_window_at(self.0, i as isize) };
                 if ptr.is_null() {
                     None
                 } else {
@@ -258,7 +260,9 @@ impl SCContentFilter {
         (0..count as usize)
             .filter_map(|i| {
                 #[allow(clippy::cast_possible_wrap)]
-                let ptr = unsafe { ffi::sc_content_filter_get_included_application_at(self.0, i as isize) };
+                let ptr = unsafe {
+                    ffi::sc_content_filter_get_included_application_at(self.0, i as isize)
+                };
                 if ptr.is_null() {
                     None
                 } else {

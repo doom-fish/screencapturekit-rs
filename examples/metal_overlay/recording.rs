@@ -47,7 +47,7 @@ impl RecordingConfig {
     }
 
     /// Get file extension based on file type
-    pub fn file_extension(&self) -> &'static str {
+    pub const fn file_extension(&self) -> &'static str {
         match self.file_type {
             SCRecordingOutputFileType::MP4 => "mp4",
             SCRecordingOutputFileType::MOV => "mov",
@@ -91,20 +91,19 @@ impl RecordingState {
         let path = format!("/tmp/recording_{}.{}", timestamp, config.file_extension());
 
         let rec_config = config.apply_to(
-            SCRecordingOutputConfiguration::new()
-                .with_output_url(std::path::Path::new(&path)),
+            SCRecordingOutputConfiguration::new().with_output_url(std::path::Path::new(&path)),
         );
 
         match SCRecordingOutput::new(&rec_config) {
             Some(rec) => match stream.add_recording_output(&rec) {
                 Ok(()) => {
-                    println!("🔴 Recording to: {}", path);
+                    println!("🔴 Recording to: {path}");
                     self.is_recording.store(true, Ordering::Relaxed);
                     self.output = Some(rec);
                     self.path = Some(path.clone());
                     Ok(path)
                 }
-                Err(e) => Err(format!("Failed to start recording: {:?}", e)),
+                Err(e) => Err(format!("Failed to start recording: {e:?}")),
             },
             None => Err("Failed to create recording output".to_string()),
         }
@@ -126,7 +125,7 @@ impl RecordingState {
 
         let path = self.path.take();
         if let Some(ref p) = path {
-            println!("✅ Recording saved: {}", p);
+            println!("✅ Recording saved: {p}");
             let _ = std::process::Command::new("open").arg(p).spawn();
         }
         path
@@ -153,7 +152,7 @@ pub struct RecordingConfigMenu;
 impl RecordingConfigMenu {
     pub const OPTIONS: &'static [&'static str] = &["Video Codec", "File Type"];
 
-    pub fn option_count() -> usize {
+    pub const fn option_count() -> usize {
         Self::OPTIONS.len()
     }
 

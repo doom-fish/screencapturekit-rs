@@ -58,8 +58,6 @@ public func cv_pixel_buffer_get_io_surface(_ pixelBuffer: UnsafeMutableRawPointe
     return Unmanaged.passRetained(ioSurface.takeUnretainedValue()).toOpaque()
 }
 
-
-
 // Compatibility alias (deprecated - use cv_pixel_buffer_get_io_surface)
 @_cdecl("cv_pixel_buffer_get_iosurface")
 public func cv_pixel_buffer_get_iosurface(_ pixelBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
@@ -301,7 +299,7 @@ public func cv_pixel_buffer_pool_create(
         kCVPixelBufferWidthKey as String: width,
         kCVPixelBufferHeightKey as String: height,
         kCVPixelBufferPixelFormatTypeKey as String: pixelFormatType,
-        kCVPixelBufferIOSurfacePropertiesKey as String: [:]
+        kCVPixelBufferIOSurfacePropertiesKey as String: [:],
     ]
 
     var pool: CVPixelBufferPool?

@@ -3,11 +3,16 @@
 use std::ffi::c_void;
 
 use metal::foreign_types::ForeignType;
-use metal::*;
+use metal::{
+    objc, Device, Library, MTLBlendFactor, MTLBlendOperation, MTLPixelFormat, MTLStorageMode,
+    MTLTexture, MTLTextureType, MTLTextureUsage, RenderPipelineDescriptor, RenderPipelineState,
+    Texture, TextureDescriptor,
+};
 use objc::{msg_send, sel, sel_impl};
 
 #[link(name = "Metal", kind = "framework")]
 #[link(name = "IOSurface", kind = "framework")]
+#[allow(clippy::duplicated_attributes)]
 extern "C" {
     fn IOSurfaceGetWidth(surface: *const c_void) -> usize;
     fn IOSurfaceGetHeight(surface: *const c_void) -> usize;
@@ -18,9 +23,13 @@ extern "C" {
 }
 
 // Pixel format constants (FourCC codes)
+#[allow(clippy::unreadable_literal)]
 pub const PIXEL_FORMAT_BGRA: u32 = 0x42475241; // 'BGRA'
+#[allow(clippy::unreadable_literal)]
 pub const PIXEL_FORMAT_L10R: u32 = 0x6C313072; // 'l10r' - ARGB2101010
+#[allow(clippy::unreadable_literal)]
 pub const PIXEL_FORMAT_420V: u32 = 0x34323076; // '420v' - YCbCr 420 video range
+#[allow(clippy::unreadable_literal)]
 pub const PIXEL_FORMAT_420F: u32 = 0x34323066; // '420f' - YCbCr 420 full range
 
 pub struct CaptureTextures {
@@ -33,10 +42,11 @@ pub struct CaptureTextures {
     pub height: usize,
 }
 
-/// Create Metal textures from an IOSurface (zero-copy)
+/// Create Metal textures from an `IOSurface` (zero-copy)
 ///
 /// # Safety
-/// The `iosurface_ptr` must be a valid IOSurface pointer.
+/// The `iosurface_ptr` must be a valid `IOSurface` pointer.
+#[allow(clippy::too_many_lines)]
 pub unsafe fn create_textures_from_iosurface(
     device: &Device,
     iosurface_ptr: *const c_void,
@@ -64,8 +74,8 @@ pub unsafe fn create_textures_from_iosurface(
             desc.set_height(height as u64);
             desc.set_storage_mode(MTLStorageMode::Shared);
             desc.set_usage(MTLTextureUsage::ShaderRead);
-            let texture: *mut MTLTexture = msg_send![device.as_ptr() as *mut objc::runtime::Object,
-                newTextureWithDescriptor: desc.as_ptr() as *mut objc::runtime::Object
+            let texture: *mut MTLTexture = msg_send![device.as_ptr().cast::<objc::runtime::Object>(),
+                newTextureWithDescriptor: desc.as_ptr().cast::<objc::runtime::Object>()
                 iosurface: iosurface_ptr plane: 0usize];
             if texture.is_null() {
                 return None;
@@ -87,8 +97,8 @@ pub unsafe fn create_textures_from_iosurface(
             desc.set_height(height as u64);
             desc.set_storage_mode(MTLStorageMode::Shared);
             desc.set_usage(MTLTextureUsage::ShaderRead);
-            let texture: *mut MTLTexture = msg_send![device.as_ptr() as *mut objc::runtime::Object,
-                newTextureWithDescriptor: desc.as_ptr() as *mut objc::runtime::Object
+            let texture: *mut MTLTexture = msg_send![device.as_ptr().cast::<objc::runtime::Object>(),
+                newTextureWithDescriptor: desc.as_ptr().cast::<objc::runtime::Object>()
                 iosurface: iosurface_ptr plane: 0usize];
             if texture.is_null() {
                 return None;
@@ -117,8 +127,8 @@ pub unsafe fn create_textures_from_iosurface(
             y_desc.set_height(y_height as u64);
             y_desc.set_storage_mode(MTLStorageMode::Shared);
             y_desc.set_usage(MTLTextureUsage::ShaderRead);
-            let y_texture: *mut MTLTexture = msg_send![device.as_ptr() as *mut objc::runtime::Object,
-                newTextureWithDescriptor: y_desc.as_ptr() as *mut objc::runtime::Object
+            let y_texture: *mut MTLTexture = msg_send![device.as_ptr().cast::<objc::runtime::Object>(),
+                newTextureWithDescriptor: y_desc.as_ptr().cast::<objc::runtime::Object>()
                 iosurface: iosurface_ptr plane: 0usize];
             if y_texture.is_null() {
                 return None;
@@ -134,8 +144,8 @@ pub unsafe fn create_textures_from_iosurface(
             uv_desc.set_height(uv_height as u64);
             uv_desc.set_storage_mode(MTLStorageMode::Shared);
             uv_desc.set_usage(MTLTextureUsage::ShaderRead);
-            let uv_texture: *mut MTLTexture = msg_send![device.as_ptr() as *mut objc::runtime::Object,
-                newTextureWithDescriptor: uv_desc.as_ptr() as *mut objc::runtime::Object
+            let uv_texture: *mut MTLTexture = msg_send![device.as_ptr().cast::<objc::runtime::Object>(),
+                newTextureWithDescriptor: uv_desc.as_ptr().cast::<objc::runtime::Object>()
                 iosurface: iosurface_ptr plane: 1usize];
             if uv_texture.is_null() {
                 return None;
@@ -151,10 +161,7 @@ pub unsafe fn create_textures_from_iosurface(
         }
         _ => {
             // Unknown format - try as BGRA
-            eprintln!(
-                "Unknown pixel format: 0x{:08x}, trying as BGRA",
-                pixel_format
-            );
+            eprintln!("Unknown pixel format: 0x{pixel_format:08x}, trying as BGRA");
             let desc = TextureDescriptor::new();
             desc.set_texture_type(MTLTextureType::D2);
             desc.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
@@ -162,8 +169,8 @@ pub unsafe fn create_textures_from_iosurface(
             desc.set_height(height as u64);
             desc.set_storage_mode(MTLStorageMode::Shared);
             desc.set_usage(MTLTextureUsage::ShaderRead);
-            let texture: *mut MTLTexture = msg_send![device.as_ptr() as *mut objc::runtime::Object,
-                newTextureWithDescriptor: desc.as_ptr() as *mut objc::runtime::Object
+            let texture: *mut MTLTexture = msg_send![device.as_ptr().cast::<objc::runtime::Object>(),
+                newTextureWithDescriptor: desc.as_ptr().cast::<objc::runtime::Object>()
                 iosurface: iosurface_ptr plane: 0usize];
             if texture.is_null() {
                 return None;
@@ -202,7 +209,7 @@ pub fn create_pipeline(
     device.new_render_pipeline_state(&desc).unwrap()
 }
 
-pub const SHADER_SOURCE: &str = r#"
+pub const SHADER_SOURCE: &str = r"
 #include <metal_stdlib>
 using namespace metal;
 struct Vertex { packed_float2 position; packed_float4 color; };
@@ -248,4 +255,4 @@ fragment float4 fragment_ycbcr(TexturedVertexOut in [[stage_in]],
     bool full_range = (uniforms.pixel_format == 0x34323066); // '420f'
     return ycbcr_to_rgb(y, cbcr, full_range);
 }
-"#;
+";

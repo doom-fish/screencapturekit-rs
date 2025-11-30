@@ -20,7 +20,7 @@ pub fn format_picked_source(source: &SCPickedSource) -> String {
         SCPickedSource::Window(name) => {
             format!("[W] {}", name.chars().take(20).collect::<String>())
         }
-        SCPickedSource::Display(id) => format!("[D] Display {}", id),
+        SCPickedSource::Display(id) => format!("[D] Display {id}"),
         SCPickedSource::Application(name) => {
             format!("[A] {}", name.chars().take(20).collect::<String>())
         }
@@ -79,15 +79,16 @@ fn handle_picker_outcome(outcome: SCPickerOutcome, pending: &Arc<Mutex<PickerRes
             println!("⚠️  Picker cancelled");
         }
         SCPickerOutcome::Error(e) => {
-            eprintln!("❌ Picker error: {}", e);
+            eprintln!("❌ Picker error: {e}");
         }
     }
 }
 
 /// Start capture with the given filter and configuration
+#[allow(clippy::option_option)]
 pub fn start_capture(
     stream: &mut Option<SCStream>,
-    current_filter: &Option<SCContentFilter>,
+    current_filter: Option<&SCContentFilter>,
     capture_size: (u32, u32),
     stream_config: &SCStreamConfiguration,
     capture_state: &Arc<CaptureState>,
@@ -95,7 +96,7 @@ pub fn start_capture(
     mic_only: bool,
 ) {
     // Get the filter to use
-    let filter_to_use = if let Some(ref filter) = current_filter {
+    let filter_to_use = if let Some(filter) = current_filter {
         filter.clone()
     } else if mic_only {
         // For mic-only capture, we still need a valid display filter
@@ -111,7 +112,7 @@ pub fn start_capture(
                 }
             }
             Err(e) => {
-                println!("❌ Failed to get shareable content: {:?}", e);
+                println!("❌ Failed to get shareable content: {e:?}");
                 return;
             }
         }
@@ -143,7 +144,7 @@ pub fn start_capture(
             println!("✅ Capture started");
         }
         Err(e) => {
-            eprintln!("❌ Failed to start capture: {:?}", e);
+            eprintln!("❌ Failed to start capture: {e:?}");
         }
     }
 }

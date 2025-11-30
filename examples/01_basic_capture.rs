@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "macos_14_0")]
     {
         let scale = filter.point_pixel_scale();
-        println!("Filter scale: {:.1}x", scale);
+        println!("Filter scale: {scale:.1}x");
     }
 
     // 3. Configure stream (how to capture)

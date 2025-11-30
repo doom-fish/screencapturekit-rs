@@ -95,35 +95,35 @@ fn test_delegate_trait_send() {
 #[cfg(feature = "macos_15_2")]
 fn test_stream_did_become_active_inactive() {
     use std::sync::atomic::AtomicU32;
-    
+
     struct ActivityDelegate {
         active_count: Arc<AtomicU32>,
         inactive_count: Arc<AtomicU32>,
     }
-    
+
     impl SCStreamDelegateTrait for ActivityDelegate {
         fn stream_did_become_active(&self) {
             self.active_count.fetch_add(1, Ordering::SeqCst);
         }
-        
+
         fn stream_did_become_inactive(&self) {
             self.inactive_count.fetch_add(1, Ordering::SeqCst);
         }
     }
-    
+
     let active_count = Arc::new(AtomicU32::new(0));
     let inactive_count = Arc::new(AtomicU32::new(0));
-    
+
     let delegate = ActivityDelegate {
         active_count: Arc::clone(&active_count),
         inactive_count: Arc::clone(&inactive_count),
     };
-    
+
     // Simulate activity changes
     delegate.stream_did_become_active();
     delegate.stream_did_become_inactive();
     delegate.stream_did_become_active();
-    
+
     assert_eq!(active_count.load(Ordering::SeqCst), 2);
     assert_eq!(inactive_count.load(Ordering::SeqCst), 1);
 }
@@ -132,9 +132,9 @@ fn test_stream_did_become_active_inactive() {
 fn test_stream_activity_default_implementations() {
     struct MinimalDelegate;
     impl SCStreamDelegateTrait for MinimalDelegate {}
-    
+
     let delegate = MinimalDelegate;
-    
+
     // These should not panic - they have default empty implementations
     delegate.stream_did_become_active();
     delegate.stream_did_become_inactive();

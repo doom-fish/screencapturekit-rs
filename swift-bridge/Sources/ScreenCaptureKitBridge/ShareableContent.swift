@@ -4,20 +4,18 @@ import CoreGraphics
 import Foundation
 import ScreenCaptureKit
 
-
-
 // MARK: - Thread-safe result holder
 
 private class ResultHolder<T> {
     private let lock = NSLock()
     private var _value: T?
     private var _error: String?
-    
+
     var value: T? {
         get { lock.lock(); defer { lock.unlock() }; return _value }
         set { lock.lock(); defer { lock.unlock() }; _value = newValue }
     }
-    
+
     var error: String? {
         get { lock.lock(); defer { lock.unlock() }; return _error }
         set { lock.lock(); defer { lock.unlock() }; _error = newValue }
@@ -38,7 +36,7 @@ public func getShareableContentSync(
 ) -> OpaquePointer? {
     // Force CoreGraphics initialization
     initializeCoreGraphics()
-    
+
     let semaphore = DispatchSemaphore(value: 0)
     let holder = ResultHolder<SCShareableContent>()
 
@@ -197,27 +195,53 @@ public func getShareableContentAboveWindow(
 }
 
 #if compiler(>=6.0)
-/// Gets shareable content for the current process (macOS 14.4+)
-/// - Parameters:
-///   - callback: Called with content pointer or error message
-///   - userData: User data passed through to callback
-@_cdecl("sc_shareable_content_get_current_process_displays")
-public func getShareableContentCurrentProcessDisplays(
-    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
-    userData: UnsafeMutableRawPointer?
-) {
-    let userDataValue = userData
-    if #available(macOS 14.4, *) {
-        SCShareableContent.getCurrentProcessShareableContent { content, error in
-            if let content = content {
-                callback(retain(content), nil, userDataValue)
-            } else {
-                let bridgeError = SCBridgeError.contentUnavailable(error?.localizedDescription ?? "Unknown error")
-                bridgeError.description.withCString { callback(nil, $0, userDataValue) }
+    /// Gets shareable content for the current process (macOS 14.4+)
+    /// - Parameters:
+    ///   - callback: Called with content pointer or error message
+    ///   - userData: User data passed through to callback
+    @_cdecl("sc_shareable_content_get_current_process_displays")
+    public func getShareableContentCurrentProcessDisplays(
+        callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+        userData: UnsafeMutableRawPointer?
+    ) {
+        let userDataValue = userData
+        if #available(macOS 14.4, *) {
+            SCShareableContent.getCurrentProcessShareableContent { content, error in
+                if let content {
+                    callback(retain(content), nil, userDataValue)
+                } else {
+                    let bridgeError = SCBridgeError.contentUnavailable(error?.localizedDescription ?? "Unknown error")
+                    bridgeError.description.withCString { callback(nil, $0, userDataValue) }
+                }
+            }
+        } else {
+            // Fallback for older macOS
+            Task {
+                do {
+                    let content = try await SCShareableContent.excludingDesktopWindows(
+                        false,
+                        onScreenWindowsOnly: true
+                    )
+                    callback(retain(content), nil, userDataValue)
+                } catch {
+                    let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
+                    bridgeError.description.withCString { callback(nil, $0, userDataValue) }
+                }
             }
         }
-    } else {
-        // Fallback for older macOS
+    }
+#else
+    /// Gets shareable content for the current process (fallback for older compilers)
+    /// - Parameters:
+    ///   - callback: Called with content pointer or error message
+    ///   - userData: User data passed through to callback
+    @_cdecl("sc_shareable_content_get_current_process_displays")
+    public func getShareableContentCurrentProcessDisplays(
+        callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+        userData: UnsafeMutableRawPointer?
+    ) {
+        // Fallback for older compilers (macOS < 14.4 SDK)
+        let userDataValue = userData
         Task {
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(
@@ -231,32 +255,6 @@ public func getShareableContentCurrentProcessDisplays(
             }
         }
     }
-}
-#else
-/// Gets shareable content for the current process (fallback for older compilers)
-/// - Parameters:
-///   - callback: Called with content pointer or error message
-///   - userData: User data passed through to callback
-@_cdecl("sc_shareable_content_get_current_process_displays")
-public func getShareableContentCurrentProcessDisplays(
-    callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
-    userData: UnsafeMutableRawPointer?
-) {
-    // Fallback for older compilers (macOS < 14.4 SDK)
-    let userDataValue = userData
-    Task {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                false,
-                onScreenWindowsOnly: true
-            )
-            callback(retain(content), nil, userDataValue)
-        } catch {
-            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
-        }
-    }
-}
 #endif
 
 @_cdecl("sc_shareable_content_retain")
@@ -279,7 +277,7 @@ public func getShareableContentDisplaysCount(_ content: OpaquePointer) -> Int {
 @_cdecl("sc_shareable_content_get_display_at")
 public func getShareableContentDisplay(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
-    guard index >= 0 && index < sc.displays.count else { return nil }
+    guard index >= 0, index < sc.displays.count else { return nil }
     return retain(sc.displays[index])
 }
 
@@ -292,7 +290,7 @@ public func getShareableContentWindowsCount(_ content: OpaquePointer) -> Int {
 @_cdecl("sc_shareable_content_get_window_at")
 public func getShareableContentWindow(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
-    guard index >= 0 && index < sc.windows.count else { return nil }
+    guard index >= 0, index < sc.windows.count else { return nil }
     return retain(sc.windows[index])
 }
 
@@ -305,7 +303,7 @@ public func getShareableContentApplicationsCount(_ content: OpaquePointer) -> In
 @_cdecl("sc_shareable_content_get_application_at")
 public func getShareableContentApplication(_ content: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let sc: SCShareableContent = unretained(content)
-    guard index >= 0 && index < sc.applications.count else { return nil }
+    guard index >= 0, index < sc.applications.count else { return nil }
     return retain(sc.applications[index])
 }
 
@@ -549,8 +547,8 @@ public func getDisplaysBatch(
     let sc: SCShareableContent = unretained(content)
     let displays = sc.displays
     let count = min(displays.count, maxDisplays)
-    
-    for i in 0..<count {
+
+    for i in 0 ..< count {
         let d = displays[i]
         buffer[i] = FFIDisplayData(
             displayId: d.displayID,
@@ -559,7 +557,7 @@ public func getDisplaysBatch(
             frame: FFIRect(d.frame)
         )
     }
-    
+
     return count
 }
 
@@ -581,10 +579,10 @@ public func getApplicationsBatch(
     let apps = sc.applications
     let count = min(apps.count, maxApps)
     var stringOffset: UInt32 = 0
-    
-    for i in 0..<count {
+
+    for i in 0 ..< count {
         let app = apps[i]
-        
+
         // Write bundle ID
         let bundleId = app.bundleIdentifier
         let bundleIdStart = stringOffset
@@ -598,7 +596,7 @@ public func getApplicationsBatch(
             }
         }
         let bundleIdLen = stringOffset - bundleIdStart
-        
+
         // Write app name
         let appName = app.applicationName
         let appNameStart = stringOffset
@@ -612,17 +610,17 @@ public func getApplicationsBatch(
             }
         }
         let appNameLen = stringOffset - appNameStart
-        
+
         buffer[i] = FFIApplicationData(
             processId: app.processID,
             _padding: 0,
             bundleIdOffset: bundleIdStart,
-            bundleIdLength: bundleIdLen > 0 ? bundleIdLen - 1 : 0,  // exclude null terminator from length
+            bundleIdLength: bundleIdLen > 0 ? bundleIdLen - 1 : 0, // exclude null terminator from length
             appNameOffset: appNameStart,
             appNameLength: appNameLen > 0 ? appNameLen - 1 : 0
         )
     }
-    
+
     stringBufferUsed.pointee = Int(stringOffset)
     return count
 }
@@ -647,19 +645,19 @@ public func getWindowsBatch(
     let apps = sc.applications
     let count = min(windows.count, maxWindows)
     var stringOffset: UInt32 = 0
-    
+
     // Build app lookup map and populate app pointers
     var appIndexMap: [ObjectIdentifier: Int32] = [:]
     let actualAppCount = min(apps.count, maxApps)
-    for i in 0..<actualAppCount {
+    for i in 0 ..< actualAppCount {
         appIndexMap[ObjectIdentifier(apps[i])] = Int32(i)
         appPointers[i] = retain(apps[i])
     }
     appCount.pointee = actualAppCount
-    
-    for i in 0..<count {
+
+    for i in 0 ..< count {
         let w = windows[i]
-        
+
         // Write title
         let titleStart = stringOffset
         if let title = w.title, let cStr = title.cString(using: .utf8) {
@@ -678,18 +676,18 @@ public func getWindowsBatch(
             }
         }
         let titleLen = stringOffset - titleStart
-        
+
         // Find owning app index
         var owningAppIndex: Int32 = -1
         if let owningApp = w.owningApplication {
             owningAppIndex = appIndexMap[ObjectIdentifier(owningApp)] ?? -1
         }
-        
+
         var isActive = false
         if #available(macOS 13.1, *) {
             isActive = w.isActive
         }
-        
+
         buffer[i] = FFIWindowData(
             windowId: w.windowID,
             windowLayer: Int32(w.windowLayer),
@@ -702,7 +700,7 @@ public func getWindowsBatch(
             _padding: 0
         )
     }
-    
+
     stringBufferUsed.pointee = Int(stringOffset)
     return count
 }
@@ -819,7 +817,7 @@ public func getRunningApplicationNameOwned(_ app: OpaquePointer) -> UnsafeMutabl
 /// Free a string allocated by Swift (strdup)
 @_cdecl("sc_free_string")
 public func freeString(_ str: UnsafeMutablePointer<CChar>?) {
-    if let str = str {
+    if let str {
         free(str)
     }
 }

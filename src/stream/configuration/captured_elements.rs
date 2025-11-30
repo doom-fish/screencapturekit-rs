@@ -160,7 +160,10 @@ impl SCStreamConfiguration {
     #[cfg(feature = "macos_14_0")]
     pub fn set_ignore_global_clip_display(&mut self, ignore: bool) -> &mut Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_ignore_global_clip_display(self.as_ptr(), ignore);
+            crate::ffi::sc_stream_configuration_set_ignore_global_clip_display(
+                self.as_ptr(),
+                ignore,
+            );
         }
         self
     }

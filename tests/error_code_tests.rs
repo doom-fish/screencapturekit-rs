@@ -1,4 +1,4 @@
-//! SCStreamErrorCode tests
+//! `SCStreamErrorCode` tests
 //!
 //! Tests for error code handling and conversion
 
@@ -29,7 +29,10 @@ fn test_error_code_values() {
     assert_eq!(SCStreamErrorCode::RemovingStream as i32, -3813);
     assert_eq!(SCStreamErrorCode::UserStopped as i32, -3814);
     assert_eq!(SCStreamErrorCode::FailedToStartExtension as i32, -3815);
-    assert_eq!(SCStreamErrorCode::FailedToStartMicrophoneCapture as i32, -3816);
+    assert_eq!(
+        SCStreamErrorCode::FailedToStartMicrophoneCapture as i32,
+        -3816
+    );
     assert_eq!(SCStreamErrorCode::SystemStoppedStream as i32, -3817);
 }
 
@@ -59,7 +62,7 @@ fn test_error_code_from_raw_valid() {
 
     for (raw, expected) in codes {
         let result = SCStreamErrorCode::from_raw(raw);
-        assert_eq!(result, Some(expected), "Failed for raw value {}", raw);
+        assert_eq!(result, Some(expected), "Failed for raw value {raw}");
     }
 }
 
@@ -69,7 +72,7 @@ fn test_error_code_from_raw_invalid() {
 
     for code in invalid_codes {
         let result = SCStreamErrorCode::from_raw(code);
-        assert!(result.is_none(), "Should be None for invalid code {}", code);
+        assert!(result.is_none(), "Should be None for invalid code {code}");
     }
 }
 
@@ -78,7 +81,7 @@ fn test_error_code_from_raw_invalid() {
 #[test]
 fn test_error_code_display() {
     let code = SCStreamErrorCode::UserDeclined;
-    let display = format!("{}", code);
+    let display = format!("{code}");
     assert!(!display.is_empty());
 }
 
@@ -105,8 +108,11 @@ fn test_all_error_codes_display() {
     ];
 
     for code in codes {
-        let display = format!("{}", code);
-        assert!(!display.is_empty(), "Display should not be empty for {:?}", code);
+        let display = format!("{code}");
+        assert!(
+            !display.is_empty(),
+            "Display should not be empty for {code:?}"
+        );
     }
 }
 
@@ -115,7 +121,7 @@ fn test_all_error_codes_display() {
 #[test]
 fn test_error_code_debug() {
     let code = SCStreamErrorCode::UserDeclined;
-    let debug = format!("{:?}", code);
+    let debug = format!("{code:?}");
     assert!(debug.contains("UserDeclined"));
 }
 
@@ -127,7 +133,10 @@ fn test_scerror_from_stream_error_code() {
     let error = SCError::from_stream_error_code(code);
 
     match error {
-        SCError::SCStreamError { code: err_code, message } => {
+        SCError::SCStreamError {
+            code: err_code,
+            message,
+        } => {
             assert_eq!(err_code, code);
             assert!(message.is_none());
         }
@@ -141,7 +150,10 @@ fn test_scerror_from_stream_error_code_with_message() {
     let error = SCError::from_stream_error_code_with_message(code, "width must be positive");
 
     match error {
-        SCError::SCStreamError { code: err_code, message } => {
+        SCError::SCStreamError {
+            code: err_code,
+            message,
+        } => {
             assert_eq!(err_code, code);
             assert_eq!(message, Some("width must be positive".to_string()));
         }
@@ -187,8 +199,14 @@ fn test_scerror_stream_error_code_getter() {
 
 #[test]
 fn test_error_code_equality() {
-    assert_eq!(SCStreamErrorCode::UserDeclined, SCStreamErrorCode::UserDeclined);
-    assert_ne!(SCStreamErrorCode::UserDeclined, SCStreamErrorCode::InternalError);
+    assert_eq!(
+        SCStreamErrorCode::UserDeclined,
+        SCStreamErrorCode::UserDeclined
+    );
+    assert_ne!(
+        SCStreamErrorCode::UserDeclined,
+        SCStreamErrorCode::InternalError
+    );
 }
 
 #[test]
@@ -222,7 +240,7 @@ fn test_error_code_copy() {
 #[test]
 fn test_scstream_error_display_without_message() {
     let error = SCError::from_stream_error_code(SCStreamErrorCode::UserDeclined);
-    let display = format!("{}", error);
+    let display = format!("{error}");
 
     assert!(display.contains("SCStream"));
 }
@@ -231,9 +249,9 @@ fn test_scstream_error_display_without_message() {
 fn test_scstream_error_display_with_message() {
     let error = SCError::from_stream_error_code_with_message(
         SCStreamErrorCode::InvalidParameter,
-        "width must be > 0"
+        "width must be > 0",
     );
-    let display = format!("{}", error);
+    let display = format!("{error}");
 
     assert!(display.contains("SCStream"));
     assert!(display.contains("width must be > 0"));
@@ -250,7 +268,7 @@ fn test_audio_related_errors() {
 
     for code in audio_errors {
         let error = SCError::from_stream_error_code(code);
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(!display.is_empty());
     }
 }
@@ -267,7 +285,7 @@ fn test_stream_lifecycle_errors() {
 
     for code in lifecycle_errors {
         let error = SCError::from_stream_error_code(code);
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(!display.is_empty());
     }
 }
@@ -285,7 +303,7 @@ fn test_configuration_errors() {
 
     for code in config_errors {
         let error = SCError::from_stream_error_code(code);
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(!display.is_empty());
     }
 }

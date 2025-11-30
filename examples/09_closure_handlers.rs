@@ -13,6 +13,7 @@ use screencapturekit::stream::ErrorHandler;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+#[allow(clippy::too_many_lines)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 Closure-based Handlers\n");
 

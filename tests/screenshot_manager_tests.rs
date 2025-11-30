@@ -116,11 +116,15 @@ fn test_capture_image_in_rect() {
         Ok(image) => {
             assert!(image.width() > 0);
             assert!(image.height() > 0);
-            println!("✓ Captured image in rect: {}x{}", image.width(), image.height());
+            println!(
+                "✓ Captured image in rect: {}x{}",
+                image.width(),
+                image.height()
+            );
         }
         Err(e) => {
             // Expected on macOS < 15.2 or without permission
-            println!("⚠ capture_image_in_rect not available: {}", e);
+            println!("⚠ capture_image_in_rect not available: {e}");
         }
     }
 }
@@ -137,7 +141,11 @@ fn test_capture_image_in_rect_small_region() {
 
     match result {
         Ok(image) => {
-            println!("✓ Captured small region: {}x{}", image.width(), image.height());
+            println!(
+                "✓ Captured small region: {}x{}",
+                image.width(),
+                image.height()
+            );
         }
         Err(_) => {
             println!("⚠ capture_image_in_rect not available");
@@ -182,15 +190,17 @@ fn test_screenshot_configuration_builder() {
 #[test]
 #[cfg(feature = "macos_26_0")]
 fn test_screenshot_configuration_hdr() {
-    use screencapturekit::screenshot_manager::{SCScreenshotConfiguration, SCScreenshotDynamicRange};
+    use screencapturekit::screenshot_manager::{
+        SCScreenshotConfiguration, SCScreenshotDynamicRange,
+    };
 
     // Test each dynamic range option
-    let sdr_config = SCScreenshotConfiguration::new()
-        .with_dynamic_range(SCScreenshotDynamicRange::SDR);
+    let sdr_config =
+        SCScreenshotConfiguration::new().with_dynamic_range(SCScreenshotDynamicRange::SDR);
     assert!(!sdr_config.as_ptr().is_null());
 
-    let hdr_config = SCScreenshotConfiguration::new()
-        .with_dynamic_range(SCScreenshotDynamicRange::HDR);
+    let hdr_config =
+        SCScreenshotConfiguration::new().with_dynamic_range(SCScreenshotDynamicRange::HDR);
     assert!(!hdr_config.as_ptr().is_null());
 
     let both_config = SCScreenshotConfiguration::new()
@@ -203,8 +213,7 @@ fn test_screenshot_configuration_hdr() {
 fn test_screenshot_configuration_file_path() {
     use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
 
-    let config = SCScreenshotConfiguration::new()
-        .with_file_path("/tmp/test_screenshot.png");
+    let config = SCScreenshotConfiguration::new().with_file_path("/tmp/test_screenshot.png");
     assert!(!config.as_ptr().is_null());
 }
 
@@ -231,7 +240,7 @@ fn test_screenshot_display_intent_enum() {
     assert_eq!(SCScreenshotDisplayIntent::Local as i32, 1);
 
     // Test default
-    let default: SCScreenshotDisplayIntent = Default::default();
+    let default = SCScreenshotDisplayIntent::default();
     assert_eq!(default, SCScreenshotDisplayIntent::Canonical);
 }
 
@@ -245,14 +254,16 @@ fn test_screenshot_dynamic_range_enum() {
     assert_eq!(SCScreenshotDynamicRange::BothSDRAndHDR as i32, 2);
 
     // Test default
-    let default: SCScreenshotDynamicRange = Default::default();
+    let default = SCScreenshotDynamicRange::default();
     assert_eq!(default, SCScreenshotDynamicRange::SDR);
 }
 
 #[test]
 #[cfg(feature = "macos_26_0")]
 fn test_capture_screenshot_with_configuration() {
-    use screencapturekit::screenshot_manager::{SCScreenshotConfiguration, SCScreenshotDynamicRange};
+    use screencapturekit::screenshot_manager::{
+        SCScreenshotConfiguration, SCScreenshotDynamicRange,
+    };
 
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -286,7 +297,7 @@ fn test_capture_screenshot_with_configuration() {
         }
         Err(e) => {
             // Expected on macOS < 26.0 or without permission
-            println!("⚠ capture_screenshot not available: {}", e);
+            println!("⚠ capture_screenshot not available: {e}");
         }
     }
 }
@@ -318,7 +329,7 @@ fn test_capture_screenshot_in_rect_with_configuration() {
             }
         }
         Err(e) => {
-            println!("⚠ capture_screenshot_in_rect not available: {}", e);
+            println!("⚠ capture_screenshot_in_rect not available: {e}");
         }
     }
 }

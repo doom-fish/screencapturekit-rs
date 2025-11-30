@@ -1,6 +1,6 @@
 //! Stream configuration builder pattern tests
 //!
-//! Comprehensive tests for the SCStreamConfiguration builder pattern
+//! Comprehensive tests for the `SCStreamConfiguration` builder pattern
 
 use screencapturekit::cg::CGRect;
 use screencapturekit::cm::CMTime;
@@ -66,7 +66,7 @@ fn test_builder_with_fps() {
     // FPS is derived from minimum_frame_interval
     let fps = config.fps();
     // Note: May be 0 on some macOS versions
-    println!("FPS: {}", fps);
+    println!("FPS: {fps}");
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn test_builder_with_source_rect() {
 
     let result = config.source_rect();
     // Note: source_rect might return default on some macOS versions
-    println!("Source rect: {:?}", result);
+    println!("Source rect: {result:?}");
 }
 
 #[test]
@@ -94,12 +94,13 @@ fn test_builder_with_destination_rect() {
     let config = SCStreamConfiguration::new().with_destination_rect(rect);
 
     let result = config.destination_rect();
-    println!("Destination rect: {:?}", result);
+    println!("Destination rect: {result:?}");
 }
 
 #[test]
 fn test_builder_with_background_color() {
-    let config = SCStreamConfiguration::new().with_background_color(1.0, 0.0, 0.0); // Red
+    let _config = SCStreamConfiguration::new().with_background_color(1.0, 0.0, 0.0);
+    // Red
     // No getter for background color, just verify it doesn't crash
 }
 
@@ -108,7 +109,7 @@ fn test_builder_with_stream_name() {
     let config = SCStreamConfiguration::new().with_stream_name(Some("TestStream"));
     let name = config.stream_name();
     // Stream name may not be retrievable on all macOS versions
-    println!("Stream name: {:?}", name);
+    println!("Stream name: {name:?}");
 }
 
 #[test]
@@ -172,7 +173,9 @@ fn test_large_dimensions() {
 #[test]
 fn test_odd_dimensions() {
     // Non-standard dimensions
-    let config = SCStreamConfiguration::new().with_width(1921).with_height(1081);
+    let config = SCStreamConfiguration::new()
+        .with_width(1921)
+        .with_height(1081);
     assert_eq!(config.width(), 1921);
     assert_eq!(config.height(), 1081);
 }
@@ -196,7 +199,9 @@ fn test_very_low_fps() {
 
 #[test]
 fn test_configuration_clone() {
-    let config1 = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+    let config1 = SCStreamConfiguration::new()
+        .with_width(1920)
+        .with_height(1080);
 
     let config2 = config1.clone();
     assert_eq!(config1.width(), config2.width());
@@ -211,7 +216,7 @@ fn test_configuration_equality() {
     // Two separately created configs have different pointers, so they're not equal
     // This tests pointer-based equality
     assert_ne!(config1, config2);
-    
+
     // A clone shares the same underlying object (ref counted), so pointers are equal
     let config3 = config1.clone();
     assert_eq!(config1, config3);
@@ -227,6 +232,7 @@ fn test_configuration_hash() {
     let mut set = HashSet::new();
     set.insert(config1);
     set.insert(config2);
+    assert!(!set.is_empty(), "Set should contain configurations");
 
     // Both should hash to the same value since they're default configs
     // Note: This depends on the Hash implementation
@@ -260,11 +266,11 @@ fn test_mutable_matches_builder() {
 fn test_builder_capture_resolution_type() {
     use screencapturekit::stream::configuration::SCCaptureResolutionType;
 
-    let config = SCStreamConfiguration::new()
-        .with_capture_resolution_type(SCCaptureResolutionType::Best);
+    let config =
+        SCStreamConfiguration::new().with_capture_resolution_type(SCCaptureResolutionType::Best);
 
     let result = config.capture_resolution_type();
-    println!("Capture resolution type: {:?}", result);
+    println!("Capture resolution type: {result:?}");
 }
 
 #[test]
@@ -323,7 +329,7 @@ fn test_builder_ignores_shadow_display_configuration() {
 fn test_builder_captures_microphone() {
     let config = SCStreamConfiguration::new().with_captures_microphone(true);
     let result = config.captures_microphone();
-    println!("Captures microphone: {}", result);
+    println!("Captures microphone: {result}");
 }
 
 #[test]
@@ -340,7 +346,7 @@ fn test_builder_dynamic_range() {
     for range in ranges {
         let config = SCStreamConfiguration::new().with_capture_dynamic_range(range);
         let result = config.capture_dynamic_range();
-        println!("Dynamic range: {:?}", result);
+        println!("Dynamic range: {result:?}");
     }
 }
 
@@ -348,7 +354,7 @@ fn test_builder_dynamic_range() {
 
 #[test]
 fn test_audio_sample_rates() {
-    let rates = [22050, 44100, 48000, 96000, 192000];
+    let rates = [22050, 44100, 48000, 96000, 192_000];
 
     for rate in rates {
         let config = SCStreamConfiguration::new()
@@ -385,13 +391,13 @@ fn test_excludes_current_process_audio() {
 
 #[test]
 fn test_color_space_name() {
-    let config = SCStreamConfiguration::new().with_color_space_name("kCGColorSpaceSRGB");
+    let _config = SCStreamConfiguration::new().with_color_space_name("kCGColorSpaceSRGB");
     // No getter, just verify no crash
 }
 
 #[test]
 fn test_color_matrix() {
-    let config = SCStreamConfiguration::new().with_color_matrix("kCGColorMatrix709");
+    let _config = SCStreamConfiguration::new().with_color_matrix("kCGColorMatrix709");
     // No getter, just verify no crash
 }
 

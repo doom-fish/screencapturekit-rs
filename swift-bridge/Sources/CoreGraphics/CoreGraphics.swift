@@ -21,10 +21,10 @@ public struct CGRectBridge {
     }
 
     public init(rect: CGRect) {
-        self.x = Double(rect.origin.x)
-        self.y = Double(rect.origin.y)
-        self.width = Double(rect.size.width)
-        self.height = Double(rect.size.height)
+        x = Double(rect.origin.x)
+        y = Double(rect.origin.y)
+        width = Double(rect.size.width)
+        height = Double(rect.size.height)
     }
 
     public func toCGRect() -> CGRect {
@@ -44,8 +44,8 @@ public struct CGSizeBridge {
     }
 
     public init(size: CGSize) {
-        self.width = Double(size.width)
-        self.height = Double(size.height)
+        width = Double(size.width)
+        height = Double(size.height)
     }
 
     public func toCGSize() -> CGSize {
@@ -65,8 +65,8 @@ public struct CGPointBridge {
     }
 
     public init(point: CGPoint) {
-        self.x = Double(point.x)
-        self.y = Double(point.y)
+        x = Double(point.x)
+        y = Double(point.y)
     }
 
     public func toCGPoint() -> CGPoint {
@@ -105,7 +105,7 @@ public func getCGImageData(_ image: OpaquePointer, _ outPtr: UnsafeMutablePointe
 
     let width = cgImage.width
     let height = cgImage.height
-    let bytesPerPixel = 4  // RGBA
+    let bytesPerPixel = 4 // RGBA
     let bytesPerRow = width * bytesPerPixel
     let totalBytes = height * bytesPerRow
 
@@ -149,11 +149,11 @@ public func saveCGImageToPNG(_ image: OpaquePointer, _ pathPtr: UnsafePointer<CC
     let cgImage = Unmanaged<CGImage>.fromOpaque(UnsafeRawPointer(image)).takeUnretainedValue()
     let path = String(cString: pathPtr)
     let url = URL(fileURLWithPath: path)
-    
+
     guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
         return false
     }
-    
+
     CGImageDestinationAddImage(destination, cgImage, nil)
     return CGImageDestinationFinalize(destination)
 }
