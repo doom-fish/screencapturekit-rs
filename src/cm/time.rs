@@ -1,5 +1,6 @@
 //! Core Media time types
 
+use std::ffi::c_void;
 use std::fmt;
 
 /// `CMTime` representation matching Core Media's `CMTime`
@@ -276,3 +277,112 @@ impl fmt::Display for CMTime {
         }
     }
 }
+
+/// `CMClock` wrapper for synchronization clock
+///
+/// Represents a Core Media clock used for time synchronization.
+/// Available on macOS 13.0+.
+pub struct CMClock {
+    ptr: *const c_void,
+}
+
+impl PartialEq for CMClock {
+    fn eq(&self, other: &Self) -> bool {
+        self.ptr == other.ptr
+    }
+}
+
+impl Eq for CMClock {}
+
+impl std::hash::Hash for CMClock {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ptr.hash(state);
+    }
+}
+
+impl CMClock {
+    /// Create from raw pointer, returning None if null
+    pub fn from_raw(ptr: *const c_void) -> Option<Self> {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(Self { ptr })
+        }
+    }
+
+    /// Create from raw pointer (used internally)
+    ///
+    /// # Safety
+    /// The caller must ensure the pointer is a valid, retained `CMClock` pointer.
+    pub(crate) fn from_ptr(ptr: *const c_void) -> Self {
+        Self { ptr }
+    }
+
+    /// Returns the raw pointer to the underlying `CMClock`
+    pub fn as_ptr(&self) -> *const c_void {
+        self.ptr
+    }
+
+    /// Get the current time from this clock
+    ///
+    /// Note: Returns invalid time. Use `as_ptr()` with Core Media APIs directly
+    /// for full clock functionality.
+    pub fn time(&self) -> CMTime {
+        // This would require FFI to CMClockGetTime - for now return invalid
+        // Users can use the pointer directly with Core Media APIs
+        CMTime::INVALID
+    }
+}
+
+impl Drop for CMClock {
+    fn drop(&mut self) {
+        if !self.ptr.is_null() {
+            // CMClock is a CFType, needs CFRelease
+            extern "C" {
+                fn CFRelease(cf: *const c_void);
+            }
+            unsafe {
+                CFRelease(self.ptr);
+            }
+        }
+    }
+}
+
+impl Clone for CMClock {
+    fn clone(&self) -> Self {
+        if self.ptr.is_null() {
+            Self {
+                ptr: std::ptr::null(),
+            }
+        } else {
+            extern "C" {
+                fn CFRetain(cf: *const c_void) -> *const c_void;
+            }
+            unsafe {
+                Self {
+                    ptr: CFRetain(self.ptr),
+                }
+            }
+        }
+    }
+}
+
+impl fmt::Debug for CMClock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CMClock").field("ptr", &self.ptr).finish()
+    }
+}
+
+impl fmt::Display for CMClock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.ptr.is_null() {
+            write!(f, "CMClock(null)")
+        } else {
+            write!(f, "CMClock({:p})", self.ptr)
+        }
+    }
+}
+
+// Safety: CMClock is a CoreFoundation type that is thread-safe
+unsafe impl Send for CMClock {}
+unsafe impl Sync for CMClock {}
