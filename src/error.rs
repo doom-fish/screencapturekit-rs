@@ -13,4 +13,4 @@
 //! }
 //! ```
 
-pub use crate::utils::error::{SCError, SCResult};
+pub use crate::utils::error::{SCError, SCResult, SCStreamErrorCode, SC_STREAM_ERROR_DOMAIN};

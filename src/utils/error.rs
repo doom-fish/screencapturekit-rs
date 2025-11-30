@@ -113,14 +113,8 @@ pub enum SCError {
     /// Application not found
     ApplicationNotFound(String),
 
-    /// Stream operation error
+    /// Stream operation error (generic)
     StreamError(String),
-
-    /// Stream already running
-    StreamAlreadyRunning,
-
-    /// Stream not running
-    StreamNotRunning,
 
     /// Failed to start capture
     CaptureStartFailed(String),
@@ -161,17 +155,17 @@ pub enum SCError {
     /// Generic internal error
     InternalError(String),
 
-    /// OS error with code
+    /// OS error with code (for non-SCStream errors)
     OSError { code: i32, message: String },
 
-    /// User declined screen recording permission (macOS 12.3+)
-    UserDeclined,
-
-    /// Failed to start microphone capture (macOS 15.0+)
-    MicrophoneCaptureFailed(String),
-
-    /// System stopped the stream (macOS 15.0+)
-    SystemStoppedStream,
+    /// ScreenCaptureKit stream error with specific error code
+    ///
+    /// This variant wraps Apple's `SCStreamError.Code` for precise error handling.
+    /// Use [`SCStreamErrorCode`] to match specific error conditions.
+    SCStreamError {
+        code: SCStreamErrorCode,
+        message: Option<String>,
+    },
 }
 
 impl fmt::Display for SCError {
@@ -190,8 +184,6 @@ impl fmt::Display for SCError {
             Self::WindowNotFound(msg) => write!(f, "Window not found: {msg}"),
             Self::ApplicationNotFound(msg) => write!(f, "Application not found: {msg}"),
             Self::StreamError(msg) => write!(f, "Stream error: {msg}"),
-            Self::StreamAlreadyRunning => write!(f, "Stream is already running"),
-            Self::StreamNotRunning => write!(f, "Stream is not running"),
             Self::CaptureStartFailed(msg) => write!(f, "Failed to start capture: {msg}"),
             Self::CaptureStopFailed(msg) => write!(f, "Failed to stop capture: {msg}"),
             Self::BufferLockError(msg) => write!(f, "Failed to lock pixel buffer: {msg}"),
@@ -215,14 +207,24 @@ impl fmt::Display for SCError {
             Self::Timeout(msg) => write!(f, "Operation timed out: {msg}"),
             Self::InternalError(msg) => write!(f, "Internal error: {msg}"),
             Self::OSError { code, message } => write!(f, "OS error {code}: {message}"),
-            Self::UserDeclined => write!(f, "User declined screen recording permission"),
-            Self::MicrophoneCaptureFailed(msg) => write!(f, "Failed to start microphone capture: {msg}"),
-            Self::SystemStoppedStream => write!(f, "System stopped the stream"),
+            Self::SCStreamError { code, message } => {
+                if let Some(msg) = message {
+                    write!(f, "SCStream error ({}): {}", code, msg)
+                } else {
+                    write!(f, "SCStream error: {}", code)
+                }
+            }
         }
     }
 }
 
 impl std::error::Error for SCError {}
+
+impl From<SCStreamErrorCode> for SCError {
+    fn from(code: SCStreamErrorCode) -> Self {
+        Self::from_stream_error_code(code)
+    }
+}
 
 impl SCError {
     /// Create an invalid configuration error
@@ -394,6 +396,95 @@ impl SCError {
             message: message.into(),
         }
     }
+
+    /// Create an error from an `SCStreamErrorCode`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::error::{SCError, SCStreamErrorCode};
+    ///
+    /// let err = SCError::from_stream_error_code(SCStreamErrorCode::UserDeclined);
+    /// assert!(err.to_string().contains("User declined"));
+    /// ```
+    pub fn from_stream_error_code(code: SCStreamErrorCode) -> Self {
+        Self::SCStreamError {
+            code,
+            message: None,
+        }
+    }
+
+    /// Create an error from an `SCStreamErrorCode` with additional message
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::error::{SCError, SCStreamErrorCode};
+    ///
+    /// let err = SCError::from_stream_error_code_with_message(
+    ///     SCStreamErrorCode::FailedToStart,
+    ///     "No available displays"
+    /// );
+    /// assert!(err.to_string().contains("Failed to start"));
+    /// ```
+    pub fn from_stream_error_code_with_message(
+        code: SCStreamErrorCode,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::SCStreamError {
+            code,
+            message: Some(message.into()),
+        }
+    }
+
+    /// Create an error from a raw error code
+    ///
+    /// If the code matches a known `SCStreamErrorCode`, creates an `SCStreamError`.
+    /// Otherwise, creates an `OSError`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::error::SCError;
+    ///
+    /// // Known SCStreamError code
+    /// let err = SCError::from_error_code(-3801); // UserDeclined
+    /// assert!(matches!(err, SCError::SCStreamError { .. }));
+    ///
+    /// // Unknown code falls back to OSError
+    /// let err = SCError::from_error_code(-999);
+    /// assert!(matches!(err, SCError::OSError { .. }));
+    /// ```
+    pub fn from_error_code(code: i32) -> Self {
+        if let Some(stream_code) = SCStreamErrorCode::from_raw(code) {
+            Self::from_stream_error_code(stream_code)
+        } else {
+            Self::OSError {
+                code,
+                message: "Unknown error".to_string(),
+            }
+        }
+    }
+
+    /// Get the `SCStreamErrorCode` if this is an `SCStreamError`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::error::{SCError, SCStreamErrorCode};
+    ///
+    /// let err = SCError::from_stream_error_code(SCStreamErrorCode::UserDeclined);
+    /// assert_eq!(err.stream_error_code(), Some(SCStreamErrorCode::UserDeclined));
+    ///
+    /// let err = SCError::StreamError("test".to_string());
+    /// assert_eq!(err.stream_error_code(), None);
+    /// ```
+    pub fn stream_error_code(&self) -> Option<SCStreamErrorCode> {
+        match self {
+            Self::SCStreamError { code, .. } => Some(*code),
+            _ => None,
+        }
+    }
 }
 
 // Legacy compatibility
@@ -449,4 +540,122 @@ impl SCError {
 /// ```
 pub fn create_sc_error(message: &str) -> SCError {
     SCError::new(message)
+}
+
+/// Error domain for ScreenCaptureKit errors
+pub const SC_STREAM_ERROR_DOMAIN: &str = "com.apple.screencapturekit";
+
+/// Error codes from Apple's `SCStreamError.Code`
+///
+/// These correspond to the error codes returned by ScreenCaptureKit operations.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SCStreamErrorCode {
+    /// User declined the recording permission request
+    UserDeclined = -3801,
+    /// Failed to start the audio capture
+    FailedToStartAudioCapture = -3802,
+    /// Failed to start the stream
+    FailedToStart = -3803,
+    /// Attempt to start a stream that's already running
+    AttemptToStartStreamState = -3804,
+    /// Attempt to stop a stream that's not running
+    AttemptToStopStreamState = -3805,
+    /// Attempt to update the filter while stream is running
+    AttemptToUpdateFilterState = -3806,
+    /// Attempt to configure the stream while it's running
+    AttemptToConfigState = -3807,
+    /// Internal error occurred
+    InternalError = -3808,
+    /// Invalid parameter was passed
+    InvalidParameter = -3809,
+    /// No window list provided
+    NoWindowList = -3810,
+    /// No display list provided
+    NoDisplayList = -3811,
+    /// No filter provided
+    NoCaptureSource = -3812,
+    /// Failed to remove stream output
+    RemovingStream = -3813,
+    /// User stopped the stream
+    UserStopped = -3814,
+    /// Failed to start the stream extension
+    FailedToStartExtension = -3815,
+    /// Failed to start the microphone capture (macOS 15.0+)
+    FailedToStartMicrophoneCapture = -3816,
+    /// System stopped the stream (macOS 15.0+)
+    SystemStoppedStream = -3817,
+    /// Failed to get the application connection status
+    FailedApplicationConnectionStatus = -3818,
+    /// Failed to get the application connection invalid parameter
+    FailedApplicationConnectionInvalidParameter = -3819,
+    /// Failed to get the capture source
+    FailedNoMatchingApplicationContext = -3820,
+}
+
+impl SCStreamErrorCode {
+    /// Create from raw error code value
+    pub fn from_raw(code: i32) -> Option<Self> {
+        match code {
+            -3801 => Some(Self::UserDeclined),
+            -3802 => Some(Self::FailedToStartAudioCapture),
+            -3803 => Some(Self::FailedToStart),
+            -3804 => Some(Self::AttemptToStartStreamState),
+            -3805 => Some(Self::AttemptToStopStreamState),
+            -3806 => Some(Self::AttemptToUpdateFilterState),
+            -3807 => Some(Self::AttemptToConfigState),
+            -3808 => Some(Self::InternalError),
+            -3809 => Some(Self::InvalidParameter),
+            -3810 => Some(Self::NoWindowList),
+            -3811 => Some(Self::NoDisplayList),
+            -3812 => Some(Self::NoCaptureSource),
+            -3813 => Some(Self::RemovingStream),
+            -3814 => Some(Self::UserStopped),
+            -3815 => Some(Self::FailedToStartExtension),
+            -3816 => Some(Self::FailedToStartMicrophoneCapture),
+            -3817 => Some(Self::SystemStoppedStream),
+            -3818 => Some(Self::FailedApplicationConnectionStatus),
+            -3819 => Some(Self::FailedApplicationConnectionInvalidParameter),
+            -3820 => Some(Self::FailedNoMatchingApplicationContext),
+            _ => None,
+        }
+    }
+
+    /// Get the raw error code value
+    pub const fn as_raw(self) -> i32 {
+        self as i32
+    }
+}
+
+impl std::fmt::Display for SCStreamErrorCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UserDeclined => write!(f, "User declined screen recording"),
+            Self::FailedToStartAudioCapture => write!(f, "Failed to start audio capture"),
+            Self::FailedToStart => write!(f, "Failed to start stream"),
+            Self::AttemptToStartStreamState => write!(f, "Stream is already running"),
+            Self::AttemptToStopStreamState => write!(f, "Stream is not running"),
+            Self::AttemptToUpdateFilterState => write!(f, "Cannot update filter while streaming"),
+            Self::AttemptToConfigState => write!(f, "Cannot configure while streaming"),
+            Self::InternalError => write!(f, "Internal error"),
+            Self::InvalidParameter => write!(f, "Invalid parameter"),
+            Self::NoWindowList => write!(f, "No window list provided"),
+            Self::NoDisplayList => write!(f, "No display list provided"),
+            Self::NoCaptureSource => write!(f, "No capture source provided"),
+            Self::RemovingStream => write!(f, "Failed to remove stream"),
+            Self::UserStopped => write!(f, "User stopped the stream"),
+            Self::FailedToStartExtension => write!(f, "Failed to start extension"),
+            Self::FailedToStartMicrophoneCapture => write!(f, "Failed to start microphone capture"),
+            Self::SystemStoppedStream => write!(f, "System stopped the stream"),
+            Self::FailedApplicationConnectionStatus => {
+                write!(f, "Failed application connection status")
+            }
+            Self::FailedApplicationConnectionInvalidParameter => {
+                write!(f, "Failed application connection invalid parameter")
+            }
+            Self::FailedNoMatchingApplicationContext => {
+                write!(f, "No matching application context")
+            }
+        }
+    }
 }
