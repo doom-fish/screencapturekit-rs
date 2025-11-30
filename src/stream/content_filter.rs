@@ -163,6 +163,15 @@ impl SCContentFilter {
         SCShareableContentStyle::from(value)
     }
 
+    /// Get the stream type (macOS 14.0+)
+    ///
+    /// Returns whether this filter captures a window or a display.
+    #[cfg(feature = "macos_14_0")]
+    pub fn stream_type(&self) -> SCStreamType {
+        let value = unsafe { ffi::sc_content_filter_get_stream_type(self.0) };
+        SCStreamType::from(value)
+    }
+
     /// Get the point-to-pixel scale factor (macOS 14.0+)
     ///
     /// Returns the scaling factor used to convert points to pixels.
@@ -287,6 +296,50 @@ impl From<i32> for SCShareableContentStyle {
     }
 }
 
+#[cfg(feature = "macos_14_0")]
+impl std::fmt::Display for SCShareableContentStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Window => write!(f, "Window"),
+            Self::Display => write!(f, "Display"),
+            Self::Application => write!(f, "Application"),
+        }
+    }
+}
+
+/// Stream type for filters (macOS 14.0+)
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[cfg(feature = "macos_14_0")]
+pub enum SCStreamType {
+    /// Window-based stream
+    #[default]
+    Window = 0,
+    /// Display-based stream
+    Display = 1,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl From<i32> for SCStreamType {
+    fn from(value: i32) -> Self {
+        match value {
+            1 => Self::Display,
+            _ => Self::Window,
+        }
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
+impl std::fmt::Display for SCStreamType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Window => write!(f, "Window"),
+            Self::Display => write!(f, "Display"),
+        }
+    }
+}
+
 impl Drop for SCContentFilter {
     fn drop(&mut self) {
         if !self.0.is_null() {
@@ -375,7 +428,12 @@ enum FilterType {
         display: SCDisplay,
         windows: Vec<SCWindow>,
     },
-    DisplayApplications {
+    DisplayIncludingApplications {
+        display: SCDisplay,
+        applications: Vec<SCRunningApplication>,
+        excepting_windows: Vec<SCWindow>,
+    },
+    DisplayExcludingApplications {
         display: SCDisplay,
         applications: Vec<SCRunningApplication>,
         excepting_windows: Vec<SCWindow>,
@@ -442,7 +500,30 @@ impl SCContentFilterBuilder {
         if let FilterType::DisplayExcluding { display, .. }
         | FilterType::DisplayIncluding { display, .. } = self.filter_type
         {
-            self.filter_type = FilterType::DisplayApplications {
+            self.filter_type = FilterType::DisplayIncludingApplications {
+                display,
+                applications: applications.iter().map(|a| (*a).clone()).collect(),
+                excepting_windows: excepting_windows.iter().map(|w| (*w).clone()).collect(),
+            };
+        }
+        self
+    }
+
+    /// Exclude specific applications and optionally except certain windows
+    ///
+    /// Captures everything on the display except the specified applications.
+    /// Windows in `excepting_windows` will still be captured even if their
+    /// owning application is excluded.
+    #[must_use]
+    pub fn exclude_applications(
+        mut self,
+        applications: &[&SCRunningApplication],
+        excepting_windows: &[&SCWindow],
+    ) -> Self {
+        if let FilterType::DisplayExcluding { display, .. }
+        | FilterType::DisplayIncluding { display, .. } = self.filter_type
+        {
+            self.filter_type = FilterType::DisplayExcludingApplications {
                 display,
                 applications: applications.iter().map(|a| (*a).clone()).collect(),
                 excepting_windows: excepting_windows.iter().map(|w| (*w).clone()).collect(),
@@ -513,7 +594,7 @@ impl SCContentFilterBuilder {
                     SCContentFilter(ptr)
                 }
             }
-            FilterType::DisplayApplications {
+            FilterType::DisplayIncludingApplications {
                 display,
                 applications,
                 excepting_windows,
@@ -529,6 +610,31 @@ impl SCContentFilterBuilder {
 
                     #[allow(clippy::cast_possible_wrap)]
                     let ptr = ffi::sc_content_filter_create_with_display_including_applications_excepting_windows(
+                        display.as_ptr(),
+                        if app_ptrs.is_empty() { std::ptr::null() } else { app_ptrs.as_ptr() },
+                        app_ptrs.len() as isize,
+                        if window_ptrs.is_empty() { std::ptr::null() } else { window_ptrs.as_ptr() },
+                        window_ptrs.len() as isize,
+                    );
+                    SCContentFilter(ptr)
+                }
+            }
+            FilterType::DisplayExcludingApplications {
+                display,
+                applications,
+                excepting_windows,
+            } => {
+                let app_refs: Vec<&SCRunningApplication> = applications.iter().collect();
+                let window_refs: Vec<&SCWindow> = excepting_windows.iter().collect();
+                unsafe {
+                    let app_ptrs: Vec<*const c_void> =
+                        app_refs.iter().map(|a| a.as_ptr()).collect();
+
+                    let window_ptrs: Vec<*const c_void> =
+                        window_refs.iter().map(|w| w.as_ptr()).collect();
+
+                    #[allow(clippy::cast_possible_wrap)]
+                    let ptr = ffi::sc_content_filter_create_with_display_excluding_applications_excepting_windows(
                         display.as_ptr(),
                         if app_ptrs.is_empty() { std::ptr::null() } else { app_ptrs.as_ptr() },
                         app_ptrs.len() as isize,
