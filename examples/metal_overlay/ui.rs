@@ -278,4 +278,102 @@ impl VertexBufferBuilder {
         };
         self.text(font, hint, text_x, ly, scale * 0.6, [0.5, 0.4, 0.6, 1.0]);
     }
+
+    #[cfg(feature = "macos_15_0")]
+    pub fn recording_config_menu(
+        &mut self,
+        font: &BitmapFont,
+        vw: f32,
+        vh: f32,
+        config: &crate::overlay::RecordingConfig,
+        selection: usize,
+    ) {
+        use crate::overlay::RecordingConfigMenu;
+
+        let base_scale = (vw.min(vh) / 800.0).clamp(0.8, 2.0);
+        let scale = 1.5 * base_scale;
+        let line_h = 18.0 * base_scale;
+        let padding = 16.0 * base_scale;
+        let option_count = RecordingConfigMenu::option_count();
+        let box_w = (280.0 * base_scale).min(vw * 0.7);
+        let box_h = (line_h * (option_count as f32 + 4.0) + padding * 2.0).min(vh * 0.6);
+        let x = (vw - box_w) / 2.0;
+        let y = (vh - box_h) / 2.0;
+
+        // Dark purple background with neon border
+        self.rect(x, y, box_w, box_h, DARK_BG);
+        self.rect_outline(x, y, box_w, box_h, 2.0, NEON_PINK);
+        self.rect_outline(
+            x + 1.0,
+            y + 1.0,
+            box_w - 2.0,
+            box_h - 2.0,
+            1.0,
+            [0.4, 0.1, 0.3, 0.5],
+        );
+
+        let mut ly = y + padding;
+        let text_x = x + padding + 12.0 * base_scale;
+
+        // Title
+        self.text(font, "RECORDING", text_x - 4.0, ly, scale * 0.9, NEON_PINK);
+        ly += line_h * 1.2;
+
+        // Separator line
+        self.rect(x + padding, ly - 4.0, box_w - padding * 2.0, 1.0, NEON_PURPLE);
+        ly += line_h * 0.3;
+
+        let actual_scale = (scale as i32) as f32;
+        let text_h = 8.0 * actual_scale;
+
+        for i in 0..option_count {
+            let is_selected = i == selection;
+            let text_y = ly + (line_h - text_h) / 2.0;
+            let item = RecordingConfigMenu::option_name(i);
+            let value = RecordingConfigMenu::option_value(config, i);
+
+            if is_selected {
+                // Selection highlight
+                self.rect(x + 3.0, ly, box_w - 6.0, line_h, [0.25, 0.05, 0.15, 0.9]);
+                self.rect(x + 3.0, ly, 2.0, line_h, NEON_PINK);
+                self.text(font, ">", x + padding * 0.5, text_y, scale, NEON_YELLOW);
+            }
+
+            let item_color = if is_selected {
+                NEON_CYAN
+            } else {
+                [0.8, 0.8, 0.9, 1.0]
+            };
+
+            self.text(font, item, text_x, text_y, scale, item_color);
+
+            let vx = x + box_w - padding - value.len() as f32 * 8.0 * actual_scale;
+            let value_color = if is_selected {
+                NEON_YELLOW
+            } else {
+                [0.5, 0.5, 0.6, 1.0]
+            };
+            self.text(font, &value, vx, text_y, scale, value_color);
+            ly += line_h;
+        }
+
+        // Footer
+        ly += line_h * 0.2;
+        self.rect(
+            x + padding,
+            ly,
+            box_w - padding * 2.0,
+            1.0,
+            [0.3, 0.15, 0.4, 0.4],
+        );
+        ly += line_h * 0.4;
+        self.text(
+            font,
+            "LEFT/RIGHT  ESC",
+            text_x,
+            ly,
+            scale * 0.6,
+            [0.5, 0.4, 0.6, 1.0],
+        );
+    }
 }
