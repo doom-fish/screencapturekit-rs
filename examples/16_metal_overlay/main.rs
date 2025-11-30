@@ -38,7 +38,7 @@
 //! ## Run
 //!
 //! ```bash
-//! cargo run --example metal_overlay --features macos_14_0
+//! cargo run --example 16_metal_overlay --features macos_14_0
 //! ```
 
 mod capture;

@@ -72,6 +72,6 @@ targets = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [[example]]
-name = "metal_overlay"
-path = "examples/metal_overlay/main.rs"
+name = "16_metal_overlay"
+path = "examples/16_metal_overlay/main.rs"
 required-features = ["macos_14_0"]
