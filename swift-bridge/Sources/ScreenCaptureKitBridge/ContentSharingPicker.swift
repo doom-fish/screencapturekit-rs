@@ -168,7 +168,7 @@ class PickerResult {
     let contentRect: CGRect
     let pointPixelScale: Double
     
-    // Extracted content from filter using KVC
+    // Extracted content from filter
     let windows: [SCWindow]
     let displays: [SCDisplay]
     let applications: [SCRunningApplication]
@@ -178,10 +178,24 @@ class PickerResult {
         self.contentRect = filter.contentRect
         self.pointPixelScale = Double(filter.pointPixelScale)
         
-        // Extract the picked content via KVC (these are internal but accessible)
+        // Use public APIs on macOS 15.2+, fall back to KVC on older versions
+        #if compiler(>=6.0)
+        if #available(macOS 15.2, *) {
+            self.windows = filter.includedWindows
+            self.displays = filter.includedDisplays
+            self.applications = filter.includedApplications
+        } else {
+            // Fallback to KVC for older macOS versions
+            self.windows = (filter.value(forKey: "includedWindows") as? [SCWindow]) ?? []
+            self.displays = (filter.value(forKey: "includedDisplays") as? [SCDisplay]) ?? []
+            self.applications = (filter.value(forKey: "includedApplications") as? [SCRunningApplication]) ?? []
+        }
+        #else
+        // Fallback for older compilers (< Swift 6)
         self.windows = (filter.value(forKey: "includedWindows") as? [SCWindow]) ?? []
         self.displays = (filter.value(forKey: "includedDisplays") as? [SCDisplay]) ?? []
         self.applications = (filter.value(forKey: "includedApplications") as? [SCRunningApplication]) ?? []
+        #endif
     }
 }
 
