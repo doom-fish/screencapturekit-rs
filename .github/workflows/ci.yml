@@ -60,6 +60,7 @@ jobs:
             features: "async,macos_26_0"
     runs-on: ${{ matrix.os }}
     name: Build - ${{ matrix.name }}
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust
@@ -84,7 +85,7 @@ jobs:
         run: cargo test --verbose --features "${{ matrix.features }}"
 
   # ==========================================================================
-  # Memory Leak Check
+  # Memory Leak Check (runs parallel to build)
   # ==========================================================================
   leak-check:
     runs-on: macos-14
@@ -110,43 +111,11 @@ jobs:
         run: cargo run --example 15_memory_leak_check --features "async,macos_14_4"
 
   # ==========================================================================
-  # Documentation (only on main)
-  # ==========================================================================
-  docs:
-    runs-on: macos-latest
-    needs: [lint, build, leak-check]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-      - name: Build documentation
-        run: cargo doc --no-deps --all-features
-      - name: Add redirect
-        run: echo '<meta http-equiv="refresh" content="0; url=screencapturekit/index.html">' > target/doc/index.html
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: target/doc
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  # ==========================================================================
-  # Release (only on main, after successful build)
+  # Release (only on main, after successful build and leak-check)
   # ==========================================================================
   release-pr:
     runs-on: macos-latest
-    needs: [lint, build]
+    needs: [lint, build, leak-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: release
     concurrency:
@@ -171,7 +140,7 @@ jobs:
 
   release:
     runs-on: macos-latest
-    needs: [lint, build]
+    needs: [lint, build, leak-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: release
     permissions:
