@@ -77,6 +77,33 @@ public func createContentFilterWithDisplayIncludingApplicationsExceptingWindows(
     return retain(filter)
 }
 
+@_cdecl("sc_content_filter_create_with_display_excluding_applications_excepting_windows")
+public func createContentFilterWithDisplayExcludingApplicationsExceptingWindows(
+    _ display: OpaquePointer,
+    _ apps: UnsafePointer<OpaquePointer>?,
+    _ appsCount: Int,
+    _ windows: UnsafePointer<OpaquePointer>?,
+    _ windowsCount: Int
+) -> OpaquePointer {
+    let scDisplay: SCDisplay = unretained(display)
+    var excludedApps: [SCRunningApplication] = []
+    if let apps = apps {
+        for i in 0..<appsCount {
+            let app: SCRunningApplication = unretained(apps[i])
+            excludedApps.append(app)
+        }
+    }
+    var exceptedWindows: [SCWindow] = []
+    if let windows = windows {
+        for i in 0..<windowsCount {
+            let window: SCWindow = unretained(windows[i])
+            exceptedWindows.append(window)
+        }
+    }
+    let filter = SCContentFilter(display: scDisplay, excludingApplications: excludedApps, exceptingWindows: exceptedWindows)
+    return retain(filter)
+}
+
 @_cdecl("sc_content_filter_retain")
 public func retainContentFilter(_ filter: OpaquePointer) -> OpaquePointer {
     let f: SCContentFilter = unretained(filter)
@@ -132,6 +159,22 @@ public func getContentFilterStyle(_ filter: OpaquePointer) -> Int32 {
         }
     }
     return 0
+}
+
+@_cdecl("sc_content_filter_get_stream_type")
+public func getContentFilterStreamType(_ filter: OpaquePointer) -> Int32 {
+    let f: SCContentFilter = unretained(filter)
+    if #available(macOS 14.0, *) {
+        switch f.streamType {
+        case .window:
+            return 0
+        case .display:
+            return 1
+        @unknown default:
+            return -1
+        }
+    }
+    return -1
 }
 
 @_cdecl("sc_content_filter_get_point_pixel_scale")
@@ -242,19 +285,20 @@ public func getContentFilterIncludedApplicationAt(_ filter: OpaquePointer, _ ind
 // MARK: - Stream: SCStream Delegates and Handlers
 
 private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
-    let errorCallback: @convention(c) (OpaquePointer, UnsafePointer<CChar>) -> Void
+    let errorCallback: @convention(c) (OpaquePointer, Int32, UnsafePointer<CChar>) -> Void
     let streamPtr: OpaquePointer
     var activeCallback: (@convention(c) (OpaquePointer) -> Void)?
     var inactiveCallback: (@convention(c) (OpaquePointer) -> Void)?
 
-    init(streamPtr: OpaquePointer, errorCallback: @escaping @convention(c) (OpaquePointer, UnsafePointer<CChar>) -> Void) {
+    init(streamPtr: OpaquePointer, errorCallback: @escaping @convention(c) (OpaquePointer, Int32, UnsafePointer<CChar>) -> Void) {
         self.streamPtr = streamPtr
         self.errorCallback = errorCallback
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
+        let errorCode = extractStreamErrorCode(error)
         let errorMsg = error.localizedDescription
-        errorMsg.withCString { errorCallback(streamPtr, $0) }
+        errorMsg.withCString { errorCallback(streamPtr, errorCode, $0) }
     }
     
     #if compiler(>=6.0)
@@ -330,7 +374,7 @@ private let handlerRegistry = HandlerRegistry()
 public func createStream(
     _ filter: OpaquePointer,
     _ config: OpaquePointer,
-    _ errorCallback: @escaping @convention(c) (OpaquePointer, UnsafePointer<CChar>) -> Void
+    _ errorCallback: @escaping @convention(c) (OpaquePointer, Int32, UnsafePointer<CChar>) -> Void
 ) -> OpaquePointer? {
     let scFilter: SCContentFilter = unretained(filter)
     let scConfig: SCStreamConfiguration = unretained(config)
@@ -562,6 +606,21 @@ public func updateStreamConfiguration(
         let bridgeError = SCBridgeError.configurationError("updateConfiguration requires macOS 14.0 or later")
         bridgeError.description.withCString { callback(context, false, $0) }
     }
+}
+
+// MARK: - Stream Properties
+
+/// Get the synchronization clock for the stream (macOS 13.0+)
+@_cdecl("sc_stream_get_synchronization_clock")
+public func getStreamSynchronizationClock(_ stream: OpaquePointer) -> OpaquePointer? {
+    if #available(macOS 13.0, *) {
+        let s: SCStream = unretained(stream)
+        if let clock = s.synchronizationClock {
+            // CMClock is a CoreFoundation type, retain and return it
+            return OpaquePointer(Unmanaged.passRetained(clock as AnyObject).toOpaque())
+        }
+    }
+    return nil
 }
 
 @_cdecl("sc_stream_retain")
