@@ -202,8 +202,13 @@ impl CMSampleBuffer {
             let mut y: f64 = 0.0;
             let mut width: f64 = 0.0;
             let mut height: f64 = 0.0;
-            if ffi::cm_sample_buffer_get_content_rect(self.0, &mut x, &mut y, &mut width, &mut height)
-            {
+            if ffi::cm_sample_buffer_get_content_rect(
+                self.0,
+                &mut x,
+                &mut y,
+                &mut width,
+                &mut height,
+            ) {
                 Some(crate::cg::CGRect::new(x, y, width, height))
             } else {
                 None
@@ -221,7 +226,11 @@ impl CMSampleBuffer {
             let mut width: f64 = 0.0;
             let mut height: f64 = 0.0;
             if ffi::cm_sample_buffer_get_bounding_rect(
-                self.0, &mut x, &mut y, &mut width, &mut height,
+                self.0,
+                &mut x,
+                &mut y,
+                &mut width,
+                &mut height,
             ) {
                 Some(crate::cg::CGRect::new(x, y, width, height))
             } else {
@@ -239,8 +248,13 @@ impl CMSampleBuffer {
             let mut y: f64 = 0.0;
             let mut width: f64 = 0.0;
             let mut height: f64 = 0.0;
-            if ffi::cm_sample_buffer_get_screen_rect(self.0, &mut x, &mut y, &mut width, &mut height)
-            {
+            if ffi::cm_sample_buffer_get_screen_rect(
+                self.0,
+                &mut x,
+                &mut y,
+                &mut width,
+                &mut height,
+            ) {
                 Some(crate::cg::CGRect::new(x, y, width, height))
             } else {
                 None

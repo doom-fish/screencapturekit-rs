@@ -127,5 +127,3 @@ where
 {
     ffi_string_owned(ffi_call).unwrap_or_default()
 }
-
-
