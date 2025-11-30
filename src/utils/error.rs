@@ -158,7 +158,7 @@ pub enum SCError {
     /// OS error with code (for non-SCStream errors)
     OSError { code: i32, message: String },
 
-    /// ScreenCaptureKit stream error with specific error code
+    /// `ScreenCaptureKit` stream error with specific error code
     ///
     /// This variant wraps Apple's `SCStreamError.Code` for precise error handling.
     /// Use [`SCStreamErrorCode`] to match specific error conditions.
@@ -209,9 +209,9 @@ impl fmt::Display for SCError {
             Self::OSError { code, message } => write!(f, "OS error {code}: {message}"),
             Self::SCStreamError { code, message } => {
                 if let Some(msg) = message {
-                    write!(f, "SCStream error ({}): {}", code, msg)
+                    write!(f, "SCStream error ({code}): {msg}")
                 } else {
-                    write!(f, "SCStream error: {}", code)
+                    write!(f, "SCStream error: {code}")
                 }
             }
         }
@@ -456,14 +456,13 @@ impl SCError {
     /// assert!(matches!(err, SCError::OSError { .. }));
     /// ```
     pub fn from_error_code(code: i32) -> Self {
-        if let Some(stream_code) = SCStreamErrorCode::from_raw(code) {
-            Self::from_stream_error_code(stream_code)
-        } else {
-            Self::OSError {
+        SCStreamErrorCode::from_raw(code).map_or_else(
+            || Self::OSError {
                 code,
                 message: "Unknown error".to_string(),
-            }
-        }
+            },
+            Self::from_stream_error_code,
+        )
     }
 
     /// Get the `SCStreamErrorCode` if this is an `SCStreamError`
@@ -487,67 +486,12 @@ impl SCError {
     }
 }
 
-// Legacy compatibility
-impl SCError {
-    /// Create from a message string (for backward compatibility)
-    ///
-    /// **Note:** Prefer using specific error constructors like [`SCError::invalid_config`]
-    /// or other helper methods for better error categorization.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use screencapturekit::error::SCError;
-    ///
-    /// // Old style (still works)
-    /// let err = SCError::new("Something went wrong");
-    /// assert!(err.to_string().contains("Something went wrong"));
-    /// ```
-    pub fn new(message: impl Into<String>) -> Self {
-        Self::InternalError(message.into())
-    }
-
-    /// Get the error message (for backward compatibility)
-    ///
-    /// **Note:** Prefer using [`ToString::to_string`] which provides the same functionality.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use screencapturekit::error::SCError;
-    ///
-    /// let err = SCError::invalid_dimension("width", 0);
-    /// let msg = err.message();
-    /// assert!(msg.contains("width"));
-    /// assert!(msg.contains("0"));
-    /// ```
-    pub fn message(&self) -> String {
-        self.to_string()
-    }
-}
-
-/// Helper function to create an error (for backward compatibility)
-///
-/// **Note:** Prefer using [`SCError::new`] or specific constructors.
-///
-/// # Examples
-///
-/// ```
-/// use screencapturekit::utils::error::create_sc_error;
-///
-/// let err = create_sc_error("Something failed");
-/// assert!(err.to_string().contains("Something failed"));
-/// ```
-pub fn create_sc_error(message: &str) -> SCError {
-    SCError::new(message)
-}
-
-/// Error domain for ScreenCaptureKit errors
+/// Error domain for `ScreenCaptureKit` errors
 pub const SC_STREAM_ERROR_DOMAIN: &str = "com.apple.screencapturekit";
 
 /// Error codes from Apple's `SCStreamError.Code`
 ///
-/// These correspond to the error codes returned by ScreenCaptureKit operations.
+/// These correspond to the error codes returned by `ScreenCaptureKit` operations.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SCStreamErrorCode {

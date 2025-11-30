@@ -1,7 +1,7 @@
 //! `SCContentFilter` tests
 
+use screencapturekit::cg::CGRect;
 use screencapturekit::shareable_content::SCShareableContent;
-use screencapturekit::stream::configuration::{Point, Rect, Size};
 use screencapturekit::stream::content_filter::SCContentFilter;
 
 // Initialize CoreGraphics to prevent CGS_REQUIRE_INIT crashes in CI
@@ -98,12 +98,13 @@ fn test_content_filter_include_applications() {
 }
 
 #[test]
+#[cfg(feature = "macos_14_2")]
 fn test_content_filter_content_rect() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let rect = Rect::new(Point::new(100.0, 100.0), Size::new(800.0, 600.0));
+    let rect = CGRect::new(100.0, 100.0, 800.0, 600.0);
 
     let filter = SCContentFilter::builder()
         .display(display)
@@ -114,11 +115,12 @@ fn test_content_filter_content_rect() {
     // Test get_content_rect
     let retrieved_rect = filter.content_rect();
     // The rect should be set (though exact values may vary based on macOS version)
-    assert!(retrieved_rect.size.width >= 0.0);
-    assert!(retrieved_rect.size.height >= 0.0);
+    assert!(retrieved_rect.width >= 0.0);
+    assert!(retrieved_rect.height >= 0.0);
 }
 
 #[test]
+#[cfg(feature = "macos_14_2")]
 fn test_content_filter_set_content_rect() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -129,7 +131,7 @@ fn test_content_filter_set_content_rect() {
         .exclude_windows(&[])
         .build();
 
-    let rect = Rect::new(Point::new(50.0, 50.0), Size::new(400.0, 300.0));
+    let rect = CGRect::new(50.0, 50.0, 400.0, 300.0);
     let filter = filter.set_content_rect(rect);
 
     let debug_str = format!("{filter:?}");

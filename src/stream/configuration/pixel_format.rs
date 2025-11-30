@@ -60,11 +60,10 @@ impl From<u32> for PixelFormat {
 impl From<FourCharCode> for PixelFormat {
     fn from(val: FourCharCode) -> Self {
         match val.display().as_str() {
-            "BGRA" => Self::BGRA,
             "l10r" => Self::l10r,
             "420v" => Self::YCbCr_420v,
             "420f" => Self::YCbCr_420f,
-            _ => Self::BGRA, // Default to BGRA for unknown formats
+            _ => Self::BGRA, // Default to BGRA for unknown formats (including "BGRA")
         }
     }
 }

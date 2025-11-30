@@ -40,9 +40,6 @@ impl std::hash::Hash for SCDisplay {
     }
 }
 
-/// Raw pointer type for `SCDisplay` (for FFI compatibility)
-pub type SCDisplayRef = *const c_void;
-
 impl SCDisplay {
     /// Create from raw pointer (used internally by shareable content)
     pub(crate) unsafe fn from_ptr(ptr: *const c_void) -> Self {
@@ -50,11 +47,8 @@ impl SCDisplay {
     }
 
     /// Create from FFI-owned pointer (caller transfers ownership)
-    ///
-    /// # Safety
-    /// The pointer must be a valid, retained `SCDisplay` from Swift FFI.
-    #[doc(hidden)]
-    pub fn from_ffi_owned(ptr: *const c_void) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn from_ffi_owned(ptr: *const c_void) -> Self {
         Self(ptr)
     }
 

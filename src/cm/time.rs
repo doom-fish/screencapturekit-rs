@@ -314,6 +314,7 @@ impl CMClock {
     ///
     /// # Safety
     /// The caller must ensure the pointer is a valid, retained `CMClock` pointer.
+    #[allow(dead_code)]
     pub(crate) fn from_ptr(ptr: *const c_void) -> Self {
         Self { ptr }
     }

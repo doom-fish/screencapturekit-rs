@@ -614,7 +614,7 @@ impl SCScreenshotConfiguration {
         self
     }
 
-    /// Set the content type (output format) using UTType identifier
+    /// Set the content type (output format) using `UTType` identifier
     ///
     /// Common identifiers include:
     /// - `"public.png"` - PNG format
@@ -636,7 +636,7 @@ impl SCScreenshotConfiguration {
         self
     }
 
-    /// Get the current content type as UTType identifier
+    /// Get the current content type as `UTType` identifier
     pub fn content_type(&self) -> Option<String> {
         let mut buffer = vec![0i8; 256];
         let success = unsafe {
@@ -648,15 +648,15 @@ impl SCScreenshotConfiguration {
         };
         if success {
             let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
-            c_str.to_str().ok().map(|s| s.to_string())
+            c_str.to_str().ok().map(ToString::to_string)
         } else {
             None
         }
     }
 
-    /// Get the list of supported content types (UTType identifiers)
+    /// Get the list of supported content types (`UTType` identifiers)
     ///
-    /// Returns a list of UTType identifiers that can be used with
+    /// Returns a list of `UTType` identifiers that can be used with
     /// [`with_content_type()`](Self::with_content_type).
     ///
     /// Common types include:

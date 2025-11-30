@@ -250,53 +250,6 @@ fn test_stream_output_type_eq_and_hash() {
 }
 
 #[test]
-fn test_config_types_eq_and_hash() {
-    use screencapturekit::stream::configuration::types::{Point, Rect, Size};
-
-    // Test Point
-    let p1 = Point::new(10.0, 20.0);
-    let p2 = Point::new(10.0, 20.0);
-    let p3 = Point::new(11.0, 20.0);
-
-    assert_eq!(p1, p2);
-    assert_ne!(p1, p3);
-
-    let mut points = HashSet::new();
-    points.insert(p1);
-    points.insert(p2);
-    points.insert(p3);
-    assert_eq!(points.len(), 2);
-
-    // Test Size
-    let s1 = Size::new(100.0, 200.0);
-    let s2 = Size::new(100.0, 200.0);
-    let s3 = Size::new(100.0, 201.0);
-
-    assert_eq!(s1, s2);
-    assert_ne!(s1, s3);
-
-    let mut sizes = HashSet::new();
-    sizes.insert(s1);
-    sizes.insert(s2);
-    sizes.insert(s3);
-    assert_eq!(sizes.len(), 2);
-
-    // Test Rect
-    let r1 = Rect::new(Point::new(0.0, 0.0), Size::new(100.0, 100.0));
-    let r2 = Rect::new(Point::new(0.0, 0.0), Size::new(100.0, 100.0));
-    let r3 = Rect::new(Point::new(1.0, 0.0), Size::new(100.0, 100.0));
-
-    assert_eq!(r1, r2);
-    assert_ne!(r1, r3);
-
-    let mut rects = HashSet::new();
-    rects.insert(r1);
-    rects.insert(r2);
-    rects.insert(r3);
-    assert_eq!(rects.len(), 2);
-}
-
-#[test]
 fn test_error_eq() {
     let err1 = SCError::invalid_dimension("width", 0);
     let err2 = SCError::invalid_dimension("width", 0);
@@ -378,16 +331,16 @@ fn test_presenter_overlay_setting_eq_and_hash() {
 
     let never1 = SCPresenterOverlayAlertSetting::Never;
     let never2 = SCPresenterOverlayAlertSetting::Never;
-    let once = SCPresenterOverlayAlertSetting::Once;
+    let system = SCPresenterOverlayAlertSetting::System;
     let always = SCPresenterOverlayAlertSetting::Always;
 
     assert_eq!(never1, never2);
-    assert_ne!(never1, once);
-    assert_ne!(once, always);
+    assert_ne!(never1, system);
+    assert_ne!(system, always);
 
     let mut settings = HashSet::new();
+    settings.insert(SCPresenterOverlayAlertSetting::System);
     settings.insert(SCPresenterOverlayAlertSetting::Never);
-    settings.insert(SCPresenterOverlayAlertSetting::Once);
     settings.insert(SCPresenterOverlayAlertSetting::Always);
     settings.insert(SCPresenterOverlayAlertSetting::Never); // Duplicate
     assert_eq!(settings.len(), 3);

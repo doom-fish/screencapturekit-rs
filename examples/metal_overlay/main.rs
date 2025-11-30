@@ -398,7 +398,12 @@ fn main() {
                             };
 
                         // Handle menu navigation when help is shown
-                        if overlay.show_help && !overlay.show_config {
+                        #[cfg(feature = "macos_15_0")]
+                        let show_any_config = overlay.show_config || overlay.show_recording_config;
+                        #[cfg(not(feature = "macos_15_0"))]
+                        let show_any_config = overlay.show_config;
+                        
+                        if overlay.show_help && !show_any_config {
                             match keycode {
                                 VirtualKeyCode::Up => {
                                     if overlay.menu_selection > 0 {
@@ -488,6 +493,19 @@ fn main() {
                                             overlay.show_help = false;
                                         }
                                         5 => {
+                                            // Recording Config (macOS 15.0+) or Quit
+                                            #[cfg(feature = "macos_15_0")]
+                                            {
+                                                overlay.show_recording_config = true;
+                                                overlay.show_help = false;
+                                            }
+                                            #[cfg(not(feature = "macos_15_0"))]
+                                            {
+                                                *control_flow = ControlFlow::ExitWithCode(0);
+                                            }
+                                        }
+                                        #[cfg(feature = "macos_15_0")]
+                                        6 => {
                                             // Quit
                                             *control_flow = ControlFlow::ExitWithCode(0);
                                         }
@@ -566,8 +584,50 @@ fn main() {
                                 _ => {}
                             }
                         }
+                        // Handle recording config menu navigation (macOS 15.0+)
+                        #[cfg(feature = "macos_15_0")]
+                        if overlay.show_recording_config {
+                            use crate::recording::RecordingConfigMenu;
+                            
+                            match keycode {
+                                VirtualKeyCode::Up => {
+                                    if overlay.recording_config_selection > 0 {
+                                        overlay.recording_config_selection -= 1;
+                                    }
+                                }
+                                VirtualKeyCode::Down => {
+                                    let max = RecordingConfigMenu::option_count().saturating_sub(1);
+                                    if overlay.recording_config_selection < max {
+                                        overlay.recording_config_selection += 1;
+                                    }
+                                }
+                                VirtualKeyCode::Left | VirtualKeyCode::Right => {
+                                    let increase = keycode == VirtualKeyCode::Right;
+                                    RecordingConfigMenu::toggle_or_adjust(
+                                        &mut recording_config,
+                                        overlay.recording_config_selection,
+                                        increase,
+                                    );
+                                }
+                                VirtualKeyCode::Return | VirtualKeyCode::Space => {
+                                    RecordingConfigMenu::toggle_or_adjust(
+                                        &mut recording_config,
+                                        overlay.recording_config_selection,
+                                        true,
+                                    );
+                                }
+                                VirtualKeyCode::Escape | VirtualKeyCode::Back => {
+                                    overlay.show_recording_config = false;
+                                    overlay.show_help = true;
+                                }
+                                VirtualKeyCode::Q => {
+                                    *control_flow = ControlFlow::ExitWithCode(0);
+                                }
+                                _ => {}
+                            }
+                        }
                         // Default key handling (no menu shown)
-                        else {
+                        else if !overlay.show_help && !show_any_config {
                             match keycode {
                                 VirtualKeyCode::Space => {
                                     // Toggle capture on/off
@@ -634,43 +694,17 @@ fn main() {
                                     // Recording shortcut (macOS 15.0+)
                                     #[cfg(feature = "macos_15_0")]
                                     {
-                                        if recording.load(Ordering::Relaxed) {
+                                        if recording_state.is_active() {
                                             // Stop recording
                                             if let Some(ref s) = stream {
-                                                if let Some(ref rec) = recording_output {
-                                                    println!("⏹️  Stopping recording...");
-                                                    let _ = s.remove_recording_output(rec);
-                                                    recording.store(false, Ordering::Relaxed);
-                                                    if let Some(ref path) = recording_path {
-                                                        println!("✅ Recording saved: {}", path);
-                                                        let _ = std::process::Command::new("open").arg(path).spawn();
-                                                    }
-                                                }
+                                                recording_state.stop(s);
                                             }
-                                            recording_output = None;
-                                            recording_path = None;
                                         } else if current_filter.is_some() && stream.is_some() {
                                             // Start recording
-                                            let timestamp = std::time::SystemTime::now()
-                                                .duration_since(std::time::UNIX_EPOCH)
-                                                .map(|d| d.as_secs())
-                                                .unwrap_or(0);
-                                            let path = format!("/tmp/recording_{}.mp4", timestamp);
-                                            recording_path = Some(path.clone());
-                                            
-                                            let config = SCRecordingOutputConfiguration::new()
-                                                .with_output_url(std::path::Path::new(&path));
-                                            
-                                            if let Some(rec) = SCRecordingOutput::new(&config) {
-                                                if let Some(ref s) = stream {
-                                                    match s.add_recording_output(&rec) {
-                                                        Ok(()) => {
-                                                            println!("🔴 Recording to: {}", path);
-                                                            recording.store(true, Ordering::Relaxed);
-                                                            recording_output = Some(rec);
-                                                        }
-                                                        Err(e) => eprintln!("❌ Failed to start recording: {:?}", e),
-                                                    }
+                                            if let Some(ref s) = stream {
+                                                match recording_state.start(s, &recording_config) {
+                                                    Ok(path) => println!("🔴 Recording to: {}", path),
+                                                    Err(e) => eprintln!("❌ {}", e),
                                                 }
                                             }
                                         } else {
@@ -872,6 +906,18 @@ fn main() {
                             overlay.config_selection,
                             capturing.load(Ordering::Relaxed),
                             &source_str,
+                        );
+                    }
+
+                    // Recording config menu overlay (macOS 15.0+)
+                    #[cfg(feature = "macos_15_0")]
+                    if overlay.show_recording_config {
+                        vertex_builder.recording_config_menu(
+                            &font,
+                            width,
+                            height,
+                            &recording_config,
+                            overlay.recording_config_selection,
                         );
                     }
 

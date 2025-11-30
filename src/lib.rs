@@ -351,6 +351,7 @@ pub use utils::four_char_code::FourCharCode;
 /// ```
 pub mod prelude {
     pub use crate::audio_devices::AudioInputDevice;
+    pub use crate::cg::{CGPoint, CGRect, CGSize};
     pub use crate::cm::{CMSampleBuffer, CMTime};
     pub use crate::dispatch_queue::{DispatchQoS, DispatchQueue};
     pub use crate::error::{SCError, SCResult};

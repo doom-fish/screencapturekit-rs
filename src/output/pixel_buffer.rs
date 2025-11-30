@@ -222,17 +222,6 @@ impl PixelBufferLockGuard<'_> {
     pub fn cursor(&self) -> io::Cursor<&[u8]> {
         io::Cursor::new(self.as_slice())
     }
-
-    /// Access buffer with a cursor using a closure (for backward compatibility)
-    ///
-    /// This method is provided for backward compatibility. Consider using
-    /// `cursor()` directly for more flexibility.
-    pub fn with_cursor<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(io::Cursor<&[u8]>) -> R,
-    {
-        f(self.cursor())
-    }
 }
 
 impl Drop for PixelBufferLockGuard<'_> {

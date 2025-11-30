@@ -180,6 +180,7 @@ where
 /// # Ok(())
 /// # }
 /// ```
+#[allow(clippy::struct_field_names)]
 pub struct StreamCallbacks {
     on_stop: Option<Box<dyn Fn(Option<String>) + Send + 'static>>,
     on_error: Option<Box<dyn Fn(SCError) + Send + 'static>>,

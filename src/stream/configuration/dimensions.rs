@@ -305,31 +305,6 @@ impl SCStreamConfiguration {
         unsafe { crate::ffi::sc_stream_configuration_get_preserves_aspect_ratio(self.as_ptr()) }
     }
 
-    /// Preserve aspect ratio when scaling (alternative API)
-    ///
-    /// This is an alternative to `set_preserves_aspect_ratio` for compatibility.
-    pub fn set_preserve_aspect_ratio(&mut self, preserve_aspect_ratio: bool) -> &mut Self {
-        unsafe {
-            crate::ffi::sc_stream_configuration_set_preserve_aspect_ratio(
-                self.as_ptr(),
-                preserve_aspect_ratio,
-            );
-        }
-        self
-    }
-
-    /// Preserve aspect ratio (builder pattern, alternative API)
-    #[must_use]
-    pub fn with_preserve_aspect_ratio(mut self, preserve_aspect_ratio: bool) -> Self {
-        self.set_preserve_aspect_ratio(preserve_aspect_ratio);
-        self
-    }
-
-    /// Check if aspect ratio preservation is enabled (alternative API)
-    pub fn preserve_aspect_ratio(&self) -> bool {
-        unsafe { crate::ffi::sc_stream_configuration_get_preserve_aspect_ratio(self.as_ptr()) }
-    }
-
     /// Enable or disable increased resolution for Retina displays
     ///
     /// When enabled, the captured content will be scaled up to match the backing

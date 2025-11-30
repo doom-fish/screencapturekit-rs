@@ -41,9 +41,6 @@ impl std::hash::Hash for SCWindow {
     }
 }
 
-/// Raw pointer type for `SCWindow` (for FFI compatibility)
-pub type SCWindowRef = *const c_void;
-
 impl SCWindow {
     /// Create from raw pointer (used internally by shareable content)
     pub(crate) unsafe fn from_ptr(ptr: *const c_void) -> Self {
@@ -51,11 +48,8 @@ impl SCWindow {
     }
 
     /// Create from FFI-owned pointer (caller transfers ownership)
-    ///
-    /// # Safety
-    /// The pointer must be a valid, retained `SCWindow` from Swift FFI.
-    #[doc(hidden)]
-    pub fn from_ffi_owned(ptr: *const c_void) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn from_ffi_owned(ptr: *const c_void) -> Self {
         Self(ptr)
     }
 
@@ -117,6 +111,7 @@ impl SCWindow {
     }
 
     /// Check if window is active (macOS 14.0+)
+    #[cfg(feature = "macos_14_0")]
     pub fn is_active(&self) -> bool {
         unsafe { crate::ffi::sc_window_is_active(self.0) }
     }
@@ -140,14 +135,16 @@ impl Clone for SCWindow {
 
 impl fmt::Debug for SCWindow {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SCWindow")
+        let mut debug = f.debug_struct("SCWindow");
+        debug
             .field("window_id", &self.window_id())
             .field("title", &self.title())
             .field("frame", &self.frame())
             .field("window_layer", &self.window_layer())
-            .field("is_on_screen", &self.is_on_screen())
-            .field("is_active", &self.is_active())
-            .finish()
+            .field("is_on_screen", &self.is_on_screen());
+        #[cfg(feature = "macos_14_0")]
+        debug.field("is_active", &self.is_active());
+        debug.finish()
     }
 }
 

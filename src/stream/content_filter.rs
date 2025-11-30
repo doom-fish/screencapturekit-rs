@@ -24,6 +24,8 @@
 use std::ffi::c_void;
 use std::fmt;
 
+#[cfg(feature = "macos_14_2")]
+use crate::cg::CGRect;
 use crate::{
     ffi,
     shareable_content::{SCDisplay, SCRunningApplication, SCWindow},
@@ -119,22 +121,24 @@ impl SCContentFilter {
     /// Sets the content rectangle for this filter (macOS 14.2+)
     ///
     /// Specifies the rectangle within the content filter to capture.
+    #[cfg(feature = "macos_14_2")]
     #[must_use]
-    pub fn set_content_rect(self, rect: crate::stream::configuration::Rect) -> Self {
+    pub fn set_content_rect(self, rect: CGRect) -> Self {
         unsafe {
             ffi::sc_content_filter_set_content_rect(
                 self.0,
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
             );
         }
         self
     }
 
     /// Gets the content rectangle for this filter (macOS 14.2+)
-    pub fn content_rect(&self) -> crate::stream::configuration::Rect {
+    #[cfg(feature = "macos_14_2")]
+    pub fn content_rect(&self) -> CGRect {
         unsafe {
             let mut x = 0.0;
             let mut y = 0.0;
@@ -147,10 +151,7 @@ impl SCContentFilter {
                 &mut width,
                 &mut height,
             );
-            crate::stream::configuration::Rect::new(
-                crate::stream::configuration::Point::new(x, y),
-                crate::stream::configuration::Size::new(width, height),
-            )
+            CGRect::new(x, y, width, height)
         }
     }
 
@@ -350,12 +351,6 @@ impl Drop for SCContentFilter {
     }
 }
 
-// TCFType compatibility for legacy objc-based code
-
-pub type SCContentFilterRef = *const c_void;
-
-extern "C" {}
-
 impl Clone for SCContentFilter {
     fn clone(&self) -> Self {
         unsafe { Self(crate::ffi::sc_content_filter_retain(self.0)) }
@@ -414,7 +409,8 @@ unsafe impl Sync for SCContentFilter {}
 /// ```
 pub struct SCContentFilterBuilder {
     filter_type: FilterType,
-    content_rect: Option<crate::stream::configuration::Rect>,
+    #[cfg(feature = "macos_14_2")]
+    content_rect: Option<CGRect>,
 }
 
 enum FilterType {
@@ -444,6 +440,7 @@ impl SCContentFilterBuilder {
     fn new() -> Self {
         Self {
             filter_type: FilterType::None,
+            #[cfg(feature = "macos_14_2")]
             content_rect: None,
         }
     }
@@ -533,14 +530,16 @@ impl SCContentFilterBuilder {
     }
 
     /// Set the content rectangle (macOS 14.2+)
+    #[cfg(feature = "macos_14_2")]
     #[must_use]
-    pub fn content_rect(mut self, rect: crate::stream::configuration::Rect) -> Self {
+    pub fn content_rect(mut self, rect: CGRect) -> Self {
         self.content_rect = Some(rect);
         self
     }
 
     /// Build the content filter
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn build(self) -> SCContentFilter {
         let filter = match self.filter_type {
             FilterType::Window(window) => unsafe {
@@ -650,11 +649,14 @@ impl SCContentFilterBuilder {
             }
         };
 
-        // Apply content rect if set
-        if let Some(rect) = self.content_rect {
+        // Apply content rect if set (macOS 14.2+)
+        #[cfg(feature = "macos_14_2")]
+        let filter = if let Some(rect) = self.content_rect {
             filter.set_content_rect(rect)
         } else {
             filter
-        }
+        };
+
+        filter
     }
 }
