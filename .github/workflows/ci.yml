@@ -85,11 +85,27 @@ jobs:
         run: cargo test --verbose --features "${{ matrix.features }}"
 
   # ==========================================================================
-  # Memory Leak Check (runs parallel to build)
+  # Memory Leak Check (per-platform, runs parallel to build)
   # ==========================================================================
   leak-check:
-    runs-on: macos-14
-    name: Memory Leak Check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13
+            name: macOS 13 (Ventura) Intel
+            features: "async,macos_13_0"
+          - os: macos-14
+            name: macOS 14 (Sonoma) ARM64
+            features: "async,macos_14_4"
+          - os: macos-15
+            name: macOS 15 (Sequoia) ARM64
+            features: "async,macos_15_2"
+          - os: macos-26
+            name: macOS 26 (Tahoe) ARM64
+            features: "async,macos_26_0"
+    runs-on: ${{ matrix.os }}
+    name: Leak Check - ${{ matrix.name }}
     needs: [lint]
     steps:
       - uses: actions/checkout@v4
@@ -102,13 +118,13 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-leak-check-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.os }}-leak-check-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-leak-check-cargo-
+            ${{ runner.os }}-${{ matrix.os }}-leak-check-cargo-
       - name: Build leak check example
-        run: cargo build --example 15_memory_leak_check --features "async,macos_14_4"
+        run: cargo build --example 15_memory_leak_check --features "${{ matrix.features }}"
       - name: Run memory leak check
-        run: cargo run --example 15_memory_leak_check --features "async,macos_14_4"
+        run: cargo run --example 15_memory_leak_check --features "${{ matrix.features }}"
 
   # ==========================================================================
   # Release (only on main, after successful build and leak-check)
