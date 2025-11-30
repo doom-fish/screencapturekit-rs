@@ -101,10 +101,10 @@ async fn concurrent_operations() -> Result<(), Box<dyn std::error::Error>> {
         AsyncSCShareableContent::get(),
         AsyncSCShareableContent::with_options()
             .on_screen_windows_only(true)
-            .get_async(),
+            .get(),
         AsyncSCShareableContent::with_options()
             .exclude_desktop_windows(true)
-            .get_async(),
+            .get(),
     );
 
     let elapsed = start.elapsed();
