@@ -7,6 +7,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.2.0...v2.0.0) - 2025-11-30
+
+### Added
+
+- *(examples)* enhance memory leak test with comprehensive API coverage
+- *(ffi)* add optimized batch retrieval and owned strings
+- *(examples)* add missing API coverage examples
+- *(example)* refactor metal_overlay with recording/screenshot modules
+- *(ffi)* add FFI bindings for new APIs
+- *(picker)* add presentation mode and single window style
+- *(cm)* add CMTime operations and frame status predicates
+- *(stream)* add sync clock and filter stream type
+- *(config)* add capture resolution type support (macOS 14.0+)
+- *(filter)* add excluding applications filter variant
+- *(screenshot)* add SCScreenshotConfiguration content type support
+- *(async)* add async screenshot APIs for macOS 15.2/26.0
+- *(stream)* add closure-based delegate builders
+- *(example)* add recording menu option (macOS 15.0+)
+- *(example)* use macOS 26 screenshot API when available
+- *(cg)* add CGImage::save_png() with auto-open
+- *(example)* add screenshot option to metal_overlay
+- *(example)* enable mic-only capture without video source
+- *(example)* enhance metal_overlay with synthwave UI
+- *(stream)* expose as_ptr for internal use
+- *(picker)* add show_for_stream methods
+- *(audio)* add audio buffer list access
+- *(picker)* add SCPickedSource to identify selected content type
+- *(audio)* add audio input device enumeration API
+- *(examples)* use SCContentSharingPicker for content selection
+- *(examples)* preserve aspect ratio and center UI panels
+- *(examples)* add real audio waveform and vertical gain meters
+- *(shareable_content)* add missing SDK methods
+- *(screenshot)* add HDR screenshot example and tests
+- *(screenshot)* add macOS 26.0 advanced screenshot APIs
+- *(async)* add async picker example and tests
+- *(async)* add AsyncSCContentSharingPicker for non-blocking picker UI
+- *(recording)* add full video codec and file type arrays
+- *(config)* add CaptureHDRRecordingPreservedSDRHDR10 preset
+- *(delegate)* add stream active/inactive callbacks (macOS 15.2+)
+- *(examples)* add metal_overlay example with GPU rendering
+- *(examples)* integrate new macOS 14.0-15.2 features into examples
+- *(picker)* add SCContentSharingPicker enhancements for macOS 14.0+
+- *(recording)* add SCRecordingOutput features for macOS 15.0+
+- *(screenshot)* add capture_image_in_rect for macOS 15.2+
+- *(content)* add SCShareableContentInfo for macOS 14.0+
+- *(filter)* add SCContentFilter properties for macOS 14.0-15.2
+- *(config)* add new SCStreamConfiguration options for macOS 14.0-15.0
+- *(error)* add new error types for macOS 14.0+ stream events
+- *(config)* [**breaking**] add builder pattern with ::new() and with_* methods
+
+### Fixed
+
+- add macos_13_0 feature gate to synchronization_clock in example
+- add macos_14_0 feature gate to captures_shadows_only tests
+- add feature gates to example for content_rect, point_pixel_scale, and Microphone
+- use rawValue comparison for SCStreamOutputType to fix SDK compatibility
+- add SCREENCAPTUREKIT_HAS_MACOS26_SDK guard for macOS 26+ APIs
+- add macOS version availability guards for Swift APIs
+- guard recording output FFI with compiler version check for macOS 13
+- remove non-existent with_average_bitrate method calls
+- resolve clippy warnings
+- remove non-existent average_bitrate API
+- *(swift)* implement stub configuration properties
+- *(swift)* implement stub configuration properties
+- remove dead code and fix test errors
+- *(memory)* add leak fixes and comprehensive memory tests
+- *(audio)* correct AudioStreamBasicDescription repr
+- *(picker)* activate app and cleanup observer before showing
+- *(examples)* use SCShareableContent instead of blocking picker
+- *(examples)* update recording_output example to use builder pattern
+- *(picker)* remove tokio-dependent async methods
+
+### Other
+
+- update README to match current API
+- add macOS 26 (Tahoe) to build matrix
+- fix formatting in memory leak check example
+- improve doc comments for audio and block buffer modules
+- update documentation to reflect current API
+- update references to renamed memory leak example
+- *(test)* convert leak test to example for better isolation
+- add note about running memory tests single-threaded
+- fix clippy warnings and format code
+- *(swift)* use public APIs for filter content extraction
+- *(examples)* update README with new examples
+- *(examples)* extract input handling to separate module
+- improve code quality and fix memory leaks
+- add copilot instructions and Apple docs download script
+- *(error)* replace specific error variants with SCStreamErrorCode
+- *(example)* split metal_overlay into modules
+- *(example)* remove unused metal_overlay module files
+- *(config)* remove get_ prefix from getters
+- *(example)* modularize metal_overlay example
+- improve metal overlay UX and mic device API
+- *(example)* improve metal_overlay UX with menu navigation
+- *(picker)* rename async pick() to show() for consistency
+- *(picker)* replace blocking API with callback-based API
+- add coverage for missing SDK features
+- *(api)* remove get_ prefix from non-configuration getters
+- fix clippy warnings in docs and tests
+- *(cm)* standardize CM/CV type method naming
+- *(api)* remove deprecated APIs and standardize naming
+- *(api)* standardize Rust API patterns and naming
+- *(swift-bridge)* [**breaking**] standardize API patterns and error handling
+- add version-specific feature testing per macOS runner
+- update README with new APIs and feature flags
+- *(picker)* add async API documentation and improve examples
+- update README and Cargo.toml for new features
+- fix clippy doc_markdown warnings and update examples
+- update documentation to use builder pattern API
+- fix build badge workflow filename
+- use major version only in README examples
+
 ### Added
 
 - **Memory Leak Example** - `15_memory_leak_check.rs` for comprehensive memory leak testing with `leaks`
