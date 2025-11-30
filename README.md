@@ -391,6 +391,10 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 9. **`09_closure_handlers.rs`** - Closure-based handlers and delegates
 10. **`10_recording_output.rs`** - Direct video file recording (macOS 15.0+)
 11. **`11_content_picker.rs`** - System UI for content selection (macOS 14.0+)
+12. **`12_stream_updates.rs`** - Dynamic config/filter updates
+13. **`13_advanced_config.rs`** - HDR, presets, microphone (macOS 15.0+)
+14. **`14_app_capture.rs`** - Application-based filtering
+15. **`15_memory_leak_check.rs`** - Memory leak detection with `leaks`
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -400,12 +404,15 @@ Run an example:
 # Basic examples
 cargo run --example 01_basic_capture
 cargo run --example 09_closure_handlers
+cargo run --example 12_stream_updates
+cargo run --example 14_app_capture
 
 # Feature-gated examples
 cargo run --example 05_screenshot --features macos_14_0
 cargo run --example 08_async --features async
 cargo run --example 10_recording_output --features macos_15_0
 cargo run --example 11_content_picker --features macos_14_0
+cargo run --example 13_advanced_config --features macos_15_0
 ```
 
 ## 🧪 Testing
