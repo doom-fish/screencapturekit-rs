@@ -1,5 +1,7 @@
 //! Audio waveform buffer
 
+#![allow(clippy::cast_precision_loss)]
+
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 pub struct WaveformBuffer {
@@ -22,7 +24,8 @@ impl WaveformBuffer {
     pub fn push(&mut self, data: &[f32]) {
         if !data.is_empty() {
             self.has_received_data.store(true, Ordering::Relaxed);
-            self.sample_count.fetch_add(data.len() as u64, Ordering::Relaxed);
+            self.sample_count
+                .fetch_add(data.len() as u64, Ordering::Relaxed);
         }
         for &s in data {
             self.samples[self.write_pos] = s;

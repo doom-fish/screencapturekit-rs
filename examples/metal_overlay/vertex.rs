@@ -1,8 +1,16 @@
 //! GPU data structures and vertex buffer
 
+#![allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::too_many_arguments
+)]
+
 use std::mem::size_of;
 
-use metal::*;
+use metal::{Buffer, Device, MTLResourceOptions};
 
 use crate::font::BitmapFont;
 
@@ -14,6 +22,7 @@ pub struct Vertex {
 }
 
 impl Vertex {
+    #[allow(clippy::many_single_char_names)]
     pub const fn new(x: f32, y: f32, r: f32, g: f32, b: f32, a: f32) -> Self {
         Self {
             position: [x, y],
@@ -37,7 +46,7 @@ pub struct VertexBufferBuilder {
 }
 
 impl VertexBufferBuilder {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { vertices: vec![] }
     }
 
@@ -53,14 +62,30 @@ impl VertexBufferBuilder {
         self.vertices.extend_from_slice(&[tl, tr, bl, tr, br, bl]);
     }
 
-    pub fn rect_outline(&mut self, x: f32, y: f32, w: f32, h: f32, thickness: f32, color: [f32; 4]) {
+    pub fn rect_outline(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        thickness: f32,
+        color: [f32; 4],
+    ) {
         self.rect(x, y, w, thickness, color);
         self.rect(x, y + h - thickness, w, thickness, color);
         self.rect(x, y, thickness, h, color);
         self.rect(x + w - thickness, y, thickness, h, color);
     }
 
-    pub fn text(&mut self, font: &BitmapFont, text: &str, x: f32, y: f32, scale: f32, color: [f32; 4]) {
+    pub fn text(
+        &mut self,
+        font: &BitmapFont,
+        text: &str,
+        x: f32,
+        y: f32,
+        scale: f32,
+        color: [f32; 4],
+    ) {
         let scale_i = scale as i32;
         let scale_f = scale_i as f32;
         let mut cx = x.floor() as i32;
@@ -121,7 +146,7 @@ impl VertexBufferBuilder {
 
             // Always show at least a small bar if there's any signal
             if bar_h > 0.1 {
-                let bar_x = x + i as f32 * bar_w;
+                let bar_x = (i as f32).mul_add(bar_w, x);
                 // Draw symmetric bars from center
                 self.rect(bar_x, center_y - bar_h, bar_w - gap, bar_h * 2.0, color);
             }

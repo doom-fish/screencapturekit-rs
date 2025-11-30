@@ -1,8 +1,8 @@
 // Content Sharing Picker APIs (macOS 14.0+)
 
+import AppKit
 import Foundation
 import ScreenCaptureKit
-import AppKit
 
 // MARK: - Content Sharing Picker (macOS 14.0+)
 
@@ -60,8 +60,8 @@ public func setContentSharingPickerExcludedBundleIDs(
 ) {
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
     var ids: [String] = []
-    if let bundleIDs = bundleIDs {
-        for i in 0..<count {
+    if let bundleIDs {
+        for i in 0 ..< count {
             if let ptr = bundleIDs[i] {
                 ids.append(String(cString: ptr))
             }
@@ -86,7 +86,7 @@ public func getContentSharingPickerExcludedBundleIDAt(
     _ bufferSize: Int
 ) -> Bool {
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
-    guard index >= 0 && index < box.value.excludedBundleIDs.count else { return false }
+    guard index >= 0, index < box.value.excludedBundleIDs.count else { return false }
     let bundleID = box.value.excludedBundleIDs[index]
     return bundleID.withCString { src in
         strlcpy(buffer, src, bufferSize)
@@ -103,8 +103,8 @@ public func setContentSharingPickerExcludedWindowIDs(
 ) {
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
     var ids: [Int] = []
-    if let windowIDs = windowIDs {
-        for i in 0..<count {
+    if let windowIDs {
+        for i in 0 ..< count {
             ids.append(Int(windowIDs[i]))
         }
     }
@@ -122,7 +122,7 @@ public func getContentSharingPickerExcludedWindowIDsCount(_ config: OpaquePointe
 @_cdecl("sc_content_sharing_picker_configuration_get_excluded_window_id_at")
 public func getContentSharingPickerExcludedWindowIDAt(_ config: OpaquePointer, _ index: Int) -> UInt32 {
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
-    guard index >= 0 && index < box.value.excludedWindowIDs.count else { return 0 }
+    guard index >= 0, index < box.value.excludedWindowIDs.count else { return 0 }
     return UInt32(box.value.excludedWindowIDs[index])
 }
 
@@ -167,34 +167,34 @@ class PickerResult {
     let filter: SCContentFilter
     let contentRect: CGRect
     let pointPixelScale: Double
-    
+
     // Extracted content from filter
     let windows: [SCWindow]
     let displays: [SCDisplay]
     let applications: [SCRunningApplication]
-    
+
     init(filter: SCContentFilter) {
         self.filter = filter
-        self.contentRect = filter.contentRect
-        self.pointPixelScale = Double(filter.pointPixelScale)
-        
+        contentRect = filter.contentRect
+        pointPixelScale = Double(filter.pointPixelScale)
+
         // Use public APIs on macOS 15.2+, fall back to KVC on older versions
         #if compiler(>=6.0)
-        if #available(macOS 15.2, *) {
-            self.windows = filter.includedWindows
-            self.displays = filter.includedDisplays
-            self.applications = filter.includedApplications
-        } else {
-            // Fallback to KVC for older macOS versions
-            self.windows = (filter.value(forKey: "includedWindows") as? [SCWindow]) ?? []
-            self.displays = (filter.value(forKey: "includedDisplays") as? [SCDisplay]) ?? []
-            self.applications = (filter.value(forKey: "includedApplications") as? [SCRunningApplication]) ?? []
-        }
+            if #available(macOS 15.2, *) {
+                windows = filter.includedWindows
+                displays = filter.includedDisplays
+                applications = filter.includedApplications
+            } else {
+                // Fallback to KVC for older macOS versions
+                windows = (filter.value(forKey: "includedWindows") as? [SCWindow]) ?? []
+                displays = (filter.value(forKey: "includedDisplays") as? [SCDisplay]) ?? []
+                applications = (filter.value(forKey: "includedApplications") as? [SCRunningApplication]) ?? []
+            }
         #else
-        // Fallback for older compilers (< Swift 6)
-        self.windows = (filter.value(forKey: "includedWindows") as? [SCWindow]) ?? []
-        self.displays = (filter.value(forKey: "includedDisplays") as? [SCDisplay]) ?? []
-        self.applications = (filter.value(forKey: "includedApplications") as? [SCRunningApplication]) ?? []
+            // Fallback for older compilers (< Swift 6)
+            windows = (filter.value(forKey: "includedWindows") as? [SCWindow]) ?? []
+            displays = (filter.value(forKey: "includedDisplays") as? [SCDisplay]) ?? []
+            applications = (filter.value(forKey: "includedApplications") as? [SCRunningApplication]) ?? []
         #endif
     }
 }
@@ -205,28 +205,29 @@ class PickerObserver: NSObject, SCContentSharingPickerObserver {
     let callback: @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void
     let userData: UnsafeMutableRawPointer?
     var hasCompleted = false
-    
+
     init(callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
-         userData: UnsafeMutableRawPointer?) {
+         userData: UnsafeMutableRawPointer?)
+    {
         self.callback = callback
         self.userData = userData
     }
-    
-    func contentSharingPicker(_ picker: SCContentSharingPicker, didCancelFor stream: SCStream?) {
+
+    func contentSharingPicker(_: SCContentSharingPicker, didCancelFor _: SCStream?) {
         guard !hasCompleted else { return }
         hasCompleted = true
         callback(0, nil, userData) // 0 = cancelled
     }
-    
-    func contentSharingPicker(_ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for stream: SCStream?) {
+
+    func contentSharingPicker(_: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for _: SCStream?) {
         guard !hasCompleted else { return }
         hasCompleted = true
         // Return the filter in the same format as other APIs
         let ptr = ScreenCaptureKitBridge.retain(filter)
         callback(1, ptr, userData) // 1 = success with filter
     }
-    
-    func contentSharingPickerStartDidFailWithError(_ error: Error) {
+
+    func contentSharingPickerStartDidFailWithError(_: Error) {
         guard !hasCompleted else { return }
         hasCompleted = true
         callback(-1, nil, userData) // -1 = error
@@ -239,20 +240,21 @@ class PickerObserverWithResult: NSObject, SCContentSharingPickerObserver {
     let callback: @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void
     let userData: UnsafeMutableRawPointer?
     var hasCompleted = false
-    
+
     init(callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
-         userData: UnsafeMutableRawPointer?) {
+         userData: UnsafeMutableRawPointer?)
+    {
         self.callback = callback
         self.userData = userData
     }
-    
-    func contentSharingPicker(_ picker: SCContentSharingPicker, didCancelFor stream: SCStream?) {
+
+    func contentSharingPicker(_: SCContentSharingPicker, didCancelFor _: SCStream?) {
         guard !hasCompleted else { return }
         hasCompleted = true
         callback(0, nil, userData)
     }
-    
-    func contentSharingPicker(_ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for stream: SCStream?) {
+
+    func contentSharingPicker(_: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for _: SCStream?) {
         guard !hasCompleted else { return }
         hasCompleted = true
         // Return PickerResult with metadata
@@ -260,8 +262,8 @@ class PickerObserverWithResult: NSObject, SCContentSharingPickerObserver {
         let ptr = ScreenCaptureKitBridge.retain(result)
         callback(1, ptr, userData)
     }
-    
-    func contentSharingPickerStartDidFailWithError(_ error: Error) {
+
+    func contentSharingPickerStartDidFailWithError(_: Error) {
         guard !hasCompleted else { return }
         hasCompleted = true
         callback(-1, nil, userData)
@@ -281,20 +283,20 @@ public func showContentSharingPicker(
     _ userData: UnsafeMutableRawPointer?
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
-    
+
     DispatchQueue.main.async {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        
+
         let picker = SCContentSharingPicker.shared
-        
+
         if let old = currentObserver {
             picker.remove(old)
         }
-        
+
         let observer = PickerObserver(callback: callback, userData: userData)
         currentObserver = observer
-        
+
         picker.isActive = true
         picker.add(observer)
         picker.defaultConfiguration = configBox.value
@@ -311,20 +313,20 @@ public func showContentSharingPickerWithResult(
     _ userData: UnsafeMutableRawPointer?
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
-    
+
     DispatchQueue.main.async {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        
+
         let picker = SCContentSharingPicker.shared
-        
+
         if let old = currentObserver {
             picker.remove(old)
         }
-        
+
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         currentObserver = observer
-        
+
         picker.isActive = true
         picker.add(observer)
         picker.defaultConfiguration = configBox.value
@@ -343,20 +345,20 @@ public func showContentSharingPickerForStream(
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
     let scStream: SCStream = unretained(streamPtr)
-    
+
     DispatchQueue.main.async {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        
+
         let picker = SCContentSharingPicker.shared
-        
+
         if let old = currentObserver {
             picker.remove(old)
         }
-        
+
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         currentObserver = observer
-        
+
         picker.isActive = true
         picker.add(observer)
         picker.setConfiguration(configBox.value, for: scStream)
@@ -374,28 +376,27 @@ public func showContentSharingPickerUsingStyle(
     _ userData: UnsafeMutableRawPointer?
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
-    
-    let contentStyle: SCShareableContentStyle
-    switch style {
-    case 1: contentStyle = .window
-    case 2: contentStyle = .display
-    case 3: contentStyle = .application
-    default: contentStyle = .none
+
+    let contentStyle: SCShareableContentStyle = switch style {
+    case 1: .window
+    case 2: .display
+    case 3: .application
+    default: .none
     }
-    
+
     DispatchQueue.main.async {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        
+
         let picker = SCContentSharingPicker.shared
-        
+
         if let old = currentObserver {
             picker.remove(old)
         }
-        
+
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         currentObserver = observer
-        
+
         picker.isActive = true
         picker.add(observer)
         picker.defaultConfiguration = configBox.value
@@ -415,28 +416,27 @@ public func showContentSharingPickerForStreamUsingStyle(
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
     let scStream: SCStream = unretained(streamPtr)
-    
-    let contentStyle: SCShareableContentStyle
-    switch style {
-    case 1: contentStyle = .window
-    case 2: contentStyle = .display
-    case 3: contentStyle = .application
-    default: contentStyle = .none
+
+    let contentStyle: SCShareableContentStyle = switch style {
+    case 1: .window
+    case 2: .display
+    case 3: .application
+    default: .none
     }
-    
+
     DispatchQueue.main.async {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        
+
         let picker = SCContentSharingPicker.shared
-        
+
         if let old = currentObserver {
             picker.remove(old)
         }
-        
+
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         currentObserver = observer
-        
+
         picker.isActive = true
         picker.add(observer)
         picker.setConfiguration(configBox.value, for: scStream)
@@ -489,7 +489,7 @@ public func getPickerResultWindowsCount(_ result: OpaquePointer) -> Int {
 @_cdecl("sc_picker_result_get_window_at")
 public func getPickerResultWindowAt(_ result: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let r: PickerResult = unretained(result)
-    guard index >= 0 && index < r.windows.count else { return nil }
+    guard index >= 0, index < r.windows.count else { return nil }
     return ScreenCaptureKitBridge.retain(r.windows[index])
 }
 
@@ -504,7 +504,7 @@ public func getPickerResultDisplaysCount(_ result: OpaquePointer) -> Int {
 @_cdecl("sc_picker_result_get_display_at")
 public func getPickerResultDisplayAt(_ result: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let r: PickerResult = unretained(result)
-    guard index >= 0 && index < r.displays.count else { return nil }
+    guard index >= 0, index < r.displays.count else { return nil }
     return ScreenCaptureKitBridge.retain(r.displays[index])
 }
 
@@ -519,7 +519,7 @@ public func getPickerResultApplicationsCount(_ result: OpaquePointer) -> Int {
 @_cdecl("sc_picker_result_get_application_at")
 public func getPickerResultApplicationAt(_ result: OpaquePointer, _ index: Int) -> OpaquePointer? {
     let r: PickerResult = unretained(result)
-    guard index >= 0 && index < r.applications.count else { return nil }
+    guard index >= 0, index < r.applications.count else { return nil }
     return ScreenCaptureKitBridge.retain(r.applications[index])
 }
 

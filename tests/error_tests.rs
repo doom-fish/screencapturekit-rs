@@ -127,7 +127,10 @@ fn test_all_error_variants_display() {
     // Test that all error variants have non-empty display strings
     let errors: Vec<SCError> = vec![
         SCError::InvalidConfiguration("test".to_string()),
-        SCError::InvalidDimension { field: "width".to_string(), value: 0 },
+        SCError::InvalidDimension {
+            field: "width".to_string(),
+            value: 0,
+        },
         SCError::InvalidPixelFormat("test".to_string()),
         SCError::NoShareableContent("test".to_string()),
         SCError::DisplayNotFound("test".to_string()),
@@ -141,16 +144,25 @@ fn test_all_error_variants_display() {
         SCError::InvalidBuffer("test".to_string()),
         SCError::ScreenshotError("test".to_string()),
         SCError::PermissionDenied("test".to_string()),
-        SCError::FeatureNotAvailable { feature: "test".to_string(), required_version: "14.0".to_string() },
+        SCError::FeatureNotAvailable {
+            feature: "test".to_string(),
+            required_version: "14.0".to_string(),
+        },
         SCError::FFIError("test".to_string()),
         SCError::NullPointer("test".to_string()),
         SCError::Timeout("test".to_string()),
         SCError::InternalError("test".to_string()),
-        SCError::OSError { code: 1, message: "test".to_string() },
+        SCError::OSError {
+            code: 1,
+            message: "test".to_string(),
+        },
     ];
 
     for err in errors {
         let display = format!("{err}");
-        assert!(!display.is_empty(), "Display should not be empty for {err:?}");
+        assert!(
+            !display.is_empty(),
+            "Display should not be empty for {err:?}"
+        );
     }
 }

@@ -12,16 +12,16 @@ public struct FFIRect {
     public var y: Double
     public var width: Double
     public var height: Double
-    
+
     public init(_ rect: CGRect) {
-        self.x = rect.origin.x
-        self.y = rect.origin.y
-        self.width = rect.size.width
-        self.height = rect.size.height
+        x = rect.origin.x
+        y = rect.origin.y
+        width = rect.size.width
+        height = rect.size.height
     }
-    
+
     public static let zero = FFIRect(x: 0, y: 0, width: 0, height: 0)
-    
+
     public init(x: Double, y: Double, width: Double, height: Double) {
         self.x = x
         self.y = y
@@ -99,21 +99,21 @@ public enum SCBridgeError: Error, CustomStringConvertible {
     case permissionDenied
     /// Unknown error
     case unknown(String)
-    
+
     public var description: String {
         switch self {
-        case .contentUnavailable(let msg): return "Content unavailable: \(msg)"
-        case .streamError(let msg): return "Stream error: \(msg)"
-        case .configurationError(let msg): return "Configuration error: \(msg)"
-        case .screenshotError(let msg): return "Screenshot error: \(msg)"
-        case .recordingError(let msg): return "Recording error: \(msg)"
-        case .pickerError(let msg): return "Picker error: \(msg)"
-        case .invalidParameter(let msg): return "Invalid parameter: \(msg)"
-        case .permissionDenied: return "Permission denied"
-        case .unknown(let msg): return "Unknown error: \(msg)"
+        case let .contentUnavailable(msg): "Content unavailable: \(msg)"
+        case let .streamError(msg): "Stream error: \(msg)"
+        case let .configurationError(msg): "Configuration error: \(msg)"
+        case let .screenshotError(msg): "Screenshot error: \(msg)"
+        case let .recordingError(msg): "Recording error: \(msg)"
+        case let .pickerError(msg): "Picker error: \(msg)"
+        case let .invalidParameter(msg): "Invalid parameter: \(msg)"
+        case .permissionDenied: "Permission denied"
+        case let .unknown(msg): "Unknown error: \(msg)"
         }
     }
-    
+
     /// Convert any Error to SCBridgeError
     static func from(_ error: Error) -> SCBridgeError {
         if let bridgeError = error as? SCBridgeError {
@@ -161,7 +161,7 @@ class Box<T> {
 /// Retains and returns an opaque pointer to a Swift object
 /// - Parameter obj: The Swift object to retain
 /// - Returns: An opaque pointer that can be passed to Rust
-func retain<T: AnyObject>(_ obj: T) -> OpaquePointer {
+func retain(_ obj: some AnyObject) -> OpaquePointer {
     OpaquePointer(Unmanaged.passRetained(obj).toOpaque())
 }
 

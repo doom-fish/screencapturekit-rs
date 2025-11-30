@@ -56,7 +56,7 @@ impl BitmapFont {
         Self { glyphs }
     }
 
-    pub fn glyph(&self, c: char) -> u64 {
+    pub const fn glyph(&self, c: char) -> u64 {
         let idx = c as usize;
         if idx < 128 {
             self.glyphs[idx]
@@ -65,7 +65,8 @@ impl BitmapFont {
         }
     }
 
-    pub fn pixel_set(&self, glyph: u64, x: usize, y: usize) -> bool {
+    #[allow(clippy::unused_self)]
+    pub const fn pixel_set(&self, glyph: u64, x: usize, y: usize) -> bool {
         if x >= 8 || y >= 8 {
             return false;
         }

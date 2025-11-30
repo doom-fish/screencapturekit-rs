@@ -2,7 +2,7 @@
 //!
 //! A real GUI application demonstrating:
 //! - Metal rendering with compiled shaders
-//! - Screen capture via ScreenCaptureKit with zero-copy IOSurface textures
+//! - Screen capture via `ScreenCaptureKit` with zero-copy `IOSurface` textures
 //! - System content picker (macOS 14.0+) for user-selected capture
 //! - Interactive overlay menu with bitmap font rendering
 //! - Real-time audio waveform visualization with vertical gain meters
@@ -13,6 +13,14 @@
 //!
 //! Menu navigation (when menu visible):
 //! - `UP/DOWN` - Navigate menu items
+
+#![allow(
+    clippy::too_many_lines,
+    clippy::useless_transmute,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation
+)]
 //! - `SPACE/ENTER` - Select item
 //! - `ESC/H` - Hide menu
 //!
@@ -52,7 +60,10 @@ use std::sync::{Arc, Mutex};
 use cocoa::appkit::NSView;
 use cocoa::base::id as cocoa_id;
 use core_graphics_types::geometry::CGSize;
-use metal::*;
+use metal::{
+    objc, CompileOptions, Device, MTLClearColor, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
+    MTLResourceOptions, MTLStoreAction, MetalLayer, RenderPassDescriptor, RenderPipelineDescriptor,
+};
 use objc::rc::autoreleasepool;
 use objc::runtime::YES;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
@@ -63,7 +74,10 @@ use winit::event_loop::ControlFlow;
 
 use capture::CaptureState;
 use font::BitmapFont;
-use input::{format_picked_source, open_picker, open_picker_for_stream, start_capture, stop_capture, PickerResult};
+use input::{
+    format_picked_source, open_picker, open_picker_for_stream, start_capture, stop_capture,
+    PickerResult,
+};
 use overlay::{default_stream_config, ConfigMenu, OverlayState};
 #[cfg(feature = "macos_15_0")]
 use recording::{RecordingConfig, RecordingState};
@@ -108,7 +122,10 @@ fn main() {
     }
 
     let draw_size = window.inner_size();
-    layer.set_drawable_size(CGSize::new(draw_size.width as f64, draw_size.height as f64));
+    layer.set_drawable_size(CGSize::new(
+        f64::from(draw_size.width),
+        f64::from(draw_size.height),
+    ));
 
     // Compile shaders at runtime from embedded source
     println!("🔧 Compiling shaders...");
@@ -204,7 +221,7 @@ fn main() {
                         if let Some(ref s) = stream {
                             match s.update_content_filter(&filter) {
                                 Ok(()) => println!("✅ Source updated live"),
-                                Err(e) => eprintln!("❌ Failed to update source: {:?}", e),
+                                Err(e) => eprintln!("❌ Failed to update source: {e:?}"),
                             }
                         }
                     }
@@ -219,7 +236,7 @@ fn main() {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::ExitWithCode(0),
 
                     WindowEvent::Resized(size) => {
-                        layer.set_drawable_size(CGSize::new(size.width as f64, size.height as f64));
+                        layer.set_drawable_size(CGSize::new(f64::from(size.width), f64::from(size.height)));
                     }
 
                     WindowEvent::KeyboardInput {
@@ -236,7 +253,7 @@ fn main() {
                         let show_any_config = overlay.show_config || overlay.show_recording_config;
                         #[cfg(not(feature = "macos_15_0"))]
                         let show_any_config = overlay.show_config;
-                        
+
                         if overlay.show_help && !show_any_config {
                             match keycode {
                                 VirtualKeyCode::Up => {
@@ -279,7 +296,7 @@ fn main() {
                                                 let mic_only = current_filter.is_none();
                                                 start_capture(
                                                     &mut stream,
-                                                    &current_filter,
+                                                    current_filter.as_ref(),
                                                     capture_size,
                                                     &stream_config,
                                                     &capture_state,
@@ -309,7 +326,7 @@ fn main() {
                                                     // Start recording - requires active capture
                                                     if let Some(ref s) = stream {
                                                         if let Err(e) = recording_state.start(s, &recording_config) {
-                                                            eprintln!("❌ {}", e);
+                                                            eprintln!("❌ {e}");
                                                         }
                                                     }
                                                 } else {
@@ -384,7 +401,7 @@ fn main() {
                                             new_config.set_width(capture_size.0);
                                             new_config.set_height(capture_size.1);
                                             if let Err(e) = s.update_configuration(&new_config) {
-                                                eprintln!("❌ Config update failed: {:?}", e);
+                                                eprintln!("❌ Config update failed: {e:?}");
                                             }
                                         }
                                     }
@@ -403,7 +420,7 @@ fn main() {
                                             new_config.set_width(capture_size.0);
                                             new_config.set_height(capture_size.1);
                                             if let Err(e) = s.update_configuration(&new_config) {
-                                                eprintln!("❌ Config update failed: {:?}", e);
+                                                eprintln!("❌ Config update failed: {e:?}");
                                             }
                                         }
                                     }
@@ -422,7 +439,7 @@ fn main() {
                         #[cfg(feature = "macos_15_0")]
                         if overlay.show_recording_config {
                             use crate::recording::RecordingConfigMenu;
-                            
+
                             match keycode {
                                 VirtualKeyCode::Up => {
                                     if overlay.recording_config_selection > 0 {
@@ -470,7 +487,7 @@ fn main() {
                                     } else {
                                         start_capture(
                                             &mut stream,
-                                            &current_filter,
+                                            current_filter.as_ref(),
                                             capture_size,
                                             &stream_config,
                                             &capture_state,
@@ -510,7 +527,7 @@ fn main() {
                                             match s.update_configuration(&new_config) {
                                                 Ok(()) => println!("✅ Config updated"),
                                                 Err(e) => {
-                                                    eprintln!("❌ Config update failed: {:?}", e)
+                                                    eprintln!("❌ Config update failed: {e:?}");
                                                 }
                                             }
                                         }
@@ -537,8 +554,8 @@ fn main() {
                                             // Start recording
                                             if let Some(ref s) = stream {
                                                 match recording_state.start(s, &recording_config) {
-                                                    Ok(path) => println!("🔴 Recording to: {}", path),
-                                                    Err(e) => eprintln!("❌ {}", e),
+                                                    Ok(path) => println!("🔴 Recording to: {path}"),
+                                                    Err(e) => eprintln!("❌ {e}"),
                                                 }
                                             }
                                         } else {
@@ -614,7 +631,7 @@ fn main() {
                             mic_peak
                         )
                     } else if capturing.load(Ordering::Relaxed) {
-                        format!("Starting... {}", fps)
+                        format!("Starting... {fps}")
                     } else {
                         "H=Menu".to_string()
                     };
@@ -771,15 +788,14 @@ fn main() {
                         _padding: [0.0; 2],
                     };
                     let uniforms_buffer = device.new_buffer_with_data(
-                        (&uniforms as *const Uniforms).cast(),
+                        std::ptr::addr_of!(uniforms).cast(),
                         size_of::<Uniforms>() as u64,
                         MTLResourceOptions::CPUCacheModeDefaultCache,
                     );
 
                     // Render
-                    let drawable = match layer.next_drawable() {
-                        Some(d) => d,
-                        None => return,
+                    let Some(drawable) = layer.next_drawable() else {
+                        return;
                     };
 
                     let render_pass = RenderPassDescriptor::new();

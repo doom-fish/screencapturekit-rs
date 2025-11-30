@@ -22,8 +22,8 @@ public func createContentFilterWithDisplayExcludingWindows(
 ) -> OpaquePointer {
     let scDisplay: SCDisplay = unretained(display)
     var excludedWindows: [SCWindow] = []
-    if let windows = windows {
-        for i in 0..<windowsCount {
+    if let windows {
+        for i in 0 ..< windowsCount {
             let window: SCWindow = unretained(windows[i])
             excludedWindows.append(window)
         }
@@ -40,8 +40,8 @@ public func createContentFilterWithDisplayIncludingWindows(
 ) -> OpaquePointer {
     let scDisplay: SCDisplay = unretained(display)
     var includedWindows: [SCWindow] = []
-    if let windows = windows {
-        for i in 0..<windowsCount {
+    if let windows {
+        for i in 0 ..< windowsCount {
             let window: SCWindow = unretained(windows[i])
             includedWindows.append(window)
         }
@@ -60,15 +60,15 @@ public func createContentFilterWithDisplayIncludingApplicationsExceptingWindows(
 ) -> OpaquePointer {
     let scDisplay: SCDisplay = unretained(display)
     var includedApps: [SCRunningApplication] = []
-    if let apps = apps {
-        for i in 0..<appsCount {
+    if let apps {
+        for i in 0 ..< appsCount {
             let app: SCRunningApplication = unretained(apps[i])
             includedApps.append(app)
         }
     }
     var exceptedWindows: [SCWindow] = []
-    if let windows = windows {
-        for i in 0..<windowsCount {
+    if let windows {
+        for i in 0 ..< windowsCount {
             let window: SCWindow = unretained(windows[i])
             exceptedWindows.append(window)
         }
@@ -87,15 +87,15 @@ public func createContentFilterWithDisplayExcludingApplicationsExceptingWindows(
 ) -> OpaquePointer {
     let scDisplay: SCDisplay = unretained(display)
     var excludedApps: [SCRunningApplication] = []
-    if let apps = apps {
-        for i in 0..<appsCount {
+    if let apps {
+        for i in 0 ..< appsCount {
             let app: SCRunningApplication = unretained(apps[i])
             excludedApps.append(app)
         }
     }
     var exceptedWindows: [SCWindow] = []
-    if let windows = windows {
-        for i in 0..<windowsCount {
+    if let windows {
+        for i in 0 ..< windowsCount {
             let window: SCWindow = unretained(windows[i])
             exceptedWindows.append(window)
         }
@@ -116,7 +116,7 @@ public func releaseContentFilter(_ filter: OpaquePointer) {
 }
 
 @_cdecl("sc_content_filter_set_content_rect")
-public func setContentFilterContentRect(_ filter: OpaquePointer, _ x: Double, _ y: Double, _ width: Double, _ height: Double) {}
+public func setContentFilterContentRect(_: OpaquePointer, _: Double, _: Double, _: Double, _: Double) {}
 
 @_cdecl("sc_content_filter_get_content_rect")
 public func getContentFilterContentRect(
@@ -206,80 +206,80 @@ public func getContentFilterIncludeMenuBar(_ filter: OpaquePointer) -> Bool {
 
 // macOS 15.2+ - readonly arrays
 #if compiler(>=6.0)
-@_cdecl("sc_content_filter_get_included_displays_count")
-public func getContentFilterIncludedDisplaysCount(_ filter: OpaquePointer) -> Int {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 15.2, *) {
-        return f.includedDisplays.count
+    @_cdecl("sc_content_filter_get_included_displays_count")
+    public func getContentFilterIncludedDisplaysCount(_ filter: OpaquePointer) -> Int {
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 15.2, *) {
+            return f.includedDisplays.count
+        }
+        return 0
     }
-    return 0
-}
 
-@_cdecl("sc_content_filter_get_included_display_at")
-public func getContentFilterIncludedDisplayAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 15.2, *) {
-        guard index >= 0 && index < f.includedDisplays.count else { return nil }
-        return retain(f.includedDisplays[index])
+    @_cdecl("sc_content_filter_get_included_display_at")
+    public func getContentFilterIncludedDisplayAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 15.2, *) {
+            guard index >= 0, index < f.includedDisplays.count else { return nil }
+            return retain(f.includedDisplays[index])
+        }
+        return nil
     }
-    return nil
-}
 
-@_cdecl("sc_content_filter_get_included_windows_count")
-public func getContentFilterIncludedWindowsCount(_ filter: OpaquePointer) -> Int {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 15.2, *) {
-        return f.includedWindows.count
+    @_cdecl("sc_content_filter_get_included_windows_count")
+    public func getContentFilterIncludedWindowsCount(_ filter: OpaquePointer) -> Int {
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 15.2, *) {
+            return f.includedWindows.count
+        }
+        return 0
     }
-    return 0
-}
 
-@_cdecl("sc_content_filter_get_included_window_at")
-public func getContentFilterIncludedWindowAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 15.2, *) {
-        guard index >= 0 && index < f.includedWindows.count else { return nil }
-        return retain(f.includedWindows[index])
+    @_cdecl("sc_content_filter_get_included_window_at")
+    public func getContentFilterIncludedWindowAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 15.2, *) {
+            guard index >= 0, index < f.includedWindows.count else { return nil }
+            return retain(f.includedWindows[index])
+        }
+        return nil
     }
-    return nil
-}
 
-@_cdecl("sc_content_filter_get_included_applications_count")
-public func getContentFilterIncludedApplicationsCount(_ filter: OpaquePointer) -> Int {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 15.2, *) {
-        return f.includedApplications.count
+    @_cdecl("sc_content_filter_get_included_applications_count")
+    public func getContentFilterIncludedApplicationsCount(_ filter: OpaquePointer) -> Int {
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 15.2, *) {
+            return f.includedApplications.count
+        }
+        return 0
     }
-    return 0
-}
 
-@_cdecl("sc_content_filter_get_included_application_at")
-public func getContentFilterIncludedApplicationAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 15.2, *) {
-        guard index >= 0 && index < f.includedApplications.count else { return nil }
-        return retain(f.includedApplications[index])
+    @_cdecl("sc_content_filter_get_included_application_at")
+    public func getContentFilterIncludedApplicationAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? {
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 15.2, *) {
+            guard index >= 0, index < f.includedApplications.count else { return nil }
+            return retain(f.includedApplications[index])
+        }
+        return nil
     }
-    return nil
-}
 #else
-@_cdecl("sc_content_filter_get_included_displays_count")
-public func getContentFilterIncludedDisplaysCount(_ filter: OpaquePointer) -> Int { 0 }
+    @_cdecl("sc_content_filter_get_included_displays_count")
+    public func getContentFilterIncludedDisplaysCount(_: OpaquePointer) -> Int { 0 }
 
-@_cdecl("sc_content_filter_get_included_display_at")
-public func getContentFilterIncludedDisplayAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? { nil }
+    @_cdecl("sc_content_filter_get_included_display_at")
+    public func getContentFilterIncludedDisplayAt(_: OpaquePointer, _: Int) -> OpaquePointer? { nil }
 
-@_cdecl("sc_content_filter_get_included_windows_count")
-public func getContentFilterIncludedWindowsCount(_ filter: OpaquePointer) -> Int { 0 }
+    @_cdecl("sc_content_filter_get_included_windows_count")
+    public func getContentFilterIncludedWindowsCount(_: OpaquePointer) -> Int { 0 }
 
-@_cdecl("sc_content_filter_get_included_window_at")
-public func getContentFilterIncludedWindowAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? { nil }
+    @_cdecl("sc_content_filter_get_included_window_at")
+    public func getContentFilterIncludedWindowAt(_: OpaquePointer, _: Int) -> OpaquePointer? { nil }
 
-@_cdecl("sc_content_filter_get_included_applications_count")
-public func getContentFilterIncludedApplicationsCount(_ filter: OpaquePointer) -> Int { 0 }
+    @_cdecl("sc_content_filter_get_included_applications_count")
+    public func getContentFilterIncludedApplicationsCount(_: OpaquePointer) -> Int { 0 }
 
-@_cdecl("sc_content_filter_get_included_application_at")
-public func getContentFilterIncludedApplicationAt(_ filter: OpaquePointer, _ index: Int) -> OpaquePointer? { nil }
+    @_cdecl("sc_content_filter_get_included_application_at")
+    public func getContentFilterIncludedApplicationAt(_: OpaquePointer, _: Int) -> OpaquePointer? { nil }
 #endif
 
 // MARK: - Stream: SCStream Delegates and Handlers
@@ -295,22 +295,22 @@ private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
         self.errorCallback = errorCallback
     }
 
-    func stream(_ stream: SCStream, didStopWithError error: Error) {
+    func stream(_: SCStream, didStopWithError error: Error) {
         let errorCode = extractStreamErrorCode(error)
         let errorMsg = error.localizedDescription
         errorMsg.withCString { errorCallback(streamPtr, errorCode, $0) }
     }
-    
+
     #if compiler(>=6.0)
-    @available(macOS 15.2, *)
-    func streamDidBecomeActive(_ stream: SCStream) {
-        activeCallback?(streamPtr)
-    }
-    
-    @available(macOS 15.2, *)
-    func streamDidBecomeInactive(_ stream: SCStream) {
-        inactiveCallback?(streamPtr)
-    }
+        @available(macOS 15.2, *)
+        func streamDidBecomeActive(_: SCStream) {
+            activeCallback?(streamPtr)
+        }
+
+        @available(macOS 15.2, *)
+        func streamDidBecomeInactive(_: SCStream) {
+            inactiveCallback?(streamPtr)
+        }
     #endif
 }
 
@@ -323,14 +323,13 @@ private class StreamOutputHandler: NSObject, SCStreamOutput {
         self.sampleBufferCallback = sampleBufferCallback
     }
 
-    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        let outputType: Int32
-        if type == .screen {
-            outputType = 0
+    func stream(_: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
+        let outputType: Int32 = if type == .screen {
+            0
         } else if #available(macOS 15.0, *), type == .microphone {
-            outputType = 2
+            2
         } else {
-            outputType = 1  // audio
+            1 // audio
         }
         // IMPORTANT: passRetained() is used here to retain the CMSampleBuffer for Rust
         // The Rust side will release it when CMSampleBuffer is dropped
@@ -408,9 +407,9 @@ public func addStreamOutput(
             } else {
                 outputType = .audio
             }
-            #else
+        #else
             outputType = .audio
-            #endif
+        #endif
     } else {
         outputType = .audio
     }
@@ -447,18 +446,17 @@ public func addStreamOutputWithQueue(
             } else {
                 outputType = .audio
             }
-            #else
+        #else
             outputType = .audio
-            #endif
+        #endif
     } else {
         outputType = .audio
     }
 
-    let queue: DispatchQueue
-    if let queuePtr = dispatchQueue {
-        queue = unretained(queuePtr)
+    let queue: DispatchQueue = if let queuePtr = dispatchQueue {
+        unretained(queuePtr)
     } else {
-        queue = DispatchQueue(label: "com.screencapturekit.output", qos: .userInteractive)
+        DispatchQueue(label: "com.screencapturekit.output", qos: .userInteractive)
     }
 
     do {
@@ -487,9 +485,9 @@ public func removeStreamOutput(
             } else {
                 outputType = .audio
             }
-            #else
+        #else
             outputType = .audio
-            #endif
+        #endif
     } else {
         outputType = .audio
     }

@@ -21,6 +21,7 @@ fn main() {
 }
 
 #[cfg(feature = "macos_14_0")]
+#[allow(clippy::too_many_lines)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📸 Screenshot Capture\n");
 
@@ -48,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   Style: {:?}", info.style());
         println!("   Scale: {:.1}x (Retina)", info.point_pixel_scale());
         let (pw, ph) = info.pixel_size();
-        println!("   Pixel dimensions: {}x{}", pw, ph);
+        println!("   Pixel dimensions: {pw}x{ph}");
     }
 
     // 4. Configure screenshot

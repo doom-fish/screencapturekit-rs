@@ -88,14 +88,14 @@ fn main() {
     use screencapturekit::content_sharing_picker::{
         SCContentSharingPicker, SCPickerOutcome,
     };
-    
+
     let result = SCContentSharingPicker::pick(&config);
     match result {
         SCPickerOutcome::Picked(result) => {
             // Get filter + metadata
             let filter = result.filter();
             let (width, height) = result.pixel_size();
-            
+
             // Access picked content for custom filters
             for window in result.windows() {
                 println!("Selected window: {:?}", window.title());

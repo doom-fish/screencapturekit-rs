@@ -129,13 +129,13 @@ fn test_recording_output_video_codec_get_set() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
 
     // Test H264
-    let config = SCRecordingOutputConfiguration::new()
-        .with_video_codec(SCRecordingOutputCodec::H264);
+    let config =
+        SCRecordingOutputConfiguration::new().with_video_codec(SCRecordingOutputCodec::H264);
     assert_eq!(config.video_codec(), SCRecordingOutputCodec::H264);
-    
+
     // Test HEVC
-    let config = SCRecordingOutputConfiguration::new()
-        .with_video_codec(SCRecordingOutputCodec::HEVC);
+    let config =
+        SCRecordingOutputConfiguration::new().with_video_codec(SCRecordingOutputCodec::HEVC);
     assert_eq!(config.video_codec(), SCRecordingOutputCodec::HEVC);
 }
 
@@ -144,13 +144,13 @@ fn test_recording_output_file_type() {
     use screencapturekit::recording_output::SCRecordingOutputFileType;
 
     // Test MP4
-    let config = SCRecordingOutputConfiguration::new()
-        .with_output_file_type(SCRecordingOutputFileType::MP4);
+    let config =
+        SCRecordingOutputConfiguration::new().with_output_file_type(SCRecordingOutputFileType::MP4);
     assert_eq!(config.output_file_type(), SCRecordingOutputFileType::MP4);
-    
+
     // Test MOV
-    let config = SCRecordingOutputConfiguration::new()
-        .with_output_file_type(SCRecordingOutputFileType::MOV);
+    let config =
+        SCRecordingOutputConfiguration::new().with_output_file_type(SCRecordingOutputFileType::MOV);
     assert_eq!(config.output_file_type(), SCRecordingOutputFileType::MOV);
 }
 
@@ -159,7 +159,7 @@ fn test_recording_output_available_codecs_count() {
     let config = SCRecordingOutputConfiguration::new();
     let count = config.available_video_codecs_count();
     // Should have at least one codec available
-    println!("Available video codecs: {}", count);
+    println!("Available video codecs: {count}");
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn test_recording_output_available_file_types_count() {
     let config = SCRecordingOutputConfiguration::new();
     let count = config.available_output_file_types_count();
     // Should have at least one file type available
-    println!("Available file types: {}", count);
+    println!("Available file types: {count}");
 }
 
 #[test]
@@ -211,9 +211,18 @@ fn test_recording_output_codec_equality() {
 fn test_recording_output_file_type_equality() {
     use screencapturekit::recording_output::SCRecordingOutputFileType;
 
-    assert_eq!(SCRecordingOutputFileType::MP4, SCRecordingOutputFileType::MP4);
-    assert_eq!(SCRecordingOutputFileType::MOV, SCRecordingOutputFileType::MOV);
-    assert_ne!(SCRecordingOutputFileType::MP4, SCRecordingOutputFileType::MOV);
+    assert_eq!(
+        SCRecordingOutputFileType::MP4,
+        SCRecordingOutputFileType::MP4
+    );
+    assert_eq!(
+        SCRecordingOutputFileType::MOV,
+        SCRecordingOutputFileType::MOV
+    );
+    assert_ne!(
+        SCRecordingOutputFileType::MP4,
+        SCRecordingOutputFileType::MOV
+    );
 }
 
 #[test]
@@ -246,10 +255,10 @@ fn test_recording_output_file_type_hash() {
 fn test_recording_output_configuration_debug() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
 
-    let config = SCRecordingOutputConfiguration::new()
-        .with_video_codec(SCRecordingOutputCodec::HEVC);
+    let config =
+        SCRecordingOutputConfiguration::new().with_video_codec(SCRecordingOutputCodec::HEVC);
 
-    let debug_str = format!("{:?}", config);
+    let debug_str = format!("{config:?}");
     assert!(debug_str.contains("SCRecordingOutputConfiguration"));
     assert!(debug_str.contains("HEVC"));
 }
@@ -261,7 +270,7 @@ fn test_recording_output_available_video_codecs() {
     let config = SCRecordingOutputConfiguration::new();
     let codecs = config.available_video_codecs();
 
-    println!("Available video codecs: {:?}", codecs);
+    println!("Available video codecs: {codecs:?}");
     // Should contain at least H264
     if !codecs.is_empty() {
         assert!(
@@ -278,7 +287,7 @@ fn test_recording_output_available_file_types() {
     let config = SCRecordingOutputConfiguration::new();
     let file_types = config.available_output_file_types();
 
-    println!("Available file types: {:?}", file_types);
+    println!("Available file types: {file_types:?}");
     // Should contain at least MP4 or MOV
     if !file_types.is_empty() {
         assert!(

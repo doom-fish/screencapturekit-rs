@@ -1019,7 +1019,8 @@ impl AsyncSCRecordingOutput {
             state: Arc::clone(&state),
         };
 
-        let recording = crate::recording_output::SCRecordingOutput::new_with_delegate(config, delegate)?;
+        let recording =
+            crate::recording_output::SCRecordingOutput::new_with_delegate(config, delegate)?;
 
         Some((recording, Self { state }))
     }
@@ -1034,10 +1035,7 @@ impl AsyncSCRecordingOutput {
     /// Check if the recording has finished
     #[must_use]
     pub fn is_finished(&self) -> bool {
-        self.state
-            .lock()
-            .map(|s| s.finished)
-            .unwrap_or(true)
+        self.state.lock().map(|s| s.finished).unwrap_or(true)
     }
 
     /// Get any pending events without waiting
