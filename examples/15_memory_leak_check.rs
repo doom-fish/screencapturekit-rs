@@ -328,7 +328,10 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
 
     #[cfg(feature = "macos_15_0")]
     if matches!(filter_type, FilterType::FullConfigWithMic) {
-        stream.add_output_handler(SharedHandler(handler.clone()), SCStreamOutputType::Microphone);
+        stream.add_output_handler(
+            SharedHandler(handler.clone()),
+            SCStreamOutputType::Microphone,
+        );
     }
 
     if let Err(e) = stream.start_capture() {
@@ -351,9 +354,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
 fn test_configuration_variations() {
     let configs = [
         // Minimal config
-        SCStreamConfiguration::new()
-            .with_width(64)
-            .with_height(64),
+        SCStreamConfiguration::new().with_width(64).with_height(64),
         // Different pixel formats
         SCStreamConfiguration::new()
             .with_width(128)
