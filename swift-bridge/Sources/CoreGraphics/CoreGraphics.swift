@@ -158,6 +158,40 @@ public func saveCGImageToPNG(_ image: OpaquePointer, _ pathPtr: UnsafePointer<CC
     return CGImageDestinationFinalize(destination)
 }
 
+/// Save CGImage to file with specified format
+/// format: 0=PNG, 1=JPEG, 2=TIFF, 3=GIF, 4=BMP, 5=HEIC
+/// quality: 0.0-1.0 for lossy formats (JPEG, HEIC)
+@_cdecl("cgimage_save_to_file")
+public func saveCGImageToFile(_ image: OpaquePointer, _ pathPtr: UnsafePointer<CChar>, _ format: Int32, _ quality: Float) -> Bool {
+    let cgImage = Unmanaged<CGImage>.fromOpaque(UnsafeRawPointer(image)).takeUnretainedValue()
+    let path = String(cString: pathPtr)
+    let url = URL(fileURLWithPath: path)
+    
+    let utType: UTType
+    switch format {
+    case 0: utType = .png
+    case 1: utType = .jpeg
+    case 2: utType = .tiff
+    case 3: utType = .gif
+    case 4: utType = .bmp
+    case 5: utType = .heic
+    default: return false
+    }
+    
+    guard let destination = CGImageDestinationCreateWithURL(url as CFURL, utType.identifier as CFString, 1, nil) else {
+        return false
+    }
+    
+    // Set quality for lossy formats
+    var properties: [CFString: Any]? = nil
+    if format == 1 || format == 5 { // JPEG or HEIC
+        properties = [kCGImageDestinationLossyCompressionQuality: quality]
+    }
+    
+    CGImageDestinationAddImage(destination, cgImage, properties as CFDictionary?)
+    return CGImageDestinationFinalize(destination)
+}
+
 @_cdecl("cgimage_hash")
 public func cgimageHash(_ image: OpaquePointer) -> Int {
     let cgImage = Unmanaged<CGImage>.fromOpaque(UnsafeRawPointer(image)).takeUnretainedValue()

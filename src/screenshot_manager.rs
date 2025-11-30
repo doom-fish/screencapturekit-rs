@@ -12,6 +12,71 @@ use std::ffi::c_void;
 #[cfg(feature = "macos_15_2")]
 use crate::cg::CGRect;
 
+/// Image output format for saving screenshots
+///
+/// # Examples
+///
+/// ```no_run
+/// use screencapturekit::screenshot_manager::ImageFormat;
+///
+/// // PNG for lossless quality
+/// let format = ImageFormat::Png;
+///
+/// // JPEG with 80% quality
+/// let format = ImageFormat::Jpeg(0.8);
+///
+/// // HEIC with 90% quality (smaller file size than JPEG)
+/// let format = ImageFormat::Heic(0.9);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ImageFormat {
+    /// PNG format (lossless)
+    Png,
+    /// JPEG format with quality (0.0-1.0)
+    Jpeg(f32),
+    /// TIFF format (lossless)
+    Tiff,
+    /// GIF format
+    Gif,
+    /// BMP format
+    Bmp,
+    /// HEIC format with quality (0.0-1.0) - efficient compression
+    Heic(f32),
+}
+
+impl ImageFormat {
+    fn to_format_id(self) -> i32 {
+        match self {
+            Self::Png => 0,
+            Self::Jpeg(_) => 1,
+            Self::Tiff => 2,
+            Self::Gif => 3,
+            Self::Bmp => 4,
+            Self::Heic(_) => 5,
+        }
+    }
+
+    fn quality(self) -> f32 {
+        match self {
+            Self::Jpeg(q) | Self::Heic(q) => q.clamp(0.0, 1.0),
+            _ => 1.0,
+        }
+    }
+
+    /// Get the typical file extension for this format
+    #[must_use]
+    pub const fn extension(&self) -> &'static str {
+        match self {
+            Self::Png => "png",
+            Self::Jpeg(_) => "jpg",
+            Self::Tiff => "tiff",
+            Self::Gif => "gif",
+            Self::Bmp => "bmp",
+            Self::Heic(_) => "heic",
+        }
+    }
+}
+
 extern "C" fn image_callback(
     image_ptr: *const c_void,
     error_ptr: *const i8,
@@ -199,15 +264,62 @@ impl CGImage {
     /// # }
     /// ```
     pub fn save_png(&self, path: &str) -> Result<(), SCError> {
+        self.save(path, ImageFormat::Png)
+    }
+
+    /// Save the image to a file in the specified format
+    ///
+    /// # Arguments
+    /// * `path` - The file path to save the image to
+    /// * `format` - The output format (PNG, JPEG, TIFF, GIF, BMP, or HEIC)
+    ///
+    /// # Errors
+    /// Returns an error if the image cannot be saved
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use screencapturekit::screenshot_manager::{SCScreenshotManager, ImageFormat};
+    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
+    /// # use screencapturekit::shareable_content::SCShareableContent;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+    /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
+    ///
+    /// // Save as PNG (lossless)
+    /// image.save("/tmp/screenshot.png", ImageFormat::Png)?;
+    ///
+    /// // Save as JPEG with 85% quality
+    /// image.save("/tmp/screenshot.jpg", ImageFormat::Jpeg(0.85))?;
+    ///
+    /// // Save as HEIC with 90% quality (smaller file size)
+    /// image.save("/tmp/screenshot.heic", ImageFormat::Heic(0.9))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn save(&self, path: &str, format: ImageFormat) -> Result<(), SCError> {
         let c_path = std::ffi::CString::new(path)
             .map_err(|_| SCError::internal_error("Path contains null bytes"))?;
 
-        let success = unsafe { crate::ffi::cgimage_save_png(self.ptr, c_path.as_ptr()) };
+        let success = unsafe {
+            crate::ffi::cgimage_save_to_file(
+                self.ptr,
+                c_path.as_ptr(),
+                format.to_format_id(),
+                format.quality(),
+            )
+        };
 
         if success {
             Ok(())
         } else {
-            Err(SCError::internal_error("Failed to save image as PNG"))
+            Err(SCError::internal_error(format!(
+                "Failed to save image as {}",
+                format.extension().to_uppercase()
+            )))
         }
     }
 }
