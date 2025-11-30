@@ -64,17 +64,34 @@ impl fmt::Display for SCFrameStatus {
 
 /// Keys for accessing frame information from `CMSampleBuffer` attachments
 ///
-/// These keys correspond to Apple's `SCStreamFrameInfo` struct and can be used
-/// to retrieve metadata about captured frames from the sample buffer attachments.
+/// These keys correspond to Apple's `SCStreamFrameInfo` struct. The values can be
+/// accessed directly via methods on [`CMSampleBuffer`](crate::cm::CMSampleBuffer):
+///
+/// - [`frame_status()`](crate::cm::CMSampleBuffer::frame_status) - Frame status
+/// - [`display_time()`](crate::cm::CMSampleBuffer::display_time) - Mach absolute time
+/// - [`scale_factor()`](crate::cm::CMSampleBuffer::scale_factor) - Point-to-pixel ratio
+/// - [`content_scale()`](crate::cm::CMSampleBuffer::content_scale) - Content scale
+/// - [`content_rect()`](crate::cm::CMSampleBuffer::content_rect) - Content rectangle
+/// - [`bounding_rect()`](crate::cm::CMSampleBuffer::bounding_rect) - Bounding rectangle (macOS 14.0+)
+/// - [`screen_rect()`](crate::cm::CMSampleBuffer::screen_rect) - Screen rectangle (macOS 13.1+)
+/// - [`dirty_rects()`](crate::cm::CMSampleBuffer::dirty_rects) - Changed areas
 ///
 /// # Example
 /// ```rust,ignore
-/// use screencapturekit::cm::{CMSampleBuffer, SCStreamFrameInfoKey};
+/// use screencapturekit::cm::CMSampleBuffer;
 ///
 /// fn process_frame(buffer: &CMSampleBuffer) {
-///     // Frame info is typically accessed via the buffer's status method
 ///     if let Some(status) = buffer.frame_status() {
 ///         println!("Frame status: {:?}", status);
+///     }
+///     if let Some(scale) = buffer.scale_factor() {
+///         println!("Scale factor: {}", scale);
+///     }
+///     if let Some(rect) = buffer.content_rect() {
+///         println!("Content rect: {:?}", rect);
+///     }
+///     if let Some(dirty) = buffer.dirty_rects() {
+///         println!("Dirty rects: {} regions changed", dirty.len());
 ///     }
 /// }
 /// ```

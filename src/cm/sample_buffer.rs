@@ -153,6 +153,130 @@ impl CMSampleBuffer {
         }
     }
 
+    /// Get the display time (mach absolute time) from frame info
+    ///
+    /// This is the time when the frame was displayed on screen.
+    pub fn display_time(&self) -> Option<u64> {
+        unsafe {
+            let mut value: u64 = 0;
+            if ffi::cm_sample_buffer_get_display_time(self.0, &mut value) {
+                Some(value)
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get the scale factor (point-to-pixel ratio) from frame info
+    ///
+    /// This indicates the display's scale factor (e.g., 2.0 for Retina displays).
+    pub fn scale_factor(&self) -> Option<f64> {
+        unsafe {
+            let mut value: f64 = 0.0;
+            if ffi::cm_sample_buffer_get_scale_factor(self.0, &mut value) {
+                Some(value)
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get the content scale from frame info
+    pub fn content_scale(&self) -> Option<f64> {
+        unsafe {
+            let mut value: f64 = 0.0;
+            if ffi::cm_sample_buffer_get_content_scale(self.0, &mut value) {
+                Some(value)
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get the content rectangle from frame info
+    ///
+    /// This is the rectangle of the captured content within the frame.
+    pub fn content_rect(&self) -> Option<crate::cg::CGRect> {
+        unsafe {
+            let mut x: f64 = 0.0;
+            let mut y: f64 = 0.0;
+            let mut width: f64 = 0.0;
+            let mut height: f64 = 0.0;
+            if ffi::cm_sample_buffer_get_content_rect(self.0, &mut x, &mut y, &mut width, &mut height)
+            {
+                Some(crate::cg::CGRect::new(x, y, width, height))
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get the bounding rectangle from frame info
+    ///
+    /// This is the bounding rectangle of all captured windows.
+    pub fn bounding_rect(&self) -> Option<crate::cg::CGRect> {
+        unsafe {
+            let mut x: f64 = 0.0;
+            let mut y: f64 = 0.0;
+            let mut width: f64 = 0.0;
+            let mut height: f64 = 0.0;
+            if ffi::cm_sample_buffer_get_bounding_rect(
+                self.0, &mut x, &mut y, &mut width, &mut height,
+            ) {
+                Some(crate::cg::CGRect::new(x, y, width, height))
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get the screen rectangle from frame info
+    ///
+    /// This is the rectangle of the screen being captured.
+    pub fn screen_rect(&self) -> Option<crate::cg::CGRect> {
+        unsafe {
+            let mut x: f64 = 0.0;
+            let mut y: f64 = 0.0;
+            let mut width: f64 = 0.0;
+            let mut height: f64 = 0.0;
+            if ffi::cm_sample_buffer_get_screen_rect(self.0, &mut x, &mut y, &mut width, &mut height)
+            {
+                Some(crate::cg::CGRect::new(x, y, width, height))
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get the dirty rectangles from frame info
+    ///
+    /// Dirty rectangles indicate areas of the screen that have changed since the last frame.
+    /// This can be used for efficient partial screen updates.
+    pub fn dirty_rects(&self) -> Option<Vec<crate::cg::CGRect>> {
+        unsafe {
+            let mut rects_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+            let mut count: usize = 0;
+            if ffi::cm_sample_buffer_get_dirty_rects(self.0, &mut rects_ptr, &mut count) {
+                if rects_ptr.is_null() || count == 0 {
+                    return None;
+                }
+                let data = rects_ptr as *const f64;
+                let mut rects = Vec::with_capacity(count);
+                for i in 0..count {
+                    let x = *data.add(i * 4);
+                    let y = *data.add(i * 4 + 1);
+                    let width = *data.add(i * 4 + 2);
+                    let height = *data.add(i * 4 + 3);
+                    rects.push(crate::cg::CGRect::new(x, y, width, height));
+                }
+                ffi::cm_sample_buffer_free_dirty_rects(rects_ptr);
+                Some(rects)
+            } else {
+                None
+            }
+        }
+    }
+
     /// Get the presentation timestamp
     pub fn presentation_timestamp(&self) -> CMTime {
         unsafe {

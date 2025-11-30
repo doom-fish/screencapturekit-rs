@@ -44,6 +44,156 @@ public func cm_sample_buffer_get_frame_status(_ sampleBuffer: UnsafeMutableRawPo
     return Int32(status.rawValue)
 }
 
+@_cdecl("cm_sample_buffer_get_display_time")
+public func cm_sample_buffer_get_display_time(_ sampleBuffer: UnsafeMutableRawPointer, _ outValue: UnsafeMutablePointer<UInt64>) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+          let firstAttachment = attachments.first,
+          let displayTime = firstAttachment[SCStreamFrameInfo.displayTime.rawValue as CFString] as? UInt64
+    else {
+        return false
+    }
+
+    outValue.pointee = displayTime
+    return true
+}
+
+@_cdecl("cm_sample_buffer_get_scale_factor")
+public func cm_sample_buffer_get_scale_factor(_ sampleBuffer: UnsafeMutableRawPointer, _ outValue: UnsafeMutablePointer<Float64>) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+          let firstAttachment = attachments.first,
+          let scaleFactor = firstAttachment[SCStreamFrameInfo.scaleFactor.rawValue as CFString] as? Float64
+    else {
+        return false
+    }
+
+    outValue.pointee = scaleFactor
+    return true
+}
+
+@_cdecl("cm_sample_buffer_get_content_scale")
+public func cm_sample_buffer_get_content_scale(_ sampleBuffer: UnsafeMutableRawPointer, _ outValue: UnsafeMutablePointer<Float64>) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+          let firstAttachment = attachments.first,
+          let contentScale = firstAttachment[SCStreamFrameInfo.contentScale.rawValue as CFString] as? Float64
+    else {
+        return false
+    }
+
+    outValue.pointee = contentScale
+    return true
+}
+
+@_cdecl("cm_sample_buffer_get_content_rect")
+public func cm_sample_buffer_get_content_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+          let firstAttachment = attachments.first,
+          let rectDict = firstAttachment[SCStreamFrameInfo.contentRect.rawValue as CFString] as? [String: Any],
+          let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
+    else {
+        return false
+    }
+
+    outX.pointee = rect.origin.x
+    outY.pointee = rect.origin.y
+    outWidth.pointee = rect.size.width
+    outHeight.pointee = rect.size.height
+    return true
+}
+
+@available(macOS 14.0, *)
+@_cdecl("cm_sample_buffer_get_bounding_rect")
+public func cm_sample_buffer_get_bounding_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+          let firstAttachment = attachments.first,
+          let rectDict = firstAttachment[SCStreamFrameInfo.boundingRect.rawValue as CFString] as? [String: Any],
+          let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
+    else {
+        return false
+    }
+
+    outX.pointee = rect.origin.x
+    outY.pointee = rect.origin.y
+    outWidth.pointee = rect.size.width
+    outHeight.pointee = rect.size.height
+    return true
+}
+
+@available(macOS 13.1, *)
+@_cdecl("cm_sample_buffer_get_screen_rect")
+public func cm_sample_buffer_get_screen_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+          let firstAttachment = attachments.first,
+          let rectDict = firstAttachment[SCStreamFrameInfo.screenRect.rawValue as CFString] as? [String: Any],
+          let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
+    else {
+        return false
+    }
+
+    outX.pointee = rect.origin.x
+    outY.pointee = rect.origin.y
+    outWidth.pointee = rect.size.width
+    outHeight.pointee = rect.size.height
+    return true
+}
+
+@_cdecl("cm_sample_buffer_get_dirty_rects")
+public func cm_sample_buffer_get_dirty_rects(_ sampleBuffer: UnsafeMutableRawPointer, _ outRects: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outCount: UnsafeMutablePointer<Int>) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+          let firstAttachment = attachments.first,
+          let dirtyRects = firstAttachment[SCStreamFrameInfo.dirtyRects.rawValue as CFString] as? [Any]
+    else {
+        outRects.pointee = nil
+        outCount.pointee = 0
+        return false
+    }
+
+    var rects: [CGRect] = []
+    for item in dirtyRects {
+        if let rectDict = item as? [String: Any],
+           let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary) {
+            rects.append(rect)
+        }
+    }
+
+    guard !rects.isEmpty else {
+        outRects.pointee = nil
+        outCount.pointee = 0
+        return false
+    }
+
+    // Allocate array of 4 doubles per rect (x, y, width, height)
+    let rectsPtr = UnsafeMutablePointer<Float64>.allocate(capacity: rects.count * 4)
+    for (index, rect) in rects.enumerated() {
+        rectsPtr[index * 4 + 0] = rect.origin.x
+        rectsPtr[index * 4 + 1] = rect.origin.y
+        rectsPtr[index * 4 + 2] = rect.size.width
+        rectsPtr[index * 4 + 3] = rect.size.height
+    }
+
+    outRects.pointee = UnsafeMutableRawPointer(rectsPtr)
+    outCount.pointee = rects.count
+    return true
+}
+
+@_cdecl("cm_sample_buffer_free_dirty_rects")
+public func cm_sample_buffer_free_dirty_rects(_ rectsPtr: UnsafeMutableRawPointer) {
+    rectsPtr.deallocate()
+}
+
 @_cdecl("cm_sample_buffer_get_presentation_timestamp_value")
 public func cm_sample_buffer_get_presentation_timestamp_value(_ sampleBuffer: UnsafeMutableRawPointer) -> Int64 {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()

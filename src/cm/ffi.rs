@@ -8,6 +8,48 @@ extern "C" {
         sample_buffer: *mut std::ffi::c_void,
     ) -> *mut std::ffi::c_void;
     pub fn cm_sample_buffer_get_frame_status(sample_buffer: *mut std::ffi::c_void) -> i32;
+
+    // Frame info accessors
+    pub fn cm_sample_buffer_get_display_time(
+        sample_buffer: *mut std::ffi::c_void,
+        out_value: *mut u64,
+    ) -> bool;
+    pub fn cm_sample_buffer_get_scale_factor(
+        sample_buffer: *mut std::ffi::c_void,
+        out_value: *mut f64,
+    ) -> bool;
+    pub fn cm_sample_buffer_get_content_scale(
+        sample_buffer: *mut std::ffi::c_void,
+        out_value: *mut f64,
+    ) -> bool;
+    pub fn cm_sample_buffer_get_content_rect(
+        sample_buffer: *mut std::ffi::c_void,
+        out_x: *mut f64,
+        out_y: *mut f64,
+        out_width: *mut f64,
+        out_height: *mut f64,
+    ) -> bool;
+    pub fn cm_sample_buffer_get_bounding_rect(
+        sample_buffer: *mut std::ffi::c_void,
+        out_x: *mut f64,
+        out_y: *mut f64,
+        out_width: *mut f64,
+        out_height: *mut f64,
+    ) -> bool;
+    pub fn cm_sample_buffer_get_screen_rect(
+        sample_buffer: *mut std::ffi::c_void,
+        out_x: *mut f64,
+        out_y: *mut f64,
+        out_width: *mut f64,
+        out_height: *mut f64,
+    ) -> bool;
+    pub fn cm_sample_buffer_get_dirty_rects(
+        sample_buffer: *mut std::ffi::c_void,
+        out_rects: *mut *mut std::ffi::c_void,
+        out_count: *mut usize,
+    ) -> bool;
+    pub fn cm_sample_buffer_free_dirty_rects(rects_ptr: *mut std::ffi::c_void);
+
     pub fn cm_sample_buffer_get_presentation_timestamp(
         sample_buffer: *mut std::ffi::c_void,
         out_value: *mut i64,
