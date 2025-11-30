@@ -299,22 +299,65 @@ public func setStreamConfigurationIgnoreFractionOfScreen(_ config: OpaquePointer
 public func getStreamConfigurationIgnoreFractionOfScreen(_ config: OpaquePointer) -> Double { 0.0 }
 
 @_cdecl("sc_stream_configuration_set_ignores_shadows_single_window")
-public func setStreamConfigurationIgnoresShadowsSingleWindow(_ config: OpaquePointer, _ ignoresShadows: Bool) {}
+public func setStreamConfigurationIgnoresShadowsSingleWindow(_ config: OpaquePointer, _ ignoresShadows: Bool) {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        cfg.ignoreShadowsSingleWindow = ignoresShadows
+    }
+}
 
 @_cdecl("sc_stream_configuration_get_ignores_shadows_single_window")
-public func getStreamConfigurationIgnoresShadowsSingleWindow(_ config: OpaquePointer) -> Bool { false }
+public func getStreamConfigurationIgnoresShadowsSingleWindow(_ config: OpaquePointer) -> Bool {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        return cfg.ignoreShadowsSingleWindow
+    }
+    return false
+}
 
 @_cdecl("sc_stream_configuration_set_includes_child_windows")
-public func setStreamConfigurationIncludesChildWindows(_ config: OpaquePointer, _ includesChildWindows: Bool) {}
+public func setStreamConfigurationIncludesChildWindows(_ config: OpaquePointer, _ includesChildWindows: Bool) {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.2, *) {
+        cfg.includeChildWindows = includesChildWindows
+    }
+}
 
 @_cdecl("sc_stream_configuration_get_includes_child_windows")
-public func getStreamConfigurationIncludesChildWindows(_ config: OpaquePointer) -> Bool { false }
+public func getStreamConfigurationIncludesChildWindows(_ config: OpaquePointer) -> Bool {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.2, *) {
+        return cfg.includeChildWindows
+    }
+    return false
+}
 
 @_cdecl("sc_stream_configuration_set_presenter_overlay_privacy_alert_setting")
-public func setStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer, _ setting: Int) {}
+public func setStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer, _ setting: Int) {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        switch setting {
+        case 0: cfg.presenterOverlayPrivacyAlertSetting = .system
+        case 1: cfg.presenterOverlayPrivacyAlertSetting = .never
+        case 2: cfg.presenterOverlayPrivacyAlertSetting = .always
+        default: break
+        }
+    }
+}
 
 @_cdecl("sc_stream_configuration_get_presenter_overlay_privacy_alert_setting")
-public func getStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer) -> Int { 1 }
+public func getStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer) -> Int {
+    let cfg: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        switch cfg.presenterOverlayPrivacyAlertSetting {
+        case .system: return 0
+        case .never: return 1
+        case .always: return 2
+        @unknown default: return 0
+        }
+    }
+    return 0
+}
 
 @_cdecl("sc_stream_configuration_set_captures_shadows_only")
 public func setStreamConfigurationCapturesShadowsOnly(_ config: OpaquePointer, _ value: Bool) {
