@@ -61,3 +61,50 @@ impl fmt::Display for SCFrameStatus {
         }
     }
 }
+
+/// Keys for accessing frame information from `CMSampleBuffer` attachments
+///
+/// These keys correspond to Apple's `SCStreamFrameInfo` struct and can be used
+/// to retrieve metadata about captured frames from the sample buffer attachments.
+///
+/// # Example
+/// ```rust,ignore
+/// use screencapturekit::cm::{CMSampleBuffer, SCStreamFrameInfoKey};
+///
+/// fn process_frame(buffer: &CMSampleBuffer) {
+///     // Frame info is typically accessed via the buffer's status method
+///     if let Some(status) = buffer.frame_status() {
+///         println!("Frame status: {:?}", status);
+///     }
+/// }
+/// ```
+pub struct SCStreamFrameInfoKey;
+
+impl SCStreamFrameInfoKey {
+    /// Key for the frame status (`SCFrameStatus`)
+    pub const STATUS: &'static str = "SCStreamFrameInfoStatus";
+    
+    /// Key for the display time (mach absolute time)
+    pub const DISPLAY_TIME: &'static str = "SCStreamFrameInfoDisplayTime";
+    
+    /// Key for the scale factor (point-to-pixel ratio)
+    pub const SCALE_FACTOR: &'static str = "SCStreamFrameInfoScaleFactor";
+    
+    /// Key for the content scale
+    pub const CONTENT_SCALE: &'static str = "SCStreamFrameInfoContentScale";
+    
+    /// Key for the content rectangle
+    pub const CONTENT_RECT: &'static str = "SCStreamFrameInfoContentRect";
+    
+    /// Key for the bounding rectangle
+    pub const BOUNDING_RECT: &'static str = "SCStreamFrameInfoBoundingRect";
+    
+    /// Key for the screen rectangle
+    pub const SCREEN_RECT: &'static str = "SCStreamFrameInfoScreenRect";
+    
+    /// Key for dirty rectangles (areas that changed)
+    pub const DIRTY_RECTS: &'static str = "SCStreamFrameInfoDirtyRects";
+    
+    /// Key for the presenter overlay content rectangle (macOS 14.0+)
+    pub const PRESENTER_OVERLAY_CONTENT_RECT: &'static str = "SCStreamFrameInfoPresenterOverlayContentRect";
+}
