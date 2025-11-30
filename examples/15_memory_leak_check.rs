@@ -91,6 +91,8 @@ impl SCStreamOutputTrait for LeakTestHandler {
             SCStreamOutputType::Microphone => {
                 self.mic_samples.fetch_add(1, Ordering::Relaxed);
             }
+            #[cfg(not(feature = "macos_15_0"))]
+            _ => {}
         }
     }
 }
@@ -296,8 +298,10 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
             .build(),
     };
 
-    // Test filter properties
+    // Test filter properties (macOS 14.0+)
+    #[cfg(feature = "macos_14_2")]
     let _rect = filter.content_rect();
+    #[cfg(feature = "macos_14_0")]
     let _scale = filter.point_pixel_scale();
 
     // Configure based on filter type
