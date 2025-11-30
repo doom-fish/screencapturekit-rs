@@ -256,11 +256,32 @@ public func setStreamConfigurationIgnoreGlobalClipboard(_ config: OpaquePointer,
 @_cdecl("sc_stream_configuration_get_ignore_global_clipboard")
 public func getStreamConfigurationIgnoreGlobalClipboard(_ config: OpaquePointer) -> Bool { false }
 
-@_cdecl("sc_stream_configuration_set_capture_resolution")
-public func setStreamConfigurationCaptureResolution(_ config: OpaquePointer, _ resolution: Int32) {}
+@_cdecl("sc_stream_configuration_set_capture_resolution_type")
+public func setStreamConfigurationCaptureResolutionType(_ config: OpaquePointer, _ resolution: Int32) {
+    if #available(macOS 14.0, *) {
+        let scConfig: SCStreamConfiguration = unretained(config)
+        switch resolution {
+        case 0: scConfig.captureResolution = .automatic
+        case 1: scConfig.captureResolution = .best
+        case 2: scConfig.captureResolution = .nominal
+        default: break
+        }
+    }
+}
 
-@_cdecl("sc_stream_configuration_get_capture_resolution")
-public func getStreamConfigurationCaptureResolution(_ config: OpaquePointer) -> Int32 { 0 }
+@_cdecl("sc_stream_configuration_get_capture_resolution_type")
+public func getStreamConfigurationCaptureResolutionType(_ config: OpaquePointer) -> Int32 {
+    if #available(macOS 14.0, *) {
+        let scConfig: SCStreamConfiguration = unretained(config)
+        switch scConfig.captureResolution {
+        case .automatic: return 0
+        case .best: return 1
+        case .nominal: return 2
+        @unknown default: return 0
+        }
+    }
+    return 0
+}
 
 @_cdecl("sc_stream_configuration_set_color_matrix")
 public func setStreamConfigurationColorMatrix(_ config: OpaquePointer, _ matrix: UnsafePointer<CChar>) {}
