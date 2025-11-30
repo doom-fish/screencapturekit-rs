@@ -1,7 +1,9 @@
 //! Memory safety and leak tests
 //!
 //! These tests verify proper memory management across the library.
-//! Run with: `cargo test --test memory_tests --features "macos_14_0"`
+//! Run with: `cargo test --test memory_tests --features "macos_14_0" -- --test-threads=1`
+//!
+//! Note: These tests must run single-threaded due to CGS initialization requirements.
 
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
