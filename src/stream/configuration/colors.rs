@@ -117,7 +117,7 @@ impl SCStreamConfiguration {
         };
         if success {
             let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
-            c_str.to_str().ok().map(|s| s.to_string())
+            c_str.to_str().ok().map(ToString::to_string)
         } else {
             None
         }
