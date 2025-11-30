@@ -43,7 +43,7 @@ For latest macOS features:
 
 ```toml
 [dependencies]
-screencapturekit = { version = "1", features = ["macos_15_0"] }
+screencapturekit = { version = "1", features = ["macos_26_0"] }
 ```
 
 ## 🚀 Quick Start
