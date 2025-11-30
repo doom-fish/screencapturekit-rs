@@ -2,15 +2,15 @@
 
 #[cfg(feature = "macos_15_0")]
 use screencapturekit::recording_output::{
-    SCRecordingOutput, SCRecordingOutputCodec, SCRecordingOutputConfiguration,
-    SCRecordingOutputFileType,
+    RecordingCallbacks, SCRecordingOutput, SCRecordingOutputCodec,
+    SCRecordingOutputConfiguration, SCRecordingOutputFileType,
 };
 #[cfg(feature = "macos_15_0")]
 use screencapturekit::stream::sc_stream::SCStream;
 #[cfg(feature = "macos_15_0")]
 use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(feature = "macos_15_0")]
-use std::sync::Arc;
+use std::sync::{Arc, Condvar, Mutex};
 
 /// Recording configuration state
 #[cfg(feature = "macos_15_0")]
@@ -61,6 +61,8 @@ pub struct RecordingState {
     pub output: Option<SCRecordingOutput>,
     pub path: Option<String>,
     pub is_recording: Arc<AtomicBool>,
+    /// Signal when recording finishes (for waiting before opening file)
+    finish_signal: Arc<(Mutex<bool>, Condvar)>,
 }
 
 #[cfg(feature = "macos_15_0")]
@@ -70,6 +72,7 @@ impl RecordingState {
             output: None,
             path: None,
             is_recording: Arc::new(AtomicBool::new(false)),
+            finish_signal: Arc::new((Mutex::new(false), Condvar::new())),
         }
     }
 
@@ -94,7 +97,31 @@ impl RecordingState {
             SCRecordingOutputConfiguration::new().with_output_url(std::path::Path::new(&path)),
         );
 
-        match SCRecordingOutput::new(&rec_config) {
+        // Reset finish signal
+        {
+            let (lock, _) = &*self.finish_signal;
+            *lock.lock().unwrap() = false;
+        }
+
+        // Create delegate with finish callback
+        let finish_signal = Arc::clone(&self.finish_signal);
+        let path_for_callback = path.clone();
+        let delegate = RecordingCallbacks::new()
+            .on_start(|| {
+                println!("📹 Recording started");
+            })
+            .on_finish(move || {
+                println!("📹 Recording finished: {}", path_for_callback);
+                let (lock, cvar) = &*finish_signal;
+                let mut finished = lock.lock().unwrap();
+                *finished = true;
+                cvar.notify_all();
+            })
+            .on_fail(|error| {
+                eprintln!("❌ Recording failed: {}", error);
+            });
+
+        match SCRecordingOutput::new_with_delegate(&rec_config, delegate) {
             Some(rec) => match stream.add_recording_output(&rec) {
                 Ok(()) => {
                     println!("🔴 Recording to: {path}");
@@ -121,12 +148,35 @@ impl RecordingState {
         }
 
         self.is_recording.store(false, Ordering::Relaxed);
+
+        // Wait for recording to finish (with timeout)
+        {
+            let (lock, cvar) = &*self.finish_signal;
+            let mut finished = lock.lock().unwrap();
+            let timeout = std::time::Duration::from_secs(5);
+            while !*finished {
+                let result = cvar.wait_timeout(finished, timeout).unwrap();
+                finished = result.0;
+                if result.1.timed_out() {
+                    println!("⚠️  Timeout waiting for recording to finish");
+                    break;
+                }
+            }
+        }
+
         self.output = None;
 
         let path = self.path.take();
         if let Some(ref p) = path {
-            println!("✅ Recording saved: {p}");
-            let _ = std::process::Command::new("open").arg(p).spawn();
+            // Small delay to ensure file is fully written
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            
+            if std::path::Path::new(p).exists() {
+                println!("✅ Recording saved: {p}");
+                let _ = std::process::Command::new("open").arg(p).spawn();
+            } else {
+                println!("⚠️  Recording file not found: {p}");
+            }
         }
         path
     }
