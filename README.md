@@ -396,6 +396,7 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 13. **`13_advanced_config.rs`** - HDR, presets, microphone (macOS 15.0+)
 14. **`14_app_capture.rs`** - Application-based filtering
 15. **`15_memory_leak_check.rs`** - Memory leak detection with `leaks`
+16. **`16_full_metal_app/`** - Full Metal GUI application (macOS 14.0+)
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -414,6 +415,7 @@ cargo run --example 08_async --features async
 cargo run --example 10_recording_output --features macos_15_0
 cargo run --example 11_content_picker --features macos_14_0
 cargo run --example 13_advanced_config --features macos_15_0
+cargo run --example 16_full_metal_app --features macos_14_0
 ```
 
 ## 🧪 Testing
