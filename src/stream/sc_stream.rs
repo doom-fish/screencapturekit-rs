@@ -136,11 +136,21 @@ impl SCStream {
     /// # }
     /// ```
     pub fn new(filter: &SCContentFilter, configuration: &SCStreamConfiguration) -> Self {
-        extern "C" fn error_callback(_stream: *const c_void, msg: *const i8) {
-            if !msg.is_null() {
-                if let Ok(s) = unsafe { CStr::from_ptr(msg) }.to_str() {
-                    eprintln!("SCStream error: {s}");
+        extern "C" fn error_callback(_stream: *const c_void, error_code: i32, msg: *const i8) {
+            let message = if !msg.is_null() {
+                unsafe { CStr::from_ptr(msg) }.to_str().unwrap_or("Unknown error")
+            } else {
+                "Unknown error"
+            };
+            
+            if error_code != 0 {
+                if let Some(code) = crate::error::SCStreamErrorCode::from_raw(error_code) {
+                    eprintln!("SCStream error ({}): {}", code, message);
+                } else {
+                    eprintln!("SCStream error (code {}): {}", error_code, message);
                 }
+            } else {
+                eprintln!("SCStream error: {}", message);
             }
         }
         let ptr = unsafe {
@@ -404,6 +414,24 @@ impl SCStream {
             );
         }
         completion.wait().map_err(SCError::StreamError)
+    }
+
+    /// Get the synchronization clock for this stream (macOS 13.0+)
+    ///
+    /// Returns the `CMClock` used to synchronize the stream's output.
+    /// This is useful for coordinating multiple streams or synchronizing
+    /// with other media.
+    ///
+    /// Returns `None` if the clock is not available (e.g., stream not started
+    /// or macOS version too old).
+    #[cfg(feature = "macos_13_0")]
+    pub fn synchronization_clock(&self) -> Option<crate::cm::CMClock> {
+        let ptr = unsafe { ffi::sc_stream_get_synchronization_clock(self.ptr) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(crate::cm::CMClock::from_ptr(ptr))
+        }
     }
 
     /// Add a recording output to the stream (macOS 15.0+)
