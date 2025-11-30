@@ -1,6 +1,9 @@
 use super::internal::SCStreamConfiguration;
 use crate::cm::CMTime;
 
+#[cfg(feature = "macos_14_0")]
+use super::SCCaptureResolutionType;
+
 impl SCStreamConfiguration {
     /// Set the queue depth for frame buffering
     pub fn set_queue_depth(&mut self, queue_depth: u32) -> &mut Self {
@@ -168,6 +171,56 @@ impl SCStreamConfiguration {
                 &mut height,
             );
             (width as usize, height as usize)
+        }
+    }
+
+    /// Set the capture resolution type (macOS 14.0+)
+    ///
+    /// Controls how the capture resolution is determined.
+    ///
+    /// # Arguments
+    /// * `resolution_type` - The resolution strategy to use
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use screencapturekit::stream::configuration::{SCStreamConfiguration, SCCaptureResolutionType};
+    ///
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_capture_resolution_type(SCCaptureResolutionType::Best);
+    /// ```
+    #[cfg(feature = "macos_14_0")]
+    pub fn set_capture_resolution_type(
+        &mut self,
+        resolution_type: SCCaptureResolutionType,
+    ) -> &mut Self {
+        unsafe {
+            crate::ffi::sc_stream_configuration_set_capture_resolution_type(
+                self.as_ptr(),
+                resolution_type as i32,
+            );
+        }
+        self
+    }
+
+    /// Set the capture resolution type (builder pattern, macOS 14.0+)
+    #[cfg(feature = "macos_14_0")]
+    #[must_use]
+    pub fn with_capture_resolution_type(mut self, resolution_type: SCCaptureResolutionType) -> Self {
+        self.set_capture_resolution_type(resolution_type);
+        self
+    }
+
+    /// Get the capture resolution type (macOS 14.0+)
+    #[cfg(feature = "macos_14_0")]
+    pub fn capture_resolution_type(&self) -> SCCaptureResolutionType {
+        let value = unsafe {
+            crate::ffi::sc_stream_configuration_get_capture_resolution_type(self.as_ptr())
+        };
+        match value {
+            1 => SCCaptureResolutionType::Best,
+            2 => SCCaptureResolutionType::Nominal,
+            _ => SCCaptureResolutionType::Automatic,
         }
     }
 }

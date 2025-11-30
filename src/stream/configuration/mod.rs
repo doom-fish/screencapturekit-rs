@@ -16,6 +16,33 @@ pub use pixel_format::PixelFormat;
 pub use stream_properties::SCCaptureDynamicRange;
 pub use types::{ConfigError, Point, Rect, Size};
 
+/// Capture resolution type for stream configuration (macOS 14.0+)
+///
+/// Controls how the capture resolution is determined relative to the source content.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[cfg(feature = "macos_14_0")]
+pub enum SCCaptureResolutionType {
+    /// Automatically determines the best resolution
+    #[default]
+    Automatic = 0,
+    /// Uses the best available resolution (highest quality)
+    Best = 1,
+    /// Uses the nominal resolution of the display
+    Nominal = 2,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl std::fmt::Display for SCCaptureResolutionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Automatic => write!(f, "Automatic"),
+            Self::Best => write!(f, "Best"),
+            Self::Nominal => write!(f, "Nominal"),
+        }
+    }
+}
+
 impl Default for SCStreamConfiguration {
     fn default() -> Self {
         Self::internal_init()
