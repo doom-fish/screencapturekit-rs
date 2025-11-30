@@ -634,46 +634,92 @@ public func releaseStream(_ stream: OpaquePointer) {
 
 // MARK: - Recording Output (macOS 15.0+)
 
-@_cdecl("sc_stream_add_recording_output")
-public func addRecordingOutput(
-    _ stream: OpaquePointer,
-    _ recordingOutput: OpaquePointer,
-    _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void,
-    _ context: UnsafeMutableRawPointer?
-) {
-    if #available(macOS 15.0, *) {
-        let s: SCStream = unretained(stream)
-        let rec: SCRecordingOutput = unretained(recordingOutput)
-        do {
-            try s.addRecordingOutput(rec)
-            callback(context, true, nil)
-        } catch {
-            error.localizedDescription.withCString { callback(context, false, $0) }
-        }
-    } else {
-        let bridgeError = SCBridgeError.configurationError("addRecordingOutput requires macOS 15.0 or later")
-        bridgeError.description.withCString { callback(context, false, $0) }
-    }
-}
+#if compiler(>=6.0)
+    // Full implementation for Xcode 16+ / Swift 6+ (macOS 15 SDK)
 
-@_cdecl("sc_stream_remove_recording_output")
-public func removeRecordingOutput(
-    _ stream: OpaquePointer,
-    _ recordingOutput: OpaquePointer,
-    _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void,
-    _ context: UnsafeMutableRawPointer?
-) {
-    if #available(macOS 15.0, *) {
+    @available(macOS 15.0, *)
+    private func addRecordingOutputImpl(
+        _ stream: OpaquePointer,
+        _ recordingOutput: OpaquePointer
+    ) throws {
         let s: SCStream = unretained(stream)
         let rec: SCRecordingOutput = unretained(recordingOutput)
-        do {
-            try s.removeRecordingOutput(rec)
-            callback(context, true, nil)
-        } catch {
-            error.localizedDescription.withCString { callback(context, false, $0) }
+        try s.addRecordingOutput(rec)
+    }
+
+    @available(macOS 15.0, *)
+    private func removeRecordingOutputImpl(
+        _ stream: OpaquePointer,
+        _ recordingOutput: OpaquePointer
+    ) throws {
+        let s: SCStream = unretained(stream)
+        let rec: SCRecordingOutput = unretained(recordingOutput)
+        try s.removeRecordingOutput(rec)
+    }
+
+    @_cdecl("sc_stream_add_recording_output")
+    public func addRecordingOutput(
+        _ stream: OpaquePointer,
+        _ recordingOutput: OpaquePointer,
+        _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void,
+        _ context: UnsafeMutableRawPointer?
+    ) {
+        if #available(macOS 15.0, *) {
+            do {
+                try addRecordingOutputImpl(stream, recordingOutput)
+                callback(context, true, nil)
+            } catch {
+                error.localizedDescription.withCString { callback(context, false, $0) }
+            }
+        } else {
+            let bridgeError = SCBridgeError.configurationError("addRecordingOutput requires macOS 15.0 or later")
+            bridgeError.description.withCString { callback(context, false, $0) }
         }
-    } else {
-        let bridgeError = SCBridgeError.configurationError("removeRecordingOutput requires macOS 15.0 or later")
+    }
+
+    @_cdecl("sc_stream_remove_recording_output")
+    public func removeRecordingOutput(
+        _ stream: OpaquePointer,
+        _ recordingOutput: OpaquePointer,
+        _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void,
+        _ context: UnsafeMutableRawPointer?
+    ) {
+        if #available(macOS 15.0, *) {
+            do {
+                try removeRecordingOutputImpl(stream, recordingOutput)
+                callback(context, true, nil)
+            } catch {
+                error.localizedDescription.withCString { callback(context, false, $0) }
+            }
+        } else {
+            let bridgeError = SCBridgeError.configurationError("removeRecordingOutput requires macOS 15.0 or later")
+            bridgeError.description.withCString { callback(context, false, $0) }
+        }
+    }
+
+#else
+    // Stub implementation for older compilers (macOS < 15 SDK)
+
+    @_cdecl("sc_stream_add_recording_output")
+    public func addRecordingOutput(
+        _ stream: OpaquePointer,
+        _ recordingOutput: OpaquePointer,
+        _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void,
+        _ context: UnsafeMutableRawPointer?
+    ) {
+        let bridgeError = SCBridgeError.configurationError("addRecordingOutput requires macOS 15.0 SDK or later")
         bridgeError.description.withCString { callback(context, false, $0) }
     }
-}
+
+    @_cdecl("sc_stream_remove_recording_output")
+    public func removeRecordingOutput(
+        _ stream: OpaquePointer,
+        _ recordingOutput: OpaquePointer,
+        _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void,
+        _ context: UnsafeMutableRawPointer?
+    ) {
+        let bridgeError = SCBridgeError.configurationError("removeRecordingOutput requires macOS 15.0 SDK or later")
+        bridgeError.description.withCString { callback(context, false, $0) }
+    }
+
+#endif
