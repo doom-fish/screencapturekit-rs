@@ -1,11 +1,17 @@
 use super::internal::SCStreamConfiguration;
 
+/// Presenter overlay privacy alert setting (macOS 14.2+)
+///
+/// Controls when the system displays a privacy alert for presenter overlay.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SCPresenterOverlayAlertSetting {
+    /// Let the system decide when to show the alert
     #[default]
-    Never = 0,
-    Once = 1,
+    System = 0,
+    /// Never show the privacy alert
+    Never = 1,
+    /// Always show the privacy alert
     Always = 2,
 }
 
@@ -173,9 +179,9 @@ impl SCStreamConfiguration {
             )
         };
         match value {
-            0 => SCPresenterOverlayAlertSetting::Never,
+            1 => SCPresenterOverlayAlertSetting::Never,
             2 => SCPresenterOverlayAlertSetting::Always,
-            _ => SCPresenterOverlayAlertSetting::Once,
+            _ => SCPresenterOverlayAlertSetting::System,
         }
     }
 

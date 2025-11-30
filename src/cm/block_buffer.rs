@@ -41,5 +41,15 @@ impl CMBlockBuffer {
     }
 }
 
+impl Drop for CMBlockBuffer {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe {
+                ffi::cm_block_buffer_release(self.0);
+            }
+        }
+    }
+}
+
 unsafe impl Send for CMBlockBuffer {}
 unsafe impl Sync for CMBlockBuffer {}

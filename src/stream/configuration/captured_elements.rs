@@ -87,7 +87,7 @@ impl SCStreamConfiguration {
     /// macOS 14.0+. On earlier versions, this setting has no effect.
     ///
     /// # Examples
-    /// ```
+    /// ```ignore
     /// use screencapturekit::prelude::*;
     ///
     /// let config = SCStreamConfiguration::new()
@@ -95,6 +95,7 @@ impl SCStreamConfiguration {
     ///     .with_height(1080)
     ///     .with_captures_shadows_only(true);
     /// ```
+    #[cfg(feature = "macos_14_0")]
     pub fn set_captures_shadows_only(&mut self, captures_shadows_only: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_captures_shadows_only(
@@ -106,6 +107,7 @@ impl SCStreamConfiguration {
     }
 
     /// Capture only window shadows (builder pattern)
+    #[cfg(feature = "macos_14_0")]
     #[must_use]
     pub fn with_captures_shadows_only(mut self, captures_shadows_only: bool) -> Self {
         self.set_captures_shadows_only(captures_shadows_only);
@@ -113,6 +115,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get whether only window shadows are captured (macOS 14.0+).
+    #[cfg(feature = "macos_14_0")]
     pub fn captures_shadows_only(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_captures_shadows_only(self.as_ptr()) }
     }

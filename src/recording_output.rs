@@ -309,6 +309,7 @@ pub trait SCRecordingOutputDelegate: Send + 'static {
 /// let delegate = RecordingCallbacks::new()
 ///     .on_fail(|error| eprintln!("Error: {}", error));
 /// ```
+#[allow(clippy::struct_field_names)]
 pub struct RecordingCallbacks {
     on_start: Option<Box<dyn Fn() + Send + 'static>>,
     on_fail: Option<Box<dyn Fn(String) + Send + 'static>>,
@@ -414,11 +415,10 @@ extern "C" fn recording_failed_callback(ctx: *mut c_void, error_code: i32, error
         
         // Include error code in the message if it's a known SCStreamError
         let full_error = if error_code != 0 {
-            if let Some(code) = crate::error::SCStreamErrorCode::from_raw(error_code) {
-                format!("{} ({})", error_str, code)
-            } else {
-                format!("{} (code: {})", error_str, error_code)
-            }
+            crate::error::SCStreamErrorCode::from_raw(error_code).map_or_else(
+                || format!("{error_str} (code: {error_code})"),
+                |code| format!("{error_str} ({code})"),
+            )
         } else {
             error_str
         };
@@ -468,7 +468,7 @@ impl SCRecordingOutput {
         // We need a stable pointer to the Box itself, so we box the box
         let boxed_box = Box::new(boxed_delegate);
         let raw_ptr = Box::into_raw(boxed_box);
-        let ctx = raw_ptr as *mut c_void;
+        let ctx = raw_ptr.cast::<c_void>();
 
         let ptr = unsafe {
             crate::ffi::sc_recording_output_create_with_delegate(

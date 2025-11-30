@@ -248,7 +248,8 @@ impl SCShareableContent {
         }
     }
 
-    pub fn as_ptr(&self) -> *const c_void {
+    #[allow(dead_code)]
+    pub(crate) fn as_ptr(&self) -> *const c_void {
         self.0
     }
 }

@@ -42,7 +42,7 @@ extern "C" fn sample_handler(
             1 => SCStreamOutputType::Audio,
             2 => SCStreamOutputType::Microphone,
             _ => {
-                eprintln!("Unknown output type: {}", output_type);
+                eprintln!("Unknown output type: {output_type}");
                 return;
             }
         };
@@ -137,20 +137,20 @@ impl SCStream {
     /// ```
     pub fn new(filter: &SCContentFilter, configuration: &SCStreamConfiguration) -> Self {
         extern "C" fn error_callback(_stream: *const c_void, error_code: i32, msg: *const i8) {
-            let message = if !msg.is_null() {
-                unsafe { CStr::from_ptr(msg) }.to_str().unwrap_or("Unknown error")
-            } else {
+            let message = if msg.is_null() {
                 "Unknown error"
+            } else {
+                unsafe { CStr::from_ptr(msg) }.to_str().unwrap_or("Unknown error")
             };
             
             if error_code != 0 {
                 if let Some(code) = crate::error::SCStreamErrorCode::from_raw(error_code) {
-                    eprintln!("SCStream error ({}): {}", code, message);
+                    eprintln!("SCStream error ({code}): {message}");
                 } else {
-                    eprintln!("SCStream error (code {}): {}", error_code, message);
+                    eprintln!("SCStream error (code {error_code}): {message}");
                 }
             } else {
-                eprintln!("SCStream error: {}", message);
+                eprintln!("SCStream error: {message}");
             }
         }
         let ptr = unsafe {
@@ -485,6 +485,7 @@ impl SCStream {
     }
 
     /// Returns the raw pointer to the underlying Swift `SCStream` instance.
+    #[allow(dead_code)]
     pub(crate) fn as_ptr(&self) -> *const c_void {
         self.ptr
     }
