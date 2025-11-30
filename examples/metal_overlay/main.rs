@@ -35,6 +35,7 @@
 
 mod capture;
 mod font;
+mod input;
 mod overlay;
 #[cfg(feature = "macos_15_0")]
 mod recording;
@@ -55,16 +56,14 @@ use metal::*;
 use objc::rc::autoreleasepool;
 use objc::runtime::YES;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-use screencapturekit::content_sharing_picker::{
-    SCContentSharingPicker, SCContentSharingPickerConfiguration, SCContentSharingPickerMode,
-    SCPickedSource, SCPickerOutcome,
-};
+use screencapturekit::content_sharing_picker::SCPickedSource;
 use screencapturekit::prelude::*;
 use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::ControlFlow;
 
-use capture::{CaptureHandler, CaptureState};
+use capture::CaptureState;
 use font::BitmapFont;
+use input::{format_picked_source, open_picker, open_picker_for_stream, start_capture, stop_capture, PickerResult};
 use overlay::{default_stream_config, ConfigMenu, OverlayState};
 #[cfg(feature = "macos_15_0")]
 use recording::{RecordingConfig, RecordingState};
@@ -159,20 +158,6 @@ fn main() {
     let mut stream_config = default_stream_config();
     let mut mic_device_idx: Option<usize> = None; // Track mic device selection separately
 
-    // Helper to format picked source for display
-    fn format_picked_source(source: &SCPickedSource) -> String {
-        match source {
-            SCPickedSource::Window(name) => {
-                format!("[W] {}", name.chars().take(20).collect::<String>())
-            }
-            SCPickedSource::Display(id) => format!("[D] Display {}", id),
-            SCPickedSource::Application(name) => {
-                format!("[A] {}", name.chars().take(20).collect::<String>())
-            }
-            SCPickedSource::Unknown => "None".to_string(),
-        }
-    }
-
     // Screen capture setup
     let mut stream: Option<SCStream> = None;
     let mut current_filter: Option<SCContentFilter> = None;
@@ -189,8 +174,7 @@ fn main() {
     #[cfg(not(feature = "macos_15_0"))]
     let recording = Arc::new(AtomicBool::new(false));
 
-    // Shared state for picker callback results (filter, width, height, source info)
-    type PickerResult = Option<(SCContentFilter, u32, u32, SCPickedSource)>;
+    // Shared state for picker callback results
     let pending_picker: Arc<Mutex<PickerResult>> = Arc::new(Mutex::new(None));
 
     let mut vertex_builder = VertexBufferBuilder::new();
@@ -247,156 +231,6 @@ fn main() {
                             },
                         ..
                     } => {
-                        // Helper closure to open picker (without stream - for initial selection)
-                        let open_picker_no_stream = |pending_picker: &Arc<Mutex<PickerResult>>| {
-                            println!("📺 Opening content picker...");
-                            let mut config = SCContentSharingPickerConfiguration::new();
-                            config.set_allowed_picker_modes(&[
-                                SCContentSharingPickerMode::SingleWindow,
-                                SCContentSharingPickerMode::MultipleWindows,
-                                SCContentSharingPickerMode::SingleDisplay,
-                                SCContentSharingPickerMode::SingleApplication,
-                                SCContentSharingPickerMode::MultipleApplications,
-                            ]);
-                            let pending = Arc::clone(pending_picker);
-
-                            SCContentSharingPicker::show(&config, move |outcome| {
-                                match outcome {
-                                    SCPickerOutcome::Picked(result) => {
-                                        let (width, height) = result.pixel_size();
-                                        let filter = result.filter();
-                                        let source = result.source();
-
-                                        if let Ok(mut pending) = pending.lock() {
-                                            *pending = Some((filter, width, height, source));
-                                        }
-                                    }
-                                    SCPickerOutcome::Cancelled => {
-                                        println!("⚠️  Picker cancelled");
-                                    }
-                                    SCPickerOutcome::Error(e) => {
-                                        eprintln!("❌ Picker error: {}", e);
-                                    }
-                                }
-                            });
-                        };
-
-                        // Helper closure to open picker for existing stream
-                        let open_picker_for_stream =
-                            |pending_picker: &Arc<Mutex<PickerResult>>, stream: &SCStream| {
-                                println!("📺 Opening content picker for stream...");
-                                let mut config = SCContentSharingPickerConfiguration::new();
-                                config.set_allowed_picker_modes(&[
-                                    SCContentSharingPickerMode::SingleWindow,
-                                    SCContentSharingPickerMode::MultipleWindows,
-                                    SCContentSharingPickerMode::SingleDisplay,
-                                    SCContentSharingPickerMode::SingleApplication,
-                                    SCContentSharingPickerMode::MultipleApplications,
-                                ]);
-                                let pending = Arc::clone(pending_picker);
-
-                                SCContentSharingPicker::show_for_stream(
-                                    &config,
-                                    stream,
-                                    move |outcome| match outcome {
-                                        SCPickerOutcome::Picked(result) => {
-                                            let (width, height) = result.pixel_size();
-                                            let filter = result.filter();
-                                            let source = result.source();
-
-                                            if let Ok(mut pending) = pending.lock() {
-                                                *pending = Some((filter, width, height, source));
-                                            }
-                                        }
-                                        SCPickerOutcome::Cancelled => {
-                                            println!("⚠️  Picker cancelled");
-                                        }
-                                        SCPickerOutcome::Error(e) => {
-                                            eprintln!("❌ Picker error: {}", e);
-                                        }
-                                    },
-                                );
-                            };
-
-                        // Helper closure to start capture with existing filter
-                        let start_capture = |stream: &mut Option<SCStream>,
-                                             current_filter: &Option<SCContentFilter>,
-                                             capture_size: (u32, u32),
-                                             stream_config: &SCStreamConfiguration,
-                                             capture_state: &Arc<CaptureState>,
-                                             capturing: &Arc<AtomicBool>,
-                                             mic_only: bool| {
-                            // Get the filter to use
-                            let filter_to_use = if let Some(ref filter) = current_filter {
-                                filter.clone()
-                            } else if mic_only {
-                                // For mic-only capture, we still need a valid display filter
-                                // macOS requires a content filter even for audio-only capture
-                                println!("🎤 Starting mic-only capture (using main display)");
-                                match screencapturekit::shareable_content::SCShareableContent::get()
-                                {
-                                    Ok(content) => {
-                                        let displays = content.displays();
-                                        if let Some(display) = displays.first() {
-                                            SCContentFilter::builder().display(display).build()
-                                        } else {
-                                            println!(
-                                                "❌ No displays available for mic-only capture"
-                                            );
-                                            return;
-                                        }
-                                    }
-                                    Err(e) => {
-                                        println!("❌ Failed to get shareable content: {:?}", e);
-                                        return;
-                                    }
-                                }
-                            } else {
-                                println!("⚠️  No content selected. Open picker first.");
-                                return;
-                            };
-
-                            let (width, height) = capture_size;
-                            // Clone config and update dimensions
-                            let mut sc_config = stream_config.clone();
-                            sc_config.set_width(width);
-                            sc_config.set_height(height);
-
-                            let handler = CaptureHandler {
-                                state: Arc::clone(capture_state),
-                            };
-
-                            let mut s = SCStream::new(&filter_to_use, &sc_config);
-                            if !mic_only {
-                                s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
-                                s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);
-                            }
-                            s.add_output_handler(handler, SCStreamOutputType::Microphone);
-
-                            match s.start_capture() {
-                                Ok(()) => {
-                                    capturing.store(true, Ordering::Relaxed);
-                                    *stream = Some(s);
-                                    println!("✅ Capture started");
-                                }
-                                Err(e) => {
-                                    eprintln!("❌ Failed to start capture: {:?}", e);
-                                }
-                            }
-                        };
-
-                        // Helper closure to stop capture
-                        let stop_capture =
-                            |stream: &mut Option<SCStream>, capturing: &Arc<AtomicBool>| {
-                                println!("⏹️  Stopping capture...");
-                                if let Some(ref mut s) = stream {
-                                    let _ = s.stop_capture();
-                                }
-                                *stream = None;
-                                capturing.store(false, Ordering::Relaxed);
-                                println!("✅ Capture stopped");
-                            };
-
                         // Handle menu navigation when help is shown
                         #[cfg(feature = "macos_15_0")]
                         let show_any_config = overlay.show_config || overlay.show_recording_config;
@@ -433,7 +267,7 @@ fn main() {
                                             if let Some(ref s) = stream {
                                                 open_picker_for_stream(&pending_picker, s);
                                             } else {
-                                                open_picker_no_stream(&pending_picker);
+                                                open_picker(&pending_picker);
                                             }
                                         }
                                         1 => {
@@ -649,7 +483,7 @@ fn main() {
                                     if let Some(ref s) = stream {
                                         open_picker_for_stream(&pending_picker, s);
                                     } else {
-                                        open_picker_no_stream(&pending_picker);
+                                        open_picker(&pending_picker);
                                     }
                                 }
                                 VirtualKeyCode::W => {
