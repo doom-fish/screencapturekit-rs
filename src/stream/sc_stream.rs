@@ -34,6 +34,8 @@ extern "C" fn sample_handler(
     let registry = HANDLER_REGISTRY.lock().unwrap();
     if let Some(handlers) = registry.as_ref() {
         if handlers.is_empty() {
+            // No handlers registered - release the buffer that Swift passed us
+            unsafe { crate::cm::ffi::cm_sample_buffer_release(sample_buffer.cast_mut()) };
             return;
         }
 
@@ -43,6 +45,8 @@ extern "C" fn sample_handler(
             2 => SCStreamOutputType::Microphone,
             _ => {
                 eprintln!("Unknown output type: {output_type}");
+                // Unknown type - release the buffer
+                unsafe { crate::cm::ffi::cm_sample_buffer_release(sample_buffer.cast_mut()) };
                 return;
             }
         };
@@ -63,6 +67,9 @@ extern "C" fn sample_handler(
 
             handler.did_output_sample_buffer(buffer, output_type_enum);
         }
+    } else {
+        // No registry - release the buffer
+        unsafe { crate::cm::ffi::cm_sample_buffer_release(sample_buffer.cast_mut()) };
     }
 }
 
