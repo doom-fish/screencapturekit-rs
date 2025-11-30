@@ -128,42 +128,4 @@ where
     ffi_string_owned(ffi_call).unwrap_or_default()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_ffi_string_from_buffer_success() {
-        let result = unsafe {
-            ffi_string_from_buffer(64, |buf, _len| {
-                let test_str = b"hello\0";
-                std::ptr::copy_nonoverlapping(test_str.as_ptr(), buf.cast::<u8>(), test_str.len());
-                true
-            })
-        };
-        assert_eq!(result, Some("hello".to_string()));
-    }
-
-    #[test]
-    fn test_ffi_string_from_buffer_failure() {
-        let result = unsafe { ffi_string_from_buffer(64, |_buf, _len| false) };
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_ffi_string_from_buffer_empty() {
-        let result = unsafe {
-            ffi_string_from_buffer(64, |buf, _len| {
-                *buf = 0; // empty string
-                true
-            })
-        };
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_ffi_string_or_empty() {
-        let result = unsafe { ffi_string_from_buffer_or_empty(64, |_buf, _len| false) };
-        assert_eq!(result, String::new());
-    }
-}

@@ -479,6 +479,7 @@ extern "C" {
         sample_buffer_callback: extern "C" fn(*const c_void, *const c_void, i32),
         dispatch_queue: *const c_void,
     ) -> bool;
+    pub fn sc_stream_remove_stream_output(stream: *const c_void, output_type: i32) -> bool;
     pub fn sc_stream_start_capture(
         stream: *const c_void,
         context: *mut c_void,
@@ -684,6 +685,12 @@ extern "C" {
     pub fn cgimage_free_data(ptr: *mut u8);
     pub fn cgimage_release(image: *const c_void);
     pub fn cgimage_save_png(image: *const c_void, path: *const i8) -> bool;
+    pub fn cgimage_save_to_file(
+        image: *const c_void,
+        path: *const i8,
+        format: i32,
+        quality: f32,
+    ) -> bool;
 }
 
 // MARK: - SCScreenshotConfiguration (macOS 26.0+)
