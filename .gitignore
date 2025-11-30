@@ -63,9 +63,11 @@ coverage/
 /doc/
 /book/
 
+# Downloaded Apple documentation (regenerate with scripts/download_apple_docs.py)
+/docs/apple/
+
 # IDE-specific
 *.iml
 .project
 .classpath
 .settings/
-.github/copilot-instructions.md
