@@ -65,6 +65,25 @@ func errorToCString(_ error: Error) -> UnsafeMutablePointer<CChar>? {
     return strdup(bridgeError.description)
 }
 
+/// Extract SCStreamError code from an error, if applicable
+/// Returns the raw error code, or 0 if not an SCStreamError
+func extractStreamErrorCode(_ error: Error) -> Int32 {
+    let nsError = error as NSError
+    if nsError.domain == "com.apple.ScreenCaptureKit.SCStreamErrorDomain" {
+        return Int32(nsError.code)
+    }
+    return 0
+}
+
+/// Format error with code for FFI transfer
+/// Format: "CODE:message" where CODE is the SCStreamError code or 0
+func errorWithCodeToCString(_ error: Error) -> UnsafeMutablePointer<CChar>? {
+    let code = extractStreamErrorCode(error)
+    let message = error.localizedDescription
+    let formatted = "\(code):\(message)"
+    return strdup(formatted)
+}
+
 // MARK: - Memory Management
 
 /// Helper class to box value types for retain/release
