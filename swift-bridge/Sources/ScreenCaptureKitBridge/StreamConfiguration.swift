@@ -178,12 +178,23 @@ public func getStreamConfigurationShouldBeOpaque(_ config: OpaquePointer) -> Boo
     return false
 }
 
-// Placeholder getters/setters for unsupported properties
+// Shadow display configuration
 @_cdecl("sc_stream_configuration_set_ignores_shadow_display_configuration")
-public func setStreamConfigurationIgnoresShadowDisplayConfiguration(_ config: OpaquePointer, _ ignores: Bool) {}
+public func setStreamConfigurationIgnoresShadowDisplayConfiguration(_ config: OpaquePointer, _ ignores: Bool) {
+    let scConfig: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        scConfig.ignoreShadowsDisplay = ignores
+    }
+}
 
 @_cdecl("sc_stream_configuration_get_ignores_shadow_display_configuration")
-public func getStreamConfigurationIgnoresShadowDisplayConfiguration(_ config: OpaquePointer) -> Bool { false }
+public func getStreamConfigurationIgnoresShadowDisplayConfiguration(_ config: OpaquePointer) -> Bool {
+    let scConfig: SCStreamConfiguration = unretained(config)
+    if #available(macOS 14.0, *) {
+        return scConfig.ignoreShadowsDisplay
+    }
+    return false
+}
 
 // MARK: - Source and Destination Rectangles
 
@@ -284,7 +295,21 @@ public func getStreamConfigurationCaptureResolutionType(_ config: OpaquePointer)
 }
 
 @_cdecl("sc_stream_configuration_set_color_matrix")
-public func setStreamConfigurationColorMatrix(_ config: OpaquePointer, _ matrix: UnsafePointer<CChar>) {}
+public func setStreamConfigurationColorMatrix(_ config: OpaquePointer, _ matrix: UnsafePointer<CChar>) {
+    let scConfig: SCStreamConfiguration = unretained(config)
+    let matrixStr = String(cString: matrix)
+    scConfig.colorMatrix = matrixStr as CFString
+}
+
+@_cdecl("sc_stream_configuration_get_color_matrix")
+public func getStreamConfigurationColorMatrix(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+    let scConfig: SCStreamConfiguration = unretained(config)
+    let matrix = scConfig.colorMatrix as String
+    return matrix.withCString { src in
+        strlcpy(buffer, src, bufferSize)
+        return true
+    }
+}
 
 @_cdecl("sc_stream_configuration_set_increase_resolution_for_retina_displays")
 public func setStreamConfigurationIncreaseResolutionForRetinaDisplays(_ config: OpaquePointer, _ increases: Bool) {}
