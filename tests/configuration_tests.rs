@@ -107,11 +107,7 @@ fn test_various_resolutions() {
         config.set_width(width);
         config.set_height(height);
 
-        assert_eq!(
-            config.width(),
-            width,
-            "Width mismatch for {width}x{height}"
-        );
+        assert_eq!(config.width(), width, "Width mismatch for {width}x{height}");
         assert_eq!(
             config.height(),
             height,
@@ -328,7 +324,7 @@ fn test_captures_shadows_only_builder() {
         .with_width(1920)
         .with_height(1080)
         .with_captures_shadows_only(true);
-    
+
     // Verify builder pattern works
     assert_eq!(config.width(), 1920);
 }
@@ -350,7 +346,7 @@ fn test_shows_mouse_clicks_builder() {
     let config = SCStreamConfiguration::new()
         .with_shows_cursor(true)
         .with_shows_mouse_clicks(true);
-    
+
     // Verify builder pattern works
     assert!(config.shows_cursor());
 }
@@ -389,7 +385,7 @@ fn test_ignore_global_clip_builder_pattern() {
         .with_ignores_shadows_display(true)
         .with_ignore_global_clip_display(true)
         .with_ignore_global_clip_single_window(true);
-    
+
     assert_eq!(config.width(), 1920);
 }
 
@@ -397,9 +393,11 @@ fn test_ignore_global_clip_builder_pattern() {
 #[cfg(feature = "macos_15_0")]
 fn test_preset_configuration() {
     use screencapturekit::stream::configuration::SCStreamConfigurationPreset;
-    
+
     // Test creating configurations from presets
-    let config = SCStreamConfiguration::from_preset(SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay);
+    let config = SCStreamConfiguration::from_preset(
+        SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay,
+    );
     // Just verify it doesn't crash
     let _ = config.width();
 }
@@ -408,7 +406,7 @@ fn test_preset_configuration() {
 #[cfg(feature = "macos_15_0")]
 fn test_all_presets() {
     use screencapturekit::stream::configuration::SCStreamConfigurationPreset;
-    
+
     let presets = [
         SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay,
         SCStreamConfigurationPreset::CaptureHDRStreamCanonicalDisplay,
@@ -416,7 +414,7 @@ fn test_all_presets() {
         SCStreamConfigurationPreset::CaptureHDRScreenshotCanonicalDisplay,
         SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10,
     ];
-    
+
     for preset in presets {
         let config = SCStreamConfiguration::from_preset(preset);
         // Just verify they don't crash
@@ -428,12 +426,12 @@ fn test_all_presets() {
 #[cfg(feature = "macos_15_0")]
 fn test_hdr_recording_preset() {
     use screencapturekit::stream::configuration::SCStreamConfigurationPreset;
-    
+
     // Test the HDR recording preset specifically
     let config = SCStreamConfiguration::from_preset(
-        SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10
+        SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10,
     );
-    
+
     // Verify configuration was created
     assert!(config.width() > 0 || config.width() == 0); // Some default value
     println!("HDR Recording Preset: width={}", config.width());
@@ -443,11 +441,11 @@ fn test_hdr_recording_preset() {
 #[cfg(feature = "macos_14_0")]
 fn test_preserves_aspect_ratio() {
     let mut config = SCStreamConfiguration::default();
-    
+
     // Test setting preserves_aspect_ratio
     config.set_preserves_aspect_ratio(true);
     assert!(config.preserves_aspect_ratio());
-    
+
     config.set_preserves_aspect_ratio(false);
     assert!(!config.preserves_aspect_ratio());
 }
@@ -455,9 +453,7 @@ fn test_preserves_aspect_ratio() {
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_preserves_aspect_ratio_builder() {
-    let config = SCStreamConfiguration::new()
-        .with_preserves_aspect_ratio(true);
-    
+    let config = SCStreamConfiguration::new().with_preserves_aspect_ratio(true);
+
     assert!(config.preserves_aspect_ratio());
 }
-

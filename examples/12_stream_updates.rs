@@ -32,8 +32,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Get available content
     let content = SCShareableContent::get()?;
     let displays = content.displays();
-    
-    if displays.len() < 1 {
+
+    if displays.is_empty() {
         println!("⚠️  Need at least 1 display for this example");
         return Ok(());
     }
@@ -56,7 +56,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Create and start stream
     let count = Arc::new(AtomicUsize::new(0));
-    let handler = FrameHandler { count: count.clone() };
+    let handler = FrameHandler {
+        count: count.clone(),
+    };
 
     let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
@@ -74,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Capture at low resolution for 2 seconds
     std::thread::sleep(Duration::from_secs(2));
     let frames_low = count.load(Ordering::Relaxed);
-    println!("📊 Frames at 640x480: {}", frames_low);
+    println!("📊 Frames at 640x480: {frames_low}");
 
     // 5. Update configuration to higher resolution
     println!("\n🔄 Updating to 1920x1080...");
@@ -85,38 +87,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match stream.update_configuration(&new_config) {
         Ok(()) => println!("✅ Configuration updated"),
-        Err(e) => println!("❌ Update failed: {:?}", e),
+        Err(e) => println!("❌ Update failed: {e:?}"),
     }
 
     // Capture at high resolution for 2 seconds
     std::thread::sleep(Duration::from_secs(2));
     let frames_high = count.load(Ordering::Relaxed);
-    println!("📊 Frames at 1920x1080: {} (total: {})", frames_high - frames_low, frames_high);
+    println!(
+        "📊 Frames at 1920x1080: {} (total: {})",
+        frames_high - frames_low,
+        frames_high
+    );
 
     // 6. Update content filter (switch to window if available)
     let windows = content.windows();
     if let Some(window) = windows.iter().find(|w| w.is_on_screen()) {
         println!("\n🔄 Switching to window capture...");
         println!("   Window: {}", window.title().unwrap_or_default());
-        
-        let window_filter = SCContentFilter::builder()
-            .window(window)
-            .build();
+
+        let window_filter = SCContentFilter::builder().window(window).build();
 
         match stream.update_content_filter(&window_filter) {
             Ok(()) => println!("✅ Filter updated to window"),
-            Err(e) => println!("❌ Filter update failed: {:?}", e),
+            Err(e) => println!("❌ Filter update failed: {e:?}"),
         }
 
         std::thread::sleep(Duration::from_secs(2));
         let frames_window = count.load(Ordering::Relaxed);
-        println!("📊 Frames from window: {} (total: {})", frames_window - frames_high, frames_window);
+        println!(
+            "📊 Frames from window: {} (total: {})",
+            frames_window - frames_high,
+            frames_window
+        );
     }
 
     // 7. Stop capture
     stream.stop_capture()?;
     println!("\n⏹️  Capture stopped");
-    println!("✅ Total frames captured: {}", count.load(Ordering::Relaxed));
+    println!(
+        "✅ Total frames captured: {}",
+        count.load(Ordering::Relaxed)
+    );
 
     Ok(())
 }

@@ -120,7 +120,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("    None = {:?}", SCShareableContentStyle::None);
         println!("    Window = {:?}", SCShareableContentStyle::Window);
         println!("    Display = {:?}", SCShareableContentStyle::Display);
-        println!("    Application = {:?}", SCShareableContentStyle::Application);
+        println!(
+            "    Application = {:?}",
+            SCShareableContentStyle::Application
+        );
     }
 
     Ok(())

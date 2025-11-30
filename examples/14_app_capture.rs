@@ -45,8 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .iter()
             .filter(|w| {
                 w.owning_application()
-                    .map(|a| a.process_id() == app.process_id())
-                    .unwrap_or(false)
+                    .is_some_and(|a| a.process_id() == app.process_id())
             })
             .count();
 
@@ -98,10 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .exclude_applications(&[app], &[])
         .build();
 
-    println!(
-        "   Filter created: exclude {}",
-        app.application_name()
-    );
+    println!("   Filter created: exclude {}", app.application_name());
 
     // ========================================
     // Option C: Capture multiple applications
@@ -115,8 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             windows.iter().any(|w| {
                 w.is_on_screen()
                     && w.owning_application()
-                        .map(|oa| oa.process_id() == a.process_id())
-                        .unwrap_or(false)
+                        .is_some_and(|oa| oa.process_id() == a.process_id())
             })
         })
         .take(3)

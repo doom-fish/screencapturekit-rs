@@ -15,6 +15,7 @@ fn main() {
 }
 
 #[cfg(feature = "macos_15_0")]
+#[allow(clippy::unnecessary_wraps)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use screencapturekit::prelude::*;
     use screencapturekit::stream::configuration::{
@@ -30,11 +31,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   ─────────────────────────");
 
     // SDR capture preset
-    let _sdr_config =
-        SCStreamConfiguration::from_preset(SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay);
+    let _sdr_config = SCStreamConfiguration::from_preset(
+        SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay,
+    );
     println!("   HDR Local Display preset created");
 
-    // Canonical HDR preset  
+    // Canonical HDR preset
     let _hdr_config = SCStreamConfiguration::from_preset(
         SCStreamConfigurationPreset::CaptureHDRStreamCanonicalDisplay,
     );
@@ -55,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Dynamic range: HDR Local Display");
 
     let range = config.capture_dynamic_range();
-    println!("   Current setting: {:?}", range);
+    println!("   Current setting: {range:?}");
 
     // Available options:
     println!("\n   Available dynamic range options:");
@@ -73,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Set to: Always show privacy alert");
 
     let setting = config.presenter_overlay_privacy_alert_setting();
-    println!("   Current: {:?}", setting);
+    println!("   Current: {setting:?}");
 
     println!("\n   Available settings:");
     println!("   • System - Follow system preference");

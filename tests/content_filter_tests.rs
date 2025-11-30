@@ -236,7 +236,10 @@ fn test_content_filter_style() {
 
     let style = filter.style();
     // Display filters should have Display style
-    assert!(matches!(style, SCShareableContentStyle::Display | SCShareableContentStyle::None));
+    assert!(matches!(
+        style,
+        SCShareableContentStyle::Display | SCShareableContentStyle::None
+    ));
 }
 
 #[test]
@@ -251,7 +254,10 @@ fn test_content_filter_style_window() {
         let filter = SCContentFilter::builder().window(window).build();
         let style = filter.style();
         // Window filters should have Window style
-        assert!(matches!(style, SCShareableContentStyle::Window | SCShareableContentStyle::None));
+        assert!(matches!(
+            style,
+            SCShareableContentStyle::Window | SCShareableContentStyle::None
+        ));
     }
 }
 
@@ -358,12 +364,27 @@ fn test_shareable_content_style_values() {
 
     // Test that all style values can be compared
     assert_eq!(SCShareableContentStyle::None, SCShareableContentStyle::None);
-    assert_eq!(SCShareableContentStyle::Window, SCShareableContentStyle::Window);
-    assert_eq!(SCShareableContentStyle::Display, SCShareableContentStyle::Display);
-    assert_eq!(SCShareableContentStyle::Application, SCShareableContentStyle::Application);
-    
-    assert_ne!(SCShareableContentStyle::None, SCShareableContentStyle::Window);
-    assert_ne!(SCShareableContentStyle::Display, SCShareableContentStyle::Application);
+    assert_eq!(
+        SCShareableContentStyle::Window,
+        SCShareableContentStyle::Window
+    );
+    assert_eq!(
+        SCShareableContentStyle::Display,
+        SCShareableContentStyle::Display
+    );
+    assert_eq!(
+        SCShareableContentStyle::Application,
+        SCShareableContentStyle::Application
+    );
+
+    assert_ne!(
+        SCShareableContentStyle::None,
+        SCShareableContentStyle::Window
+    );
+    assert_ne!(
+        SCShareableContentStyle::Display,
+        SCShareableContentStyle::Application
+    );
 }
 
 #[test]
@@ -371,9 +392,24 @@ fn test_shareable_content_style_values() {
 fn test_shareable_content_style_from_i32() {
     use screencapturekit::stream::content_filter::SCShareableContentStyle;
 
-    assert_eq!(SCShareableContentStyle::from(0), SCShareableContentStyle::None);
-    assert_eq!(SCShareableContentStyle::from(1), SCShareableContentStyle::Window);
-    assert_eq!(SCShareableContentStyle::from(2), SCShareableContentStyle::Display);
-    assert_eq!(SCShareableContentStyle::from(3), SCShareableContentStyle::Application);
-    assert_eq!(SCShareableContentStyle::from(99), SCShareableContentStyle::None); // Unknown
+    assert_eq!(
+        SCShareableContentStyle::from(0),
+        SCShareableContentStyle::None
+    );
+    assert_eq!(
+        SCShareableContentStyle::from(1),
+        SCShareableContentStyle::Window
+    );
+    assert_eq!(
+        SCShareableContentStyle::from(2),
+        SCShareableContentStyle::Display
+    );
+    assert_eq!(
+        SCShareableContentStyle::from(3),
+        SCShareableContentStyle::Application
+    );
+    assert_eq!(
+        SCShareableContentStyle::from(99),
+        SCShareableContentStyle::None
+    ); // Unknown
 }

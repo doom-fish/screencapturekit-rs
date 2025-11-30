@@ -27,20 +27,20 @@ fn test_shareable_content_info_for_display_filter() {
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
         // Test style
         let style = info.style();
-        println!("Content style: {:?}", style);
+        println!("Content style: {style:?}");
 
         // Test point_pixel_scale
         let scale = info.point_pixel_scale();
         assert!(scale > 0.0, "Scale should be positive");
-        println!("Point pixel scale: {}", scale);
+        println!("Point pixel scale: {scale}");
 
         // Test content_rect
         let rect = info.content_rect();
-        println!("Content rect: {:?}", rect);
+        println!("Content rect: {rect:?}");
 
         // Test pixel_size
         let (width, height) = info.pixel_size();
-        println!("Pixel size: {}x{}", width, height);
+        println!("Pixel size: {width}x{height}");
     } else {
         println!("⚠ SCShareableContentInfo not available on this macOS version");
     }
@@ -56,13 +56,13 @@ fn test_shareable_content_info_for_window_filter() {
 
         if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
             let style = info.style();
-            println!("Window filter style: {:?}", style);
+            println!("Window filter style: {style:?}");
 
             let scale = info.point_pixel_scale();
             assert!(scale > 0.0);
 
             let (width, height) = info.pixel_size();
-            println!("Window pixel size: {}x{}", width, height);
+            println!("Window pixel size: {width}x{height}");
         }
     }
 }
@@ -81,8 +81,9 @@ fn test_shareable_content_info_clone() {
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
         let cloned = info.clone();
 
-        // Both should have the same values
-        assert_eq!(info.point_pixel_scale(), cloned.point_pixel_scale());
+        // Both should have the same values (f32 comparison with epsilon)
+        let scale_diff = (info.point_pixel_scale() - cloned.point_pixel_scale()).abs();
+        assert!(scale_diff < f32::EPSILON, "point_pixel_scale should match");
         assert_eq!(info.pixel_size(), cloned.pixel_size());
     }
 }
@@ -99,7 +100,7 @@ fn test_shareable_content_info_debug() {
         .build();
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
-        let debug_str = format!("{:?}", info);
+        let debug_str = format!("{info:?}");
         assert!(debug_str.contains("SCShareableContentInfo"));
         assert!(debug_str.contains("style"));
         assert!(debug_str.contains("point_pixel_scale"));

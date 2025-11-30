@@ -321,7 +321,10 @@ impl SCStreamConfiguration {
     /// // Note: Getter may not return the set value on all macOS versions
     /// let _ = config.increase_resolution_for_retina_displays();
     /// ```
-    pub fn set_increase_resolution_for_retina_displays(&mut self, increase_resolution: bool) -> &mut Self {
+    pub fn set_increase_resolution_for_retina_displays(
+        &mut self,
+        increase_resolution: bool,
+    ) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_increase_resolution_for_retina_displays(
                 self.as_ptr(),
@@ -333,7 +336,10 @@ impl SCStreamConfiguration {
 
     /// Enable increased resolution for Retina displays (builder pattern)
     #[must_use]
-    pub fn with_increase_resolution_for_retina_displays(mut self, increase_resolution: bool) -> Self {
+    pub fn with_increase_resolution_for_retina_displays(
+        mut self,
+        increase_resolution: bool,
+    ) -> Self {
         self.set_increase_resolution_for_retina_displays(increase_resolution);
         self
     }

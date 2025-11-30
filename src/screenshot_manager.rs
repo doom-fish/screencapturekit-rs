@@ -201,9 +201,9 @@ impl CGImage {
     pub fn save_png(&self, path: &str) -> Result<(), SCError> {
         let c_path = std::ffi::CString::new(path)
             .map_err(|_| SCError::internal_error("Path contains null bytes"))?;
-        
+
         let success = unsafe { crate::ffi::cgimage_save_png(self.ptr, c_path.as_ptr()) };
-        
+
         if success {
             Ok(())
         } else {
@@ -530,7 +530,11 @@ impl SCScreenshotConfiguration {
     pub fn with_source_rect(self, rect: crate::cg::CGRect) -> Self {
         unsafe {
             crate::ffi::sc_screenshot_configuration_set_source_rect(
-                self.ptr, rect.x, rect.y, rect.width, rect.height,
+                self.ptr,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
             );
         }
         self
@@ -541,7 +545,11 @@ impl SCScreenshotConfiguration {
     pub fn with_destination_rect(self, rect: crate::cg::CGRect) -> Self {
         unsafe {
             crate::ffi::sc_screenshot_configuration_set_destination_rect(
-                self.ptr, rect.x, rect.y, rect.width, rect.height,
+                self.ptr,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
             );
         }
         self
@@ -629,7 +637,8 @@ impl SCScreenshotConfiguration {
     /// Panics if the identifier contains null bytes
     #[must_use]
     pub fn with_content_type(self, identifier: &str) -> Self {
-        let c_id = std::ffi::CString::new(identifier).expect("identifier should not contain null bytes");
+        let c_id =
+            std::ffi::CString::new(identifier).expect("identifier should not contain null bytes");
         unsafe {
             crate::ffi::sc_screenshot_configuration_set_content_type(self.ptr, c_id.as_ptr());
         }
@@ -664,9 +673,8 @@ impl SCScreenshotConfiguration {
     /// - `"public.jpeg"` - JPEG format
     /// - `"public.heic"` - HEIC format
     pub fn supported_content_types() -> Vec<String> {
-        let count = unsafe {
-            crate::ffi::sc_screenshot_configuration_get_supported_content_types_count()
-        };
+        let count =
+            unsafe { crate::ffi::sc_screenshot_configuration_get_supported_content_types_count() };
         let mut result = Vec::with_capacity(count);
         for i in 0..count {
             let mut buffer = vec![0i8; 256];

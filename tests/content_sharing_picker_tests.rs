@@ -83,7 +83,9 @@ fn test_picker_api_availability() {
 #[test]
 #[cfg(feature = "async")]
 fn test_async_picker_types_exist() {
-    use screencapturekit::async_api::{AsyncPickerFilterFuture, AsyncPickerFuture, AsyncSCContentSharingPicker};
+    use screencapturekit::async_api::{
+        AsyncPickerFilterFuture, AsyncPickerFuture, AsyncSCContentSharingPicker,
+    };
 
     // Verify the async types exist
     let _picker_type = std::any::type_name::<AsyncSCContentSharingPicker>();

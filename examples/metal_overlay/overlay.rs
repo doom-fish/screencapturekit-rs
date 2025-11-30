@@ -2,6 +2,7 @@
 
 use screencapturekit::prelude::*;
 
+#[allow(clippy::struct_excessive_bools)]
 pub struct OverlayState {
     pub show_help: bool,
     pub show_waveform: bool,
@@ -15,7 +16,7 @@ pub struct OverlayState {
 }
 
 impl OverlayState {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             show_help: true,
             show_waveform: true,
@@ -30,12 +31,27 @@ impl OverlayState {
     }
 
     #[cfg(feature = "macos_15_0")]
-    pub const MENU_ITEMS: &'static [&'static str] = &["Picker", "Capture", "Screenshot", "Record", "Config", "Rec Config", "Quit"];
-    
-    #[cfg(not(feature = "macos_15_0"))]
-    pub const MENU_ITEMS: &'static [&'static str] = &["Picker", "Capture", "Screenshot", "Record", "Config", "Quit"];
+    pub const MENU_ITEMS: &'static [&'static str] = &[
+        "Picker",
+        "Capture",
+        "Screenshot",
+        "Record",
+        "Config",
+        "Rec Config",
+        "Quit",
+    ];
 
-    pub fn menu_count() -> usize {
+    #[cfg(not(feature = "macos_15_0"))]
+    pub const MENU_ITEMS: &'static [&'static str] = &[
+        "Picker",
+        "Capture",
+        "Screenshot",
+        "Record",
+        "Config",
+        "Quit",
+    ];
+
+    pub const fn menu_count() -> usize {
         Self::MENU_ITEMS.len()
     }
 }
@@ -66,7 +82,7 @@ impl ConfigMenu {
     pub const SAMPLE_RATE_OPTIONS: [i32; 3] = [44100, 48000, 96000];
     pub const CHANNEL_OPTIONS: [i32; 2] = [1, 2];
 
-    pub fn option_count() -> usize {
+    pub const fn option_count() -> usize {
         Self::OPTIONS.len()
     }
 
@@ -83,29 +99,66 @@ impl ConfigMenu {
             0 => format!("{}", config.fps()),
             1 => if config.shows_cursor() { "On" } else { "Off" }.to_string(),
             2 => if config.captures_audio() { "On" } else { "Off" }.to_string(),
-            3 => if config.captures_microphone() { "On" } else { "Off" }.to_string(),
-            4 => match mic_device_idx {
-                None => "Default".to_string(),
-                Some(idx) => AudioInputDevice::list()
-                    .get(idx)
-                    .map(|d| d.name.chars().take(10).collect())
-                    .unwrap_or_else(|| "?".to_string()),
-            },
-            5 => if config.excludes_current_process_audio() { "On" } else { "Off" }.to_string(),
+            3 => if config.captures_microphone() {
+                "On"
+            } else {
+                "Off"
+            }
+            .to_string(),
+            4 => mic_device_idx.map_or_else(
+                || "Default".to_string(),
+                |idx| {
+                    AudioInputDevice::list()
+                        .get(idx)
+                        .map_or_else(|| "?".to_string(), |d| d.name.chars().take(10).collect())
+                },
+            ),
+            5 => if config.excludes_current_process_audio() {
+                "On"
+            } else {
+                "Off"
+            }
+            .to_string(),
             6 => format!("{}Hz", config.sample_rate()),
             7 => format!("{}ch", config.channel_count()),
             8 => if config.scales_to_fit() { "On" } else { "Off" }.to_string(),
-            9 => if config.preserves_aspect_ratio() { "On" } else { "Off" }.to_string(),
-            10 => if config.increase_resolution_for_retina_displays() { "On" } else { "Off" }.to_string(),
-            11 => if config.should_be_opaque() { "On" } else { "Off" }.to_string(),
-            12 => if config.captures_shadows_only() { "On" } else { "Off" }.to_string(),
-            13 => if config.ignores_shadows_display() { "On" } else { "Off" }.to_string(),
+            9 => if config.preserves_aspect_ratio() {
+                "On"
+            } else {
+                "Off"
+            }
+            .to_string(),
+            10 => if config.increase_resolution_for_retina_displays() {
+                "On"
+            } else {
+                "Off"
+            }
+            .to_string(),
+            11 => if config.should_be_opaque() {
+                "On"
+            } else {
+                "Off"
+            }
+            .to_string(),
+            12 => if config.captures_shadows_only() {
+                "On"
+            } else {
+                "Off"
+            }
+            .to_string(),
+            13 => if config.ignores_shadows_display() {
+                "On"
+            } else {
+                "Off"
+            }
+            .to_string(),
             14 => format!("{:?}", config.pixel_format()),
             15 => format!("{}", config.queue_depth()),
             _ => "?".to_string(),
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn toggle_or_adjust(
         config: &mut SCStreamConfiguration,
         mic_device_idx: &mut Option<usize>,
@@ -124,7 +177,10 @@ impl ConfigMenu {
             0 => {
                 // FPS
                 let current_fps = config.fps();
-                let current_idx = Self::FPS_OPTIONS.iter().position(|&f| f == current_fps).unwrap_or(2);
+                let current_idx = Self::FPS_OPTIONS
+                    .iter()
+                    .position(|&f| f == current_fps)
+                    .unwrap_or(2);
                 let new_idx = if increase {
                     (current_idx + 1) % Self::FPS_OPTIONS.len()
                 } else {
@@ -132,9 +188,15 @@ impl ConfigMenu {
                 };
                 config.set_fps(Self::FPS_OPTIONS[new_idx]);
             }
-            1 => { config.set_shows_cursor(!config.shows_cursor()); }
-            2 => { config.set_captures_audio(!config.captures_audio()); }
-            3 => { config.set_captures_microphone(!config.captures_microphone()); }
+            1 => {
+                config.set_shows_cursor(!config.shows_cursor());
+            }
+            2 => {
+                config.set_captures_audio(!config.captures_audio());
+            }
+            3 => {
+                config.set_captures_microphone(!config.captures_microphone());
+            }
             4 => {
                 // Mic Device
                 let devices = AudioInputDevice::list();
@@ -142,9 +204,7 @@ impl ConfigMenu {
                     return;
                 }
                 match *mic_device_idx {
-                    None => {
-                        *mic_device_idx = Some(if increase { 0 } else { devices.len() - 1 })
-                    }
+                    None => *mic_device_idx = Some(if increase { 0 } else { devices.len() - 1 }),
                     Some(idx) => {
                         if increase {
                             *mic_device_idx = if idx + 1 >= devices.len() {
@@ -163,7 +223,9 @@ impl ConfigMenu {
                     }
                 }
             }
-            5 => { config.set_excludes_current_process_audio(!config.excludes_current_process_audio()); }
+            5 => {
+                config.set_excludes_current_process_audio(!config.excludes_current_process_audio());
+            }
             6 => {
                 // Sample Rate
                 let current = config.sample_rate();
@@ -174,7 +236,8 @@ impl ConfigMenu {
                 let new_idx = if increase {
                     (current_idx + 1) % Self::SAMPLE_RATE_OPTIONS.len()
                 } else {
-                    (current_idx + Self::SAMPLE_RATE_OPTIONS.len() - 1) % Self::SAMPLE_RATE_OPTIONS.len()
+                    (current_idx + Self::SAMPLE_RATE_OPTIONS.len() - 1)
+                        % Self::SAMPLE_RATE_OPTIONS.len()
                 };
                 config.set_sample_rate(Self::SAMPLE_RATE_OPTIONS[new_idx]);
             }
@@ -192,18 +255,33 @@ impl ConfigMenu {
                 };
                 config.set_channel_count(Self::CHANNEL_OPTIONS[new_idx]);
             }
-            8 => { config.set_scales_to_fit(!config.scales_to_fit()); }
-            9 => { config.set_preserves_aspect_ratio(!config.preserves_aspect_ratio()); }
-            10 => { config.set_increase_resolution_for_retina_displays(
-                !config.increase_resolution_for_retina_displays(),
-            ); }
-            11 => { config.set_should_be_opaque(!config.should_be_opaque()); }
-            12 => { config.set_captures_shadows_only(!config.captures_shadows_only()); }
-            13 => { config.set_ignores_shadows_display(!config.ignores_shadows_display()); }
+            8 => {
+                config.set_scales_to_fit(!config.scales_to_fit());
+            }
+            9 => {
+                config.set_preserves_aspect_ratio(!config.preserves_aspect_ratio());
+            }
+            10 => {
+                config.set_increase_resolution_for_retina_displays(
+                    !config.increase_resolution_for_retina_displays(),
+                );
+            }
+            11 => {
+                config.set_should_be_opaque(!config.should_be_opaque());
+            }
+            12 => {
+                config.set_captures_shadows_only(!config.captures_shadows_only());
+            }
+            13 => {
+                config.set_ignores_shadows_display(!config.ignores_shadows_display());
+            }
             14 => {
                 // Pixel Format
                 let current = config.pixel_format();
-                let current_idx = PIXEL_FORMATS.iter().position(|&f| f == current).unwrap_or(0);
+                let current_idx = PIXEL_FORMATS
+                    .iter()
+                    .position(|&f| f == current)
+                    .unwrap_or(0);
                 let new_idx = if increase {
                     (current_idx + 1) % PIXEL_FORMATS.len()
                 } else {

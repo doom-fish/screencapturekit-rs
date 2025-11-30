@@ -83,28 +83,29 @@ pub struct SCStreamFrameInfoKey;
 impl SCStreamFrameInfoKey {
     /// Key for the frame status (`SCFrameStatus`)
     pub const STATUS: &'static str = "SCStreamFrameInfoStatus";
-    
+
     /// Key for the display time (mach absolute time)
     pub const DISPLAY_TIME: &'static str = "SCStreamFrameInfoDisplayTime";
-    
+
     /// Key for the scale factor (point-to-pixel ratio)
     pub const SCALE_FACTOR: &'static str = "SCStreamFrameInfoScaleFactor";
-    
+
     /// Key for the content scale
     pub const CONTENT_SCALE: &'static str = "SCStreamFrameInfoContentScale";
-    
+
     /// Key for the content rectangle
     pub const CONTENT_RECT: &'static str = "SCStreamFrameInfoContentRect";
-    
+
     /// Key for the bounding rectangle
     pub const BOUNDING_RECT: &'static str = "SCStreamFrameInfoBoundingRect";
-    
+
     /// Key for the screen rectangle
     pub const SCREEN_RECT: &'static str = "SCStreamFrameInfoScreenRect";
-    
+
     /// Key for dirty rectangles (areas that changed)
     pub const DIRTY_RECTS: &'static str = "SCStreamFrameInfoDirtyRects";
-    
+
     /// Key for the presenter overlay content rectangle (macOS 14.0+)
-    pub const PRESENTER_OVERLAY_CONTENT_RECT: &'static str = "SCStreamFrameInfoPresenterOverlayContentRect";
+    pub const PRESENTER_OVERLAY_CONTENT_RECT: &'static str =
+        "SCStreamFrameInfoPresenterOverlayContentRect";
 }

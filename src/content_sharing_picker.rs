@@ -195,8 +195,7 @@ impl SCContentSharingPickerConfiguration {
         for i in 0..count {
             let id = unsafe {
                 crate::ffi::sc_content_sharing_picker_configuration_get_excluded_window_id_at(
-                    self.ptr,
-                    i,
+                    self.ptr, i,
                 )
             };
             result.push(id);
@@ -297,7 +296,11 @@ impl SCPickerResult {
         let mut height = 0.0;
         unsafe {
             crate::ffi::sc_picker_result_get_content_rect(
-                self.ptr, &mut x, &mut y, &mut width, &mut height,
+                self.ptr,
+                &mut x,
+                &mut y,
+                &mut width,
+                &mut height,
             );
         }
         (width, height)
@@ -312,7 +315,11 @@ impl SCPickerResult {
         let mut height = 0.0;
         unsafe {
             crate::ffi::sc_picker_result_get_content_rect(
-                self.ptr, &mut x, &mut y, &mut width, &mut height,
+                self.ptr,
+                &mut x,
+                &mut y,
+                &mut width,
+                &mut height,
             );
         }
         (x, y, width, height)
@@ -746,9 +753,7 @@ extern "C" fn picker_filter_callback_boxed<F>(
 {
     let callback = unsafe { Box::from_raw(context.cast::<F>()) };
     let outcome = match code {
-        1 if !ptr.is_null() => {
-            SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(ptr))
-        }
+        1 if !ptr.is_null() => SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(ptr)),
         0 => SCPickerFilterOutcome::Cancelled,
         _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
     };

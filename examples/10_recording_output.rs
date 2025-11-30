@@ -57,8 +57,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Show all file type options
     println!("\n📄 Supported File Types:");
-    println!("   - MP4 (value: {})", SCRecordingOutputFileType::MP4 as i32);
-    println!("   - MOV (value: {})", SCRecordingOutputFileType::MOV as i32);
+    println!(
+        "   - MP4 (value: {})",
+        SCRecordingOutputFileType::MP4 as i32
+    );
+    println!(
+        "   - MOV (value: {})",
+        SCRecordingOutputFileType::MOV as i32
+    );
 
     // Create recording output
     println!("\n🎥 Creating recording output...");
@@ -73,10 +79,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "   Duration: {}/{} seconds",
             duration.value, duration.timescale
         );
-        println!("   File size: {} bytes", file_size);
+        println!("   File size: {file_size} bytes");
 
         // Test cloning
-        let _cloned = recording_output.clone();
+        let _cloned = recording_output;
         println!("\n   📋 Clone test: passed");
     } else {
         println!("   ⚠️  Recording output creation failed.");
@@ -84,9 +90,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Test configuration cloning and debug
-    let config_clone = config.clone();
+    let config_clone = config;
     println!("\n📋 Configuration Debug:");
-    println!("   {:?}", config_clone);
+    println!("   {config_clone:?}");
 
     // Test with HEVC and MOV
     println!("\n🔄 Testing HEVC + MOV configuration...");

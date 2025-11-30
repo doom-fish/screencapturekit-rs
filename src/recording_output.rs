@@ -125,8 +125,7 @@ impl SCRecordingOutputConfiguration {
             #[allow(clippy::cast_possible_wrap)]
             let codec_value = unsafe {
                 crate::ffi::sc_recording_output_configuration_get_available_video_codec_at(
-                    self.ptr,
-                    i as isize,
+                    self.ptr, i as isize,
                 )
             };
             match codec_value {
@@ -163,8 +162,7 @@ impl SCRecordingOutputConfiguration {
             #[allow(clippy::cast_possible_wrap)]
             let file_type_value = unsafe {
                 crate::ffi::sc_recording_output_configuration_get_available_output_file_type_at(
-                    self.ptr,
-                    i as isize,
+                    self.ptr, i as isize,
                 )
             };
             match file_type_value {
@@ -403,7 +401,7 @@ extern "C" fn recording_failed_callback(ctx: *mut c_void, error_code: i32, error
                 .to_string_lossy()
                 .into_owned()
         };
-        
+
         // Include error code in the message if it's a known SCStreamError
         let full_error = if error_code != 0 {
             crate::error::SCStreamErrorCode::from_raw(error_code).map_or_else(
@@ -413,7 +411,7 @@ extern "C" fn recording_failed_callback(ctx: *mut c_void, error_code: i32, error
         } else {
             error_str
         };
-        
+
         delegate.recording_did_fail(full_error);
     }
 }

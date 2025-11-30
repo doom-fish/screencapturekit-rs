@@ -532,7 +532,7 @@ extern "C" {
     );
     pub fn sc_stream_retain(stream: *const c_void) -> *const c_void;
     pub fn sc_stream_release(stream: *const c_void);
-    
+
     // macOS 13.0+ - synchronizationClock
     pub fn sc_stream_get_synchronization_clock(stream: *const c_void) -> *const c_void;
 }
@@ -602,11 +602,11 @@ extern "C" {
     ) -> u32;
     pub fn sc_content_sharing_picker_configuration_retain(config: *const c_void) -> *const c_void;
     pub fn sc_content_sharing_picker_configuration_release(config: *const c_void);
-    
+
     // Picker maximum stream count
     pub fn sc_content_sharing_picker_set_maximum_stream_count(count: usize);
     pub fn sc_content_sharing_picker_get_maximum_stream_count() -> usize;
-    
+
     pub fn sc_content_sharing_picker_show(
         config: *const c_void,
         callback: extern "C" fn(i32, *const c_void, *mut c_void),
@@ -650,7 +650,10 @@ extern "C" {
     pub fn sc_picker_result_get_displays_count(result: *const c_void) -> usize;
     pub fn sc_picker_result_get_display_at(result: *const c_void, index: usize) -> *const c_void;
     pub fn sc_picker_result_get_applications_count(result: *const c_void) -> usize;
-    pub fn sc_picker_result_get_application_at(result: *const c_void, index: usize) -> *const c_void;
+    pub fn sc_picker_result_get_application_at(
+        result: *const c_void,
+        index: usize,
+    ) -> *const c_void;
     pub fn sc_picker_result_release(result: *const c_void);
 }
 
@@ -736,15 +739,15 @@ extern "C" {
         config: *const c_void,
         display_intent: i32,
     );
-    pub fn sc_screenshot_configuration_set_dynamic_range(
-        config: *const c_void,
-        dynamic_range: i32,
-    );
+    pub fn sc_screenshot_configuration_set_dynamic_range(config: *const c_void, dynamic_range: i32);
     pub fn sc_screenshot_configuration_set_file_url(config: *const c_void, path: *const i8);
     pub fn sc_screenshot_configuration_release(config: *const c_void);
-    
+
     // Content type support (macOS 26.0+)
-    pub fn sc_screenshot_configuration_set_content_type(config: *const c_void, identifier: *const i8);
+    pub fn sc_screenshot_configuration_set_content_type(
+        config: *const c_void,
+        identifier: *const i8,
+    );
     pub fn sc_screenshot_configuration_get_content_type(
         config: *const c_void,
         buffer: *mut i8,
@@ -797,7 +800,10 @@ extern "C" {
     pub fn sc_stream_configuration_get_ignores_shadows_display(config: *const c_void) -> bool;
 
     // macOS 14.0+ - ignoreGlobalClipDisplay
-    pub fn sc_stream_configuration_set_ignore_global_clip_display(config: *const c_void, value: bool);
+    pub fn sc_stream_configuration_set_ignore_global_clip_display(
+        config: *const c_void,
+        value: bool,
+    );
     pub fn sc_stream_configuration_get_ignore_global_clip_display(config: *const c_void) -> bool;
 
     // macOS 14.0+ - ignoreGlobalClipSingleWindow
@@ -909,11 +915,7 @@ extern "C" {
     pub fn sc_audio_get_input_device_count() -> isize;
 
     /// Get audio input device ID at index into buffer
-    pub fn sc_audio_get_input_device_id(
-        index: isize,
-        buffer: *mut i8,
-        buffer_size: isize,
-    ) -> bool;
+    pub fn sc_audio_get_input_device_id(index: isize, buffer: *mut i8, buffer_size: isize) -> bool;
 
     /// Get audio input device name at index into buffer
     pub fn sc_audio_get_input_device_name(

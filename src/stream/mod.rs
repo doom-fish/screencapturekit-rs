@@ -38,8 +38,8 @@ pub mod output_type;
 pub mod sc_stream;
 
 pub use delegate_trait::ErrorHandler;
-pub use delegate_trait::StreamCallbacks;
 pub use delegate_trait::SCStreamDelegateTrait as SCStreamDelegate;
+pub use delegate_trait::StreamCallbacks;
 pub use output_trait::SCStreamOutputTrait as SCStreamOutput;
 pub use sc_stream::SCStream;
 

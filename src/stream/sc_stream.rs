@@ -147,9 +147,11 @@ impl SCStream {
             let message = if msg.is_null() {
                 "Unknown error"
             } else {
-                unsafe { CStr::from_ptr(msg) }.to_str().unwrap_or("Unknown error")
+                unsafe { CStr::from_ptr(msg) }
+                    .to_str()
+                    .unwrap_or("Unknown error")
             };
-            
+
             if error_code != 0 {
                 if let Some(code) = crate::error::SCStreamErrorCode::from_raw(error_code) {
                     eprintln!("SCStream error ({code}): {message}");

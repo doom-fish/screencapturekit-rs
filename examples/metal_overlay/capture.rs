@@ -57,7 +57,7 @@ impl SCStreamOutputTrait for CaptureHandler {
             SCStreamOutputType::Audio | SCStreamOutputType::Microphone => {
                 // Get audio samples from audio_buffer_list
                 if let Some(audio_buffer_list) = sample.audio_buffer_list() {
-                    for buffer in audio_buffer_list.iter() {
+                    for buffer in &audio_buffer_list {
                         let data = buffer.data();
                         if data.is_empty() {
                             continue;

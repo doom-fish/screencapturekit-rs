@@ -5,8 +5,8 @@ use screencapturekit::screenshot_manager::SCScreenshotManager;
 use screencapturekit::stream::content_filter::SCContentFilter;
 
 /// Take a screenshot using the best available API
-/// - macOS 26.0+: Uses SCScreenshotConfiguration with native file saving
-/// - macOS 14.0+: Uses SCStreamConfiguration and CGImage::save_png()
+/// - macOS 26.0+: Uses `SCScreenshotConfiguration` with native file saving
+/// - macOS 14.0+: Uses `SCStreamConfiguration` and `CGImage::save_png()`
 pub fn take_screenshot(
     filter: &SCContentFilter,
     capture_size: (u32, u32),
@@ -17,7 +17,7 @@ pub fn take_screenshot(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    let path = format!("/tmp/screenshot_{}.png", timestamp);
+    let path = format!("/tmp/screenshot_{timestamp}.png");
 
     #[cfg(feature = "macos_26_0")]
     {
@@ -33,7 +33,7 @@ pub fn take_screenshot(
         match SCScreenshotManager::capture_screenshot(filter, &config) {
             Ok(output) => {
                 if let Some(url) = output.file_url() {
-                    println!("✅ Screenshot saved to {}", url);
+                    println!("✅ Screenshot saved to {url}");
                     let _ = std::process::Command::new("open").arg(&url).spawn();
                 } else if let Some(image) = output.sdr_image() {
                     println!(
@@ -43,14 +43,14 @@ pub fn take_screenshot(
                     );
                     match image.save_png(&path) {
                         Ok(()) => {
-                            println!("📁 Saved to {}", path);
+                            println!("📁 Saved to {path}");
                             let _ = std::process::Command::new("open").arg(&path).spawn();
                         }
-                        Err(e) => eprintln!("❌ Failed to save: {:?}", e),
+                        Err(e) => eprintln!("❌ Failed to save: {e:?}"),
                     }
                 }
             }
-            Err(e) => eprintln!("❌ Screenshot failed: {:?}", e),
+            Err(e) => eprintln!("❌ Screenshot failed: {e:?}"),
         }
     }
 

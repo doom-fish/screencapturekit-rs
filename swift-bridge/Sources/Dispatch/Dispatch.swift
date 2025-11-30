@@ -7,15 +7,13 @@ import Foundation
 @_cdecl("dispatch_queue_create")
 public func createDispatchQueue(_ label: UnsafePointer<CChar>, _ qos: Int32) -> UnsafeMutableRawPointer {
     let labelStr = String(cString: label)
-    let qosClass: DispatchQoS
-
-    switch qos {
-    case 0: qosClass = .background
-    case 1: qosClass = .utility
-    case 2: qosClass = .default
-    case 3: qosClass = .userInitiated
-    case 4: qosClass = .userInteractive
-    default: qosClass = .default
+    let qosClass: DispatchQoS = switch qos {
+    case 0: .background
+    case 1: .utility
+    case 2: .default
+    case 3: .userInitiated
+    case 4: .userInteractive
+    default: .default
     }
 
     let queue = DispatchQueue(label: labelStr, qos: qosClass)
