@@ -208,8 +208,13 @@ fn test_configuration_equality() {
     let config1 = SCStreamConfiguration::new();
     let config2 = SCStreamConfiguration::new();
 
-    // Two default configs should be equal
-    assert_eq!(config1, config2);
+    // Two separately created configs have different pointers, so they're not equal
+    // This tests pointer-based equality
+    assert_ne!(config1, config2);
+    
+    // A clone shares the same underlying object (ref counted), so pointers are equal
+    let config3 = config1.clone();
+    assert_eq!(config1, config3);
 }
 
 #[test]
