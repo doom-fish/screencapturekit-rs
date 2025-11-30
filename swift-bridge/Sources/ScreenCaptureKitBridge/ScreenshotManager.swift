@@ -104,7 +104,7 @@ public func captureScreenshotSampleBuffer(
 
 // MARK: - SCScreenshotConfiguration (macOS 26.0+)
 
-#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
+#if SCREENCAPTUREKIT_HAS_MACOS26_SDK
     @_cdecl("sc_screenshot_configuration_create")
     public func createScreenshotConfiguration() -> OpaquePointer? {
         if #available(macOS 26.0, *) {
@@ -453,4 +453,16 @@ public func captureScreenshotSampleBuffer(
         let bridgeError = SCBridgeError.screenshotError("captureScreenshotInRect requires macOS 26.0+")
         bridgeError.description.withCString { callback(nil, $0, userData) }
     }
+
+    @_cdecl("sc_screenshot_configuration_set_content_type")
+    public func setScreenshotConfigurationContentType(_: OpaquePointer, _: UnsafePointer<CChar>) {}
+
+    @_cdecl("sc_screenshot_configuration_get_content_type")
+    public func getScreenshotConfigurationContentType(_: OpaquePointer, _: UnsafeMutablePointer<CChar>, _: Int) -> Bool { false }
+
+    @_cdecl("sc_screenshot_configuration_get_supported_content_types_count")
+    public func getScreenshotConfigurationSupportedContentTypesCount() -> Int { 0 }
+
+    @_cdecl("sc_screenshot_configuration_get_supported_content_type_at")
+    public func getScreenshotConfigurationSupportedContentTypeAt(_: Int, _: UnsafeMutablePointer<CChar>, _: Int) -> Bool { false }
 #endif
