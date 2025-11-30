@@ -66,7 +66,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("▶️  Capture started\n");
 
-    // 4. Check synchronization clock
+    // 4. Check synchronization clock (macOS 13.0+)
+    #[cfg(feature = "macos_13_0")]
     if let Some(clock) = stream.synchronization_clock() {
         println!("⏱️  Sync clock available:");
         let time = clock.time();
