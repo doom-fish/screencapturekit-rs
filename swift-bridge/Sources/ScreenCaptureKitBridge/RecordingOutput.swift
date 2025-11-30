@@ -7,9 +7,9 @@ import ScreenCaptureKit
 // MARK: - Recording Output (macOS 15.0+)
 
 // Callback type definitions for recording delegate
-public typealias RecordingStartedCallback = @convention(c) (OpaquePointer) -> Void
-public typealias RecordingFailedCallback = @convention(c) (OpaquePointer, UnsafePointer<CChar>) -> Void
-public typealias RecordingFinishedCallback = @convention(c) (OpaquePointer) -> Void
+public typealias RecordingStartedCallback = @convention(c) (UnsafeMutableRawPointer?) -> Void
+public typealias RecordingFailedCallback = @convention(c) (UnsafeMutableRawPointer?, Int32, UnsafePointer<CChar>) -> Void
+public typealias RecordingFinishedCallback = @convention(c) (UnsafeMutableRawPointer?) -> Void
 
 #if compiler(>=6.0)
 // Full implementation for Xcode 16+ / Swift 6+ (macOS 15 SDK)
@@ -19,26 +19,25 @@ private class RecordingDelegate: NSObject, SCRecordingOutputDelegate {
     var startedCallback: RecordingStartedCallback?
     var failedCallback: RecordingFailedCallback?
     var finishedCallback: RecordingFinishedCallback?
+    var context: UnsafeMutableRawPointer?
     weak var outputRef: AnyObject?
     
     func recordingOutputDidStartRecording(_ recordingOutput: SCRecordingOutput) {
-        if let cb = startedCallback, let out = outputRef {
-            let ptr = Unmanaged.passUnretained(out).toOpaque()
-            cb(OpaquePointer(ptr))
+        if let cb = startedCallback {
+            cb(context)
         }
     }
     
     func recordingOutput(_ recordingOutput: SCRecordingOutput, didFailWithError error: Error) {
-        if let cb = failedCallback, let out = outputRef {
-            let ptr = Unmanaged.passUnretained(out).toOpaque()
-            error.localizedDescription.withCString { cb(OpaquePointer(ptr), $0) }
+        if let cb = failedCallback {
+            let errorCode = extractStreamErrorCode(error)
+            error.localizedDescription.withCString { cb(context, errorCode, $0) }
         }
     }
 
     func recordingOutputDidFinishRecording(_ recordingOutput: SCRecordingOutput) {
-        if let cb = finishedCallback, let out = outputRef {
-            let ptr = Unmanaged.passUnretained(out).toOpaque()
-            cb(OpaquePointer(ptr))
+        if let cb = finishedCallback {
+            cb(context)
         }
     }
 }
@@ -201,13 +200,15 @@ public func createRecordingOutputWithDelegate(
     _ config: OpaquePointer,
     _ startedCallback: RecordingStartedCallback?,
     _ failedCallback: RecordingFailedCallback?,
-    _ finishedCallback: RecordingFinishedCallback?
+    _ finishedCallback: RecordingFinishedCallback?,
+    _ context: UnsafeMutableRawPointer?
 ) -> OpaquePointer? {
     let box: Box<SCRecordingOutputConfiguration> = unretained(config)
     let delegate = RecordingDelegate()
     delegate.startedCallback = startedCallback
     delegate.failedCallback = failedCallback
     delegate.finishedCallback = finishedCallback
+    delegate.context = context
     
     let output = SCRecordingOutput(configuration: box.value, delegate: delegate)
     
@@ -313,7 +314,8 @@ public func createRecordingOutputWithDelegate(
     _ config: OpaquePointer?,
     _ startedCallback: RecordingStartedCallback?,
     _ failedCallback: RecordingFailedCallback?,
-    _ finishedCallback: RecordingFinishedCallback?
+    _ finishedCallback: RecordingFinishedCallback?,
+    _ context: UnsafeMutableRawPointer?
 ) -> OpaquePointer? {
     return nil
 }
