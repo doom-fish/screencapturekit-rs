@@ -40,6 +40,9 @@ cargo-clippy = []
 # Async support (executor-agnostic, works with any async runtime)
 async = []
 
+# cpal audio integration for zero-copy audio playback
+cpal = ["dep:cpal"]
+
 # macOS version feature flags
 # Enable features for specific macOS versions
 macos_13_0 = []
@@ -51,6 +54,7 @@ macos_15_2 = ["macos_15_0"]
 macos_26_0 = ["macos_15_2"]
 
 [dependencies]
+cpal = { version = "0.15", optional = true }
 
 [dev-dependencies]
 png = "0.17"
