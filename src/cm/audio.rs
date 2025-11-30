@@ -1,11 +1,25 @@
-//! Audio buffer types
+//! Audio buffer types for captured audio samples
+//!
+//! This module provides types for accessing audio data from captured samples.
+//!
+//! ## Main Types
+//!
+//! - [`AudioBuffer`] - Single audio buffer containing sample data
+//! - [`AudioBufferList`] - Collection of audio buffers (typically one per channel)
+//! - [`AudioBufferRef`] - Reference to an audio buffer with convenience methods
 
 use super::ffi;
 use std::fmt;
 
+/// Raw audio buffer containing sample data
+///
+/// An `AudioBuffer` represents a single channel or interleaved audio data.
+/// Access the raw bytes via [`data()`](Self::data) or [`data_mut()`](Self::data_mut).
 #[repr(C)]
 pub struct AudioBuffer {
+    /// Number of audio channels in this buffer
     pub number_channels: u32,
+    /// Size of the audio data in bytes
     pub data_bytes_size: u32,
     data_ptr: *mut std::ffi::c_void,
 }
@@ -39,6 +53,7 @@ impl fmt::Display for AudioBuffer {
 }
 
 impl AudioBuffer {
+    /// Get the raw audio data as a byte slice
     pub fn data(&self) -> &[u8] {
         if self.data_ptr.is_null() || self.data_bytes_size == 0 {
             &[]
@@ -52,6 +67,7 @@ impl AudioBuffer {
         }
     }
 
+    /// Get the raw audio data as a mutable byte slice
     pub fn data_mut(&mut self) -> &mut [u8] {
         if self.data_ptr.is_null() || self.data_bytes_size == 0 {
             &mut []
@@ -82,6 +98,7 @@ impl AudioBufferRef<'_> {
         self.buffer.data_byte_size()
     }
 
+    /// Get the raw audio data as a byte slice
     pub fn data(&self) -> &[u8] {
         self.buffer.data()
     }
@@ -96,6 +113,10 @@ pub struct AudioBufferListRaw {
     pub(crate) buffers_len: usize,
 }
 
+/// List of audio buffers from an audio sample
+///
+/// Contains one or more [`AudioBuffer`]s, typically one per audio channel.
+/// Use [`iter()`](Self::iter) to iterate over the buffers.
 pub struct AudioBufferList {
     pub(crate) inner: AudioBufferListRaw,
     /// Block buffer that owns the audio data - must be kept alive
@@ -122,6 +143,7 @@ impl AudioBufferList {
         self.get(index).map(|buffer| AudioBufferRef { buffer })
     }
 
+    /// Get a mutable buffer by index
     pub fn get_mut(&mut self, index: usize) -> Option<&mut AudioBuffer> {
         if index >= self.num_buffers() {
             None
@@ -130,6 +152,7 @@ impl AudioBufferList {
         }
     }
 
+    /// Iterate over the audio buffers
     pub fn iter(&self) -> AudioBufferListIter<'_> {
         AudioBufferListIter {
             list: self,
@@ -174,6 +197,7 @@ impl fmt::Display for AudioBufferList {
     }
 }
 
+/// Iterator over audio buffers in an [`AudioBufferList`]
 pub struct AudioBufferListIter<'a> {
     list: &'a AudioBufferList,
     index: usize,

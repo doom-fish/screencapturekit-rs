@@ -1,3 +1,8 @@
+//! Raw FFI bindings for Core Media types.
+//!
+//! These are low-level bindings and are not intended for direct use.
+#![allow(missing_docs)]
+
 extern "C" {
     pub fn cm_sample_buffer_get_image_buffer(
         sample_buffer: *mut std::ffi::c_void,
