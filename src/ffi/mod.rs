@@ -258,6 +258,10 @@ extern "C" {
         height: *mut isize,
     );
 
+    // macOS 14.0+ - capture resolution type
+    pub fn sc_stream_configuration_set_capture_resolution_type(config: *const c_void, value: i32);
+    pub fn sc_stream_configuration_get_capture_resolution_type(config: *const c_void) -> i32;
+
     pub fn sc_stream_configuration_set_ignores_shadow_display_configuration(
         config: *const c_void,
         ignores_shadow: bool,
@@ -340,6 +344,13 @@ extern "C" {
         windows: *const *const c_void,
         windows_count: isize,
     ) -> *const c_void;
+    pub fn sc_content_filter_create_with_display_excluding_applications_excepting_windows(
+        display: *const c_void,
+        apps: *const *const c_void,
+        apps_count: isize,
+        windows: *const *const c_void,
+        windows_count: isize,
+    ) -> *const c_void;
     pub fn sc_content_filter_retain(filter: *const c_void) -> *const c_void;
     pub fn sc_content_filter_release(filter: *const c_void);
     pub fn sc_content_filter_set_content_rect(
@@ -363,7 +374,7 @@ extern "C" {
     pub fn sc_stream_create(
         filter: *const c_void,
         config: *const c_void,
-        error_callback: extern "C" fn(*const c_void, *const i8),
+        error_callback: extern "C" fn(*const c_void, i32, *const i8),
     ) -> *const c_void;
     pub fn sc_stream_add_stream_output(
         stream: *const c_void,
@@ -412,6 +423,9 @@ extern "C" {
     );
     pub fn sc_stream_retain(stream: *const c_void) -> *const c_void;
     pub fn sc_stream_release(stream: *const c_void);
+    
+    // macOS 13.0+ - synchronizationClock
+    pub fn sc_stream_get_synchronization_clock(stream: *const c_void) -> *const c_void;
 }
 
 // MARK: - Dispatch Queue
@@ -444,8 +458,46 @@ extern "C" {
         modes: *const i32,
         count: usize,
     );
+    pub fn sc_content_sharing_picker_configuration_set_allows_changing_selected_content(
+        config: *const c_void,
+        allows: bool,
+    );
+    pub fn sc_content_sharing_picker_configuration_get_allows_changing_selected_content(
+        config: *const c_void,
+    ) -> bool;
+    pub fn sc_content_sharing_picker_configuration_set_excluded_bundle_ids(
+        config: *const c_void,
+        bundle_ids: *const *const i8,
+        count: usize,
+    );
+    pub fn sc_content_sharing_picker_configuration_get_excluded_bundle_ids_count(
+        config: *const c_void,
+    ) -> usize;
+    pub fn sc_content_sharing_picker_configuration_get_excluded_bundle_id_at(
+        config: *const c_void,
+        index: usize,
+        buffer: *mut i8,
+        buffer_size: usize,
+    ) -> bool;
+    pub fn sc_content_sharing_picker_configuration_set_excluded_window_ids(
+        config: *const c_void,
+        window_ids: *const u32,
+        count: usize,
+    );
+    pub fn sc_content_sharing_picker_configuration_get_excluded_window_ids_count(
+        config: *const c_void,
+    ) -> usize;
+    pub fn sc_content_sharing_picker_configuration_get_excluded_window_id_at(
+        config: *const c_void,
+        index: usize,
+    ) -> u32;
     pub fn sc_content_sharing_picker_configuration_retain(config: *const c_void) -> *const c_void;
     pub fn sc_content_sharing_picker_configuration_release(config: *const c_void);
+    
+    // Picker maximum stream count
+    pub fn sc_content_sharing_picker_set_maximum_stream_count(count: usize);
+    pub fn sc_content_sharing_picker_get_maximum_stream_count() -> usize;
+    
     pub fn sc_content_sharing_picker_show(
         config: *const c_void,
         callback: extern "C" fn(i32, *const c_void, *mut c_void),
@@ -459,6 +511,19 @@ extern "C" {
     pub fn sc_content_sharing_picker_show_for_stream(
         config: *const c_void,
         stream: *const c_void,
+        callback: extern "C" fn(i32, *const c_void, *mut c_void),
+        user_data: *mut c_void,
+    );
+    pub fn sc_content_sharing_picker_show_using_style(
+        config: *const c_void,
+        style: i32,
+        callback: extern "C" fn(i32, *const c_void, *mut c_void),
+        user_data: *mut c_void,
+    );
+    pub fn sc_content_sharing_picker_show_for_stream_using_style(
+        config: *const c_void,
+        stream: *const c_void,
+        style: i32,
         callback: extern "C" fn(i32, *const c_void, *mut c_void),
         user_data: *mut c_void,
     );
@@ -572,6 +637,20 @@ extern "C" {
     );
     pub fn sc_screenshot_configuration_set_file_url(config: *const c_void, path: *const i8);
     pub fn sc_screenshot_configuration_release(config: *const c_void);
+    
+    // Content type support (macOS 26.0+)
+    pub fn sc_screenshot_configuration_set_content_type(config: *const c_void, identifier: *const i8);
+    pub fn sc_screenshot_configuration_get_content_type(
+        config: *const c_void,
+        buffer: *mut i8,
+        buffer_size: usize,
+    ) -> bool;
+    pub fn sc_screenshot_configuration_get_supported_content_types_count() -> usize;
+    pub fn sc_screenshot_configuration_get_supported_content_type_at(
+        index: usize,
+        buffer: *mut i8,
+        buffer_size: usize,
+    ) -> bool;
 }
 
 // MARK: - SCScreenshotOutput (macOS 26.0+)
@@ -634,6 +713,7 @@ extern "C" {
     // macOS 14.0+ - style and pointPixelScale
     pub fn sc_content_filter_get_style(filter: *const c_void) -> i32;
     pub fn sc_content_filter_get_point_pixel_scale(filter: *const c_void) -> f32;
+    pub fn sc_content_filter_get_stream_type(filter: *const c_void) -> i32;
 
     // macOS 14.2+ - includeMenuBar
     pub fn sc_content_filter_set_include_menu_bar(filter: *const c_void, include: bool);
@@ -697,9 +777,10 @@ extern "C" {
     ) -> i32;
     pub fn sc_recording_output_create_with_delegate(
         config: *const c_void,
-        started_callback: Option<extern "C" fn(*const c_void)>,
-        failed_callback: Option<extern "C" fn(*const c_void, *const i8)>,
-        finished_callback: Option<extern "C" fn(*const c_void)>,
+        started_callback: Option<extern "C" fn(*mut c_void)>,
+        failed_callback: Option<extern "C" fn(*mut c_void, i32, *const i8)>,
+        finished_callback: Option<extern "C" fn(*mut c_void)>,
+        context: *mut c_void,
     ) -> *const c_void;
     pub fn sc_recording_output_get_recorded_duration(
         output: *const c_void,
