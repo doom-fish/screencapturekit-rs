@@ -23,11 +23,20 @@ cargo run --example 01_basic_capture
 | 09 | `closure_handlers` | Closures as handlers | - |
 | 10 | `recording_output` | Direct video recording | `macos_15_0` |
 | 11 | `content_picker` | System content picker UI | `macos_14_0` |
-| 12 | `metal_overlay` | Metal GPU rendering + overlay UI | - |
+| 12 | `stream_updates` | Dynamic config/filter updates | - |
+| 13 | `advanced_config` | HDR, presets, microphone | `macos_15_0` |
+| 14 | `app_capture` | Application-based filtering | - |
+| - | `metal_overlay` | Metal GPU rendering + overlay UI | `macos_14_0` |
 
 ## Running with Features
 
 ```bash
+# Basic examples (no features needed)
+cargo run --example 01_basic_capture
+cargo run --example 02_window_capture
+cargo run --example 12_stream_updates
+cargo run --example 14_app_capture
+
 # Async example
 cargo run --example 08_async --features async
 
@@ -40,12 +49,13 @@ cargo run --example 11_content_picker --features macos_14_0
 
 # macOS 15+ examples  
 cargo run --example 10_recording_output --features macos_15_0
+cargo run --example 13_advanced_config --features macos_15_0
 
 # macOS 26+ HDR screenshot
 cargo run --example 05_screenshot --features macos_26_0
 
 # Metal GUI example
-cargo run --example metal_overlay
+cargo run --example metal_overlay --features macos_14_0
 
 # All features
 cargo run --example 08_async --all-features
