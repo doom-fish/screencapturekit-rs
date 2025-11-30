@@ -232,10 +232,13 @@
 //! | Feature | Description |
 //! |---------|-------------|
 //! | `async` | Runtime-agnostic async API |
-//! | `macos_13_0` | macOS 13.0+ APIs (opacity, presenter overlay) |
+//! | `macos_13_0` | macOS 13.0+ APIs (audio capture, synchronization clock) |
 //! | `macos_14_0` | macOS 14.0+ APIs (screenshots, content picker) |
-//! | `macos_14_2` | macOS 14.2+ APIs (shadow control, child windows) |
+//! | `macos_14_2` | macOS 14.2+ APIs (menu bar, child windows, presenter overlay) |
+//! | `macos_14_4` | macOS 14.4+ APIs (current process shareable content) |
 //! | `macos_15_0` | macOS 15.0+ APIs (recording output, HDR, microphone) |
+//! | `macos_15_2` | macOS 15.2+ APIs (screenshot in rect, stream delegates) |
+//! | `macos_26_0` | macOS 26.0+ APIs (advanced screenshot config, HDR output) |
 //!
 //! Features are cumulative: enabling `macos_15_0` also enables all earlier versions.
 //!
@@ -255,6 +258,7 @@
 //! - `04_pixel_access` - Read pixel data
 //! - `05_screenshot` - Single screenshot (macOS 14.0+)
 //! - `06_iosurface` - Zero-copy GPU buffers
+//! - `07_list_content` - List available displays, windows, apps
 //! - `08_async` - Async/await API
 //! - `09_closure_handlers` - Closure-based handlers
 //! - `10_recording_output` - Direct video recording (macOS 15.0+)
