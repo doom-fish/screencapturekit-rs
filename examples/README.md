@@ -26,6 +26,7 @@ cargo run --example 01_basic_capture
 | 12 | `stream_updates` | Dynamic config/filter updates | - |
 | 13 | `advanced_config` | HDR, presets, microphone | `macos_15_0` |
 | 14 | `app_capture` | Application-based filtering | - |
+| 15 | `memory_leak_check` | Memory leak detection with `leaks` | - |
 | - | `metal_overlay` | Metal GPU rendering + overlay UI | `macos_14_0` |
 
 ## Running with Features

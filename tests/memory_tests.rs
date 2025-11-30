@@ -4,8 +4,8 @@
 //! Run with: `cargo test --test memory_tests --features "macos_14_0"`
 //!
 //! For comprehensive leak detection using macOS `leaks` command,
-//! run the `memory_leak_check` example instead:
-//! `cargo run --example memory_leak_check`
+//! run the `15_memory_leak_check` example instead:
+//! `cargo run --example 15_memory_leak_check`
 
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
