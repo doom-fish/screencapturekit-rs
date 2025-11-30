@@ -283,5 +283,3 @@ impl UnitCompletion {
         }
     }
 }
-
-

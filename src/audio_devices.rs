@@ -92,5 +92,3 @@ impl AudioInputDevice {
         }
     }
 }
-
-
