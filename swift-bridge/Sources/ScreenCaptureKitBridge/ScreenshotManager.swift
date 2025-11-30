@@ -61,7 +61,7 @@ public func captureScreenshotSampleBuffer(
 
 // MARK: - Capture image in rect (macOS 15.2+)
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_screenshot_manager_capture_image_in_rect")
     public func captureScreenshotInRect(
         _ x: Double,
@@ -104,7 +104,7 @@ public func captureScreenshotSampleBuffer(
 
 // MARK: - SCScreenshotConfiguration (macOS 26.0+)
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_screenshot_configuration_create")
     public func createScreenshotConfiguration() -> OpaquePointer? {
         if #available(macOS 26.0, *) {

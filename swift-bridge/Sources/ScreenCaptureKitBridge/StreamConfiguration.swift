@@ -401,7 +401,7 @@ public func getStreamConfigurationCapturesShadowsOnly(_ config: OpaquePointer) -
     return false
 }
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_set_captures_microphone")
     public func setStreamConfigurationCapturesMicrophone(_ config: OpaquePointer, _ value: Bool) {
         let cfg: SCStreamConfiguration = unretained(config)
@@ -414,7 +414,7 @@ public func getStreamConfigurationCapturesShadowsOnly(_ config: OpaquePointer) -
     public func setStreamConfigurationCapturesMicrophone(_: OpaquePointer, _: Bool) {}
 #endif
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_get_captures_microphone")
     public func getStreamConfigurationCapturesMicrophone(_ config: OpaquePointer) -> Bool {
         let cfg: SCStreamConfiguration = unretained(config)
@@ -442,7 +442,7 @@ public func getStreamConfigurationExcludesCurrentProcessAudio(_ config: OpaquePo
     return cfg.excludesCurrentProcessAudio
 }
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_set_microphone_capture_device_id")
     public func setStreamConfigurationMicrophoneCaptureDeviceId(_ config: OpaquePointer, _ deviceId: UnsafePointer<CChar>?) {
         let cfg: SCStreamConfiguration = unretained(config)
@@ -459,7 +459,7 @@ public func getStreamConfigurationExcludesCurrentProcessAudio(_ config: OpaquePo
     public func setStreamConfigurationMicrophoneCaptureDeviceId(_: OpaquePointer, _: UnsafePointer<CChar>?) {}
 #endif
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_get_microphone_capture_device_id")
     public func getStreamConfigurationMicrophoneCaptureDeviceId(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
         let cfg: SCStreamConfiguration = unretained(config)
@@ -508,7 +508,7 @@ public func getStreamConfigurationStreamName(_ config: OpaquePointer, _ buffer: 
     return false
 }
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_set_capture_dynamic_range")
     public func setStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer, _ value: Int32) {
         let cfg: SCStreamConfiguration = unretained(config)
@@ -532,7 +532,7 @@ public func getStreamConfigurationStreamName(_ config: OpaquePointer, _ buffer: 
     }
 #endif
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_get_capture_dynamic_range")
     public func getStreamConfigurationCaptureDynamicRange(_ config: OpaquePointer) -> Int32 {
         let cfg: SCStreamConfiguration = unretained(config)
@@ -559,7 +559,7 @@ public func getStreamConfigurationStreamName(_ config: OpaquePointer, _ buffer: 
 
 // MARK: - macOS 15.0+ Properties
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_set_shows_mouse_clicks")
     public func setStreamConfigurationShowsMouseClicks(_ config: OpaquePointer, _ value: Bool) {
         let cfg: SCStreamConfiguration = unretained(config)
@@ -572,7 +572,7 @@ public func getStreamConfigurationStreamName(_ config: OpaquePointer, _ buffer: 
     public func setStreamConfigurationShowsMouseClicks(_: OpaquePointer, _: Bool) {}
 #endif
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_get_shows_mouse_clicks")
     public func getStreamConfigurationShowsMouseClicks(_ config: OpaquePointer) -> Bool {
         let cfg: SCStreamConfiguration = unretained(config)
@@ -643,7 +643,7 @@ public func getStreamConfigurationIgnoreGlobalClipSingleWindow(_ config: OpaqueP
 
 // MARK: - Preset-based configuration (macOS 15.0+)
 
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_stream_configuration_create_with_preset")
     public func createStreamConfigurationWithPreset(_ preset: Int32) -> OpaquePointer? {
         if #available(macOS 15.0, *) {

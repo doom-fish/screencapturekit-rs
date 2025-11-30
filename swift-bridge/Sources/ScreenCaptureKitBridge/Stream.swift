@@ -205,7 +205,7 @@ public func getContentFilterIncludeMenuBar(_ filter: OpaquePointer) -> Bool {
 }
 
 // macOS 15.2+ - readonly arrays
-#if compiler(>=6.0)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
     @_cdecl("sc_content_filter_get_included_displays_count")
     public func getContentFilterIncludedDisplaysCount(_ filter: OpaquePointer) -> Int {
         let f: SCContentFilter = unretained(filter)
@@ -301,7 +301,7 @@ private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
         errorMsg.withCString { errorCallback(streamPtr, errorCode, $0) }
     }
 
-    #if compiler(>=6.0)
+    #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
         @available(macOS 15.2, *)
         func streamDidBecomeActive(_: SCStream) {
             activeCallback?(streamPtr)
@@ -401,7 +401,7 @@ public func addStreamOutput(
     if type == 0 {
         outputType = .screen
     } else if type == 2 {
-        #if compiler(>=6.0)
+        #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
             if #available(macOS 15.0, *) {
                 outputType = .microphone
             } else {
@@ -440,7 +440,7 @@ public func addStreamOutputWithQueue(
     if type == 0 {
         outputType = .screen
     } else if type == 2 {
-        #if compiler(>=6.0)
+        #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
             if #available(macOS 15.0, *) {
                 outputType = .microphone
             } else {
@@ -479,7 +479,7 @@ public func removeStreamOutput(
     if type == 0 {
         outputType = .screen
     } else if type == 2 {
-        #if compiler(>=6.0)
+        #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
             if #available(macOS 15.0, *) {
                 outputType = .microphone
             } else {
@@ -634,8 +634,8 @@ public func releaseStream(_ stream: OpaquePointer) {
 
 // MARK: - Recording Output (macOS 15.0+)
 
-#if compiler(>=6.0)
-    // Full implementation for Xcode 16+ / Swift 6+ (macOS 15 SDK)
+#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
+    // Full implementation for macOS 15 SDK
 
     @available(macOS 15.0, *)
     private func addRecordingOutputImpl(
@@ -698,7 +698,7 @@ public func releaseStream(_ stream: OpaquePointer) {
     }
 
 #else
-    // Stub implementation for older compilers (macOS < 15 SDK)
+    // Stub implementation for older SDKs (macOS < 15 SDK)
 
     @_cdecl("sc_stream_add_recording_output")
     public func addRecordingOutput(
