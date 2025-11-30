@@ -271,7 +271,6 @@ fn test_advanced_setters() {
     // The test verifies that setters don't error, but getters may not
     // return the set values on older macOS versions
     let mut config = SCStreamConfiguration::default();
-    config.set_ignore_fraction_of_screen(0.1);
     config.set_ignores_shadows_single_window(true);
     config.set_should_be_opaque(true);
     config.set_includes_child_windows(true);
@@ -279,7 +278,6 @@ fn test_advanced_setters() {
 
     // Verify setters worked without errors
     // Note: getters may return default values on older macOS versions
-    let _ = config.ignore_fraction_of_screen();
     let _ = config.ignores_shadows_single_window();
     let _ = config.should_be_opaque();
     let _ = config.includes_child_windows();

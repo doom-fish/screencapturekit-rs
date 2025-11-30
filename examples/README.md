@@ -99,9 +99,13 @@ cargo run --example 16_full_metal_app --features macos_26_0
 
 ### Controls
 
-**Menu Navigation** (when menu visible):
+**Initial Menu** (before picking a source):
+- `↑`/`↓` - Navigate menu items  
+- `Enter` - Pick Source / Quit
+
+**Main Menu** (after picking a source - capture auto-starts):
 - `↑`/`↓` - Navigate menu items
-- `Space`/`Enter` - Select item
+- `Enter` - Select item (Stop/Start Capture, Screenshot, Record, Config, Change Source, Quit)
 - `Esc`/`H` - Hide menu
 
 **Direct Controls** (when menu hidden):

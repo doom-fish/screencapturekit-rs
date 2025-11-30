@@ -309,12 +309,6 @@ extern "C" {
     );
     pub fn sc_stream_configuration_get_preserves_aspect_ratio(config: *const c_void) -> bool;
 
-    pub fn sc_stream_configuration_set_ignore_fraction_of_screen(
-        config: *const c_void,
-        ignore_fraction: f64,
-    );
-    pub fn sc_stream_configuration_get_ignore_fraction_of_screen(config: *const c_void) -> f64;
-
     pub fn sc_stream_configuration_set_ignores_shadows_single_window(
         config: *const c_void,
         ignores_shadows: bool,
@@ -356,9 +350,6 @@ extern "C" {
         buffer_size: usize,
     ) -> bool;
 
-    pub fn sc_stream_configuration_set_ignore_global_clipboard(config: *const c_void, ignore: bool);
-    pub fn sc_stream_configuration_get_ignore_global_clipboard(config: *const c_void) -> bool;
-
     // macOS 14.0+ - capture resolution type
     pub fn sc_stream_configuration_set_capture_resolution_type(config: *const c_void, value: i32);
     pub fn sc_stream_configuration_get_capture_resolution_type(config: *const c_void) -> i32;
@@ -373,14 +364,6 @@ extern "C" {
 
     pub fn sc_stream_configuration_set_preserve_aspect_ratio(config: *const c_void, preserve: bool);
     pub fn sc_stream_configuration_get_preserve_aspect_ratio(config: *const c_void) -> bool;
-
-    pub fn sc_stream_configuration_set_increase_resolution_for_retina_displays(
-        config: *const c_void,
-        increase: bool,
-    );
-    pub fn sc_stream_configuration_get_increase_resolution_for_retina_displays(
-        config: *const c_void,
-    ) -> bool;
 
     pub fn sc_stream_configuration_set_captures_shadows_only(
         config: *const c_void,

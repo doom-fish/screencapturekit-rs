@@ -2,6 +2,15 @@
 
 use screencapturekit::prelude::*;
 
+/// Menu mode - determines which menu items are shown
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum MenuMode {
+    /// Initial state - only Pick Source and Quit
+    Initial,
+    /// After source is picked - full menu with capture controls
+    Full,
+}
+
 #[allow(clippy::struct_excessive_bools)]
 pub struct OverlayState {
     pub show_help: bool,
@@ -13,6 +22,7 @@ pub struct OverlayState {
     #[cfg(feature = "macos_15_0")]
     pub recording_config_selection: usize,
     pub menu_selection: usize,
+    pub menu_mode: MenuMode,
 }
 
 impl OverlayState {
@@ -27,32 +37,47 @@ impl OverlayState {
             #[cfg(feature = "macos_15_0")]
             recording_config_selection: 0,
             menu_selection: 0,
+            menu_mode: MenuMode::Initial,
         }
     }
 
+    /// Menu items for initial state (no source picked)
+    pub const MENU_ITEMS_INITIAL: &'static [&'static str] = &["Pick Source", "Quit"];
+
+    /// Menu items for full state (after source picked) - macOS 15.0+
     #[cfg(feature = "macos_15_0")]
-    pub const MENU_ITEMS: &'static [&'static str] = &[
-        "Picker",
+    pub const MENU_ITEMS_FULL: &'static [&'static str] = &[
         "Capture",
         "Screenshot",
         "Record",
         "Config",
         "Rec Config",
+        "Change Source",
         "Quit",
     ];
 
+    /// Menu items for full state (after source picked) - pre-macOS 15.0
     #[cfg(not(feature = "macos_15_0"))]
-    pub const MENU_ITEMS: &'static [&'static str] = &[
-        "Picker",
-        "Capture",
-        "Screenshot",
-        "Record",
-        "Config",
-        "Quit",
-    ];
+    pub const MENU_ITEMS_FULL: &'static [&'static str] =
+        &["Capture", "Screenshot", "Config", "Change Source", "Quit"];
 
-    pub const fn menu_count() -> usize {
-        Self::MENU_ITEMS.len()
+    /// Get current menu items based on mode
+    pub fn menu_items(&self) -> &'static [&'static str] {
+        match self.menu_mode {
+            MenuMode::Initial => Self::MENU_ITEMS_INITIAL,
+            MenuMode::Full => Self::MENU_ITEMS_FULL,
+        }
+    }
+
+    /// Get current menu item count
+    pub fn menu_count(&self) -> usize {
+        self.menu_items().len()
+    }
+
+    /// Switch to full menu mode (called after picking a source)
+    pub fn switch_to_full_menu(&mut self) {
+        self.menu_mode = MenuMode::Full;
+        self.menu_selection = 0; // Reset selection to first item (Capture)
     }
 }
 
@@ -70,7 +95,6 @@ impl ConfigMenu {
         "Channels",
         "Scale Fit",
         "Aspect",
-        "Retina",
         "Opaque",
         "Shadows Only",
         "Ignore Shadows",
@@ -128,32 +152,26 @@ impl ConfigMenu {
                 "Off"
             }
             .to_string(),
-            10 => if config.increase_resolution_for_retina_displays() {
+            10 => if config.should_be_opaque() {
                 "On"
             } else {
                 "Off"
             }
             .to_string(),
-            11 => if config.should_be_opaque() {
+            11 => if config.captures_shadows_only() {
                 "On"
             } else {
                 "Off"
             }
             .to_string(),
-            12 => if config.captures_shadows_only() {
+            12 => if config.ignores_shadows_display() {
                 "On"
             } else {
                 "Off"
             }
             .to_string(),
-            13 => if config.ignores_shadows_display() {
-                "On"
-            } else {
-                "Off"
-            }
-            .to_string(),
-            14 => format!("{:?}", config.pixel_format()),
-            15 => format!("{}", config.queue_depth()),
+            13 => format!("{:?}", config.pixel_format()),
+            14 => format!("{}", config.queue_depth()),
             _ => "?".to_string(),
         }
     }
@@ -262,20 +280,15 @@ impl ConfigMenu {
                 config.set_preserves_aspect_ratio(!config.preserves_aspect_ratio());
             }
             10 => {
-                config.set_increase_resolution_for_retina_displays(
-                    !config.increase_resolution_for_retina_displays(),
-                );
-            }
-            11 => {
                 config.set_should_be_opaque(!config.should_be_opaque());
             }
-            12 => {
+            11 => {
                 config.set_captures_shadows_only(!config.captures_shadows_only());
             }
-            13 => {
+            12 => {
                 config.set_ignores_shadows_display(!config.ignores_shadows_display());
             }
-            14 => {
+            13 => {
                 // Pixel Format
                 let current = config.pixel_format();
                 let current_idx = PIXEL_FORMATS
@@ -289,7 +302,7 @@ impl ConfigMenu {
                 };
                 config.set_pixel_format(PIXEL_FORMATS[new_idx]);
             }
-            15 => {
+            14 => {
                 // Queue
                 let current_depth = config.queue_depth();
                 let current_idx = Self::QUEUE_OPTIONS

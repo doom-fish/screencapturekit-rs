@@ -10,7 +10,7 @@
 use screencapturekit::prelude::*;
 
 use crate::font::BitmapFont;
-use crate::overlay::{ConfigMenu, OverlayState};
+use crate::overlay::ConfigMenu;
 use crate::vertex::VertexBufferBuilder;
 
 // Synthwave color constants
@@ -31,56 +31,69 @@ impl VertexBufferBuilder {
         is_recording: bool,
         source_name: &str,
         menu_selection: usize,
+        menu_items: &[&str],
     ) {
         let base_scale = (vw.min(vh) / 800.0).clamp(0.8, 2.0);
         let scale = 1.5 * base_scale;
         let line_h = 18.0 * base_scale;
         let padding = 16.0 * base_scale;
         let has_source = !source_name.is_empty() && source_name != "None";
-        // Menu values: Picker, Capture, Screenshot, Record, Config, Quit
-        let menu_values: [&str; 6] = [
-            "Open",                                      // Picker
-            if is_capturing { "Stop" } else { "Start" }, // Capture
-            if has_source { "Take" } else { "" },        // Screenshot
-            if is_recording {
-                "Stop"
-            } else if has_source {
-                "Start"
-            } else {
-                ""
-            }, // Record
-            "Open",                                      // Config
-            "",                                          // Quit
-        ];
 
+        // Determine menu mode from items
+        let is_initial = menu_items.len() == 2 && menu_items[0] == "Pick Source";
+
+        // Generate values for each menu item based on current state
+        let menu_values: Vec<&str> = menu_items
+            .iter()
+            .map(|&item| match item {
+                "Capture" => {
+                    if is_capturing {
+                        "Stop"
+                    } else {
+                        "Start"
+                    }
+                }
+                "Screenshot" => "Take",
+                "Record" => {
+                    if is_recording {
+                        "Stop"
+                    } else {
+                        "Start"
+                    }
+                }
+                "Config" | "Rec Config" => "Open",
+                _ => "", // Pick Source, Change Source, Quit
+            })
+            .collect();
+
+        let item_count = menu_items.len() as f32;
         let box_w = (320.0 * base_scale).min(vw * 0.8);
-        let box_h = (line_h * 8.5 + padding * 2.0).min(vh * 0.75);
+        let box_h = (line_h * (item_count + 2.5) + padding * 2.0).min(vh * 0.75);
         let x = (vw - box_w) / 2.0;
         let y = (vh - box_h) / 2.0;
 
-        // Source name as large centered title above the menu
-        let source_display = if has_source {
-            if source_name.len() > 30 {
+        // Title above menu
+        let (title_text, title_color): (String, [f32; 4]) = if is_initial {
+            ("Select a Source to Begin".to_string(), [0.6, 0.5, 0.7, 1.0])
+        } else if has_source {
+            let display = if source_name.len() > 30 {
                 format!("{}...", &source_name.chars().take(27).collect::<String>())
             } else {
                 source_name.to_string()
-            }
+            };
+            (display, NEON_CYAN)
         } else {
-            "No Source Selected".to_string()
+            ("No Source Selected".to_string(), [0.5, 0.4, 0.6, 1.0])
         };
+
         let title_scale = scale * 1.4;
         let title_actual = (title_scale as i32) as f32;
-        let title_w = source_display.len() as f32 * 8.0 * title_actual;
+        let title_w = title_text.len() as f32 * 8.0 * title_actual;
         let title_x = (vw - title_w) / 2.0;
         let title_y = y - line_h * 2.2;
-        let title_color = if has_source {
-            NEON_CYAN
-        } else {
-            [0.5, 0.4, 0.6, 1.0]
-        };
         self.text(
             font,
-            &source_display,
+            &title_text,
             title_x,
             title_y,
             title_scale,
@@ -105,11 +118,7 @@ impl VertexBufferBuilder {
         let actual_scale = (scale as i32) as f32;
         let text_h = 8.0 * actual_scale;
 
-        for (i, (item, value)) in OverlayState::MENU_ITEMS
-            .iter()
-            .zip(menu_values.iter())
-            .enumerate()
-        {
+        for (i, (item, value)) in menu_items.iter().zip(menu_values.iter()).enumerate() {
             let is_selected = i == menu_selection;
             let text_y = ly + (line_h - text_h) / 2.0;
 
