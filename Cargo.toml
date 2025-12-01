@@ -57,7 +57,7 @@ macos_26_0 = ["macos_15_2"]
 cpal = { version = "0.15", optional = true }
 
 [dev-dependencies]
-png = "0.17"
+png = "0.18"
 tokio = { version = "1.40", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
 metal = "0.29"
 cocoa = "0.25"
