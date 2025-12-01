@@ -61,7 +61,7 @@ png = "0.17"
 tokio = { version = "1.40", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
 metal = "0.29"
 cocoa = "0.25"
-core-graphics-types = "0.1"
+core-graphics-types = "0.2"
 objc = "0.2"
 winit = "0.28"
 raw-window-handle = "0.5"
