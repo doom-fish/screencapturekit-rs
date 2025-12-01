@@ -54,7 +54,7 @@ macos_15_2 = ["macos_15_0"]
 macos_26_0 = ["macos_15_2"]
 
 [dependencies]
-cpal = { version = "0.15", optional = true }
+cpal = { version = "0.16", optional = true }
 
 [dev-dependencies]
 png = "0.17"
