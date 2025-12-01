@@ -60,7 +60,7 @@ cpal = { version = "0.15", optional = true }
 png = "0.17"
 tokio = { version = "1.40", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
 metal = "0.29"
-cocoa = "0.25"
+cocoa = "0.26"
 core-graphics-types = "0.1"
 objc = "0.2"
 winit = "0.28"
