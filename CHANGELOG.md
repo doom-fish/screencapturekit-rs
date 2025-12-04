@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.3.0...v1.4.0) - 2025-12-04
+
+### Added
+
+- *(cpal)* add zero-copy audio stream
+- *(cpal)* add audio input stream and cpal integration
+- *(cpal)* add optional cpal audio adapter
+- *(screenshot)* add multi-format image saving support
+- *(cm)* add frame info accessors to CMSampleBuffer
+
+### Other
+
+- fix formatting in pixel_buffer.rs
+- remove cpal dependency and update dev dependencies
+- *(cpal)* add cpal adapter tests and example
+- update README to use macos_26_0 as latest feature
+- fix rustfmt formatting issues
+- *(tests)* rename sync_completion_tests to completion_tests
+
 ## [1.3.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.2.0...v1.3.0) - 2025-11-30
 
 ### Added
