@@ -12,6 +12,15 @@
 //! - [`IOSurfaceLockGuard`] - RAII guard for locked `IOSurface` access
 //! - [`PixelBufferCursorExt`] - Extension trait for pixel-specific cursor operations
 //!
+//! ## Metal Integration
+//!
+//! For Metal rendering, use the [`metal`] submodule which provides:
+//! - [`metal::pixel_format`] - Pixel format constants and detection
+//! - [`metal::IOSurfaceInfo`] - Detailed surface information
+//! - [`metal::TextureParams`] - Metal texture descriptor parameters
+//! - [`metal::SHADER_SOURCE`] - Ready-to-use Metal shaders
+//! - [`metal::Uniforms`] - Shader uniform structure
+//!
 //! ## Examples
 //!
 //! ### Basic Usage with Cursor
@@ -65,6 +74,7 @@
 //! ```
 
 pub mod iosurface;
+pub mod metal;
 pub mod pixel_buffer;
 
 pub use crate::cm::{CMSampleBuffer, CMTime, CVPixelBuffer};

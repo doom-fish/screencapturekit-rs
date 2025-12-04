@@ -10,7 +10,7 @@
 
 use std::mem::size_of;
 
-use metal::{Buffer, Device, MTLResourceOptions};
+use screencapturekit::output::metal::{MetalBuffer, MetalDevice, ResourceOptions};
 
 use crate::font::BitmapFont;
 
@@ -208,12 +208,19 @@ impl VertexBufferBuilder {
         self.text(font, label, x, y + h + 4.0, 1.0, [0.8, 0.8, 0.8, 1.0]);
     }
 
-    pub fn build(&self, device: &Device) -> Buffer {
-        device.new_buffer_with_data(
-            self.vertices.as_ptr().cast(),
-            (self.vertices.len() * size_of::<Vertex>()) as u64,
-            MTLResourceOptions::CPUCacheModeDefaultCache | MTLResourceOptions::StorageModeManaged,
-        )
+    pub fn build(&self, device: &MetalDevice) -> MetalBuffer {
+        let size = self.vertices.len() * size_of::<Vertex>();
+        let buffer = device
+            .create_buffer(size, ResourceOptions::STORAGE_MODE_MANAGED)
+            .expect("Failed to create vertex buffer");
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                self.vertices.as_ptr(),
+                buffer.contents().cast(),
+                self.vertices.len(),
+            );
+        }
+        buffer
     }
 
     pub fn vertex_count(&self) -> usize {

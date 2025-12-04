@@ -700,6 +700,51 @@ public func cm_format_description_release(_ formatDescription: UnsafeMutableRawP
     Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).release()
 }
 
+@_cdecl("cm_format_description_get_audio_sample_rate")
+public func cm_format_description_get_audio_sample_rate(_ formatDescription: UnsafeMutableRawPointer) -> Double {
+    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
+    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
+        return 0.0
+    }
+    return asbd.pointee.mSampleRate
+}
+
+@_cdecl("cm_format_description_get_audio_channel_count")
+public func cm_format_description_get_audio_channel_count(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
+    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
+    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
+        return 0
+    }
+    return asbd.pointee.mChannelsPerFrame
+}
+
+@_cdecl("cm_format_description_get_audio_bits_per_channel")
+public func cm_format_description_get_audio_bits_per_channel(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
+    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
+    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
+        return 0
+    }
+    return asbd.pointee.mBitsPerChannel
+}
+
+@_cdecl("cm_format_description_get_audio_bytes_per_frame")
+public func cm_format_description_get_audio_bytes_per_frame(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
+    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
+    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
+        return 0
+    }
+    return asbd.pointee.mBytesPerFrame
+}
+
+@_cdecl("cm_format_description_get_audio_format_flags")
+public func cm_format_description_get_audio_format_flags(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
+    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
+    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
+        return 0
+    }
+    return asbd.pointee.mFormatFlags
+}
+
 // MARK: - CMSampleBuffer Creation
 
 @_cdecl("cm_sample_buffer_create_for_image_buffer")
