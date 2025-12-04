@@ -28,8 +28,6 @@ cargo run --example 01_basic_capture
 | 14 | `app_capture` | Application-based filtering | - |
 | 15 | `memory_leak_check` | Memory leak detection with `leaks` | - |
 | 16 | `full_metal_app` | Full Metal GUI application | `macos_14_0` |
-| 17 | `cpal_audio` | cpal audio playback (buffered) | `cpal` |
-| 18 | `zero_copy_audio` | Zero-copy audio capture | `cpal` |
 
 ## Running with Features
 
@@ -59,12 +57,6 @@ cargo run --example 05_screenshot --features macos_26_0
 
 # Metal GUI example
 cargo run --example 16_full_metal_app --features macos_14_0
-
-# cpal audio (buffered, for playback)
-cargo run --example 17_cpal_audio --features cpal
-
-# Zero-copy audio (for processing)
-cargo run --example 18_zero_copy_audio --features cpal
 
 # All features
 cargo run --example 08_async --all-features

@@ -346,10 +346,6 @@ pub mod utils;
 #[cfg(feature = "async")]
 pub mod async_api;
 
-#[cfg(feature = "cpal")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cpal")))]
-pub mod cpal_adapter;
-
 // Re-export commonly used types
 pub use cm::{
     codec_types, media_types, AudioBuffer, AudioBufferList, CMFormatDescription, CMSampleBuffer,
