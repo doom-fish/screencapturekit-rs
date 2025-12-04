@@ -59,7 +59,7 @@ metal = "0.32"
 cocoa = "0.26"
 core-graphics-types = "0.2"
 objc = "0.2"
-winit = "0.28"
+winit = "0.30"
 raw-window-handle = "0.5"
 
 [package.metadata.docs.rs]
