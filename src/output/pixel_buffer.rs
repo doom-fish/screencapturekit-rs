@@ -159,7 +159,7 @@ impl PixelBufferLockGuard<'_> {
     }
 
     /// Get the number of planes in the pixel buffer
-    /// 
+    ///
     /// Returns 0 for non-planar formats (e.g., BGRA).
     /// Returns 2 for bi-planar formats like NV12 (`YCbCr_420v`).
     pub fn plane_count(&self) -> usize {
@@ -179,7 +179,10 @@ impl PixelBufferLockGuard<'_> {
     /// Get the base address of a specific plane
     pub fn base_address_of_plane(&self, plane_index: usize) -> Option<*const u8> {
         unsafe {
-            let ptr = crate::cm::ffi::cv_pixel_buffer_get_base_address_of_plane(self.buffer_ptr, plane_index);
+            let ptr = crate::cm::ffi::cv_pixel_buffer_get_base_address_of_plane(
+                self.buffer_ptr,
+                plane_index,
+            );
             if ptr.is_null() {
                 None
             } else {
@@ -190,7 +193,9 @@ impl PixelBufferLockGuard<'_> {
 
     /// Get the bytes per row of a specific plane
     pub fn bytes_per_row_of_plane(&self, plane_index: usize) -> usize {
-        unsafe { crate::cm::ffi::cv_pixel_buffer_get_bytes_per_row_of_plane(self.buffer_ptr, plane_index) }
+        unsafe {
+            crate::cm::ffi::cv_pixel_buffer_get_bytes_per_row_of_plane(self.buffer_ptr, plane_index)
+        }
     }
 
     /// Get raw pointer to buffer data
