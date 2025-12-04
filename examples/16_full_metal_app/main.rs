@@ -8,6 +8,8 @@
 //! - **Audio Visualization** - Real-time waveform display with VU meters
 //! - **Screenshot Capture** - Single-frame capture with HDR support (macOS 14.0+/26.0+)
 //! - **Video Recording** - Direct-to-file recording (macOS 15.0+)
+
+#![allow(deprecated)] // Suppress cocoa crate deprecation warnings
 //! - **Microphone Capture** - Audio input with device selection (macOS 15.0+)
 //! - **Bitmap Font Rendering** - Custom 8x8 pixel glyph overlay text
 //! - **Interactive Menu** - Keyboard-navigable settings UI
@@ -73,11 +75,6 @@ use std::sync::{Arc, Mutex};
 
 use cocoa::appkit::NSView;
 use cocoa::base::id as cocoa_id;
-use core_graphics_types::geometry::CGSize;
-use metal::{
-    objc, CompileOptions, Device, MTLClearColor, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
-    MTLResourceOptions, MTLStoreAction, MetalLayer, RenderPassDescriptor, RenderPipelineDescriptor,
-};
 use objc::rc::autoreleasepool;
 use objc::runtime::YES;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
@@ -96,8 +93,9 @@ use overlay::{default_stream_config, ConfigMenu, OverlayState};
 #[cfg(feature = "macos_15_0")]
 use recording::{RecordingConfig, RecordingState};
 use renderer::{
-    create_pipeline, create_textures_from_iosurface, CaptureTextures, PIXEL_FORMAT_420F,
-    PIXEL_FORMAT_420V, SHADER_SOURCE,
+    create_pipeline, CaptureTextures, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
+    MTLStoreAction, MetalDevice, MetalLayer, MetalRenderPassDescriptor,
+    MetalRenderPipelineDescriptor, ResourceOptions, SHADER_SOURCE,
 };
 use screenshot::take_screenshot;
 use vertex::{Uniforms, Vertex, VertexBufferBuilder};
@@ -114,11 +112,11 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    // Initialize Metal
-    let device = Device::system_default().expect("No Metal device found");
+    // Initialize Metal using library types (no metal crate needed)
+    let device = MetalDevice::system_default().expect("No Metal device found");
     println!("🖥️  Metal device: {}", device.name());
 
-    let mut layer = MetalLayer::new();
+    let layer = MetalLayer::new();
     layer.set_device(&device);
     layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
     layer.set_presents_with_transaction(false);
@@ -129,23 +127,19 @@ fn main() {
             RawWindowHandle::AppKit(handle) => {
                 let view = handle.ns_view as cocoa_id;
                 view.setWantsLayer(YES);
-                view.setLayer(std::mem::transmute(layer.as_mut()));
+                view.setLayer(std::mem::transmute(layer.as_ptr()));
             }
             _ => panic!("Unsupported window handle"),
         }
     }
 
     let draw_size = window.inner_size();
-    layer.set_drawable_size(CGSize::new(
-        f64::from(draw_size.width),
-        f64::from(draw_size.height),
-    ));
+    layer.set_drawable_size(f64::from(draw_size.width), f64::from(draw_size.height));
 
     // Compile shaders at runtime from embedded source
     println!("🔧 Compiling shaders...");
-    let compile_options = CompileOptions::new();
     let library = device
-        .new_library_with_source(SHADER_SOURCE, &compile_options)
+        .create_library_with_source(SHADER_SOURCE)
         .expect("Failed to compile shaders");
     println!("✅ Shaders compiled");
 
@@ -153,33 +147,27 @@ fn main() {
 
     // Create fullscreen textured pipeline (no blending for background) - for BGRA/RGB formats
     let fullscreen_pipeline = {
-        let vert = library.get_function("vertex_fullscreen", None).unwrap();
-        let frag = library.get_function("fragment_textured", None).unwrap();
-        let desc = RenderPipelineDescriptor::new();
-        desc.set_vertex_function(Some(&vert));
-        desc.set_fragment_function(Some(&frag));
-        desc.color_attachments()
-            .object_at(0)
-            .unwrap()
-            .set_pixel_format(MTLPixelFormat::BGRA8Unorm);
-        device.new_render_pipeline_state(&desc).unwrap()
+        let vert = library.get_function("vertex_fullscreen").unwrap();
+        let frag = library.get_function("fragment_textured").unwrap();
+        let desc = MetalRenderPipelineDescriptor::new();
+        desc.set_vertex_function(&vert);
+        desc.set_fragment_function(&frag);
+        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+        device.create_render_pipeline_state(&desc).unwrap()
     };
 
     // Create YCbCr pipeline for biplanar YCbCr formats (420v/420f)
     let ycbcr_pipeline = {
-        let vert = library.get_function("vertex_fullscreen", None).unwrap();
-        let frag = library.get_function("fragment_ycbcr", None).unwrap();
-        let desc = RenderPipelineDescriptor::new();
-        desc.set_vertex_function(Some(&vert));
-        desc.set_fragment_function(Some(&frag));
-        desc.color_attachments()
-            .object_at(0)
-            .unwrap()
-            .set_pixel_format(MTLPixelFormat::BGRA8Unorm);
-        device.new_render_pipeline_state(&desc).unwrap()
+        let vert = library.get_function("vertex_fullscreen").unwrap();
+        let frag = library.get_function("fragment_ycbcr").unwrap();
+        let desc = MetalRenderPipelineDescriptor::new();
+        desc.set_vertex_function(&vert);
+        desc.set_fragment_function(&frag);
+        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+        device.create_render_pipeline_state(&desc).unwrap()
     };
 
-    let command_queue = device.new_command_queue();
+    let command_queue = device.create_command_queue().expect("Failed to create command queue");
 
     // Create shared capture state
     let capture_state = Arc::new(CaptureState::new());
@@ -265,7 +253,7 @@ fn main() {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::ExitWithCode(0),
 
                     WindowEvent::Resized(size) => {
-                        layer.set_drawable_size(CGSize::new(f64::from(size.width), f64::from(size.height)));
+                        layer.set_drawable_size(f64::from(size.width), f64::from(size.height));
                     }
 
                     WindowEvent::KeyboardInput {
@@ -613,15 +601,14 @@ fn main() {
                                 tex_width = surface.width() as f32;
                                 tex_height = surface.height() as f32;
                                 // Create Metal textures directly from IOSurface (zero-copy)
-                                capture_textures = unsafe {
-                                    create_textures_from_iosurface(&device, surface.as_ptr())
-                                };
+                                capture_textures = surface.create_metal_textures(&device);
                                 if let Some(ref ct) = capture_textures {
-                                    pixel_format = ct.pixel_format;
+                                    pixel_format = ct.pixel_format.as_u32();
                                 }
                             }
                         }
                     }
+
 
                     // Build vertex buffer for this frame
                     vertex_builder.clear();
@@ -792,10 +779,7 @@ fn main() {
 
                     // Build GPU buffer
                     let vertex_buffer = vertex_builder.build(&device);
-                    vertex_buffer.did_modify_range(metal::NSRange::new(
-                        0,
-                        (vertex_builder.vertex_count() * size_of::<Vertex>()) as u64,
-                    ));
+                    vertex_buffer.did_modify_range(0..(vertex_builder.vertex_count() * size_of::<Vertex>()));
 
                     // Uniforms - pass capture texture dimensions for aspect ratio
                     let uniforms = Uniforms {
@@ -805,61 +789,62 @@ fn main() {
                         pixel_format,
                         _padding: [0.0; 2],
                     };
-                    let uniforms_buffer = device.new_buffer_with_data(
-                        std::ptr::addr_of!(uniforms).cast(),
-                        size_of::<Uniforms>() as u64,
-                        MTLResourceOptions::CPUCacheModeDefaultCache,
-                    );
+                    let uniforms_buffer = device
+                        .create_buffer(size_of::<Uniforms>(), ResourceOptions::CPU_CACHE_MODE_DEFAULT_CACHE)
+                        .expect("Failed to create uniforms buffer");
+                    unsafe {
+                        std::ptr::copy_nonoverlapping(
+                            std::ptr::addr_of!(uniforms),
+                            uniforms_buffer.contents().cast(),
+                            1,
+                        );
+                    }
 
                     // Render
                     let Some(drawable) = layer.next_drawable() else {
                         return;
                     };
 
-                    let render_pass = RenderPassDescriptor::new();
-                    let attachment = render_pass.color_attachments().object_at(0).unwrap();
-                    attachment.set_texture(Some(drawable.texture()));
-                    attachment.set_load_action(MTLLoadAction::Clear);
-                    attachment.set_clear_color(MTLClearColor::new(0.08, 0.08, 0.1, 1.0));
-                    attachment.set_store_action(MTLStoreAction::Store);
+                    let render_pass = MetalRenderPassDescriptor::new();
+                    let drawable_texture = drawable.texture();
+                    render_pass.set_color_attachment_texture(0, &drawable_texture);
+                    render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+                    render_pass.set_color_attachment_clear_color(0, 0.08, 0.08, 0.1, 1.0);
+                    render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
 
-                    let cmd_buffer = command_queue.new_command_buffer();
-                    let encoder = cmd_buffer.new_render_command_encoder(render_pass);
+                    let cmd_buffer = command_queue.command_buffer().unwrap();
+                    let encoder = cmd_buffer.render_command_encoder(&render_pass).unwrap();
 
                     // First pass: Draw captured frame as background (if available)
                     if let Some(ref textures) = capture_textures {
-                        let is_ycbcr = textures.pixel_format == PIXEL_FORMAT_420V
-                            || textures.pixel_format == PIXEL_FORMAT_420F;
-
-                        if is_ycbcr && textures.plane1.is_some() {
+                        if textures.is_ycbcr() && textures.plane1.is_some() {
                             // Use YCbCr pipeline for biplanar formats
                             encoder.set_render_pipeline_state(&ycbcr_pipeline);
-                            encoder.set_vertex_buffer(0, Some(&uniforms_buffer), 0);
-                            encoder.set_fragment_texture(0, Some(&textures.plane0));
-                            encoder
-                                .set_fragment_texture(1, Some(textures.plane1.as_ref().unwrap()));
-                            encoder.set_fragment_buffer(0, Some(&uniforms_buffer), 0);
+                            encoder.set_vertex_buffer(&uniforms_buffer, 0, 0);
+                            encoder.set_fragment_texture(&textures.plane0, 0);
+                            encoder.set_fragment_texture(textures.plane1.as_ref().unwrap(), 1);
+                            encoder.set_fragment_buffer(&uniforms_buffer, 0, 0);
                         } else {
                             // Use standard BGRA/RGB pipeline
                             encoder.set_render_pipeline_state(&fullscreen_pipeline);
-                            encoder.set_vertex_buffer(0, Some(&uniforms_buffer), 0);
-                            encoder.set_fragment_texture(0, Some(&textures.plane0));
+                            encoder.set_vertex_buffer(&uniforms_buffer, 0, 0);
+                            encoder.set_fragment_texture(&textures.plane0, 0);
                         }
                         encoder.draw_primitives(MTLPrimitiveType::TriangleStrip, 0, 4);
                     }
 
                     // Second pass: Draw overlay UI
                     encoder.set_render_pipeline_state(&overlay_pipeline);
-                    encoder.set_vertex_buffer(0, Some(&vertex_buffer), 0);
-                    encoder.set_vertex_buffer(1, Some(&uniforms_buffer), 0);
+                    encoder.set_vertex_buffer(&vertex_buffer, 0, 0);
+                    encoder.set_vertex_buffer(&uniforms_buffer, 0, 1);
                     encoder.draw_primitives(
                         MTLPrimitiveType::Triangle,
                         0,
-                        vertex_builder.vertex_count() as u64,
+                        vertex_builder.vertex_count(),
                     );
                     encoder.end_encoding();
 
-                    cmd_buffer.present_drawable(drawable);
+                    cmd_buffer.present_drawable(&drawable);
                     cmd_buffer.commit();
                 }
                 _ => {}

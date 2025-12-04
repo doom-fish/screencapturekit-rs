@@ -111,6 +111,77 @@ public func iosurface_release(_ surface: UnsafeMutableRawPointer) {
     io_surface_release(surface)
 }
 
+// MARK: - Plane Functions (for multi-planar formats like YCbCr)
+
+@_cdecl("io_surface_get_plane_count")
+public func io_surface_get_plane_count(_ surface: UnsafeMutableRawPointer) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetPlaneCount(ioSurface)
+}
+
+@_cdecl("io_surface_get_width_of_plane")
+public func io_surface_get_width_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetWidthOfPlane(ioSurface, plane)
+}
+
+@_cdecl("io_surface_get_height_of_plane")
+public func io_surface_get_height_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetHeightOfPlane(ioSurface, plane)
+}
+
+@_cdecl("io_surface_get_bytes_per_row_of_plane")
+public func io_surface_get_bytes_per_row_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetBytesPerRowOfPlane(ioSurface, plane)
+}
+
+@_cdecl("io_surface_get_bytes_per_element_of_plane")
+public func io_surface_get_bytes_per_element_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetBytesPerElementOfPlane(ioSurface, plane)
+}
+
+@_cdecl("io_surface_get_element_width_of_plane")
+public func io_surface_get_element_width_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetElementWidthOfPlane(ioSurface, plane)
+}
+
+@_cdecl("io_surface_get_element_height_of_plane")
+public func io_surface_get_element_height_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetElementHeightOfPlane(ioSurface, plane)
+}
+
+@_cdecl("io_surface_get_base_address_of_plane")
+public func io_surface_get_base_address_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> UnsafeMutableRawPointer? {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetBaseAddressOfPlane(ioSurface, plane)
+}
+
+// Compatibility aliases for plane functions
+@_cdecl("iosurface_get_plane_count")
+public func iosurface_get_plane_count(_ surface: UnsafeMutableRawPointer) -> Int {
+    io_surface_get_plane_count(surface)
+}
+
+@_cdecl("iosurface_get_width_of_plane")
+public func iosurface_get_width_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    io_surface_get_width_of_plane(surface, plane)
+}
+
+@_cdecl("iosurface_get_height_of_plane")
+public func iosurface_get_height_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    io_surface_get_height_of_plane(surface, plane)
+}
+
+@_cdecl("iosurface_get_bytes_per_row_of_plane")
+public func iosurface_get_bytes_per_row_of_plane(_ surface: UnsafeMutableRawPointer, _ plane: Int) -> Int {
+    io_surface_get_bytes_per_row_of_plane(surface, plane)
+}
+
 // MARK: - Hash Functions
 
 @_cdecl("io_surface_hash")

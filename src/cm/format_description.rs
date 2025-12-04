@@ -202,6 +202,90 @@ impl CMFormatDescription {
     pub fn is_alac(&self) -> bool {
         self.media_subtype() == codec_types::ALAC
     }
+
+    // Audio format description methods
+
+    /// Get the audio sample rate in Hz
+    ///
+    /// Returns `None` if this is not an audio format description.
+    pub fn audio_sample_rate(&self) -> Option<f64> {
+        if !self.is_audio() {
+            return None;
+        }
+        let rate = unsafe { ffi::cm_format_description_get_audio_sample_rate(self.0) };
+        if rate > 0.0 {
+            Some(rate)
+        } else {
+            None
+        }
+    }
+
+    /// Get the number of audio channels
+    ///
+    /// Returns `None` if this is not an audio format description.
+    pub fn audio_channel_count(&self) -> Option<u32> {
+        if !self.is_audio() {
+            return None;
+        }
+        let count = unsafe { ffi::cm_format_description_get_audio_channel_count(self.0) };
+        if count > 0 {
+            Some(count)
+        } else {
+            None
+        }
+    }
+
+    /// Get the bits per audio channel
+    ///
+    /// Returns `None` if this is not an audio format description.
+    pub fn audio_bits_per_channel(&self) -> Option<u32> {
+        if !self.is_audio() {
+            return None;
+        }
+        let bits = unsafe { ffi::cm_format_description_get_audio_bits_per_channel(self.0) };
+        if bits > 0 {
+            Some(bits)
+        } else {
+            None
+        }
+    }
+
+    /// Get the bytes per audio frame
+    ///
+    /// Returns `None` if this is not an audio format description.
+    pub fn audio_bytes_per_frame(&self) -> Option<u32> {
+        if !self.is_audio() {
+            return None;
+        }
+        let bytes = unsafe { ffi::cm_format_description_get_audio_bytes_per_frame(self.0) };
+        if bytes > 0 {
+            Some(bytes)
+        } else {
+            None
+        }
+    }
+
+    /// Get the audio format flags
+    ///
+    /// Returns `None` if this is not an audio format description.
+    pub fn audio_format_flags(&self) -> Option<u32> {
+        if !self.is_audio() {
+            return None;
+        }
+        Some(unsafe { ffi::cm_format_description_get_audio_format_flags(self.0) })
+    }
+
+    /// Check if audio is float format (based on format flags)
+    pub fn audio_is_float(&self) -> bool {
+        // kAudioFormatFlagIsFloat = 1
+        self.audio_format_flags().is_some_and(|f| f & 1 != 0)
+    }
+
+    /// Check if audio is big-endian (based on format flags)
+    pub fn audio_is_big_endian(&self) -> bool {
+        // kAudioFormatFlagIsBigEndian = 2
+        self.audio_format_flags().is_some_and(|f| f & 2 != 0)
+    }
 }
 
 impl Clone for CMFormatDescription {

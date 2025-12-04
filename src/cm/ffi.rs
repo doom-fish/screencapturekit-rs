@@ -156,6 +156,23 @@ extern "C" {
     ) -> *mut std::ffi::c_void;
     pub fn cm_format_description_release(format_description: *mut std::ffi::c_void);
 
+    // CMFormatDescription Audio APIs
+    pub fn cm_format_description_get_audio_sample_rate(
+        format_description: *mut std::ffi::c_void,
+    ) -> f64;
+    pub fn cm_format_description_get_audio_channel_count(
+        format_description: *mut std::ffi::c_void,
+    ) -> u32;
+    pub fn cm_format_description_get_audio_bits_per_channel(
+        format_description: *mut std::ffi::c_void,
+    ) -> u32;
+    pub fn cm_format_description_get_audio_bytes_per_frame(
+        format_description: *mut std::ffi::c_void,
+    ) -> u32;
+    pub fn cm_format_description_get_audio_format_flags(
+        format_description: *mut std::ffi::c_void,
+    ) -> u32;
+
     // Hash functions
     pub fn cm_sample_buffer_hash(sample_buffer: *mut std::ffi::c_void) -> usize;
     pub fn cv_pixel_buffer_hash(pixel_buffer: *mut std::ffi::c_void) -> usize;

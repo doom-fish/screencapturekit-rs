@@ -541,6 +541,12 @@ extern "C" {
     pub fn iosurface_unlock(iosurface: *const c_void, options: u32) -> i32;
     pub fn iosurface_is_in_use(iosurface: *const c_void) -> bool;
     pub fn iosurface_release(iosurface: *const c_void);
+
+    // Plane functions (for multi-planar formats like YCbCr 420)
+    pub fn iosurface_get_plane_count(iosurface: *const c_void) -> isize;
+    pub fn iosurface_get_width_of_plane(iosurface: *const c_void, plane: isize) -> isize;
+    pub fn iosurface_get_height_of_plane(iosurface: *const c_void, plane: isize) -> isize;
+    pub fn iosurface_get_bytes_per_row_of_plane(iosurface: *const c_void, plane: isize) -> isize;
 }
 
 // MARK: - SCContentSharingPicker (macOS 14.0+)

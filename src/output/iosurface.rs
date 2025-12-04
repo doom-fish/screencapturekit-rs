@@ -224,6 +224,48 @@ impl IOSurface {
         unsafe { crate::ffi::iosurface_get_pixel_format(self.0) }
     }
 
+    /// Get the number of planes in the surface
+    ///
+    /// Multi-planar formats like YCbCr 420 have multiple planes:
+    /// - Plane 0: Y (luminance)
+    /// - Plane 1: `CbCr` (chrominance)
+    ///
+    /// Single-plane formats like BGRA return 0.
+    pub fn plane_count(&self) -> usize {
+        #[allow(clippy::cast_sign_loss)]
+        unsafe {
+            crate::ffi::iosurface_get_plane_count(self.0) as usize
+        }
+    }
+
+    /// Get the width of a specific plane in pixels
+    ///
+    /// For YCbCr 4:2:0 formats, plane 1 (`CbCr`) is half the width of plane 0 (Y).
+    pub fn width_of_plane(&self, plane: usize) -> usize {
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+        unsafe {
+            crate::ffi::iosurface_get_width_of_plane(self.0, plane as isize) as usize
+        }
+    }
+
+    /// Get the height of a specific plane in pixels
+    ///
+    /// For YCbCr 4:2:0 formats, plane 1 (`CbCr`) is half the height of plane 0 (Y).
+    pub fn height_of_plane(&self, plane: usize) -> usize {
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+        unsafe {
+            crate::ffi::iosurface_get_height_of_plane(self.0, plane as isize) as usize
+        }
+    }
+
+    /// Get the bytes per row of a specific plane
+    pub fn bytes_per_row_of_plane(&self, plane: usize) -> usize {
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+        unsafe {
+            crate::ffi::iosurface_get_bytes_per_row_of_plane(self.0, plane as isize) as usize
+        }
+    }
+
     /// Get the base address of the `IOSurface` buffer
     ///
     /// **Important:** You must lock the `IOSurface` before accessing memory!

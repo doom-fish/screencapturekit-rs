@@ -59,7 +59,7 @@ let package = Package(
         // Main ScreenCaptureKit bindings
         .target(
             name: "ScreenCaptureKitBridge",
-            dependencies: ["CoreMediaBridge", "CoreVideoBridge", "CoreGraphicsBridge", "IOSurfaceBridge", "DispatchBridge"],
+            dependencies: ["CoreMediaBridge", "CoreVideoBridge", "CoreGraphicsBridge", "IOSurfaceBridge", "DispatchBridge", "MetalBridge"],
             path: "Sources/ScreenCaptureKitBridge",
             publicHeadersPath: "include",
             swiftSettings: swiftSettings),
@@ -82,6 +82,10 @@ let package = Package(
         // Dispatch framework bindings (DispatchQueue)
         .target(
             name: "DispatchBridge",
-            path: "Sources/Dispatch")
+            path: "Sources/Dispatch"),
+        // Metal framework bindings (MTLDevice, MTLTexture, etc.)
+        .target(
+            name: "MetalBridge",
+            path: "Sources/Metal")
     ]
 )

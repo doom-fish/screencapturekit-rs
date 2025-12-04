@@ -110,6 +110,8 @@ extern "C" fn sample_handler(
 /// ```
 pub struct SCStream {
     ptr: *const c_void,
+    /// Handler IDs registered by this stream instance, keyed by output type
+    handler_ids: Vec<(usize, SCStreamOutputType)>,
 }
 
 unsafe impl Send for SCStream {}
@@ -166,7 +168,10 @@ impl SCStream {
             ffi::sc_stream_create(filter.as_ptr(), configuration.as_ptr(), error_callback)
         };
         assert!(!ptr.is_null(), "Swift bridge returned null stream");
-        Self { ptr }
+        Self {
+            ptr,
+            handler_ids: Vec::new(),
+        }
     }
 
     pub fn new_with_delegate(
@@ -327,8 +332,15 @@ impl SCStream {
         };
 
         if ok {
+            self.handler_ids.push((handler_id, of_type));
             Some(handler_id)
         } else {
+            // Remove from registry since Swift rejected it
+            HANDLER_REGISTRY
+                .lock()
+                .unwrap()
+                .as_mut()
+                .map(|handlers| handlers.remove(&handler_id));
             None
         }
     }
@@ -347,13 +359,29 @@ impl SCStream {
     /// # Returns
     ///
     /// Returns `true` if the handler was found and removed, `false` otherwise.
-    pub fn remove_output_handler(&mut self, id: usize, _of_type: SCStreamOutputType) -> bool {
-        // Mutex poisoning is unrecoverable; unwrap is appropriate
-        let mut registry = HANDLER_REGISTRY.lock().unwrap();
-        registry
-            .as_mut()
-            .and_then(|handlers| handlers.remove(&id))
-            .is_some()
+    pub fn remove_output_handler(&mut self, id: usize, of_type: SCStreamOutputType) -> bool {
+        // Remove from our tracking
+        let pos = self.handler_ids.iter().position(|(hid, _)| *hid == id);
+        if pos.is_none() {
+            return false;
+        }
+        self.handler_ids.remove(pos.unwrap());
+
+        // Remove from global registry
+        {
+            let mut registry = HANDLER_REGISTRY.lock().unwrap();
+            if let Some(handlers) = registry.as_mut() {
+                handlers.remove(&id);
+            }
+        }
+
+        // Tell Swift to remove the output
+        let output_type_int = match of_type {
+            SCStreamOutputType::Screen => 0,
+            SCStreamOutputType::Audio => 1,
+            SCStreamOutputType::Microphone => 2,
+        };
+        unsafe { ffi::sc_stream_remove_stream_output(self.ptr, output_type_int) }
     }
 
     /// Start capturing screen content
@@ -502,6 +530,25 @@ impl SCStream {
 
 impl Drop for SCStream {
     fn drop(&mut self) {
+        // Clean up all registered handlers
+        for (id, of_type) in std::mem::take(&mut self.handler_ids) {
+            // Remove from global registry
+            {
+                let mut registry = HANDLER_REGISTRY.lock().unwrap();
+                if let Some(handlers) = registry.as_mut() {
+                    handlers.remove(&id);
+                }
+            }
+
+            // Tell Swift to remove the output
+            let output_type_int = match of_type {
+                SCStreamOutputType::Screen => 0,
+                SCStreamOutputType::Audio => 1,
+                SCStreamOutputType::Microphone => 2,
+            };
+            unsafe { ffi::sc_stream_remove_stream_output(self.ptr, output_type_int) };
+        }
+
         if !self.ptr.is_null() {
             unsafe { ffi::sc_stream_release(self.ptr) };
         }
@@ -513,6 +560,8 @@ impl Clone for SCStream {
         unsafe {
             Self {
                 ptr: crate::ffi::sc_stream_retain(self.ptr),
+                // Cloned stream starts with no handlers - handlers are per-instance
+                handler_ids: Vec::new(),
             }
         }
     }
@@ -520,7 +569,10 @@ impl Clone for SCStream {
 
 impl fmt::Debug for SCStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SCStream").field("ptr", &self.ptr).finish()
+        f.debug_struct("SCStream")
+            .field("ptr", &self.ptr)
+            .field("handler_ids", &self.handler_ids)
+            .finish()
     }
 }
 
