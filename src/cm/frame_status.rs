@@ -77,7 +77,7 @@ impl fmt::Display for SCFrameStatus {
 /// - [`dirty_rects()`](crate::cm::CMSampleBuffer::dirty_rects) - Changed areas
 ///
 /// # Example
-/// ```rust,ignore
+/// ```no_run
 /// use screencapturekit::cm::CMSampleBuffer;
 ///
 /// fn process_frame(buffer: &CMSampleBuffer) {

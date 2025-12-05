@@ -183,7 +183,7 @@
 //!
 //! Enable the `async` feature for async/await support:
 //!
-//! ```rust,ignore
+//! ```no_run
 //! use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
 //! use screencapturekit::prelude::*;
 //!

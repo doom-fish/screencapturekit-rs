@@ -87,7 +87,7 @@ impl SCStreamConfiguration {
     /// macOS 14.0+. On earlier versions, this setting has no effect.
     ///
     /// # Examples
-    /// ```ignore
+    /// ```no_run
     /// use screencapturekit::prelude::*;
     ///
     /// let config = SCStreamConfiguration::new()
