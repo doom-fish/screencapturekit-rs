@@ -437,12 +437,15 @@ impl SCScreenshotManager {
     /// - The capture fails for any reason
     ///
     /// # Examples
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::screenshot_manager::SCScreenshotManager;
     /// use screencapturekit::cg::CGRect;
     ///
-    /// let rect = CGRect::new(0.0, 0.0, 1920.0, 1080.0);
-    /// let image = SCScreenshotManager::capture_image_in_rect(rect)?;
+    /// fn example() -> Result<(), screencapturekit::utils::error::SCError> {
+    ///     let rect = CGRect::new(0.0, 0.0, 1920.0, 1080.0);
+    ///     let image = SCScreenshotManager::capture_image_in_rect(rect)?;
+    ///     Ok(())
+    /// }
     /// ```
     #[cfg(feature = "macos_15_2")]
     pub fn capture_image_in_rect(rect: CGRect) -> Result<CGImage, SCError> {
@@ -475,19 +478,26 @@ impl SCScreenshotManager {
     /// Returns an error if the capture fails
     ///
     /// # Examples
-    /// ```rust,ignore
-    /// use screencapturekit::screenshot_manager::{SCScreenshotManager, SCScreenshotConfiguration};
+    /// ```no_run
+    /// use screencapturekit::screenshot_manager::{SCScreenshotManager, SCScreenshotConfiguration, SCScreenshotDynamicRange};
     /// use screencapturekit::stream::content_filter::SCContentFilter;
+    /// use screencapturekit::shareable_content::SCShareableContent;
     ///
-    /// let filter = /* create filter */;
-    /// let config = SCScreenshotConfiguration::new()
-    ///     .with_width(1920)
-    ///     .with_height(1080)
-    ///     .with_dynamic_range(SCScreenshotDynamicRange::BothSDRAndHDR);
+    /// fn example() -> Option<()> {
+    ///     let content = SCShareableContent::get().ok()?;
+    ///     let displays = content.displays();
+    ///     let display = displays.first()?;
+    ///     let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    ///     let config = SCScreenshotConfiguration::new()
+    ///         .with_width(1920)
+    ///         .with_height(1080)
+    ///         .with_dynamic_range(SCScreenshotDynamicRange::BothSDRAndHDR);
     ///
-    /// let output = SCScreenshotManager::capture_screenshot(&filter, &config)?;
-    /// if let Some(sdr) = output.sdr_image() {
-    ///     println!("SDR image: {}x{}", sdr.width(), sdr.height());
+    ///     let output = SCScreenshotManager::capture_screenshot(&filter, &config).ok()?;
+    ///     if let Some(sdr) = output.sdr_image() {
+    ///         println!("SDR image: {}x{}", sdr.width(), sdr.height());
+    ///     }
+    ///     Some(())
     /// }
     /// ```
     #[cfg(feature = "macos_26_0")]
@@ -581,7 +591,7 @@ pub enum SCScreenshotDynamicRange {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```no_run
 /// use screencapturekit::screenshot_manager::{SCScreenshotConfiguration, SCScreenshotDynamicRange};
 ///
 /// let config = SCScreenshotConfiguration::new()
