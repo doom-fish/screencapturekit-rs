@@ -735,13 +735,13 @@ impl Future for AsyncPickerFilterFuture {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```no_run
 /// use screencapturekit::async_api::AsyncSCContentSharingPicker;
 /// use screencapturekit::content_sharing_picker::*;
 ///
 /// async fn pick_content() {
 ///     let config = SCContentSharingPickerConfiguration::new();
-///     match AsyncSCContentSharingPicker::pick(&config).await {
+///     match AsyncSCContentSharingPicker::show(&config).await {
 ///         SCPickerOutcome::Picked(result) => {
 ///             let (width, height) = result.pixel_size();
 ///             let filter = result.filter();
@@ -764,14 +764,16 @@ impl AsyncSCContentSharingPicker {
     /// makes a selection or cancels.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::async_api::AsyncSCContentSharingPicker;
     /// use screencapturekit::content_sharing_picker::*;
     ///
-    /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
-    ///     let (width, height) = result.pixel_size();
-    ///     let filter = result.filter();
+    /// async fn example() {
+    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
+    ///         let (width, height) = result.pixel_size();
+    ///         let filter = result.filter();
+    ///     }
     /// }
     /// ```
     pub fn show(
@@ -795,13 +797,15 @@ impl AsyncSCContentSharingPicker {
     /// This is the simple API - use when you just need the filter without metadata.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::async_api::AsyncSCContentSharingPicker;
     /// use screencapturekit::content_sharing_picker::*;
     ///
-    /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerFilterOutcome::Filter(filter) = AsyncSCContentSharingPicker::show_filter(&config).await {
-    ///     // Use filter with SCStream
+    /// async fn example() {
+    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     if let SCPickerFilterOutcome::Filter(filter) = AsyncSCContentSharingPicker::show_filter(&config).await {
+    ///         // Use filter with SCStream
+    ///     }
     /// }
     /// ```
     pub fn show_filter(
@@ -826,14 +830,29 @@ impl AsyncSCContentSharingPicker {
     /// select a new content source. The result can be used with `stream.update_content_filter()`.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::async_api::AsyncSCContentSharingPicker;
     /// use screencapturekit::content_sharing_picker::*;
+    /// use screencapturekit::stream::SCStream;
+    /// use screencapturekit::stream::configuration::SCStreamConfiguration;
+    /// use screencapturekit::stream::content_filter::SCContentFilter;
+    /// use screencapturekit::shareable_content::SCShareableContent;
     ///
-    /// // When stream is active and user wants to change source
-    /// let config = SCContentSharingPickerConfiguration::new();
-    /// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show_for_stream(&config, &stream).await {
-    ///     stream.update_content_filter(&result.filter());
+    /// async fn example() -> Option<()> {
+    ///     let content = SCShareableContent::get().ok()?;
+    ///     let displays = content.displays();
+    ///     let display = displays.first()?;
+    ///     let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    ///     let stream_config = SCStreamConfiguration::new();
+    ///     let stream = SCStream::new(&filter, &stream_config);
+    ///
+    ///     // When stream is active and user wants to change source
+    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show_for_stream(&config, &stream).await {
+    ///         // Use result.filter() with stream.update_content_filter()
+    ///         let _ = result.filter();
+    ///     }
+    ///     Some(())
     /// }
     /// ```
     pub fn show_for_stream(
@@ -950,15 +969,16 @@ impl Future for NextRecordingEvent<'_> {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```no_run
 /// use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCRecordingOutput, RecordingEvent};
 /// use screencapturekit::recording_output::SCRecordingOutputConfiguration;
 /// use screencapturekit::stream::{SCStream, configuration::SCStreamConfiguration, content_filter::SCContentFilter};
 /// use std::path::Path;
 ///
-/// async fn record_screen() -> Result<(), Box<dyn std::error::Error>> {
-///     let content = AsyncSCShareableContent::get().await?;
-///     let display = &content.displays()[0];
+/// async fn record_screen() -> Option<()> {
+///     let content = AsyncSCShareableContent::get().await.ok()?;
+///     let displays = content.displays();
+///     let display = displays.first()?;
 ///     let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
 ///     let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 ///
@@ -968,8 +988,8 @@ impl Future for NextRecordingEvent<'_> {
 ///     let (recording, events) = AsyncSCRecordingOutput::new(&rec_config)?;
 ///
 ///     let mut stream = SCStream::new(&filter, &config);
-///     stream.add_recording_output(&recording)?;
-///     stream.start_capture()?;
+///     stream.add_recording_output(&recording).ok()?;
+///     stream.start_capture().ok()?;
 ///
 ///     // Wait for recording events
 ///     while let Some(event) = events.next().await {
@@ -986,7 +1006,7 @@ impl Future for NextRecordingEvent<'_> {
 ///         }
 ///     }
 ///
-///     Ok(())
+///     Some(())
 /// }
 /// ```
 #[cfg(feature = "macos_15_0")]
