@@ -103,7 +103,7 @@ impl SCStreamConfiguration {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::stream::configuration::SCStreamConfiguration;
     ///
     /// let config = SCStreamConfiguration::new()
@@ -138,7 +138,7 @@ impl SCStreamConfiguration {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::stream::configuration::{SCStreamConfiguration, SCCaptureResolutionType};
     ///
     /// let config = SCStreamConfiguration::new()

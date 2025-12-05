@@ -98,7 +98,7 @@ impl SCStreamConfiguration {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::stream::configuration::{SCStreamConfiguration, SCStreamConfigurationPreset};
     ///
     /// let config = SCStreamConfiguration::from_preset(SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay);
