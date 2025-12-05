@@ -5,17 +5,17 @@
 //!
 //! # Example
 //!
-//! ```ignore
-//! use screencapturekit::utils::sync_completion::{SyncCompletion, SyncCompletionPtr};
+//! ```no_run
+//! use screencapturekit::utils::sync_completion::SyncCompletion;
 //!
 //! // Create completion for a String result
-//! let (completion, context) = SyncCompletion::<String>::new();
+//! let (completion, _context) = SyncCompletion::<String>::new();
 //!
-//! // Pass context to FFI, which will call back with result
-//! unsafe { some_ffi_call(context, callback) };
+//! // In real use, context would be passed to FFI callback
+//! // The callback would signal completion with a result
 //!
-//! // Block until callback completes
-//! let result = completion.wait();
+//! // Block until callback completes (would hang without callback)
+//! // let result = completion.wait();
 //! ```
 
 use std::ffi::{c_void, CStr};
