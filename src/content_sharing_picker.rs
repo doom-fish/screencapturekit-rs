@@ -15,7 +15,7 @@
 //! # Examples
 //!
 //! ## Callback API: Get filter with metadata
-//! ```rust,ignore
+//! ```no_run
 //! use screencapturekit::content_sharing_picker::*;
 //! use screencapturekit::prelude::*;
 //!
@@ -34,14 +34,16 @@
 //! ```
 //!
 //! ## Async API
-//! ```rust,ignore
+//! ```no_run
 //! use screencapturekit::async_api::AsyncSCContentSharingPicker;
 //! use screencapturekit::content_sharing_picker::*;
 //!
-//! let config = SCContentSharingPickerConfiguration::new();
-//! if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
-//!     let (width, height) = result.pixel_size();
-//!     let filter = result.filter();
+//! async fn example() {
+//!     let config = SCContentSharingPickerConfiguration::new();
+//!     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
+//!         let (width, height) = result.pixel_size();
+//!         let filter = result.filter();
+//!     }
 //! }
 //! ```
 
@@ -348,7 +350,7 @@ impl SCPickerResult {
     /// Returns the picked windows that can be used to create a custom `SCContentFilter`.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     /// use screencapturekit::prelude::*;
     ///
@@ -385,7 +387,7 @@ impl SCPickerResult {
     /// Returns the picked displays that can be used to create a custom `SCContentFilter`.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     /// use screencapturekit::prelude::*;
     ///
@@ -440,19 +442,22 @@ impl SCPickerResult {
     /// Returns information about what the user selected: window, display, or application.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     ///
-    /// SCContentSharingPicker::show(&config, |outcome| {
-    ///     if let SCPickerOutcome::Picked(result) = outcome {
-    ///         match result.source() {
-    ///             SCPickedSource::Window(title) => println!("[W] {}", title),
-    ///             SCPickedSource::Display(id) => println!("[D] Display {}", id),
-    ///             SCPickedSource::Application(name) => println!("[A] {}", name),
-    ///             SCPickedSource::Unknown => println!("Unknown source"),
+    /// fn example() {
+    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     SCContentSharingPicker::show(&config, |outcome| {
+    ///         if let SCPickerOutcome::Picked(result) = outcome {
+    ///             match result.source() {
+    ///                 SCPickedSource::Window(title) => println!("[W] {}", title),
+    ///                 SCPickedSource::Display(id) => println!("[D] Display {}", id),
+    ///                 SCPickedSource::Application(name) => println!("[A] {}", name),
+    ///                 SCPickedSource::Unknown => println!("Unknown source"),
+    ///             }
     ///         }
-    ///     }
-    /// });
+    ///     });
+    /// }
     /// ```
     #[must_use]
     #[allow(clippy::option_if_let_else)]
@@ -517,7 +522,7 @@ pub enum SCPickerOutcome {
 /// - **Async/await**: `AsyncSCContentSharingPicker` from the `async_api` module
 ///
 /// # Example (callback)
-/// ```rust,ignore
+/// ```no_run
 /// use screencapturekit::content_sharing_picker::*;
 ///
 /// let config = SCContentSharingPickerConfiguration::new();
@@ -531,15 +536,17 @@ pub enum SCPickerOutcome {
 /// ```
 ///
 /// # Example (async)
-/// ```rust,ignore
+/// ```no_run
 /// use screencapturekit::async_api::AsyncSCContentSharingPicker;
 /// use screencapturekit::content_sharing_picker::*;
 ///
-/// let config = SCContentSharingPickerConfiguration::new();
-/// if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
-///     let (width, height) = result.pixel_size();
-///     let filter = result.filter();
-///     // ... create stream
+/// async fn example() {
+///     let config = SCContentSharingPickerConfiguration::new();
+///     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
+///         let (width, height) = result.pixel_size();
+///         let filter = result.filter();
+///         // ... create stream
+///     }
 /// }
 /// ```
 pub struct SCContentSharingPicker;
@@ -551,7 +558,7 @@ impl SCContentSharingPicker {
     /// or cancels the picker.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// let config = SCContentSharingPickerConfiguration::new();
@@ -590,16 +597,31 @@ impl SCContentSharingPicker {
     /// which can be used with `stream.update_content_filter()`.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
+    /// use screencapturekit::stream::SCStream;
+    /// use screencapturekit::stream::configuration::SCStreamConfiguration;
+    /// use screencapturekit::stream::content_filter::SCContentFilter;
+    /// use screencapturekit::shareable_content::SCShareableContent;
     ///
-    /// // When stream is active and user wants to change source
-    /// let config = SCContentSharingPickerConfiguration::new();
-    /// SCContentSharingPicker::show_for_stream(&config, &stream, |outcome| {
-    ///     if let SCPickerOutcome::Result(result) = outcome {
-    ///         stream.update_content_filter(&result.filter);
-    ///     }
-    /// });
+    /// fn example() -> Option<()> {
+    ///     let content = SCShareableContent::get().ok()?;
+    ///     let displays = content.displays();
+    ///     let display = displays.first()?;
+    ///     let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    ///     let stream_config = SCStreamConfiguration::new();
+    ///     let stream = SCStream::new(&filter, &stream_config);
+    ///
+    ///     // When stream is active and user wants to change source
+    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     SCContentSharingPicker::show_for_stream(&config, &stream, |outcome| {
+    ///         if let SCPickerOutcome::Picked(result) = outcome {
+    ///             // Use result.filter() with stream.update_content_filter()
+    ///             let _ = result.filter();
+    ///         }
+    ///     });
+    ///     Some(())
+    /// }
     /// ```
     pub fn show_for_stream<F>(
         config: &SCContentSharingPickerConfiguration,
@@ -626,7 +648,7 @@ impl SCContentSharingPicker {
     /// This is the simple API - use when you just need the filter without metadata.
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// let config = SCContentSharingPickerConfiguration::new();
