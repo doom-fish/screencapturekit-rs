@@ -14,15 +14,16 @@
 //!
 //! ## Example
 //!
-//! ```no_run,ignore
-//! use screencapturekit::output::metal::{MetalDevice, CapturedTextures};
+//! ```no_run
+//! use screencapturekit::output::metal::MetalDevice;
 //! use screencapturekit::output::CVPixelBufferIOSurface;
+//! use screencapturekit::cm::CMSampleBuffer;
 //!
 //! // Get the system default Metal device
 //! let device = MetalDevice::system_default().expect("No Metal device");
 //!
 //! // In your frame handler
-//! fn handle_frame(sample: CMSampleBuffer, device: &MetalDevice) {
+//! fn handle_frame(sample: &CMSampleBuffer, device: &MetalDevice) {
 //!     if let Some(pixel_buffer) = sample.image_buffer() {
 //!         if let Some(surface) = pixel_buffer.iosurface() {
 //!             // Create textures directly - no closures or factories needed
@@ -294,18 +295,22 @@ impl IOSurface {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let textures = surface.metal_textures(|params, iosurface_ptr| unsafe {
-    ///     // Create Metal texture descriptor
-    ///     let desc = TextureDescriptor::new();
-    ///     desc.set_pixel_format(params.format.into());
-    ///     desc.set_width(params.width as u64);
-    ///     desc.set_height(params.height as u64);
-    ///     // ... create texture from iosurface_ptr
-    /// })?;
+    /// ```no_run
+    /// use screencapturekit::output::IOSurface;
+    /// use std::ffi::c_void;
     ///
-    /// if textures.is_ycbcr() {
-    ///     // Use YCbCr shader with plane0 (Y) and plane1 (CbCr)
+    /// fn example(surface: &IOSurface) {
+    ///     let textures = surface.metal_textures(|params, _iosurface_ptr| {
+    ///         // Create Metal texture using params.width, params.height, params.format
+    ///         // Return Some(texture) or None
+    ///         Some(()) // placeholder
+    ///     });
+    ///
+    ///     if let Some(textures) = textures {
+    ///         if textures.is_ycbcr() {
+    ///             // Use YCbCr shader with plane0 (Y) and plane1 (CbCr)
+    ///         }
+    ///     }
     /// }
     /// ```
     ///
@@ -598,6 +603,23 @@ extern "C" {
         a: f64,
     );
     fn metal_render_pass_descriptor_release(desc: *mut c_void);
+
+    // Vertex Descriptor
+    fn metal_vertex_descriptor_create() -> *mut c_void;
+    fn metal_vertex_descriptor_set_attribute(
+        desc: *mut c_void,
+        index: usize,
+        format: u64,
+        offset: usize,
+        buffer_index: usize,
+    );
+    fn metal_vertex_descriptor_set_layout(
+        desc: *mut c_void,
+        buffer_index: usize,
+        stride: usize,
+        step_function: u64,
+    );
+    fn metal_vertex_descriptor_release(desc: *mut c_void);
 
     // Render Pipeline Descriptor
     fn metal_render_pipeline_descriptor_create() -> *mut c_void;
