@@ -334,6 +334,15 @@ impl Drop for CGImage {
     }
 }
 
+impl std::fmt::Debug for CGImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CGImage")
+            .field("width", &self.width())
+            .field("height", &self.height())
+            .finish()
+    }
+}
+
 unsafe impl Send for CGImage {}
 unsafe impl Sync for CGImage {}
 
@@ -824,6 +833,15 @@ impl SCScreenshotConfiguration {
 }
 
 #[cfg(feature = "macos_26_0")]
+impl std::fmt::Debug for SCScreenshotConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SCScreenshotConfiguration")
+            .field("content_type", &self.content_type())
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "macos_26_0")]
 impl Default for SCScreenshotConfiguration {
     fn default() -> Self {
         Self::new()
@@ -905,6 +923,17 @@ impl SCScreenshotOutput {
         } else {
             None
         }
+    }
+}
+
+#[cfg(feature = "macos_26_0")]
+impl std::fmt::Debug for SCScreenshotOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SCScreenshotOutput")
+            .field("sdr_image", &self.sdr_image().map(|i| (i.width(), i.height())))
+            .field("hdr_image", &self.hdr_image().map(|i| (i.width(), i.height())))
+            .field("file_url", &self.file_url())
+            .finish()
     }
 }
 
