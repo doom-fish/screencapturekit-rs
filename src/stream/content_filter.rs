@@ -75,11 +75,9 @@ impl std::hash::Hash for SCContentFilter {
     }
 }
 
-impl Default for SCContentFilter {
-    fn default() -> Self {
-        Self(std::ptr::null())
-    }
-}
+// Note: We intentionally do NOT implement Default for SCContentFilter.
+// A null filter would cause panics/crashes when used with SCStream.
+// Users should always use SCContentFilter::builder() to create valid filters.
 
 impl SCContentFilter {
     /// Creates a content filter builder
@@ -542,6 +540,10 @@ impl SCContentFilterBuilder {
     }
 
     /// Build the content filter
+    ///
+    /// # Panics
+    ///
+    /// Panics if no filter type was set. Call `.display()` or `.window()` before `.build()`.
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn build(self) -> SCContentFilter {
@@ -648,8 +650,10 @@ impl SCContentFilterBuilder {
                 }
             }
             FilterType::None => {
-                // Return a null filter
-                SCContentFilter(std::ptr::null())
+                panic!(
+                    "SCContentFilterBuilder: No filter type set. \
+                     Call .display() or .window() before .build()"
+                );
             }
         };
 
@@ -662,5 +666,26 @@ impl SCContentFilterBuilder {
         };
 
         filter
+    }
+}
+
+impl std::fmt::Debug for SCContentFilterBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let filter_type_name = match &self.filter_type {
+            FilterType::None => "None",
+            FilterType::Window(_) => "Window",
+            FilterType::DisplayExcluding { .. } => "DisplayExcluding",
+            FilterType::DisplayIncluding { .. } => "DisplayIncluding",
+            FilterType::DisplayIncludingApplications { .. } => "DisplayIncludingApplications",
+            FilterType::DisplayExcludingApplications { .. } => "DisplayExcludingApplications",
+        };
+
+        let mut debug = f.debug_struct("SCContentFilterBuilder");
+        debug.field("filter_type", &filter_type_name);
+
+        #[cfg(feature = "macos_14_2")]
+        debug.field("content_rect", &self.content_rect);
+
+        debug.finish()
     }
 }
