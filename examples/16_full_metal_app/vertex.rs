@@ -14,6 +14,9 @@ use screencapturekit::output::metal::{MetalBuffer, MetalDevice, ResourceOptions}
 
 use crate::font::BitmapFont;
 
+// Re-export Uniforms from the library for convenience
+pub use screencapturekit::output::metal::Uniforms;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Vertex {
@@ -29,16 +32,6 @@ impl Vertex {
             color: [r, g, b, a],
         }
     }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct Uniforms {
-    pub viewport_size: [f32; 2],
-    pub texture_size: [f32; 2],
-    pub time: f32,
-    pub pixel_format: u32,
-    pub _padding: [f32; 2],
 }
 
 pub struct VertexBufferBuilder {

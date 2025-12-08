@@ -71,13 +71,13 @@ pub fn take_screenshot(
                 );
                 match image.save_png(&path) {
                     Ok(()) => {
-                        println!("📁 Saved to {}", path);
+                        println!("📁 Saved to {path}");
                         let _ = std::process::Command::new("open").arg(&path).spawn();
                     }
-                    Err(e) => eprintln!("❌ Failed to save: {:?}", e),
+                    Err(e) => eprintln!("❌ Failed to save: {e:?}"),
                 }
             }
-            Err(e) => eprintln!("❌ Screenshot failed: {:?}", e),
+            Err(e) => eprintln!("❌ Screenshot failed: {e:?}"),
         }
     }
 }
