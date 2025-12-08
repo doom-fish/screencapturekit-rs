@@ -704,8 +704,8 @@ public func releaseStream(_ stream: OpaquePointer) {
 
     @_cdecl("sc_stream_add_recording_output")
     public func addRecordingOutput(
-        _ stream: OpaquePointer,
-        _ recordingOutput: OpaquePointer,
+        _: OpaquePointer,
+        _: OpaquePointer,
         _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void,
         _ context: UnsafeMutableRawPointer?
     ) {
@@ -715,8 +715,8 @@ public func releaseStream(_ stream: OpaquePointer) {
 
     @_cdecl("sc_stream_remove_recording_output")
     public func removeRecordingOutput(
-        _ stream: OpaquePointer,
-        _ recordingOutput: OpaquePointer,
+        _: OpaquePointer,
+        _: OpaquePointer,
         _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void,
         _ context: UnsafeMutableRawPointer?
     ) {

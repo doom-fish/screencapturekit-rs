@@ -166,7 +166,7 @@ public func saveCGImageToFile(_ image: OpaquePointer, _ pathPtr: UnsafePointer<C
     let cgImage = Unmanaged<CGImage>.fromOpaque(UnsafeRawPointer(image)).takeUnretainedValue()
     let path = String(cString: pathPtr)
     let url = URL(fileURLWithPath: path)
-    
+
     let utType: UTType
     switch format {
     case 0: utType = .png
@@ -177,17 +177,17 @@ public func saveCGImageToFile(_ image: OpaquePointer, _ pathPtr: UnsafePointer<C
     case 5: utType = .heic
     default: return false
     }
-    
+
     guard let destination = CGImageDestinationCreateWithURL(url as CFURL, utType.identifier as CFString, 1, nil) else {
         return false
     }
-    
+
     // Set quality for lossy formats
     var properties: [CFString: Any]? = nil
     if format == 1 || format == 5 { // JPEG or HEIC
         properties = [kCGImageDestinationLossyCompressionQuality: quality]
     }
-    
+
     CGImageDestinationAddImage(destination, cgImage, properties as CFDictionary?)
     return CGImageDestinationFinalize(destination)
 }
