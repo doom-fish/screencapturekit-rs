@@ -56,7 +56,7 @@ macos_26_0 = ["macos_15_2"]
 png = "0.18"
 tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
 winit = "0.28"
-raw-window-handle = "0.5"
+raw-window-handle = "0.6"
 
 [package.metadata.docs.rs]
 # Build documentation with all features enabled
