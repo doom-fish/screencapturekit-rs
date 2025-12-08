@@ -164,7 +164,8 @@ public func cm_sample_buffer_get_dirty_rects(_ sampleBuffer: UnsafeMutableRawPoi
     var rects: [CGRect] = []
     for item in dirtyRects {
         if let rectDict = item as? [String: Any],
-           let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary) {
+           let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
+        {
             rects.append(rect)
         }
     }
