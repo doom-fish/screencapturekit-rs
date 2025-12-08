@@ -64,3 +64,11 @@ impl Drop for CMBlockBuffer {
 
 unsafe impl Send for CMBlockBuffer {}
 unsafe impl Sync for CMBlockBuffer {}
+
+impl std::fmt::Debug for CMBlockBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CMBlockBuffer")
+            .field("ptr", &self.0)
+            .finish()
+    }
+}
