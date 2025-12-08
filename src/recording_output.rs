@@ -353,6 +353,16 @@ impl Default for RecordingCallbacks {
     }
 }
 
+impl std::fmt::Debug for RecordingCallbacks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RecordingCallbacks")
+            .field("on_start", &self.on_start.is_some())
+            .field("on_fail", &self.on_fail.is_some())
+            .field("on_finish", &self.on_finish.is_some())
+            .finish()
+    }
+}
+
 impl SCRecordingOutputDelegate for RecordingCallbacks {
     fn recording_did_start(&self) {
         if let Some(ref f) = self.on_start {
@@ -521,6 +531,16 @@ impl Clone for SCRecordingOutput {
                 delegate_ptr: None, // Delegate is not cloned - only one owner
             }
         }
+    }
+}
+
+impl std::fmt::Debug for SCRecordingOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SCRecordingOutput")
+            .field("recorded_duration", &self.recorded_duration())
+            .field("recorded_file_size", &self.recorded_file_size())
+            .field("has_delegate", &self.delegate_ptr.is_some())
+            .finish_non_exhaustive()
     }
 }
 
