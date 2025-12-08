@@ -104,6 +104,24 @@ impl AudioBufferRef<'_> {
     }
 }
 
+impl std::fmt::Debug for AudioBufferRef<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AudioBufferRef")
+            .field("channels", &self.buffer.number_channels)
+            .field("data_bytes", &self.buffer.data_bytes_size)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for AudioBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AudioBuffer")
+            .field("number_channels", &self.number_channels)
+            .field("data_bytes_size", &self.data_bytes_size)
+            .finish_non_exhaustive()
+    }
+}
+
 /// List of audio buffers from an audio sample
 #[repr(C)]
 #[derive(Debug)]
@@ -197,10 +215,27 @@ impl fmt::Display for AudioBufferList {
     }
 }
 
+impl fmt::Debug for AudioBufferList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AudioBufferList")
+            .field("num_buffers", &self.num_buffers())
+            .finish()
+    }
+}
+
 /// Iterator over audio buffers in an [`AudioBufferList`]
 pub struct AudioBufferListIter<'a> {
     list: &'a AudioBufferList,
     index: usize,
+}
+
+impl std::fmt::Debug for AudioBufferListIter<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AudioBufferListIter")
+            .field("total", &self.list.num_buffers())
+            .field("remaining", &(self.list.num_buffers().saturating_sub(self.index)))
+            .finish()
+    }
 }
 
 impl<'a> Iterator for AudioBufferListIter<'a> {

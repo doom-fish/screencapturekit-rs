@@ -435,6 +435,15 @@ impl Drop for CVPixelBufferLockGuard<'_> {
     }
 }
 
+impl std::fmt::Debug for CVPixelBufferLockGuard<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CVPixelBufferLockGuard")
+            .field("read_only", &self.read_only)
+            .field("buffer_size", &(self.buffer.width(), self.buffer.height()))
+            .finish()
+    }
+}
+
 impl Clone for CVPixelBuffer {
     fn clone(&self) -> Self {
         unsafe {

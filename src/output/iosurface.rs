@@ -145,6 +145,17 @@ impl Drop for IOSurfaceLockGuard<'_> {
     }
 }
 
+impl std::fmt::Debug for IOSurfaceLockGuard<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IOSurfaceLockGuard")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("bytes_per_row", &self.bytes_per_row)
+            .field("options", &self.options)
+            .finish_non_exhaustive()
+    }
+}
+
 impl std::ops::Deref for IOSurfaceLockGuard<'_> {
     type Target = [u8];
 

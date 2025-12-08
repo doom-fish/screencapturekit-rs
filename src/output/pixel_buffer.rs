@@ -275,6 +275,17 @@ impl Drop for PixelBufferLockGuard<'_> {
     }
 }
 
+impl std::fmt::Debug for PixelBufferLockGuard<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PixelBufferLockGuard")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("bytes_per_row", &self.bytes_per_row)
+            .field("flags", &self.flags)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Deref for PixelBufferLockGuard<'_> {
     type Target = [u8];
 

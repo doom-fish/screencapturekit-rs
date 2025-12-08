@@ -91,6 +91,7 @@ pub type SCResult<T> = Result<T, SCError>;
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SCError {
     /// Invalid configuration parameter
     InvalidConfiguration(String),

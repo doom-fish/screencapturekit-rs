@@ -308,6 +308,15 @@ impl Drop for CMFormatDescription {
 unsafe impl Send for CMFormatDescription {}
 unsafe impl Sync for CMFormatDescription {}
 
+impl fmt::Debug for CMFormatDescription {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CMFormatDescription")
+            .field("media_type", &self.media_type_string())
+            .field("codec", &self.media_subtype_string())
+            .finish()
+    }
+}
+
 impl fmt::Display for CMFormatDescription {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

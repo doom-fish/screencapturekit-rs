@@ -368,9 +368,11 @@ impl Clone for CMClock {
     }
 }
 
-impl fmt::Debug for CMClock {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CMClock").field("ptr", &self.ptr).finish()
+impl std::fmt::Debug for CMClock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CMClock")
+            .field("ptr", &self.ptr)
+            .finish()
     }
 }
 
