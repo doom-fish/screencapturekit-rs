@@ -441,6 +441,32 @@ fragment float4 fragment_ycbcr(TexturedVertexOut in [[stage_in]],
     bool full_range = (uniforms.pixel_format == 0x34323066); // '420f'
     return ycbcr_to_rgb(y, cbcr, full_range);
 }
+
+// Colored vertex input/output for UI overlays
+struct ColoredVertex {
+    float2 position [[attribute(0)]];
+    float4 color [[attribute(1)]];
+};
+
+struct ColoredVertexOut {
+    float4 position [[position]];
+    float4 color;
+};
+
+// Colored vertex shader for UI elements (position in pixels, converted to NDC)
+vertex ColoredVertexOut vertex_colored(ColoredVertex in [[stage_in]], constant Uniforms& uniforms [[buffer(1)]]) {
+    ColoredVertexOut out;
+    float2 ndc = (in.position / uniforms.viewport_size) * 2.0 - 1.0;
+    ndc.y = -ndc.y;
+    out.position = float4(ndc, 0.0, 1.0);
+    out.color = in.color;
+    return out;
+}
+
+// Colored fragment shader for UI elements
+fragment float4 fragment_colored(ColoredVertexOut in [[stage_in]]) {
+    return in.color;
+}
 ";
 
 /// Uniforms structure for Metal shaders
@@ -480,12 +506,46 @@ impl Uniforms {
         }
     }
 
+    /// Create uniforms from viewport size and captured textures
+    ///
+    /// Automatically extracts texture dimensions and pixel format.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use screencapturekit::output::metal::{MetalDevice, Uniforms};
+    /// use screencapturekit::output::IOSurface;
+    ///
+    /// fn example(surface: &IOSurface, device: &MetalDevice) {
+    ///     if let Some(textures) = surface.create_metal_textures(device) {
+    ///         let uniforms = Uniforms::from_captured_textures(1920.0, 1080.0, &textures);
+    ///     }
+    /// }
+    /// ```
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)] // Screen dimensions will fit in f32
+    pub fn from_captured_textures<T>(
+        viewport_width: f32,
+        viewport_height: f32,
+        textures: &CapturedTextures<T>,
+    ) -> Self {
+        Self {
+            viewport_size: [viewport_width, viewport_height],
+            texture_size: [textures.width as f32, textures.height as f32],
+            time: 0.0,
+            pixel_format: textures.pixel_format.as_u32(),
+            _padding: [0.0; 2],
+        }
+    }
+
     /// Set the pixel format
     ///
     /// Accepts either a `FourCharCode` or a raw `u32`:
-    /// ```ignore
-    /// uniforms.with_pixel_format(pixel_format::BGRA)  // FourCharCode
-    /// uniforms.with_pixel_format(0x42475241u32)       // raw u32
+    /// ```no_run
+    /// use screencapturekit::output::metal::{Uniforms, pixel_format};
+    ///
+    /// let uniforms = Uniforms::new(1920.0, 1080.0, 1920.0, 1080.0)
+    ///     .with_pixel_format(pixel_format::BGRA);
     /// ```
     #[must_use]
     pub fn with_pixel_format(mut self, format: impl Into<FourCharCode>) -> Self {
@@ -631,6 +691,10 @@ extern "C" {
         desc: *mut c_void,
         function: *mut c_void,
     );
+    fn metal_render_pipeline_descriptor_set_vertex_descriptor(
+        desc: *mut c_void,
+        vertex_descriptor: *mut c_void,
+    );
     fn metal_render_pipeline_descriptor_set_color_attachment_pixel_format(
         desc: *mut c_void,
         index: usize,
@@ -689,6 +753,10 @@ extern "C" {
     );
     fn metal_render_encoder_end_encoding(encoder: *mut c_void);
     fn metal_render_encoder_release(encoder: *mut c_void);
+
+    // NSView helpers
+    fn nsview_set_wants_layer(view: *mut c_void);
+    fn nsview_set_layer(view: *mut c_void, layer: *mut c_void);
 }
 
 // MARK: - Metal Device
@@ -795,6 +863,36 @@ impl MetalDevice {
     pub fn create_buffer(&self, length: usize, options: ResourceOptions) -> Option<MetalBuffer> {
         let ptr = unsafe { metal_device_create_buffer(self.ptr.as_ptr(), length, options.0) };
         NonNull::new(ptr).map(|ptr| MetalBuffer { ptr })
+    }
+
+    /// Create a buffer and populate it with the given data
+    ///
+    /// This is a convenience method that creates a buffer, copies the data,
+    /// and returns the buffer. Useful for uniform buffers or vertex data.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use screencapturekit::output::metal::{MetalDevice, Uniforms};
+    ///
+    /// fn example() {
+    ///     let device = MetalDevice::system_default().expect("No Metal device");
+    ///     let uniforms = Uniforms::new(1920.0, 1080.0, 1920.0, 1080.0);
+    ///     let buffer = device.create_buffer_with_data(&uniforms);
+    /// }
+    /// ```
+    #[must_use]
+    pub fn create_buffer_with_data<T>(&self, data: &T) -> Option<MetalBuffer> {
+        let size = std::mem::size_of::<T>();
+        let buffer = self.create_buffer(size, ResourceOptions::CPU_CACHE_MODE_DEFAULT_CACHE)?;
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                std::ptr::addr_of!(*data).cast::<u8>(),
+                buffer.contents().cast(),
+                size,
+            );
+        }
+        Some(buffer)
     }
 
     /// Create a render pipeline state from a descriptor
@@ -1230,6 +1328,50 @@ impl MTLPixelFormat {
     }
 }
 
+/// Vertex format for vertex attributes
+#[derive(Debug, Clone, Copy, Default)]
+#[repr(u64)]
+pub enum MTLVertexFormat {
+    /// Invalid format
+    Invalid = 0,
+    /// Two 32-bit floats
+    #[default]
+    Float2 = 29,
+    /// Three 32-bit floats
+    Float3 = 30,
+    /// Four 32-bit floats
+    Float4 = 31,
+}
+
+impl MTLVertexFormat {
+    /// Get the raw value
+    #[must_use]
+    pub const fn raw(self) -> u64 {
+        self as u64
+    }
+}
+
+/// Vertex step function
+#[derive(Debug, Clone, Copy, Default)]
+#[repr(u64)]
+pub enum MTLVertexStepFunction {
+    /// Constant value (same for all vertices)
+    Constant = 0,
+    /// Step once per vertex (default)
+    #[default]
+    PerVertex = 1,
+    /// Step once per instance
+    PerInstance = 2,
+}
+
+impl MTLVertexStepFunction {
+    /// Get the raw value
+    #[must_use]
+    pub const fn raw(self) -> u64 {
+        self as u64
+    }
+}
+
 /// Primitive type for drawing
 #[derive(Debug, Clone, Copy, Default)]
 #[repr(u64)]
@@ -1378,6 +1520,77 @@ impl Drop for MetalRenderPassDescriptor {
     }
 }
 
+// MARK: - Vertex Descriptor
+
+/// A vertex descriptor for specifying vertex buffer layout
+#[derive(Debug)]
+pub struct MetalVertexDescriptor {
+    ptr: NonNull<c_void>,
+}
+
+impl MetalVertexDescriptor {
+    /// Create a new vertex descriptor
+    ///
+    /// # Panics
+    /// Panics if descriptor creation fails (should not happen).
+    #[must_use]
+    pub fn new() -> Self {
+        let ptr = unsafe { metal_vertex_descriptor_create() };
+        Self {
+            ptr: NonNull::new(ptr).expect("vertex descriptor create failed"),
+        }
+    }
+
+    /// Set an attribute's format, offset, and buffer index
+    pub fn set_attribute(
+        &self,
+        index: usize,
+        format: MTLVertexFormat,
+        offset: usize,
+        buffer_index: usize,
+    ) {
+        unsafe {
+            metal_vertex_descriptor_set_attribute(
+                self.ptr.as_ptr(),
+                index,
+                format.raw(),
+                offset,
+                buffer_index,
+            );
+        }
+    }
+
+    /// Set a buffer layout's stride and step function
+    pub fn set_layout(&self, buffer_index: usize, stride: usize, step_function: MTLVertexStepFunction) {
+        unsafe {
+            metal_vertex_descriptor_set_layout(
+                self.ptr.as_ptr(),
+                buffer_index,
+                stride,
+                step_function.raw(),
+            );
+        }
+    }
+
+    /// Get the raw pointer
+    #[must_use]
+    pub fn as_ptr(&self) -> *mut c_void {
+        self.ptr.as_ptr()
+    }
+}
+
+impl Default for MetalVertexDescriptor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for MetalVertexDescriptor {
+    fn drop(&mut self) {
+        unsafe { metal_vertex_descriptor_release(self.ptr.as_ptr()) }
+    }
+}
+
 // MARK: - Render Pipeline Descriptor
 
 /// A render pipeline descriptor
@@ -1415,6 +1628,16 @@ impl MetalRenderPipelineDescriptor {
             metal_render_pipeline_descriptor_set_fragment_function(
                 self.ptr.as_ptr(),
                 function.as_ptr(),
+            );
+        }
+    }
+
+    /// Set the vertex descriptor for vertex buffer layout
+    pub fn set_vertex_descriptor(&self, descriptor: &MetalVertexDescriptor) {
+        unsafe {
+            metal_render_pipeline_descriptor_set_vertex_descriptor(
+                self.ptr.as_ptr(),
+                descriptor.as_ptr(),
             );
         }
     }
@@ -1615,12 +1838,17 @@ impl IOSurface {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let device = MetalDevice::system_default()?;
-    /// let textures = surface.create_metal_textures(&device)?;
+    /// ```no_run
+    /// use screencapturekit::output::metal::MetalDevice;
+    /// use screencapturekit::output::IOSurface;
     ///
-    /// if textures.is_ycbcr() {
-    ///     // Use YCbCr shader with plane0 (Y) and plane1 (CbCr)
+    /// fn example(surface: &IOSurface) {
+    ///     let device = MetalDevice::system_default().expect("No Metal device");
+    ///     if let Some(textures) = surface.create_metal_textures(&device) {
+    ///         if textures.is_ycbcr() {
+    ///             // Use YCbCr shader with plane0 (Y) and plane1 (CbCr)
+    ///         }
+    ///     }
     /// }
     /// ```
     #[must_use]
@@ -1678,6 +1906,68 @@ impl IOSurface {
         };
         NonNull::new(ptr).map(|ptr| MetalTexture { ptr })
     }
+}
+
+// MARK: - Autorelease Pool
+
+#[link(name = "Foundation", kind = "framework")]
+extern "C" {
+    fn objc_autoreleasePoolPush() -> *mut c_void;
+    fn objc_autoreleasePoolPop(pool: *mut c_void);
+}
+
+/// Execute a closure within an autorelease pool
+///
+/// This is equivalent to `@autoreleasepool { ... }` in Objective-C/Swift.
+/// Use this when running code that creates temporary Objective-C objects
+/// that need to be released promptly.
+///
+/// # Example
+///
+/// ```no_run
+/// use screencapturekit::output::metal::autoreleasepool;
+///
+/// autoreleasepool(|| {
+///     // Code that creates temporary Objective-C objects
+///     println!("Inside autorelease pool");
+/// });
+/// ```
+pub fn autoreleasepool<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    unsafe {
+        let pool = objc_autoreleasePoolPush();
+        let result = f();
+        objc_autoreleasePoolPop(pool);
+        result
+    }
+}
+
+// MARK: - NSView Helpers
+
+/// Set up an `NSView` for Metal rendering
+///
+/// This sets `wantsLayer = YES` and assigns the Metal layer to the view.
+///
+/// # Safety
+///
+/// The `view` pointer must be a valid `NSView` pointer.
+///
+/// # Example
+///
+/// ```no_run
+/// use screencapturekit::output::metal::{setup_metal_view, MetalLayer};
+/// use std::ffi::c_void;
+///
+/// fn example(ns_view: *mut c_void) {
+///     let layer = MetalLayer::new();
+///     unsafe { setup_metal_view(ns_view, &layer); }
+/// }
+/// ```
+pub unsafe fn setup_metal_view(view: *mut c_void, layer: &MetalLayer) {
+    nsview_set_wants_layer(view);
+    nsview_set_layer(view, layer.as_ptr());
 }
 
 #[cfg(test)]

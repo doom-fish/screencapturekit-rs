@@ -1,8 +1,8 @@
 // Metal Bridge - Create Metal textures from IOSurface
 
 import Foundation
-import Metal
 import IOSurface
+import Metal
 import QuartzCore
 
 // MARK: - Metal Texture from IOSurface
@@ -16,11 +16,11 @@ public func metal_create_texture_from_iosurface(
     _ plane: Int,
     _ width: Int,
     _ height: Int,
-    _ pixelFormat: UInt  // MTLPixelFormat raw value
+    _ pixelFormat: UInt // MTLPixelFormat raw value
 ) -> UnsafeMutableRawPointer? {
     let mtlDevice = Unmanaged<MTLDevice>.fromOpaque(device).takeUnretainedValue()
     let ioSurface = Unmanaged<IOSurface>.fromOpaque(ioSurfacePtr).takeUnretainedValue()
-    
+
     let descriptor = MTLTextureDescriptor.texture2DDescriptor(
         pixelFormat: MTLPixelFormat(rawValue: pixelFormat) ?? .bgra8Unorm,
         width: width,
@@ -29,7 +29,7 @@ public func metal_create_texture_from_iosurface(
     )
     descriptor.storageMode = .shared
     descriptor.usage = .shaderRead
-    
+
     guard let texture = mtlDevice.makeTexture(
         descriptor: descriptor,
         iosurface: ioSurface,
@@ -37,7 +37,7 @@ public func metal_create_texture_from_iosurface(
     ) else {
         return nil
     }
-    
+
     return Unmanaged.passRetained(texture).toOpaque()
 }
 
@@ -129,7 +129,7 @@ public func metal_device_create_library_with_source(
 ) -> UnsafeMutableRawPointer? {
     let dev = Unmanaged<MTLDevice>.fromOpaque(device).takeUnretainedValue()
     let sourceStr = String(cString: source)
-    
+
     do {
         let library = try dev.makeLibrary(source: sourceStr, options: nil)
         return Unmanaged.passRetained(library).toOpaque()
@@ -175,7 +175,7 @@ public func metal_function_release(_ function: UnsafeMutableRawPointer) {
 public func metal_device_create_buffer(
     _ device: UnsafeMutableRawPointer,
     _ length: Int,
-    _ options: UInt  // MTLResourceOptions raw value
+    _ options: UInt // MTLResourceOptions raw value
 ) -> UnsafeMutableRawPointer? {
     let dev = Unmanaged<MTLDevice>.fromOpaque(device).takeUnretainedValue()
     guard let buffer = dev.makeBuffer(length: length, options: MTLResourceOptions(rawValue: options)) else {
@@ -202,7 +202,7 @@ public func metal_buffer_length(_ buffer: UnsafeMutableRawPointer) -> Int {
 @_cdecl("metal_buffer_did_modify_range")
 public func metal_buffer_did_modify_range(_ buffer: UnsafeMutableRawPointer, _ location: Int, _ length: Int) {
     let buf = Unmanaged<MTLBuffer>.fromOpaque(buffer).takeUnretainedValue()
-    buf.didModifyRange(location..<(location + length))
+    buf.didModifyRange(location ..< (location + length))
 }
 
 /// Release a buffer
@@ -353,7 +353,7 @@ public func metal_render_pass_set_color_attachment_texture(
 public func metal_render_pass_set_color_attachment_load_action(
     _ desc: UnsafeMutableRawPointer,
     _ index: Int,
-    _ action: UInt  // MTLLoadAction raw value
+    _ action: UInt // MTLLoadAction raw value
 ) {
     let rpd = Unmanaged<MTLRenderPassDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].loadAction = MTLLoadAction(rawValue: action) ?? .clear
@@ -364,7 +364,7 @@ public func metal_render_pass_set_color_attachment_load_action(
 public func metal_render_pass_set_color_attachment_store_action(
     _ desc: UnsafeMutableRawPointer,
     _ index: Int,
-    _ action: UInt  // MTLStoreAction raw value
+    _ action: UInt // MTLStoreAction raw value
 ) {
     let rpd = Unmanaged<MTLRenderPassDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].storeAction = MTLStoreAction(rawValue: action) ?? .store
@@ -385,6 +385,49 @@ public func metal_render_pass_set_color_attachment_clear_color(
 @_cdecl("metal_render_pass_descriptor_release")
 public func metal_render_pass_descriptor_release(_ desc: UnsafeMutableRawPointer) {
     Unmanaged<MTLRenderPassDescriptor>.fromOpaque(desc).release()
+}
+
+// MARK: - Vertex Descriptor
+
+/// Create a vertex descriptor
+@_cdecl("metal_vertex_descriptor_create")
+public func metal_vertex_descriptor_create() -> UnsafeMutableRawPointer {
+    let desc = MTLVertexDescriptor()
+    return Unmanaged.passRetained(desc).toOpaque()
+}
+
+/// Set attribute format, offset, and buffer index
+@_cdecl("metal_vertex_descriptor_set_attribute")
+public func metal_vertex_descriptor_set_attribute(
+    _ desc: UnsafeMutableRawPointer,
+    _ index: Int,
+    _ format: UInt, // MTLVertexFormat raw value
+    _ offset: Int,
+    _ bufferIndex: Int
+) {
+    let vd = Unmanaged<MTLVertexDescriptor>.fromOpaque(desc).takeUnretainedValue()
+    vd.attributes[index].format = MTLVertexFormat(rawValue: format) ?? .float2
+    vd.attributes[index].offset = offset
+    vd.attributes[index].bufferIndex = bufferIndex
+}
+
+/// Set layout stride and step function
+@_cdecl("metal_vertex_descriptor_set_layout")
+public func metal_vertex_descriptor_set_layout(
+    _ desc: UnsafeMutableRawPointer,
+    _ bufferIndex: Int,
+    _ stride: Int,
+    _ stepFunction: UInt // MTLVertexStepFunction raw value
+) {
+    let vd = Unmanaged<MTLVertexDescriptor>.fromOpaque(desc).takeUnretainedValue()
+    vd.layouts[bufferIndex].stride = stride
+    vd.layouts[bufferIndex].stepFunction = MTLVertexStepFunction(rawValue: stepFunction) ?? .perVertex
+}
+
+/// Release vertex descriptor
+@_cdecl("metal_vertex_descriptor_release")
+public func metal_vertex_descriptor_release(_ desc: UnsafeMutableRawPointer) {
+    Unmanaged<MTLVertexDescriptor>.fromOpaque(desc).release()
 }
 
 // MARK: - Render Pipeline
@@ -468,6 +511,17 @@ public func metal_render_pipeline_descriptor_set_blend_factors(
     rpd.colorAttachments[index].destinationRGBBlendFactor = MTLBlendFactor(rawValue: dstRgb) ?? .zero
     rpd.colorAttachments[index].sourceAlphaBlendFactor = MTLBlendFactor(rawValue: srcAlpha) ?? .one
     rpd.colorAttachments[index].destinationAlphaBlendFactor = MTLBlendFactor(rawValue: dstAlpha) ?? .zero
+}
+
+/// Set vertex descriptor on render pipeline descriptor
+@_cdecl("metal_render_pipeline_descriptor_set_vertex_descriptor")
+public func metal_render_pipeline_descriptor_set_vertex_descriptor(
+    _ desc: UnsafeMutableRawPointer,
+    _ vertexDescriptor: UnsafeMutableRawPointer
+) {
+    let rpd = Unmanaged<MTLRenderPipelineDescriptor>.fromOpaque(desc).takeUnretainedValue()
+    let vd = Unmanaged<MTLVertexDescriptor>.fromOpaque(vertexDescriptor).takeUnretainedValue()
+    rpd.vertexDescriptor = vd
 }
 
 /// Release render pipeline descriptor
@@ -567,7 +621,7 @@ public func metal_render_encoder_set_fragment_texture(
 @_cdecl("metal_render_encoder_draw_primitives")
 public func metal_render_encoder_draw_primitives(
     _ encoder: UnsafeMutableRawPointer,
-    _ primitiveType: UInt,  // MTLPrimitiveType raw value
+    _ primitiveType: UInt, // MTLPrimitiveType raw value
     _ vertexStart: Int,
     _ vertexCount: Int
 ) {
@@ -586,4 +640,23 @@ public func metal_render_encoder_end_encoding(_ encoder: UnsafeMutableRawPointer
 @_cdecl("metal_render_encoder_release")
 public func metal_render_encoder_release(_ encoder: UnsafeMutableRawPointer) {
     Unmanaged<MTLRenderCommandEncoder>.fromOpaque(encoder).release()
+}
+
+// MARK: - NSView Helpers
+
+import AppKit
+
+/// Set wantsLayer on a view (YES)
+@_cdecl("nsview_set_wants_layer")
+public func nsview_set_wants_layer(_ view: UnsafeMutableRawPointer) {
+    let nsView = Unmanaged<NSView>.fromOpaque(view).takeUnretainedValue()
+    nsView.wantsLayer = true
+}
+
+/// Set the layer on a view
+@_cdecl("nsview_set_layer")
+public func nsview_set_layer(_ view: UnsafeMutableRawPointer, _ layer: UnsafeMutableRawPointer) {
+    let nsView = Unmanaged<NSView>.fromOpaque(view).takeUnretainedValue()
+    let caLayer = Unmanaged<CAMetalLayer>.fromOpaque(layer).takeUnretainedValue()
+    nsView.layer = caLayer
 }
