@@ -718,15 +718,15 @@ impl Drop for SCStream {
 impl Clone for SCStream {
     /// Clone the stream reference.
     ///
-    /// **Important:** Cloning an `SCStream` creates a new reference to the same
-    /// underlying Swift `SCStream` object, but the cloned stream will **not**
-    /// have any output handlers attached. Output handlers are per-instance and
-    /// must be added separately to the cloned stream if needed.
+    /// Cloning an `SCStream` creates a new reference to the same underlying
+    /// Swift `SCStream` object. The cloned stream shares the same handlers
+    /// as the original - they receive frames from the same capture session.
     ///
     /// Both the original and cloned stream share the same capture state, so:
     /// - Starting capture on one affects both
     /// - Stopping capture on one affects both
     /// - Configuration updates affect both
+    /// - Handlers receive the same frames
     ///
     /// # Examples
     ///
@@ -741,10 +741,9 @@ impl Clone for SCStream {
     /// let mut stream = SCStream::new(&filter, &config);
     /// stream.add_output_handler(|_, _| println!("Handler 1"), SCStreamOutputType::Screen);
     ///
-    /// // Clone creates a new reference but WITHOUT handlers
-    /// let mut stream2 = stream.clone();
-    /// // stream2 has no handlers - you must add them if needed
-    /// stream2.add_output_handler(|_, _| println!("Handler 2"), SCStreamOutputType::Screen);
+    /// // Clone shares the same handlers
+    /// let stream2 = stream.clone();
+    /// // Both stream and stream2 will receive frames via Handler 1
     /// # Ok(())
     /// # }
     /// ```
@@ -761,10 +760,22 @@ impl Clone for SCStream {
             }
         }
 
+        // Increment handler ref counts for all handlers this stream references
+        {
+            let mut registry = HANDLER_REGISTRY.lock().unwrap();
+            if let Some(handlers) = registry.as_mut() {
+                for (id, _) in &self.handler_ids {
+                    if let Some(entry) = handlers.get_mut(id) {
+                        entry.ref_count += 1;
+                    }
+                }
+            }
+        }
+
         unsafe {
             Self {
                 ptr: crate::ffi::sc_stream_retain(self.ptr),
-                handler_ids: Vec::new(),
+                handler_ids: self.handler_ids.clone(),
             }
         }
     }
