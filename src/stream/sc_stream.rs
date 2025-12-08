@@ -749,6 +749,18 @@ impl Clone for SCStream {
     /// # }
     /// ```
     fn clone(&self) -> Self {
+        // Increment delegate ref count if one exists for this stream
+        if !self.ptr.is_null() {
+            let stream_key = self.ptr as usize;
+            if let Ok(mut registry) = DELEGATE_REGISTRY.lock() {
+                if let Some(delegates) = registry.as_mut() {
+                    if let Some(entry) = delegates.get_mut(&stream_key) {
+                        entry.ref_count += 1;
+                    }
+                }
+            }
+        }
+
         unsafe {
             Self {
                 ptr: crate::ffi::sc_stream_retain(self.ptr),
