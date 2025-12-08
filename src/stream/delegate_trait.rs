@@ -1,6 +1,9 @@
 //! Delegate trait for stream lifecycle events
 //!
 //! Defines the interface for receiving stream state change notifications.
+//!
+//! Use [`SCStream::new_with_delegate`](crate::stream::SCStream::new_with_delegate)
+//! to create a stream with a delegate that receives error callbacks.
 
 use crate::error::SCError;
 

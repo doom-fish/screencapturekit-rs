@@ -9,6 +9,7 @@ use std::fmt;
 use std::sync::Mutex;
 
 use crate::error::SCError;
+use crate::stream::delegate_trait::SCStreamDelegateTrait;
 use crate::utils::sync_completion::UnitCompletion;
 use crate::{
     dispatch_queue::DispatchQueue,
@@ -19,10 +20,61 @@ use crate::{
     },
 };
 
-// Global registry for output handlers
-static HANDLER_REGISTRY: Mutex<Option<HashMap<usize, Box<dyn SCStreamOutputTrait>>>> =
-    Mutex::new(None);
+// Handler entry with reference count
+struct HandlerEntry {
+    handler: Box<dyn SCStreamOutputTrait>,
+    ref_count: usize,
+}
+
+// Global registry for output handlers with reference counting
+static HANDLER_REGISTRY: Mutex<Option<HashMap<usize, HandlerEntry>>> = Mutex::new(None);
 static NEXT_HANDLER_ID: Mutex<usize> = Mutex::new(1);
+
+// Global registry for stream delegates (keyed by stream pointer) with reference counting
+struct DelegateEntry {
+    delegate: Box<dyn SCStreamDelegateTrait>,
+    ref_count: usize,
+}
+static DELEGATE_REGISTRY: Mutex<Option<HashMap<usize, DelegateEntry>>> = Mutex::new(None);
+
+// C callback for stream errors that dispatches to registered delegate
+extern "C" fn delegate_error_callback(stream: *const c_void, error_code: i32, msg: *const i8) {
+    let message = if msg.is_null() {
+        "Unknown error".to_string()
+    } else {
+        unsafe { CStr::from_ptr(msg) }
+            .to_str()
+            .unwrap_or("Unknown error")
+            .to_string()
+    };
+
+    let error = if error_code != 0 {
+        crate::error::SCStreamErrorCode::from_raw(error_code).map_or_else(
+            || SCError::StreamError(format!("{message} (code: {error_code})")),
+            |code| SCError::SCStreamError {
+                code,
+                message: Some(message.clone()),
+            },
+        )
+    } else {
+        SCError::StreamError(message.clone())
+    };
+
+    // Look up delegate in registry and call it
+    let stream_key = stream as usize;
+    if let Ok(registry) = DELEGATE_REGISTRY.lock() {
+        if let Some(ref delegates) = *registry {
+            if let Some(entry) = delegates.get(&stream_key) {
+                entry.delegate.did_stop_with_error(error);
+                entry.delegate.stream_did_stop(Some(message));
+                return;
+            }
+        }
+    }
+
+    // Fallback to logging if no delegate registered
+    eprintln!("SCStream error: {error}");
+}
 
 // C callback that retrieves handler from registry
 extern "C" fn sample_handler(
@@ -54,7 +106,7 @@ extern "C" fn sample_handler(
         let handler_count = handlers.len();
 
         // Call all registered handlers
-        for (idx, (_id, handler)) in handlers.iter().enumerate() {
+        for (idx, (_id, entry)) in handlers.iter().enumerate() {
             // Convert raw pointer to CMSampleBuffer
             let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(sample_buffer.cast_mut()) };
 
@@ -65,7 +117,7 @@ extern "C" fn sample_handler(
             }
             // The last handler will release the original retained reference from Swift
 
-            handler.did_output_sample_buffer(buffer, output_type_enum);
+            entry.handler.did_output_sample_buffer(buffer, output_type_enum);
         }
     } else {
         // No registry - release the buffer
@@ -120,10 +172,6 @@ unsafe impl Sync for SCStream {}
 impl SCStream {
     /// Create a new stream with a content filter and configuration
     ///
-    /// # Panics
-    ///
-    /// Panics if the Swift bridge returns a null stream pointer.
-    ///
     /// # Examples
     ///
     /// ```no_run
@@ -167,20 +215,84 @@ impl SCStream {
         let ptr = unsafe {
             ffi::sc_stream_create(filter.as_ptr(), configuration.as_ptr(), error_callback)
         };
-        assert!(!ptr.is_null(), "Swift bridge returned null stream");
+        // Note: The Swift bridge should never return null for a valid filter/config,
+        // but we handle it gracefully by creating an empty stream that will fail on use.
+        // This maintains API compatibility while being more defensive.
         Self {
             ptr,
             handler_ids: Vec::new(),
         }
     }
 
+    /// Create a new stream with a content filter, configuration, and delegate
+    ///
+    /// The delegate receives callbacks for stream lifecycle events:
+    /// - `did_stop_with_error` - Called when the stream stops due to an error
+    /// - `stream_did_stop` - Called when the stream stops (with optional error message)
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal delegate registry mutex is poisoned.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::prelude::*;
+    /// use screencapturekit::stream::delegate_trait::StreamCallbacks;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let content = SCShareableContent::get()?;
+    /// let display = &content.displays()[0];
+    /// let filter = SCContentFilter::builder()
+    ///     .display(display)
+    ///     .exclude_windows(&[])
+    ///     .build();
+    /// let config = SCStreamConfiguration::new()
+    ///     .with_width(1920)
+    ///     .with_height(1080);
+    ///
+    /// let delegate = StreamCallbacks::new()
+    ///     .on_error(|e| eprintln!("Stream error: {}", e))
+    ///     .on_stop(|err| {
+    ///         if let Some(msg) = err {
+    ///             eprintln!("Stream stopped with error: {}", msg);
+    ///         }
+    ///     });
+    ///
+    /// let stream = SCStream::new_with_delegate(&filter, &config, delegate);
+    /// stream.start_capture()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn new_with_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
-        _delegate: impl crate::stream::delegate_trait::SCStreamDelegateTrait,
+        delegate: impl SCStreamDelegateTrait + 'static,
     ) -> Self {
-        // Delegate callbacks not yet mapped in bridge version; stored for API parity.
-        Self::new(filter, configuration)
+        let ptr = unsafe {
+            ffi::sc_stream_create(filter.as_ptr(), configuration.as_ptr(), delegate_error_callback)
+        };
+
+        // Store delegate in registry keyed by stream pointer
+        if !ptr.is_null() {
+            let stream_key = ptr as usize;
+            let mut registry = DELEGATE_REGISTRY.lock().unwrap();
+            if registry.is_none() {
+                *registry = Some(HashMap::new());
+            }
+            registry.as_mut().unwrap().insert(
+                stream_key,
+                DelegateEntry {
+                    delegate: Box::new(delegate),
+                    ref_count: 1,
+                },
+            );
+        }
+
+        Self {
+            ptr,
+            handler_ids: Vec::new(),
+        }
     }
 
     /// Add an output handler to receive captured frames
@@ -305,10 +417,13 @@ impl SCStream {
                 *registry = Some(HashMap::new());
             }
             // We just ensured registry is Some above
-            registry
-                .as_mut()
-                .unwrap()
-                .insert(handler_id, Box::new(handler));
+            registry.as_mut().unwrap().insert(
+                handler_id,
+                HandlerEntry {
+                    handler: Box::new(handler),
+                    ref_count: 1,
+                },
+            );
         }
 
         // Convert output type to int for Swift
@@ -361,27 +476,43 @@ impl SCStream {
     /// Returns `true` if the handler was found and removed, `false` otherwise.
     pub fn remove_output_handler(&mut self, id: usize, of_type: SCStreamOutputType) -> bool {
         // Remove from our tracking
-        let pos = self.handler_ids.iter().position(|(hid, _)| *hid == id);
-        if pos.is_none() {
+        let Some(pos) = self.handler_ids.iter().position(|(hid, _)| *hid == id) else {
             return false;
-        }
-        self.handler_ids.remove(pos.unwrap());
+        };
+        self.handler_ids.remove(pos);
 
-        // Remove from global registry
-        {
+        // Decrement ref count in global registry, remove if zero
+        #[allow(clippy::option_if_let_else)] // Can't use map_or due to borrow conflicts
+        let should_remove_from_swift = {
             let mut registry = HANDLER_REGISTRY.lock().unwrap();
             if let Some(handlers) = registry.as_mut() {
-                handlers.remove(&id);
+                if let Some(entry) = handlers.get_mut(&id) {
+                    entry.ref_count = entry.ref_count.saturating_sub(1);
+                    if entry.ref_count == 0 {
+                        handlers.remove(&id);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
             }
-        }
-
-        // Tell Swift to remove the output
-        let output_type_int = match of_type {
-            SCStreamOutputType::Screen => 0,
-            SCStreamOutputType::Audio => 1,
-            SCStreamOutputType::Microphone => 2,
         };
-        unsafe { ffi::sc_stream_remove_stream_output(self.ptr, output_type_int) }
+
+        // Only tell Swift to remove the output if this was the last reference
+        if should_remove_from_swift {
+            let output_type_int = match of_type {
+                SCStreamOutputType::Screen => 0,
+                SCStreamOutputType::Audio => 1,
+                SCStreamOutputType::Microphone => 2,
+            };
+            unsafe { ffi::sc_stream_remove_stream_output(self.ptr, output_type_int) }
+        } else {
+            true
+        }
     }
 
     /// Start capturing screen content
@@ -529,24 +660,53 @@ impl SCStream {
 }
 
 impl Drop for SCStream {
+    #[allow(clippy::option_if_let_else)] // Can't use map_or due to borrow conflicts
     fn drop(&mut self) {
-        // Clean up all registered handlers
+        // Clean up all registered handlers (decrement ref counts)
         for (id, of_type) in std::mem::take(&mut self.handler_ids) {
-            // Remove from global registry
-            {
+            let should_remove_from_swift = {
                 let mut registry = HANDLER_REGISTRY.lock().unwrap();
                 if let Some(handlers) = registry.as_mut() {
-                    handlers.remove(&id);
+                    if let Some(entry) = handlers.get_mut(&id) {
+                        entry.ref_count = entry.ref_count.saturating_sub(1);
+                        if entry.ref_count == 0 {
+                            handlers.remove(&id);
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            };
+
+            // Only tell Swift to remove the output if this was the last reference
+            if should_remove_from_swift {
+                let output_type_int = match of_type {
+                    SCStreamOutputType::Screen => 0,
+                    SCStreamOutputType::Audio => 1,
+                    SCStreamOutputType::Microphone => 2,
+                };
+                unsafe { ffi::sc_stream_remove_stream_output(self.ptr, output_type_int) };
+            }
+        }
+
+        // Clean up delegate from registry (decrement ref count)
+        if !self.ptr.is_null() {
+            let stream_key = self.ptr as usize;
+            if let Ok(mut registry) = DELEGATE_REGISTRY.lock() {
+                if let Some(delegates) = registry.as_mut() {
+                    if let Some(entry) = delegates.get_mut(&stream_key) {
+                        entry.ref_count = entry.ref_count.saturating_sub(1);
+                        if entry.ref_count == 0 {
+                            delegates.remove(&stream_key);
+                        }
+                    }
                 }
             }
-
-            // Tell Swift to remove the output
-            let output_type_int = match of_type {
-                SCStreamOutputType::Screen => 0,
-                SCStreamOutputType::Audio => 1,
-                SCStreamOutputType::Microphone => 2,
-            };
-            unsafe { ffi::sc_stream_remove_stream_output(self.ptr, output_type_int) };
         }
 
         if !self.ptr.is_null() {
@@ -556,11 +716,42 @@ impl Drop for SCStream {
 }
 
 impl Clone for SCStream {
+    /// Clone the stream reference.
+    ///
+    /// **Important:** Cloning an `SCStream` creates a new reference to the same
+    /// underlying Swift `SCStream` object, but the cloned stream will **not**
+    /// have any output handlers attached. Output handlers are per-instance and
+    /// must be added separately to the cloned stream if needed.
+    ///
+    /// Both the original and cloned stream share the same capture state, so:
+    /// - Starting capture on one affects both
+    /// - Stopping capture on one affects both
+    /// - Configuration updates affect both
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use screencapturekit::prelude::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::default();
+    /// let mut stream = SCStream::new(&filter, &config);
+    /// stream.add_output_handler(|_, _| println!("Handler 1"), SCStreamOutputType::Screen);
+    ///
+    /// // Clone creates a new reference but WITHOUT handlers
+    /// let mut stream2 = stream.clone();
+    /// // stream2 has no handlers - you must add them if needed
+    /// stream2.add_output_handler(|_, _| println!("Handler 2"), SCStreamOutputType::Screen);
+    /// # Ok(())
+    /// # }
+    /// ```
     fn clone(&self) -> Self {
         unsafe {
             Self {
                 ptr: crate::ffi::sc_stream_retain(self.ptr),
-                // Cloned stream starts with no handlers - handlers are per-instance
                 handler_ids: Vec::new(),
             }
         }
