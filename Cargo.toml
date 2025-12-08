@@ -55,8 +55,6 @@ macos_26_0 = ["macos_15_2"]
 [dev-dependencies]
 png = "0.18"
 tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
-cocoa = "0.26"
-objc = "0.2"
 winit = "0.28"
 raw-window-handle = "0.5"
 
