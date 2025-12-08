@@ -66,6 +66,12 @@ pub struct AsyncShareableContentFuture {
     inner: AsyncCompletionFuture<SCShareableContent>,
 }
 
+impl std::fmt::Debug for AsyncShareableContentFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncShareableContentFuture").finish_non_exhaustive()
+    }
+}
+
 impl Future for AsyncShareableContentFuture {
     type Output = Result<SCShareableContent, SCError>;
 
@@ -80,6 +86,7 @@ impl Future for AsyncShareableContentFuture {
 ///
 /// Provides async methods to retrieve displays, windows, and applications
 /// without blocking. **Executor-agnostic** - works with any async runtime.
+#[derive(Debug, Clone, Copy)]
 pub struct AsyncSCShareableContent;
 
 impl AsyncSCShareableContent {
@@ -196,6 +203,12 @@ impl Drop for AsyncSampleSender {
 /// Future for getting the next sample buffer
 pub struct NextSample<'a> {
     state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
+}
+
+impl std::fmt::Debug for NextSample<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NextSample").finish_non_exhaustive()
+    }
 }
 
 impl Future for NextSample<'_> {
@@ -374,6 +387,16 @@ impl AsyncSCStream {
     }
 }
 
+impl std::fmt::Debug for AsyncSCStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncSCStream")
+            .field("stream", &self.stream)
+            .field("buffered_count", &self.buffered_count())
+            .field("is_closed", &self.is_closed())
+            .finish_non_exhaustive()
+    }
+}
+
 // ============================================================================
 // AsyncSCScreenshotManager - Async screenshot capture (macOS 14.0+)
 // ============================================================================
@@ -406,6 +429,7 @@ impl AsyncSCStream {
 /// # }
 /// ```
 #[cfg(feature = "macos_14_0")]
+#[derive(Debug, Clone, Copy)]
 pub struct AsyncSCScreenshotManager;
 
 /// Callback for async `CGImage` capture
@@ -460,6 +484,13 @@ extern "C" fn screenshot_buffer_callback(
 #[cfg(feature = "macos_14_0")]
 pub struct AsyncScreenshotFuture<T> {
     inner: AsyncCompletionFuture<T>,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl<T> std::fmt::Debug for AsyncScreenshotFuture<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncScreenshotFuture").finish_non_exhaustive()
+    }
 }
 
 #[cfg(feature = "macos_14_0")]
@@ -675,6 +706,13 @@ pub struct AsyncPickerFuture {
 }
 
 #[cfg(feature = "macos_14_0")]
+impl std::fmt::Debug for AsyncPickerFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncPickerFuture").finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
 impl Future for AsyncPickerFuture {
     type Output = crate::content_sharing_picker::SCPickerOutcome;
 
@@ -702,6 +740,13 @@ impl Future for AsyncPickerFuture {
 #[cfg(feature = "macos_14_0")]
 pub struct AsyncPickerFilterFuture {
     inner: AsyncCompletionFuture<AsyncPickerCallbackResult>,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl std::fmt::Debug for AsyncPickerFilterFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncPickerFilterFuture").finish_non_exhaustive()
+    }
 }
 
 #[cfg(feature = "macos_14_0")]
@@ -753,6 +798,7 @@ impl Future for AsyncPickerFilterFuture {
 /// }
 /// ```
 #[cfg(feature = "macos_14_0")]
+#[derive(Debug, Clone, Copy)]
 pub struct AsyncSCContentSharingPicker;
 
 #[cfg(feature = "macos_14_0")]
@@ -941,6 +987,13 @@ pub struct NextRecordingEvent<'a> {
 }
 
 #[cfg(feature = "macos_15_0")]
+impl std::fmt::Debug for NextRecordingEvent<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NextRecordingEvent").finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "macos_15_0")]
 impl Future for NextRecordingEvent<'_> {
     type Output = Option<RecordingEvent>;
 
@@ -1012,6 +1065,13 @@ impl Future for NextRecordingEvent<'_> {
 #[cfg(feature = "macos_15_0")]
 pub struct AsyncSCRecordingOutput {
     state: Arc<Mutex<AsyncRecordingState>>,
+}
+
+#[cfg(feature = "macos_15_0")]
+impl std::fmt::Debug for AsyncSCRecordingOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncSCRecordingOutput").finish_non_exhaustive()
+    }
 }
 
 #[cfg(feature = "macos_15_0")]
