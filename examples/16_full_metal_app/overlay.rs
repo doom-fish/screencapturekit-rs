@@ -62,7 +62,7 @@ impl OverlayState {
         &["Capture", "Screenshot", "Config", "Change Source", "Quit"];
 
     /// Get current menu items based on mode
-    pub fn menu_items(&self) -> &'static [&'static str] {
+    pub const fn menu_items(&self) -> &'static [&'static str] {
         match self.menu_mode {
             MenuMode::Initial => Self::MENU_ITEMS_INITIAL,
             MenuMode::Full => Self::MENU_ITEMS_FULL,
@@ -70,7 +70,7 @@ impl OverlayState {
     }
 
     /// Get current menu item count
-    pub fn menu_count(&self) -> usize {
+    pub const fn menu_count(&self) -> usize {
         self.menu_items().len()
     }
 

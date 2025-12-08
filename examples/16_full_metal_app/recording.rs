@@ -111,14 +111,13 @@ impl RecordingState {
                 println!("📹 Recording started");
             })
             .on_finish(move || {
-                println!("📹 Recording finished: {}", path_for_callback);
+                println!("📹 Recording finished: {path_for_callback}");
                 let (lock, cvar) = &*finish_signal;
-                let mut finished = lock.lock().unwrap();
-                *finished = true;
+                *lock.lock().unwrap() = true;
                 cvar.notify_all();
             })
             .on_fail(|error| {
-                eprintln!("❌ Recording failed: {}", error);
+                eprintln!("❌ Recording failed: {error}");
             });
 
         match SCRecordingOutput::new_with_delegate(&rec_config, delegate) {
@@ -162,6 +161,7 @@ impl RecordingState {
                     break;
                 }
             }
+            drop(finished);
         }
 
         self.output = None;

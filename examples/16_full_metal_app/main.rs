@@ -1,15 +1,13 @@
 //! Full Metal Application
 //!
-//! A complete macOS application demonstrating the full ScreenCaptureKit API:
+//! A complete macOS application demonstrating the full `ScreenCaptureKit` API:
 //!
 //! - **Metal GPU Rendering** - Hardware-accelerated graphics with runtime shader compilation
-//! - **Screen Capture** - Real-time display/window capture via ScreenCaptureKit
+//! - **Screen Capture** - Real-time display/window capture via `ScreenCaptureKit`
 //! - **Content Picker** - System UI for selecting capture source (macOS 14.0+)
 //! - **Audio Visualization** - Real-time waveform display with VU meters
 //! - **Screenshot Capture** - Single-frame capture with HDR support (macOS 14.0+/26.0+)
 //! - **Video Recording** - Direct-to-file recording (macOS 15.0+)
-
-#![allow(deprecated)] // Suppress cocoa crate deprecation warnings
 //! - **Microphone Capture** - Audio input with device selection (macOS 15.0+)
 //! - **Bitmap Font Rendering** - Custom 8x8 pixel glyph overlay text
 //! - **Interactive Menu** - Keyboard-navigable settings UI
@@ -49,12 +47,14 @@
 //! - `H` - Show menu
 //! - `Q`/`Esc` - Quit
 
+#![allow(deprecated)] // Suppress cocoa crate deprecation warnings
 #![allow(
     clippy::too_many_lines,
     clippy::useless_transmute,
     clippy::cast_precision_loss,
     clippy::cast_sign_loss,
-    clippy::cast_possible_truncation
+    clippy::cast_possible_truncation,
+    clippy::option_if_let_else
 )]
 
 mod capture;
@@ -73,12 +73,9 @@ use std::mem::size_of;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use cocoa::appkit::NSView;
-use cocoa::base::id as cocoa_id;
-use objc::rc::autoreleasepool;
-use objc::runtime::YES;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use screencapturekit::content_sharing_picker::SCPickedSource;
+use screencapturekit::output::metal::{autoreleasepool, setup_metal_view};
 use screencapturekit::prelude::*;
 use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::ControlFlow;
@@ -95,10 +92,387 @@ use recording::{RecordingConfig, RecordingState};
 use renderer::{
     create_pipeline, CaptureTextures, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
     MTLStoreAction, MetalDevice, MetalLayer, MetalRenderPassDescriptor,
-    MetalRenderPipelineDescriptor, ResourceOptions, SHADER_SOURCE,
+    MetalRenderPipelineDescriptor, SHADER_SOURCE,
 };
 use screenshot::take_screenshot;
 use vertex::{Uniforms, Vertex, VertexBufferBuilder};
+
+/// Result of keyboard input handling
+enum KeyAction {
+    None,
+    Quit,
+}
+
+/// Consolidated application state
+struct AppState {
+    stream: Option<SCStream>,
+    current_filter: Option<SCContentFilter>,
+    capture_size: (u32, u32),
+    picked_source: SCPickedSource,
+    stream_config: SCStreamConfiguration,
+    mic_device_idx: Option<usize>,
+    overlay: OverlayState,
+    capture_state: Arc<CaptureState>,
+    capturing: Arc<AtomicBool>,
+    pending_picker: Arc<Mutex<PickerResult>>,
+    #[cfg(feature = "macos_15_0")]
+    recording_state: RecordingState,
+    #[cfg(feature = "macos_15_0")]
+    recording_config: RecordingConfig,
+    recording: Arc<AtomicBool>,
+}
+
+impl AppState {
+    fn new() -> Self {
+        let capture_state = Arc::new(CaptureState::new());
+        let capturing = Arc::new(AtomicBool::new(false));
+
+        #[cfg(feature = "macos_15_0")]
+        let recording_state = RecordingState::new();
+        #[cfg(feature = "macos_15_0")]
+        let recording = recording_state.recording_flag();
+        #[cfg(not(feature = "macos_15_0"))]
+        let recording = Arc::new(AtomicBool::new(false));
+
+        Self {
+            stream: None,
+            current_filter: None,
+            capture_size: (1920, 1080),
+            picked_source: SCPickedSource::Unknown,
+            stream_config: default_stream_config(),
+            mic_device_idx: None,
+            overlay: OverlayState::new(),
+            capture_state,
+            capturing,
+            pending_picker: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "macos_15_0")]
+            recording_state,
+            #[cfg(feature = "macos_15_0")]
+            recording_config: RecordingConfig::new(),
+            recording,
+        }
+    }
+
+    /// Check for pending picker results and handle auto-start
+    fn process_pending_picker(&mut self) {
+        if let Ok(mut pending) = self.pending_picker.try_lock() {
+            if let Some((filter, width, height, source)) = pending.take() {
+                println!(
+                    "✅ Content selected: {}x{} - {}",
+                    width,
+                    height,
+                    format_picked_source(&source)
+                );
+                self.capture_size = (width, height);
+                self.picked_source = source;
+
+                if self.capturing.load(Ordering::Relaxed) {
+                    // Update filter live if already capturing
+                    if let Some(ref s) = self.stream {
+                        match s.update_content_filter(&filter) {
+                            Ok(()) => println!("✅ Source updated live"),
+                            Err(e) => eprintln!("❌ Failed to update source: {e:?}"),
+                        }
+                    }
+                    self.current_filter = Some(filter);
+                } else {
+                    // Auto-start capture after picking
+                    self.current_filter = Some(filter);
+                    start_capture(
+                        &mut self.stream,
+                        self.current_filter.as_ref(),
+                        self.capture_size,
+                        &self.stream_config,
+                        &self.capture_state,
+                        &self.capturing,
+                        false,
+                    );
+                }
+                self.overlay.switch_to_full_menu();
+            }
+        }
+    }
+
+    /// Apply current configuration to running stream
+    fn apply_config_to_stream(&self) {
+        if self.capturing.load(Ordering::Relaxed) {
+            if let Some(ref s) = self.stream {
+                let mut new_config = self.stream_config.clone();
+                new_config.set_width(self.capture_size.0);
+                new_config.set_height(self.capture_size.1);
+                if let Err(e) = s.update_configuration(&new_config) {
+                    eprintln!("❌ Config update failed: {e:?}");
+                }
+            }
+        }
+    }
+
+    /// Toggle capture on/off
+    fn toggle_capture(&mut self) {
+        if self.capturing.load(Ordering::Relaxed) {
+            stop_capture(&mut self.stream, &self.capturing);
+        } else {
+            start_capture(
+                &mut self.stream,
+                self.current_filter.as_ref(),
+                self.capture_size,
+                &self.stream_config,
+                &self.capture_state,
+                &self.capturing,
+                false,
+            );
+        }
+    }
+
+    /// Open content picker
+    fn open_picker(&self) {
+        if let Some(ref s) = self.stream {
+            open_picker_for_stream(&self.pending_picker, s);
+        } else {
+            open_picker(&self.pending_picker);
+        }
+    }
+
+    /// Take a screenshot
+    fn take_screenshot(&self) {
+        if let Some(ref filter) = self.current_filter {
+            take_screenshot(filter, self.capture_size, &self.stream_config);
+        } else {
+            println!("⚠️  Select a source first");
+        }
+    }
+
+    /// Toggle recording (macOS 15.0+)
+    #[allow(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
+    fn toggle_recording(&mut self) {
+        #[cfg(feature = "macos_15_0")]
+        {
+            if self.recording_state.is_active() {
+                if let Some(ref s) = self.stream {
+                    self.recording_state.stop(s);
+                }
+            } else if self.stream.is_some() {
+                if let Some(ref s) = self.stream {
+                    if let Err(e) = self.recording_state.start(s, &self.recording_config) {
+                        eprintln!("❌ {e}");
+                    }
+                }
+            } else {
+                println!("⚠️  Start capture first");
+            }
+        }
+        #[cfg(not(feature = "macos_15_0"))]
+        {
+            println!("⚠️  Recording requires macOS 15.0+");
+        }
+    }
+
+    /// Handle menu item selection
+    fn handle_menu_selection(&mut self) -> KeyAction {
+        let selected_item = self.overlay.menu_items()[self.overlay.menu_selection];
+        match selected_item {
+            "Pick Source" | "Change Source" => self.open_picker(),
+            "Capture" => self.toggle_capture(),
+            "Screenshot" => self.take_screenshot(),
+            "Record" => self.toggle_recording(),
+            "Config" => {
+                self.overlay.show_config = true;
+                self.overlay.show_help = false;
+            }
+            "Rec Config" => {
+                #[cfg(feature = "macos_15_0")]
+                {
+                    self.overlay.show_recording_config = true;
+                    self.overlay.show_help = false;
+                }
+            }
+            "Quit" => return KeyAction::Quit,
+            _ => {}
+        }
+        KeyAction::None
+    }
+
+    /// Handle keyboard input in main menu
+    fn handle_menu_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+        let menu_items = self.overlay.menu_items();
+        match keycode {
+            VirtualKeyCode::Up if self.overlay.menu_selection > 0 => {
+                self.overlay.menu_selection -= 1;
+                println!(
+                    "⬆️  Menu selection: {} ({})",
+                    self.overlay.menu_selection, menu_items[self.overlay.menu_selection]
+                );
+            }
+            VirtualKeyCode::Down => {
+                let max = self.overlay.menu_count().saturating_sub(1);
+                if self.overlay.menu_selection < max {
+                    self.overlay.menu_selection += 1;
+                    println!(
+                        "⬇️  Menu selection: {} ({})",
+                        self.overlay.menu_selection, menu_items[self.overlay.menu_selection]
+                    );
+                }
+            }
+            VirtualKeyCode::Return | VirtualKeyCode::Space => {
+                return self.handle_menu_selection();
+            }
+            VirtualKeyCode::Escape | VirtualKeyCode::H => {
+                self.overlay.show_help = false;
+            }
+            VirtualKeyCode::Q => return KeyAction::Quit,
+            _ => {}
+        }
+        KeyAction::None
+    }
+
+    /// Handle keyboard input in config menu
+    fn handle_config_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+        match keycode {
+            VirtualKeyCode::Up if self.overlay.config_selection > 0 => {
+                self.overlay.config_selection -= 1;
+            }
+            VirtualKeyCode::Down => {
+                let max = ConfigMenu::option_count().saturating_sub(1);
+                if self.overlay.config_selection < max {
+                    self.overlay.config_selection += 1;
+                }
+            }
+            VirtualKeyCode::Left | VirtualKeyCode::Right => {
+                ConfigMenu::toggle_or_adjust(
+                    &mut self.stream_config,
+                    &mut self.mic_device_idx,
+                    self.overlay.config_selection,
+                    keycode == VirtualKeyCode::Right,
+                );
+                self.apply_config_to_stream();
+            }
+            VirtualKeyCode::Return | VirtualKeyCode::Space => {
+                ConfigMenu::toggle_or_adjust(
+                    &mut self.stream_config,
+                    &mut self.mic_device_idx,
+                    self.overlay.config_selection,
+                    true,
+                );
+                self.apply_config_to_stream();
+            }
+            VirtualKeyCode::Escape | VirtualKeyCode::Back => {
+                self.overlay.show_config = false;
+                self.overlay.show_help = true;
+            }
+            VirtualKeyCode::Q => return KeyAction::Quit,
+            _ => {}
+        }
+        KeyAction::None
+    }
+
+    /// Handle keyboard input in recording config menu (macOS 15.0+)
+    #[cfg(feature = "macos_15_0")]
+    fn handle_recording_config_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+        use crate::recording::RecordingConfigMenu;
+
+        match keycode {
+            VirtualKeyCode::Up if self.overlay.recording_config_selection > 0 => {
+                self.overlay.recording_config_selection -= 1;
+            }
+            VirtualKeyCode::Down => {
+                let max = RecordingConfigMenu::option_count().saturating_sub(1);
+                if self.overlay.recording_config_selection < max {
+                    self.overlay.recording_config_selection += 1;
+                }
+            }
+            VirtualKeyCode::Left | VirtualKeyCode::Right => {
+                RecordingConfigMenu::toggle_or_adjust(
+                    &mut self.recording_config,
+                    self.overlay.recording_config_selection,
+                    keycode == VirtualKeyCode::Right,
+                );
+            }
+            VirtualKeyCode::Return | VirtualKeyCode::Space => {
+                RecordingConfigMenu::toggle_or_adjust(
+                    &mut self.recording_config,
+                    self.overlay.recording_config_selection,
+                    true,
+                );
+            }
+            VirtualKeyCode::Escape | VirtualKeyCode::Back => {
+                self.overlay.show_recording_config = false;
+                self.overlay.show_help = true;
+            }
+            VirtualKeyCode::Q => return KeyAction::Quit,
+            _ => {}
+        }
+        KeyAction::None
+    }
+
+    /// Handle direct keyboard shortcuts (no menu shown)
+    fn handle_direct_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+        match keycode {
+            VirtualKeyCode::Space => self.toggle_capture(),
+            VirtualKeyCode::P => self.open_picker(),
+            VirtualKeyCode::W => self.overlay.show_waveform = !self.overlay.show_waveform,
+            VirtualKeyCode::H => self.overlay.show_help = true,
+            VirtualKeyCode::C => self.overlay.show_config = true,
+            VirtualKeyCode::M => {
+                let new_val = !self.stream_config.captures_microphone();
+                self.stream_config.set_captures_microphone(new_val);
+                println!("🎤 Microphone: {}", if new_val { "On" } else { "Off" });
+                self.apply_config_to_stream();
+            }
+            VirtualKeyCode::S => self.take_screenshot(),
+            VirtualKeyCode::R => {
+                #[cfg(feature = "macos_15_0")]
+                {
+                    if self.recording_state.is_active() {
+                        if let Some(ref s) = self.stream {
+                            self.recording_state.stop(s);
+                        }
+                    } else if self.current_filter.is_some() && self.stream.is_some() {
+                        if let Some(ref s) = self.stream {
+                            match self.recording_state.start(s, &self.recording_config) {
+                                Ok(path) => println!("🔴 Recording to: {path}"),
+                                Err(e) => eprintln!("❌ {e}"),
+                            }
+                        }
+                    } else {
+                        println!("⚠️  Start capture first (P then Space), then R to record");
+                    }
+                }
+                #[cfg(not(feature = "macos_15_0"))]
+                {
+                    println!("⚠️  Recording requires macOS 15.0+ (macos_15_0 feature)");
+                }
+            }
+            VirtualKeyCode::Escape | VirtualKeyCode::Q => return KeyAction::Quit,
+            _ => {}
+        }
+        KeyAction::None
+    }
+
+    /// Main keyboard input handler - routes to appropriate sub-handler
+    fn handle_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+        #[cfg(feature = "macos_15_0")]
+        let show_any_config = self.overlay.show_config || self.overlay.show_recording_config;
+        #[cfg(not(feature = "macos_15_0"))]
+        let show_any_config = self.overlay.show_config;
+
+        if self.overlay.show_help && !show_any_config {
+            self.handle_menu_key(keycode)
+        } else if self.overlay.show_config {
+            self.handle_config_key(keycode)
+        } else {
+            #[cfg(feature = "macos_15_0")]
+            if self.overlay.show_recording_config {
+                return self.handle_recording_config_key(keycode);
+            }
+
+            if !self.overlay.show_help && !show_any_config {
+                self.handle_direct_key(keycode)
+            } else {
+                KeyAction::None
+            }
+        }
+    }
+}
 
 fn main() {
     println!("🎮 Metal Overlay Renderer");
@@ -112,7 +486,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    // Initialize Metal using library types (no metal crate needed)
+    // Initialize Metal
     let device = MetalDevice::system_default().expect("No Metal device found");
     println!("🖥️  Metal device: {}", device.name());
 
@@ -125,9 +499,7 @@ fn main() {
     unsafe {
         match window.raw_window_handle() {
             RawWindowHandle::AppKit(handle) => {
-                let view = handle.ns_view as cocoa_id;
-                view.setWantsLayer(YES);
-                view.setLayer(std::mem::transmute(layer.as_ptr()));
+                setup_metal_view(handle.ns_view.cast(), &layer);
             }
             _ => panic!("Unsupported window handle"),
         }
@@ -136,66 +508,23 @@ fn main() {
     let draw_size = window.inner_size();
     layer.set_drawable_size(f64::from(draw_size.width), f64::from(draw_size.height));
 
-    // Compile shaders at runtime from embedded source
+    // Compile shaders
     println!("🔧 Compiling shaders...");
     let library = device
         .create_library_with_source(SHADER_SOURCE)
         .expect("Failed to compile shaders");
     println!("✅ Shaders compiled");
 
-    let overlay_pipeline = create_pipeline(&device, &library, "vertex_colored", "fragment_colored");
-
-    // Create fullscreen textured pipeline (no blending for background) - for BGRA/RGB formats
-    let fullscreen_pipeline = {
-        let vert = library.get_function("vertex_fullscreen").unwrap();
-        let frag = library.get_function("fragment_textured").unwrap();
-        let desc = MetalRenderPipelineDescriptor::new();
-        desc.set_vertex_function(&vert);
-        desc.set_fragment_function(&frag);
-        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
-        device.create_render_pipeline_state(&desc).unwrap()
-    };
-
-    // Create YCbCr pipeline for biplanar YCbCr formats (420v/420f)
-    let ycbcr_pipeline = {
-        let vert = library.get_function("vertex_fullscreen").unwrap();
-        let frag = library.get_function("fragment_ycbcr").unwrap();
-        let desc = MetalRenderPipelineDescriptor::new();
-        desc.set_vertex_function(&vert);
-        desc.set_fragment_function(&frag);
-        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
-        device.create_render_pipeline_state(&desc).unwrap()
-    };
-
+    // Create pipelines
+    let overlay_pipeline = create_pipeline(&device, &library, "vertex_colored", "fragment_colored")
+        .expect("Failed to create overlay pipeline");
+    let fullscreen_pipeline = create_textured_pipeline(&device, &library, "fragment_textured");
+    let ycbcr_pipeline = create_textured_pipeline(&device, &library, "fragment_ycbcr");
     let command_queue = device.create_command_queue().expect("Failed to create command queue");
 
-    // Create shared capture state
-    let capture_state = Arc::new(CaptureState::new());
+    // Application state
+    let mut app = AppState::new();
     let font = BitmapFont::new();
-    let mut overlay = OverlayState::new();
-    let capturing = Arc::new(AtomicBool::new(false));
-    let mut stream_config = default_stream_config();
-    let mut mic_device_idx: Option<usize> = None; // Track mic device selection separately
-
-    // Screen capture setup
-    let mut stream: Option<SCStream> = None;
-    let mut current_filter: Option<SCContentFilter> = None;
-    let mut capture_size: (u32, u32) = (1920, 1080);
-    let mut picked_source = SCPickedSource::Unknown;
-
-    // Recording state (macOS 15.0+)
-    #[cfg(feature = "macos_15_0")]
-    let mut recording_state = RecordingState::new();
-    #[cfg(feature = "macos_15_0")]
-    let mut recording_config = RecordingConfig::new();
-    #[cfg(feature = "macos_15_0")]
-    let recording = recording_state.recording_flag();
-    #[cfg(not(feature = "macos_15_0"))]
-    let recording = Arc::new(AtomicBool::new(false));
-
-    // Shared state for picker callback results
-    let pending_picker: Arc<Mutex<PickerResult>> = Arc::new(Mutex::new(None));
-
     let mut vertex_builder = VertexBufferBuilder::new();
     let mut time = 0.0f32;
 
@@ -205,46 +534,7 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         autoreleasepool(|| {
             *control_flow = ControlFlow::Poll;
-
-            // Check for pending picker results - auto-start capture after picking
-            if let Ok(mut pending) = pending_picker.try_lock() {
-                if let Some((filter, width, height, source)) = pending.take() {
-                    println!(
-                        "✅ Content selected: {}x{} - {}",
-                        width,
-                        height,
-                        format_picked_source(&source)
-                    );
-                    capture_size = (width, height);
-                    picked_source = source;
-
-                    // If already capturing, update the filter live
-                    if capturing.load(Ordering::Relaxed) {
-                        if let Some(ref s) = stream {
-                            match s.update_content_filter(&filter) {
-                                Ok(()) => println!("✅ Source updated live"),
-                                Err(e) => eprintln!("❌ Failed to update source: {e:?}"),
-                            }
-                        }
-                        current_filter = Some(filter);
-                    } else {
-                        // Auto-start capture after picking
-                        current_filter = Some(filter);
-                        start_capture(
-                            &mut stream,
-                            current_filter.as_ref(),
-                            capture_size,
-                            &stream_config,
-                            &capture_state,
-                            &capturing,
-                            false,
-                        );
-                    }
-
-                    // Switch to full menu mode
-                    overlay.switch_to_full_menu();
-                }
-            }
+            app.process_pending_picker();
 
             match event {
                 Event::MainEventsCleared => window.request_redraw(),
@@ -265,318 +555,8 @@ fn main() {
                             },
                         ..
                     } => {
-                        // Handle menu navigation when help is shown
-                        #[cfg(feature = "macos_15_0")]
-                        let show_any_config = overlay.show_config || overlay.show_recording_config;
-                        #[cfg(not(feature = "macos_15_0"))]
-                        let show_any_config = overlay.show_config;
-
-                        if overlay.show_help && !show_any_config {
-                            let menu_items = overlay.menu_items();
-                            match keycode {
-                                VirtualKeyCode::Up => {
-                                    if overlay.menu_selection > 0 {
-                                        overlay.menu_selection -= 1;
-                                        println!(
-                                            "⬆️  Menu selection: {} ({})",
-                                            overlay.menu_selection,
-                                            menu_items[overlay.menu_selection]
-                                        );
-                                    }
-                                }
-                                VirtualKeyCode::Down => {
-                                    let max = overlay.menu_count().saturating_sub(1);
-                                    if overlay.menu_selection < max {
-                                        overlay.menu_selection += 1;
-                                        println!(
-                                            "⬇️  Menu selection: {} ({})",
-                                            overlay.menu_selection,
-                                            menu_items[overlay.menu_selection]
-                                        );
-                                    }
-                                }
-                                VirtualKeyCode::Return | VirtualKeyCode::Space => {
-                                    let selected_item = menu_items[overlay.menu_selection];
-                                    match selected_item {
-                                        "Pick Source" | "Change Source" => {
-                                            // Open picker
-                                            if let Some(ref s) = stream {
-                                                open_picker_for_stream(&pending_picker, s);
-                                            } else {
-                                                open_picker(&pending_picker);
-                                            }
-                                        }
-                                        "Capture" => {
-                                            // Toggle capture
-                                            if capturing.load(Ordering::Relaxed) {
-                                                stop_capture(&mut stream, &capturing);
-                                            } else {
-                                                start_capture(
-                                                    &mut stream,
-                                                    current_filter.as_ref(),
-                                                    capture_size,
-                                                    &stream_config,
-                                                    &capture_state,
-                                                    &capturing,
-                                                    false,
-                                                );
-                                            }
-                                        }
-                                        "Screenshot" => {
-                                            if let Some(ref filter) = current_filter {
-                                                take_screenshot(filter, capture_size, &stream_config);
-                                            } else {
-                                                println!("⚠️  Select a source first");
-                                            }
-                                        }
-                                        "Record" => {
-                                            #[cfg(feature = "macos_15_0")]
-                                            {
-                                                if recording_state.is_active() {
-                                                    if let Some(ref s) = stream {
-                                                        recording_state.stop(s);
-                                                    }
-                                                } else if stream.is_some() {
-                                                    if let Some(ref s) = stream {
-                                                        if let Err(e) = recording_state.start(s, &recording_config) {
-                                                            eprintln!("❌ {e}");
-                                                        }
-                                                    }
-                                                } else {
-                                                    println!("⚠️  Start capture first");
-                                                }
-                                            }
-                                            #[cfg(not(feature = "macos_15_0"))]
-                                            {
-                                                println!("⚠️  Recording requires macOS 15.0+");
-                                            }
-                                        }
-                                        "Config" => {
-                                            overlay.show_config = true;
-                                            overlay.show_help = false;
-                                        }
-                                        "Rec Config" => {
-                                            #[cfg(feature = "macos_15_0")]
-                                            {
-                                                overlay.show_recording_config = true;
-                                                overlay.show_help = false;
-                                            }
-                                        }
-                                        "Quit" => {
-                                            *control_flow = ControlFlow::ExitWithCode(0);
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                VirtualKeyCode::Escape | VirtualKeyCode::H => {
-                                    overlay.show_help = false;
-                                }
-                                VirtualKeyCode::Q => {
-                                    *control_flow = ControlFlow::ExitWithCode(0);
-                                }
-                                _ => {}
-                            }
-                        }
-                        // Handle config menu navigation
-                        else if overlay.show_config {
-                            match keycode {
-                                VirtualKeyCode::Up => {
-                                    if overlay.config_selection > 0 {
-                                        overlay.config_selection -= 1;
-                                    }
-                                }
-                                VirtualKeyCode::Down => {
-                                    let max = ConfigMenu::option_count().saturating_sub(1);
-                                    if overlay.config_selection < max {
-                                        overlay.config_selection += 1;
-                                    }
-                                }
-                                VirtualKeyCode::Left | VirtualKeyCode::Right => {
-                                    let increase = keycode == VirtualKeyCode::Right;
-                                    ConfigMenu::toggle_or_adjust(
-                                        &mut stream_config,
-                                        &mut mic_device_idx,
-                                        overlay.config_selection,
-                                        increase,
-                                    );
-                                    // Immediately apply config to running stream
-                                    if capturing.load(Ordering::Relaxed) {
-                                        if let Some(ref s) = stream {
-                                            let mut new_config = stream_config.clone();
-                                            new_config.set_width(capture_size.0);
-                                            new_config.set_height(capture_size.1);
-                                            if let Err(e) = s.update_configuration(&new_config) {
-                                                eprintln!("❌ Config update failed: {e:?}");
-                                            }
-                                        }
-                                    }
-                                }
-                                VirtualKeyCode::Return | VirtualKeyCode::Space => {
-                                    // Toggle current option (same as Right arrow)
-                                    ConfigMenu::toggle_or_adjust(
-                                        &mut stream_config,
-                                        &mut mic_device_idx,
-                                        overlay.config_selection,
-                                        true,
-                                    );
-                                    if capturing.load(Ordering::Relaxed) {
-                                        if let Some(ref s) = stream {
-                                            let mut new_config = stream_config.clone();
-                                            new_config.set_width(capture_size.0);
-                                            new_config.set_height(capture_size.1);
-                                            if let Err(e) = s.update_configuration(&new_config) {
-                                                eprintln!("❌ Config update failed: {e:?}");
-                                            }
-                                        }
-                                    }
-                                }
-                                VirtualKeyCode::Escape | VirtualKeyCode::Back => {
-                                    overlay.show_config = false;
-                                    overlay.show_help = true;
-                                }
-                                VirtualKeyCode::Q => {
-                                    *control_flow = ControlFlow::ExitWithCode(0);
-                                }
-                                _ => {}
-                            }
-                        }
-                        // Handle recording config menu navigation (macOS 15.0+)
-                        #[cfg(feature = "macos_15_0")]
-                        if overlay.show_recording_config {
-                            use crate::recording::RecordingConfigMenu;
-
-                            match keycode {
-                                VirtualKeyCode::Up => {
-                                    if overlay.recording_config_selection > 0 {
-                                        overlay.recording_config_selection -= 1;
-                                    }
-                                }
-                                VirtualKeyCode::Down => {
-                                    let max = RecordingConfigMenu::option_count().saturating_sub(1);
-                                    if overlay.recording_config_selection < max {
-                                        overlay.recording_config_selection += 1;
-                                    }
-                                }
-                                VirtualKeyCode::Left | VirtualKeyCode::Right => {
-                                    let increase = keycode == VirtualKeyCode::Right;
-                                    RecordingConfigMenu::toggle_or_adjust(
-                                        &mut recording_config,
-                                        overlay.recording_config_selection,
-                                        increase,
-                                    );
-                                }
-                                VirtualKeyCode::Return | VirtualKeyCode::Space => {
-                                    RecordingConfigMenu::toggle_or_adjust(
-                                        &mut recording_config,
-                                        overlay.recording_config_selection,
-                                        true,
-                                    );
-                                }
-                                VirtualKeyCode::Escape | VirtualKeyCode::Back => {
-                                    overlay.show_recording_config = false;
-                                    overlay.show_help = true;
-                                }
-                                VirtualKeyCode::Q => {
-                                    *control_flow = ControlFlow::ExitWithCode(0);
-                                }
-                                _ => {}
-                            }
-                        }
-                        // Default key handling (no menu shown)
-                        else if !overlay.show_help && !show_any_config {
-                            match keycode {
-                                VirtualKeyCode::Space => {
-                                    // Toggle capture on/off
-                                    if capturing.load(Ordering::Relaxed) {
-                                        stop_capture(&mut stream, &capturing);
-                                    } else {
-                                        start_capture(
-                                            &mut stream,
-                                            current_filter.as_ref(),
-                                            capture_size,
-                                            &stream_config,
-                                            &capture_state,
-                                            &capturing,
-                                            false,
-                                        );
-                                    }
-                                }
-                                VirtualKeyCode::P => {
-                                    if let Some(ref s) = stream {
-                                        open_picker_for_stream(&pending_picker, s);
-                                    } else {
-                                        open_picker(&pending_picker);
-                                    }
-                                }
-                                VirtualKeyCode::W => {
-                                    overlay.show_waveform = !overlay.show_waveform;
-                                }
-                                VirtualKeyCode::H => {
-                                    overlay.show_help = true;
-                                }
-                                VirtualKeyCode::C => {
-                                    overlay.show_config = true;
-                                }
-                                VirtualKeyCode::M => {
-                                    let new_val = !stream_config.captures_microphone();
-                                    stream_config.set_captures_microphone(new_val);
-                                    println!(
-                                        "🎤 Microphone: {}",
-                                        if new_val { "On" } else { "Off" }
-                                    );
-                                    if capturing.load(Ordering::Relaxed) {
-                                        if let Some(ref s) = stream {
-                                            let mut new_config = stream_config.clone();
-                                            new_config.set_width(capture_size.0);
-                                            new_config.set_height(capture_size.1);
-                                            match s.update_configuration(&new_config) {
-                                                Ok(()) => println!("✅ Config updated"),
-                                                Err(e) => {
-                                                    eprintln!("❌ Config update failed: {e:?}");
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                VirtualKeyCode::S => {
-                                    // Screenshot shortcut
-                                    if let Some(ref filter) = current_filter {
-                                        take_screenshot(filter, capture_size, &stream_config);
-                                    } else {
-                                        println!("⚠️  Select a source first with P or menu");
-                                    }
-                                }
-                                VirtualKeyCode::R => {
-                                    // Recording shortcut (macOS 15.0+)
-                                    #[cfg(feature = "macos_15_0")]
-                                    {
-                                        if recording_state.is_active() {
-                                            // Stop recording
-                                            if let Some(ref s) = stream {
-                                                recording_state.stop(s);
-                                            }
-                                        } else if current_filter.is_some() && stream.is_some() {
-                                            // Start recording
-                                            if let Some(ref s) = stream {
-                                                match recording_state.start(s, &recording_config) {
-                                                    Ok(path) => println!("🔴 Recording to: {path}"),
-                                                    Err(e) => eprintln!("❌ {e}"),
-                                                }
-                                            }
-                                        } else {
-                                            println!("⚠️  Start capture first (P then Space), then R to record");
-                                        }
-                                    }
-                                    #[cfg(not(feature = "macos_15_0"))]
-                                    {
-                                        println!("⚠️  Recording requires macOS 15.0+ (macos_15_0 feature)");
-                                    }
-                                }
-                                VirtualKeyCode::Escape | VirtualKeyCode::Q => {
-                                    *control_flow = ControlFlow::ExitWithCode(0);
-                                }
-                                _ => {}
-                            }
+                        if matches!(app.handle_key(keycode), KeyAction::Quit) {
+                            *control_flow = ControlFlow::ExitWithCode(0);
                         }
                     }
                     _ => {}
@@ -584,271 +564,305 @@ fn main() {
 
                 Event::RedrawRequested(_) => {
                     time += 0.016;
-
                     let size = window.inner_size();
-                    let width = size.width as f32;
-                    let height = size.height as f32;
+                    let (width, height) = (size.width as f32, size.height as f32);
 
-                    // Try to get the latest IOSurface and create textures from it (zero-copy)
-                    let mut capture_textures: Option<CaptureTextures> = None;
-                    let mut tex_width = capture_size.0 as f32;
-                    let mut tex_height = capture_size.1 as f32;
-                    let mut pixel_format: u32 = 0;
+                    // Get capture textures
+                    let capture_textures = get_capture_textures(&app, &device);
 
-                    if capturing.load(Ordering::Relaxed) {
-                        if let Ok(guard) = capture_state.latest_surface.try_lock() {
-                            if let Some(ref surface) = *guard {
-                                tex_width = surface.width() as f32;
-                                tex_height = surface.height() as f32;
-                                // Create Metal textures directly from IOSurface (zero-copy)
-                                capture_textures = surface.create_metal_textures(&device);
-                                if let Some(ref ct) = capture_textures {
-                                    pixel_format = ct.pixel_format.as_u32();
-                                }
-                            }
-                        }
-                    }
+                    // Build UI vertices
+                    build_ui_vertices(
+                        &mut vertex_builder,
+                        &font,
+                        &app,
+                        capture_textures.as_ref(),
+                        width,
+                        height,
+                    );
 
-
-                    // Build vertex buffer for this frame
-                    vertex_builder.clear();
-
-                    // Status bar background
-                    vertex_builder.rect(0.0, 0.0, width, 32.0, [0.1, 0.1, 0.12, 0.9]);
-
-                    // Status text - include audio sample counts and peaks for debugging
-                    let fps = capture_state.frame_count.load(Ordering::Relaxed);
-                    let audio_samples_cnt =
-                        capture_state.audio_waveform.lock().unwrap().sample_count();
-                    let mic_samples_cnt = capture_state.mic_waveform.lock().unwrap().sample_count();
-                    let audio_peak = capture_state.audio_waveform.lock().unwrap().peak(512);
-                    let mic_peak = capture_state.mic_waveform.lock().unwrap().peak(512);
-                    let status = if capture_textures.is_some() {
-                        format!(
-                            "LIVE {}x{} F:{} A:{}k P:{:.2} M:{}k P:{:.2}",
-                            tex_width as u32,
-                            tex_height as u32,
-                            fps,
-                            audio_samples_cnt / 1000,
-                            audio_peak,
-                            mic_samples_cnt / 1000,
-                            mic_peak
-                        )
-                    } else if capturing.load(Ordering::Relaxed) {
-                        format!("Starting... {fps}")
-                    } else {
-                        "H=Menu".to_string()
-                    };
-                    vertex_builder.text(&font, &status, 8.0, 8.0, 2.0, [0.2, 1.0, 0.3, 1.0]);
-
-                    // Waveform bar at top - 100% width with both system audio and mic
-                    if overlay.show_waveform && capturing.load(Ordering::Relaxed) {
-                        let single_wave_h = 40.0;
-                        let wave_spacing = 4.0;
-                        let total_wave_h = single_wave_h * 2.0 + wave_spacing;
-                        let bar_y = 36.0; // Below status bar
-                        let meter_w = 24.0;
-                        let padding = 8.0;
-                        let label_w = 24.0; // Space for labels
-
-                        // Waveform background - full width
-                        vertex_builder.rect(
-                            0.0,
-                            bar_y,
-                            width,
-                            total_wave_h + 12.0,
-                            [0.08, 0.08, 0.1, 0.9],
-                        );
-
-                        // Calculate waveform area (leave space for labels on left and meters on right)
-                        let meters_space = meter_w * 2.0 + padding * 3.0;
-                        let wave_w = width - meters_space - padding - label_w;
-                        let wave_x = padding + label_w;
-
-                        // System audio waveform (top) - cyan/green
-                        let audio_wave_y = bar_y + 4.0;
-                        vertex_builder.text(
-                            &font,
-                            "SYS",
-                            padding,
-                            audio_wave_y + single_wave_h / 2.0 - 4.0,
-                            1.0,
-                            [0.0, 0.9, 0.8, 0.7],
-                        );
-                        let audio_samples =
-                            capture_state.audio_waveform.lock().unwrap().display_samples(512);
-                        vertex_builder.waveform(
-                            &audio_samples,
-                            wave_x,
-                            audio_wave_y,
-                            wave_w,
-                            single_wave_h,
-                            [0.0, 0.9, 0.8, 0.9], // Cyan (system audio)
-                        );
-
-                        // Microphone waveform (bottom) - magenta/pink
-                        let mic_wave_y = audio_wave_y + single_wave_h + wave_spacing;
-                        vertex_builder.text(
-                            &font,
-                            "MIC",
-                            padding,
-                            mic_wave_y + single_wave_h / 2.0 - 4.0,
-                            1.0,
-                            [1.0, 0.3, 0.7, 0.7],
-                        );
-                        let mic_samples =
-                            capture_state.mic_waveform.lock().unwrap().display_samples(512);
-                        vertex_builder.waveform(
-                            &mic_samples,
-                            wave_x,
-                            mic_wave_y,
-                            wave_w,
-                            single_wave_h,
-                            [1.0, 0.3, 0.7, 0.9], // Magenta (mic)
-                        );
-
-                        // Vertical meters on the right
-                        let meters_x = width - meters_space + padding;
-
-                        // System audio vertical meter
-                        let audio_level = capture_state.audio_waveform.lock().unwrap().rms(2048);
-                        vertex_builder.vu_meter_vertical(
-                            audio_level,
-                            meters_x,
-                            audio_wave_y,
-                            meter_w,
-                            total_wave_h,
-                            "S",
-                            &font,
-                        );
-
-                        // Microphone vertical meter
-                        let mic_level = capture_state.mic_waveform.lock().unwrap().rms(2048);
-                        vertex_builder.vu_meter_vertical(
-                            mic_level,
-                            meters_x + meter_w + padding,
-                            audio_wave_y,
-                            meter_w,
-                            total_wave_h,
-                            "M",
-                            &font,
-                        );
-                    }
-
-                    // Help overlay - responsive centered
-                    if overlay.show_help {
-                        let source_str = format_picked_source(&picked_source);
-                        vertex_builder.help_overlay(
-                            &font,
-                            width,
-                            height,
-                            capturing.load(Ordering::Relaxed),
-                            recording.load(Ordering::Relaxed),
-                            &source_str,
-                            overlay.menu_selection,
-                            overlay.menu_items(),
-                        );
-                    }
-
-                    // Config menu overlay
-                    if overlay.show_config {
-                        let source_str = format_picked_source(&picked_source);
-                        vertex_builder.config_menu(
-                            &font,
-                            width,
-                            height,
-                            &stream_config,
-                            mic_device_idx,
-                            overlay.config_selection,
-                            capturing.load(Ordering::Relaxed),
-                            &source_str,
-                        );
-                    }
-
-                    // Recording config menu overlay (macOS 15.0+)
-                    #[cfg(feature = "macos_15_0")]
-                    if overlay.show_recording_config {
-                        vertex_builder.recording_config_menu(
-                            &font,
-                            width,
-                            height,
-                            &recording_config,
-                            overlay.recording_config_selection,
-                        );
-                    }
-
-                    // Build GPU buffer
+                    // Create GPU buffers
                     let vertex_buffer = vertex_builder.build(&device);
-                    vertex_buffer.did_modify_range(0..(vertex_builder.vertex_count() * size_of::<Vertex>()));
+                    vertex_buffer
+                        .did_modify_range(0..(vertex_builder.vertex_count() * size_of::<Vertex>()));
 
-                    // Uniforms - pass capture texture dimensions for aspect ratio
-                    let uniforms = Uniforms {
-                        viewport_size: [width, height],
-                        texture_size: [tex_width, tex_height],
-                        time,
-                        pixel_format,
-                        _padding: [0.0; 2],
+                    let uniforms = match &capture_textures {
+                        Some(tex) => {
+                            Uniforms::from_captured_textures(width, height, tex).with_time(time)
+                        }
+                        None => Uniforms::new(
+                            width,
+                            height,
+                            app.capture_size.0 as f32,
+                            app.capture_size.1 as f32,
+                        )
+                        .with_time(time),
                     };
                     let uniforms_buffer = device
-                        .create_buffer(size_of::<Uniforms>(), ResourceOptions::CPU_CACHE_MODE_DEFAULT_CACHE)
+                        .create_buffer_with_data(&uniforms)
                         .expect("Failed to create uniforms buffer");
-                    unsafe {
-                        std::ptr::copy_nonoverlapping(
-                            std::ptr::addr_of!(uniforms),
-                            uniforms_buffer.contents().cast(),
-                            1,
-                        );
-                    }
 
                     // Render
-                    let Some(drawable) = layer.next_drawable() else {
-                        return;
-                    };
-
-                    let render_pass = MetalRenderPassDescriptor::new();
-                    let drawable_texture = drawable.texture();
-                    render_pass.set_color_attachment_texture(0, &drawable_texture);
-                    render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-                    render_pass.set_color_attachment_clear_color(0, 0.08, 0.08, 0.1, 1.0);
-                    render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
-
-                    let cmd_buffer = command_queue.command_buffer().unwrap();
-                    let encoder = cmd_buffer.render_command_encoder(&render_pass).unwrap();
-
-                    // First pass: Draw captured frame as background (if available)
-                    if let Some(ref textures) = capture_textures {
-                        if textures.is_ycbcr() && textures.plane1.is_some() {
-                            // Use YCbCr pipeline for biplanar formats
-                            encoder.set_render_pipeline_state(&ycbcr_pipeline);
-                            encoder.set_vertex_buffer(&uniforms_buffer, 0, 0);
-                            encoder.set_fragment_texture(&textures.plane0, 0);
-                            encoder.set_fragment_texture(textures.plane1.as_ref().unwrap(), 1);
-                            encoder.set_fragment_buffer(&uniforms_buffer, 0, 0);
-                        } else {
-                            // Use standard BGRA/RGB pipeline
-                            encoder.set_render_pipeline_state(&fullscreen_pipeline);
-                            encoder.set_vertex_buffer(&uniforms_buffer, 0, 0);
-                            encoder.set_fragment_texture(&textures.plane0, 0);
-                        }
-                        encoder.draw_primitives(MTLPrimitiveType::TriangleStrip, 0, 4);
-                    }
-
-                    // Second pass: Draw overlay UI
-                    encoder.set_render_pipeline_state(&overlay_pipeline);
-                    encoder.set_vertex_buffer(&vertex_buffer, 0, 0);
-                    encoder.set_vertex_buffer(&uniforms_buffer, 0, 1);
-                    encoder.draw_primitives(
-                        MTLPrimitiveType::Triangle,
-                        0,
+                    render_frame(
+                        &layer,
+                        &command_queue,
+                        capture_textures.as_ref(),
+                        &uniforms_buffer,
+                        &vertex_buffer,
                         vertex_builder.vertex_count(),
+                        &fullscreen_pipeline,
+                        &ycbcr_pipeline,
+                        &overlay_pipeline,
                     );
-                    encoder.end_encoding();
-
-                    cmd_buffer.present_drawable(&drawable);
-                    cmd_buffer.commit();
                 }
                 _ => {}
             }
         });
     });
+}
+
+/// Create a textured pipeline with the specified fragment function
+fn create_textured_pipeline(
+    device: &MetalDevice,
+    library: &renderer::MetalLibrary,
+    fragment_fn: &str,
+) -> renderer::MetalRenderPipelineState {
+    let vert = library
+        .get_function("vertex_fullscreen")
+        .expect("vertex_fullscreen not found");
+    let frag = library
+        .get_function(fragment_fn)
+        .unwrap_or_else(|| panic!("{fragment_fn} not found"));
+    let desc = MetalRenderPipelineDescriptor::new();
+    desc.set_vertex_function(&vert);
+    desc.set_fragment_function(&frag);
+    desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+    device
+        .create_render_pipeline_state(&desc)
+        .expect("Failed to create pipeline")
+}
+
+/// Get capture textures from the current capture state
+fn get_capture_textures(app: &AppState, device: &MetalDevice) -> Option<CaptureTextures> {
+    if app.capturing.load(Ordering::Relaxed) {
+        app.capture_state
+            .latest_surface
+            .try_lock()
+            .ok()
+            .and_then(|guard| guard.as_ref().and_then(|s| s.create_metal_textures(device)))
+    } else {
+        None
+    }
+}
+
+/// Build all UI vertices for the current frame
+fn build_ui_vertices(
+    vertex_builder: &mut VertexBufferBuilder,
+    font: &BitmapFont,
+    app: &AppState,
+    capture_textures: Option<&CaptureTextures>,
+    width: f32,
+    height: f32,
+) {
+    vertex_builder.clear();
+
+    // Status bar
+    vertex_builder.rect(0.0, 0.0, width, 32.0, [0.1, 0.1, 0.12, 0.9]);
+    let status = build_status_text(app, capture_textures);
+    vertex_builder.text(font, &status, 8.0, 8.0, 2.0, [0.2, 1.0, 0.3, 1.0]);
+
+    // Waveform display
+    if app.overlay.show_waveform && app.capturing.load(Ordering::Relaxed) {
+        build_waveform_ui(vertex_builder, font, app, width);
+    }
+
+    // Menu overlays
+    if app.overlay.show_help {
+        let source_str = format_picked_source(&app.picked_source);
+        vertex_builder.help_overlay(
+            font,
+            width,
+            height,
+            app.capturing.load(Ordering::Relaxed),
+            app.recording.load(Ordering::Relaxed),
+            &source_str,
+            app.overlay.menu_selection,
+            app.overlay.menu_items(),
+        );
+    }
+
+    if app.overlay.show_config {
+        let source_str = format_picked_source(&app.picked_source);
+        vertex_builder.config_menu(
+            font,
+            width,
+            height,
+            &app.stream_config,
+            app.mic_device_idx,
+            app.overlay.config_selection,
+            app.capturing.load(Ordering::Relaxed),
+            &source_str,
+        );
+    }
+
+    #[cfg(feature = "macos_15_0")]
+    if app.overlay.show_recording_config {
+        vertex_builder.recording_config_menu(
+            font,
+            width,
+            height,
+            &app.recording_config,
+            app.overlay.recording_config_selection,
+        );
+    }
+}
+
+/// Build status bar text
+fn build_status_text(app: &AppState, capture_textures: Option<&CaptureTextures>) -> String {
+    let fps = app.capture_state.frame_count.load(Ordering::Relaxed);
+    let audio_samples = app.capture_state.audio_waveform.lock().unwrap().sample_count();
+    let mic_samples = app.capture_state.mic_waveform.lock().unwrap().sample_count();
+    let audio_peak = app.capture_state.audio_waveform.lock().unwrap().peak(512);
+    let mic_peak = app.capture_state.mic_waveform.lock().unwrap().peak(512);
+
+    if let Some(tex) = capture_textures {
+        format!(
+            "LIVE {}x{} F:{} A:{}k P:{:.2} M:{}k P:{:.2}",
+            tex.width,
+            tex.height,
+            fps,
+            audio_samples / 1000,
+            audio_peak,
+            mic_samples / 1000,
+            mic_peak
+        )
+    } else if app.capturing.load(Ordering::Relaxed) {
+        format!("Starting... {fps}")
+    } else {
+        "H=Menu".to_string()
+    }
+}
+
+/// Build waveform visualization UI
+fn build_waveform_ui(
+    vertex_builder: &mut VertexBufferBuilder,
+    font: &BitmapFont,
+    app: &AppState,
+    width: f32,
+) {
+    let single_wave_h = 40.0;
+    let wave_spacing = 4.0;
+    let total_wave_h = single_wave_h * 2.0 + wave_spacing;
+    let bar_y = 36.0;
+    let meter_w = 24.0;
+    let padding = 8.0;
+    let label_w = 24.0;
+
+    // Background
+    vertex_builder.rect(0.0, bar_y, width, total_wave_h + 12.0, [0.08, 0.08, 0.1, 0.9]);
+
+    let meters_space = meter_w * 2.0 + padding * 3.0;
+    let wave_w = width - meters_space - padding - label_w;
+    let wave_x = padding + label_w;
+    let audio_wave_y = bar_y + 4.0;
+
+    // System audio waveform
+    vertex_builder.text(
+        font,
+        "SYS",
+        padding,
+        audio_wave_y + single_wave_h / 2.0 - 4.0,
+        1.0,
+        [0.0, 0.9, 0.8, 0.7],
+    );
+    let audio_samples = app.capture_state.audio_waveform.lock().unwrap().display_samples(512);
+    vertex_builder.waveform(&audio_samples, wave_x, audio_wave_y, wave_w, single_wave_h, [0.0, 0.9, 0.8, 0.9]);
+
+    // Microphone waveform
+    let mic_wave_y = audio_wave_y + single_wave_h + wave_spacing;
+    vertex_builder.text(
+        font,
+        "MIC",
+        padding,
+        mic_wave_y + single_wave_h / 2.0 - 4.0,
+        1.0,
+        [1.0, 0.3, 0.7, 0.7],
+    );
+    let mic_samples = app.capture_state.mic_waveform.lock().unwrap().display_samples(512);
+    vertex_builder.waveform(&mic_samples, wave_x, mic_wave_y, wave_w, single_wave_h, [1.0, 0.3, 0.7, 0.9]);
+
+    // VU meters
+    let meters_x = width - meters_space + padding;
+    let audio_level = app.capture_state.audio_waveform.lock().unwrap().rms(2048);
+    vertex_builder.vu_meter_vertical(audio_level, meters_x, audio_wave_y, meter_w, total_wave_h, "S", font);
+
+    let mic_level = app.capture_state.mic_waveform.lock().unwrap().rms(2048);
+    vertex_builder.vu_meter_vertical(
+        mic_level,
+        meters_x + meter_w + padding,
+        audio_wave_y,
+        meter_w,
+        total_wave_h,
+        "M",
+        font,
+    );
+}
+
+/// Render the frame to the Metal layer
+#[allow(clippy::too_many_arguments)]
+fn render_frame(
+    layer: &MetalLayer,
+    command_queue: &renderer::MetalCommandQueue,
+    capture_textures: Option<&CaptureTextures>,
+    uniforms_buffer: &renderer::MetalBuffer,
+    vertex_buffer: &renderer::MetalBuffer,
+    vertex_count: usize,
+    fullscreen_pipeline: &renderer::MetalRenderPipelineState,
+    ycbcr_pipeline: &renderer::MetalRenderPipelineState,
+    overlay_pipeline: &renderer::MetalRenderPipelineState,
+) {
+    let Some(drawable) = layer.next_drawable() else {
+        return;
+    };
+
+    let render_pass = MetalRenderPassDescriptor::new();
+    let drawable_texture = drawable.texture();
+    render_pass.set_color_attachment_texture(0, &drawable_texture);
+    render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+    render_pass.set_color_attachment_clear_color(0, 0.08, 0.08, 0.1, 1.0);
+    render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+
+    let Some(cmd_buffer) = command_queue.command_buffer() else {
+        return;
+    };
+    let Some(encoder) = cmd_buffer.render_command_encoder(&render_pass) else {
+        return;
+    };
+
+    // Draw captured frame as background
+    if let Some(textures) = capture_textures {
+        if textures.is_ycbcr() {
+            if let Some(ref plane1) = textures.plane1 {
+                encoder.set_render_pipeline_state(ycbcr_pipeline);
+                encoder.set_vertex_buffer(uniforms_buffer, 0, 0);
+                encoder.set_fragment_texture(&textures.plane0, 0);
+                encoder.set_fragment_texture(plane1, 1);
+                encoder.set_fragment_buffer(uniforms_buffer, 0, 0);
+            }
+        } else {
+            encoder.set_render_pipeline_state(fullscreen_pipeline);
+            encoder.set_vertex_buffer(uniforms_buffer, 0, 0);
+            encoder.set_fragment_texture(&textures.plane0, 0);
+        }
+        encoder.draw_primitives(MTLPrimitiveType::TriangleStrip, 0, 4);
+    }
+
+    // Draw overlay UI
+    encoder.set_render_pipeline_state(overlay_pipeline);
+    encoder.set_vertex_buffer(vertex_buffer, 0, 0);
+    encoder.set_vertex_buffer(uniforms_buffer, 0, 1);
+    encoder.draw_primitives(MTLPrimitiveType::Triangle, 0, vertex_count);
+    encoder.end_encoding();
+
+    cmd_buffer.present_drawable(&drawable);
+    cmd_buffer.commit();
 }
