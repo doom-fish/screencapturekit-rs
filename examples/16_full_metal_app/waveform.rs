@@ -73,7 +73,6 @@ impl WaveformBuffer {
         let start = (self.write_pos + self.samples.len() - count) % self.samples.len();
         (0..count)
             .map(|i| self.samples[(start + i) % self.samples.len()].abs())
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap_or(0.0)
+            .fold(0.0_f32, f32::max)
     }
 }
