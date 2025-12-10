@@ -2,6 +2,7 @@
 
 use super::ffi;
 use std::fmt;
+use std::io;
 
 pub struct IOSurface(*mut std::ffi::c_void);
 
@@ -250,6 +251,36 @@ impl IOSurfaceLockGuard<'_> {
         } else {
             Some(std::slice::from_raw_parts_mut(ptr, len))
         }
+    }
+
+    /// Access surface with a standard `std::io::Cursor`
+    ///
+    /// Returns a cursor over the surface data that implements `Read` and `Seek`.
+    ///
+    /// # Safety
+    /// The caller must ensure the surface data is valid for the lifetime of the cursor.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::io::{Read, Seek, SeekFrom};
+    /// use screencapturekit::cm::IOSurface;
+    ///
+    /// fn read_surface(surface: &IOSurface) {
+    ///     let guard = surface.lock_guard(true).unwrap();
+    ///     let mut cursor = unsafe { guard.cursor() };
+    ///
+    ///     // Read first 4 bytes
+    ///     let mut pixel = [0u8; 4];
+    ///     cursor.read_exact(&mut pixel).unwrap();
+    ///
+    ///     // Seek to row 10
+    ///     let offset = 10 * guard.bytes_per_row();
+    ///     cursor.seek(SeekFrom::Start(offset as u64)).unwrap();
+    /// }
+    /// ```
+    pub unsafe fn cursor(&self) -> io::Cursor<&[u8]> {
+        io::Cursor::new(self.as_slice())
     }
 }
 

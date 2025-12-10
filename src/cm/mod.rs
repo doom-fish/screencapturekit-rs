@@ -9,6 +9,7 @@
 //! - [`CMTime`] - Time value with rational timescale
 //! - [`CVPixelBuffer`] - Video pixel buffer
 //! - [`IOSurface`] - Hardware-accelerated surface
+//! - [`CMBlockBuffer`] - Block of contiguous data (audio/compressed video)
 //! - [`AudioBuffer`] - Audio data buffer
 //! - [`AudioBufferList`] - Collection of audio buffers
 //! - [`SCFrameStatus`] - Status of a captured frame
