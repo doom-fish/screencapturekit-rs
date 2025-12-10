@@ -55,14 +55,11 @@ jobs:
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
             features: "async,macos_15_2"
-          - os: macos-15-large
+          - os: macos-15-intel
             name: macOS 15 (Sequoia) Intel
             features: "async,macos_15_2"
           - os: macos-26
             name: macOS 26 (Tahoe) ARM64
-            features: "async,macos_26_0"
-          - os: macos-26-large
-            name: macOS 26 (Tahoe) Intel
             features: "async,macos_26_0"
     runs-on: ${{ matrix.os }}
     name: Build - ${{ matrix.name }}
@@ -107,14 +104,11 @@ jobs:
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
             features: "async,macos_15_2"
-          - os: macos-15-large
+          - os: macos-15-intel
             name: macOS 15 (Sequoia) Intel
             features: "async,macos_15_2"
           - os: macos-26
             name: macOS 26 (Tahoe) ARM64
-            features: "async,macos_26_0"
-          - os: macos-26-large
-            name: macOS 26 (Tahoe) Intel
             features: "async,macos_26_0"
     runs-on: ${{ matrix.os }}
     name: Leak Check - ${{ matrix.name }}
