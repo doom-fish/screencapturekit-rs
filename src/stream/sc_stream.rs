@@ -10,7 +10,7 @@ use std::sync::Mutex;
 
 use crate::error::SCError;
 use crate::stream::delegate_trait::SCStreamDelegateTrait;
-use crate::utils::sync_completion::UnitCompletion;
+use crate::utils::completion::UnitCompletion;
 use crate::{
     dispatch_queue::DispatchQueue,
     ffi,
@@ -36,6 +36,74 @@ struct DelegateEntry {
     ref_count: usize,
 }
 static DELEGATE_REGISTRY: Mutex<Option<HashMap<usize, DelegateEntry>>> = Mutex::new(None);
+
+/// Increment a handler's ref count
+#[allow(clippy::significant_drop_tightening)]
+fn increment_handler_ref_count(id: usize) {
+    let mut registry = HANDLER_REGISTRY.lock().unwrap();
+    let Some(handlers) = registry.as_mut() else {
+        return;
+    };
+    if let Some(entry) = handlers.get_mut(&id) {
+        entry.ref_count += 1;
+    }
+}
+
+/// Decrement a handler's ref count, returning true if entry was removed (`ref_count` reached 0)
+#[allow(clippy::significant_drop_tightening)]
+fn decrement_handler_ref_count(id: usize) -> bool {
+    let mut registry = HANDLER_REGISTRY.lock().unwrap();
+    let Some(handlers) = registry.as_mut() else {
+        return false;
+    };
+    let Some(entry) = handlers.get_mut(&id) else {
+        return false;
+    };
+
+    entry.ref_count = entry.ref_count.saturating_sub(1);
+    if entry.ref_count == 0 {
+        handlers.remove(&id);
+        true
+    } else {
+        false
+    }
+}
+
+/// Increment a delegate's ref count
+#[allow(clippy::significant_drop_tightening)]
+fn increment_delegate_ref_count(stream_key: usize) {
+    let Ok(mut registry) = DELEGATE_REGISTRY.lock() else {
+        return;
+    };
+    let Some(delegates) = registry.as_mut() else {
+        return;
+    };
+    if let Some(entry) = delegates.get_mut(&stream_key) {
+        entry.ref_count += 1;
+    }
+}
+
+/// Decrement a delegate's ref count, returning true if entry was removed (`ref_count` reached 0)
+#[allow(clippy::significant_drop_tightening)]
+fn decrement_delegate_ref_count(stream_key: usize) -> bool {
+    let Ok(mut registry) = DELEGATE_REGISTRY.lock() else {
+        return false;
+    };
+    let Some(delegates) = registry.as_mut() else {
+        return false;
+    };
+    let Some(entry) = delegates.get_mut(&stream_key) else {
+        return false;
+    };
+
+    entry.ref_count = entry.ref_count.saturating_sub(1);
+    if entry.ref_count == 0 {
+        delegates.remove(&stream_key);
+        true
+    } else {
+        false
+    }
+}
 
 // C callback for stream errors that dispatches to registered delegate
 extern "C" fn delegate_error_callback(stream: *const c_void, error_code: i32, msg: *const i8) {
@@ -487,29 +555,8 @@ impl SCStream {
         };
         self.handler_ids.remove(pos);
 
-        // Decrement ref count in global registry, remove if zero
-        #[allow(clippy::option_if_let_else)] // Can't use map_or due to borrow conflicts
-        let should_remove_from_swift = {
-            let mut registry = HANDLER_REGISTRY.lock().unwrap();
-            if let Some(handlers) = registry.as_mut() {
-                if let Some(entry) = handlers.get_mut(&id) {
-                    entry.ref_count = entry.ref_count.saturating_sub(1);
-                    if entry.ref_count == 0 {
-                        handlers.remove(&id);
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        };
-
-        // Only tell Swift to remove the output if this was the last reference
-        if should_remove_from_swift {
+        // Decrement ref count in global registry, remove from Swift if this was the last reference
+        if decrement_handler_ref_count(id) {
             let output_type_int = match of_type {
                 SCStreamOutputType::Screen => 0,
                 SCStreamOutputType::Audio => 1,
@@ -666,31 +713,11 @@ impl SCStream {
 }
 
 impl Drop for SCStream {
-    #[allow(clippy::option_if_let_else)] // Can't use map_or due to borrow conflicts
     fn drop(&mut self) {
         // Clean up all registered handlers (decrement ref counts)
         for (id, of_type) in std::mem::take(&mut self.handler_ids) {
-            let should_remove_from_swift = {
-                let mut registry = HANDLER_REGISTRY.lock().unwrap();
-                if let Some(handlers) = registry.as_mut() {
-                    if let Some(entry) = handlers.get_mut(&id) {
-                        entry.ref_count = entry.ref_count.saturating_sub(1);
-                        if entry.ref_count == 0 {
-                            handlers.remove(&id);
-                            true
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            };
-
-            // Only tell Swift to remove the output if this was the last reference
-            if should_remove_from_swift {
+            if decrement_handler_ref_count(id) {
+                // This was the last reference, tell Swift to remove the output
                 let output_type_int = match of_type {
                     SCStreamOutputType::Screen => 0,
                     SCStreamOutputType::Audio => 1,
@@ -702,17 +729,7 @@ impl Drop for SCStream {
 
         // Clean up delegate from registry (decrement ref count)
         if !self.ptr.is_null() {
-            let stream_key = self.ptr as usize;
-            if let Ok(mut registry) = DELEGATE_REGISTRY.lock() {
-                if let Some(delegates) = registry.as_mut() {
-                    if let Some(entry) = delegates.get_mut(&stream_key) {
-                        entry.ref_count = entry.ref_count.saturating_sub(1);
-                        if entry.ref_count == 0 {
-                            delegates.remove(&stream_key);
-                        }
-                    }
-                }
-            }
+            decrement_delegate_ref_count(self.ptr as usize);
         }
 
         if !self.ptr.is_null() {
@@ -756,26 +773,12 @@ impl Clone for SCStream {
     fn clone(&self) -> Self {
         // Increment delegate ref count if one exists for this stream
         if !self.ptr.is_null() {
-            let stream_key = self.ptr as usize;
-            if let Ok(mut registry) = DELEGATE_REGISTRY.lock() {
-                if let Some(delegates) = registry.as_mut() {
-                    if let Some(entry) = delegates.get_mut(&stream_key) {
-                        entry.ref_count += 1;
-                    }
-                }
-            }
+            increment_delegate_ref_count(self.ptr as usize);
         }
 
         // Increment handler ref counts for all handlers this stream references
-        {
-            let mut registry = HANDLER_REGISTRY.lock().unwrap();
-            if let Some(handlers) = registry.as_mut() {
-                for (id, _) in &self.handler_ids {
-                    if let Some(entry) = handlers.get_mut(id) {
-                        entry.ref_count += 1;
-                    }
-                }
-            }
+        for (id, _) in &self.handler_ids {
+            increment_handler_ref_count(*id);
         }
 
         unsafe {

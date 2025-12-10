@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use screencapturekit::utils::sync_completion::SyncCompletion;
+//! use screencapturekit::utils::completion::SyncCompletion;
 //!
 //! // Create completion for a String result
 //! let (completion, _context) = SyncCompletion::<String>::new();

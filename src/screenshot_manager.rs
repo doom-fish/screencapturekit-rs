@@ -6,7 +6,7 @@
 use crate::error::SCError;
 use crate::stream::configuration::SCStreamConfiguration;
 use crate::stream::content_filter::SCContentFilter;
-use crate::utils::sync_completion::{error_from_cstr, SyncCompletion};
+use crate::utils::completion::{error_from_cstr, SyncCompletion};
 use std::ffi::c_void;
 
 #[cfg(feature = "macos_15_2")]
