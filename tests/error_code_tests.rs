@@ -388,18 +388,12 @@ fn test_entitlements_error() {
 #[test]
 fn test_application_connection_errors() {
     let codes = [
-        (
-            SCStreamErrorCode::FailedApplicationConnectionInvalid,
-            -3804,
-        ),
+        (SCStreamErrorCode::FailedApplicationConnectionInvalid, -3804),
         (
             SCStreamErrorCode::FailedApplicationConnectionInterrupted,
             -3805,
         ),
-        (
-            SCStreamErrorCode::FailedNoMatchingApplicationContext,
-            -3806,
-        ),
+        (SCStreamErrorCode::FailedNoMatchingApplicationContext, -3806),
     ];
 
     for (code, expected_value) in codes {

@@ -491,10 +491,7 @@ fn test_all_pixel_formats() {
 
     for (format, expected_display) in formats {
         let display = format!("{format}");
-        assert_eq!(
-            display, expected_display,
-            "Display mismatch for {format:?}"
-        );
+        assert_eq!(display, expected_display, "Display mismatch for {format:?}");
     }
 }
 
@@ -537,9 +534,9 @@ fn test_pixel_format_hash_all() {
 fn test_hdr_pixel_formats() {
     // These formats are typically used for HDR capture
     let hdr_formats = [
-        PixelFormat::l10r,  // 10-bit ARGB
-        PixelFormat::xf44,  // 10-bit YCbCr 4:4:4
-        PixelFormat::RGhA,  // 16-bit half-precision float
+        PixelFormat::l10r, // 10-bit ARGB
+        PixelFormat::xf44, // 10-bit YCbCr 4:4:4
+        PixelFormat::RGhA, // 16-bit half-precision float
     ];
 
     for format in hdr_formats {

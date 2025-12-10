@@ -171,14 +171,7 @@ impl VertexBufferBuilder {
             } else {
                 format_info.to_string()
             };
-            self.text(
-                font,
-                &display_info,
-                text_x,
-                ly,
-                scale * 0.6,
-                NEON_PURPLE,
-            );
+            self.text(font, &display_info, text_x, ly, scale * 0.6, NEON_PURPLE);
             ly += line_h * 0.8;
         }
 

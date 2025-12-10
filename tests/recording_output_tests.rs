@@ -508,7 +508,8 @@ fn test_recording_callbacks_partial_handlers() {
     let fail_clone = Arc::clone(&fail_called);
 
     // Only set one callback
-    let callbacks = RecordingCallbacks::new().on_fail(move |_| fail_clone.store(true, Ordering::SeqCst));
+    let callbacks =
+        RecordingCallbacks::new().on_fail(move |_| fail_clone.store(true, Ordering::SeqCst));
 
     // Call all methods - only the one with handler should do anything
     callbacks.recording_did_start();
@@ -522,9 +523,7 @@ fn test_recording_callbacks_partial_handlers() {
 fn test_recording_callbacks_debug() {
     use screencapturekit::recording_output::RecordingCallbacks;
 
-    let callbacks = RecordingCallbacks::new()
-        .on_start(|| {})
-        .on_fail(|_| {});
+    let callbacks = RecordingCallbacks::new().on_start(|| {}).on_fail(|_| {});
 
     let debug_str = format!("{callbacks:?}");
     assert!(debug_str.contains("RecordingCallbacks"));
