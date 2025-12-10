@@ -225,11 +225,14 @@ Feature hierarchy (cumulative):
 ## Testing
 
 ```bash
+cargo fmt                            # Format code (required before commit)
 cargo test                           # All tests
 cargo test --features async          # With async
 cargo test --all-features            # All features
 cargo clippy --all-features -- -D warnings  # Lint
 ```
+
+**Important:** Always run `cargo fmt` before committing. CI will fail on formatting issues.
 
 ## Updating Apple Documentation
 
