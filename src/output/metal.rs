@@ -1561,7 +1561,12 @@ impl MetalVertexDescriptor {
     }
 
     /// Set a buffer layout's stride and step function
-    pub fn set_layout(&self, buffer_index: usize, stride: usize, step_function: MTLVertexStepFunction) {
+    pub fn set_layout(
+        &self,
+        buffer_index: usize,
+        stride: usize,
+        step_function: MTLVertexStepFunction,
+    ) {
         unsafe {
             metal_vertex_descriptor_set_layout(
                 self.ptr.as_ptr(),

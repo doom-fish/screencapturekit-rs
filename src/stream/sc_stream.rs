@@ -117,7 +117,9 @@ extern "C" fn sample_handler(
             }
             // The last handler will release the original retained reference from Swift
 
-            entry.handler.did_output_sample_buffer(buffer, output_type_enum);
+            entry
+                .handler
+                .did_output_sample_buffer(buffer, output_type_enum);
         }
     } else {
         // No registry - release the buffer
@@ -270,7 +272,11 @@ impl SCStream {
         delegate: impl SCStreamDelegateTrait + 'static,
     ) -> Self {
         let ptr = unsafe {
-            ffi::sc_stream_create(filter.as_ptr(), configuration.as_ptr(), delegate_error_callback)
+            ffi::sc_stream_create(
+                filter.as_ptr(),
+                configuration.as_ptr(),
+                delegate_error_callback,
+            )
         };
 
         // Store delegate in registry keyed by stream pointer

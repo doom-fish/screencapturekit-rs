@@ -233,7 +233,10 @@ impl std::fmt::Debug for AudioBufferListIter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AudioBufferListIter")
             .field("total", &self.list.num_buffers())
-            .field("remaining", &(self.list.num_buffers().saturating_sub(self.index)))
+            .field(
+                "remaining",
+                &(self.list.num_buffers().saturating_sub(self.index)),
+            )
             .finish()
     }
 }
