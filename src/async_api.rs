@@ -68,7 +68,8 @@ pub struct AsyncShareableContentFuture {
 
 impl std::fmt::Debug for AsyncShareableContentFuture {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AsyncShareableContentFuture").finish_non_exhaustive()
+        f.debug_struct("AsyncShareableContentFuture")
+            .finish_non_exhaustive()
     }
 }
 
@@ -489,7 +490,8 @@ pub struct AsyncScreenshotFuture<T> {
 #[cfg(feature = "macos_14_0")]
 impl<T> std::fmt::Debug for AsyncScreenshotFuture<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AsyncScreenshotFuture").finish_non_exhaustive()
+        f.debug_struct("AsyncScreenshotFuture")
+            .finish_non_exhaustive()
     }
 }
 
@@ -745,7 +747,8 @@ pub struct AsyncPickerFilterFuture {
 #[cfg(feature = "macos_14_0")]
 impl std::fmt::Debug for AsyncPickerFilterFuture {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AsyncPickerFilterFuture").finish_non_exhaustive()
+        f.debug_struct("AsyncPickerFilterFuture")
+            .finish_non_exhaustive()
     }
 }
 
@@ -1070,7 +1073,8 @@ pub struct AsyncSCRecordingOutput {
 #[cfg(feature = "macos_15_0")]
 impl std::fmt::Debug for AsyncSCRecordingOutput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AsyncSCRecordingOutput").finish_non_exhaustive()
+        f.debug_struct("AsyncSCRecordingOutput")
+            .finish_non_exhaustive()
     }
 }
 

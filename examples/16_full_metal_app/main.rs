@@ -520,7 +520,9 @@ fn main() {
         .expect("Failed to create overlay pipeline");
     let fullscreen_pipeline = create_textured_pipeline(&device, &library, "fragment_textured");
     let ycbcr_pipeline = create_textured_pipeline(&device, &library, "fragment_ycbcr");
-    let command_queue = device.create_command_queue().expect("Failed to create command queue");
+    let command_queue = device
+        .create_command_queue()
+        .expect("Failed to create command queue");
 
     // Application state
     let mut app = AppState::new();
@@ -719,8 +721,18 @@ fn build_ui_vertices(
 /// Build status bar text
 fn build_status_text(app: &AppState, capture_textures: Option<&CaptureTextures>) -> String {
     let fps = app.capture_state.frame_count.load(Ordering::Relaxed);
-    let audio_samples = app.capture_state.audio_waveform.lock().unwrap().sample_count();
-    let mic_samples = app.capture_state.mic_waveform.lock().unwrap().sample_count();
+    let audio_samples = app
+        .capture_state
+        .audio_waveform
+        .lock()
+        .unwrap()
+        .sample_count();
+    let mic_samples = app
+        .capture_state
+        .mic_waveform
+        .lock()
+        .unwrap()
+        .sample_count();
     let audio_peak = app.capture_state.audio_waveform.lock().unwrap().peak(512);
     let mic_peak = app.capture_state.mic_waveform.lock().unwrap().peak(512);
 
@@ -758,7 +770,13 @@ fn build_waveform_ui(
     let label_w = 24.0;
 
     // Background
-    vertex_builder.rect(0.0, bar_y, width, total_wave_h + 12.0, [0.08, 0.08, 0.1, 0.9]);
+    vertex_builder.rect(
+        0.0,
+        bar_y,
+        width,
+        total_wave_h + 12.0,
+        [0.08, 0.08, 0.1, 0.9],
+    );
 
     let meters_space = meter_w * 2.0 + padding * 3.0;
     let wave_w = width - meters_space - padding - label_w;
@@ -774,8 +792,20 @@ fn build_waveform_ui(
         1.0,
         [0.0, 0.9, 0.8, 0.7],
     );
-    let audio_samples = app.capture_state.audio_waveform.lock().unwrap().display_samples(512);
-    vertex_builder.waveform(&audio_samples, wave_x, audio_wave_y, wave_w, single_wave_h, [0.0, 0.9, 0.8, 0.9]);
+    let audio_samples = app
+        .capture_state
+        .audio_waveform
+        .lock()
+        .unwrap()
+        .display_samples(512);
+    vertex_builder.waveform(
+        &audio_samples,
+        wave_x,
+        audio_wave_y,
+        wave_w,
+        single_wave_h,
+        [0.0, 0.9, 0.8, 0.9],
+    );
 
     // Microphone waveform
     let mic_wave_y = audio_wave_y + single_wave_h + wave_spacing;
@@ -787,13 +817,33 @@ fn build_waveform_ui(
         1.0,
         [1.0, 0.3, 0.7, 0.7],
     );
-    let mic_samples = app.capture_state.mic_waveform.lock().unwrap().display_samples(512);
-    vertex_builder.waveform(&mic_samples, wave_x, mic_wave_y, wave_w, single_wave_h, [1.0, 0.3, 0.7, 0.9]);
+    let mic_samples = app
+        .capture_state
+        .mic_waveform
+        .lock()
+        .unwrap()
+        .display_samples(512);
+    vertex_builder.waveform(
+        &mic_samples,
+        wave_x,
+        mic_wave_y,
+        wave_w,
+        single_wave_h,
+        [1.0, 0.3, 0.7, 0.9],
+    );
 
     // VU meters
     let meters_x = width - meters_space + padding;
     let audio_level = app.capture_state.audio_waveform.lock().unwrap().rms(2048);
-    vertex_builder.vu_meter_vertical(audio_level, meters_x, audio_wave_y, meter_w, total_wave_h, "S", font);
+    vertex_builder.vu_meter_vertical(
+        audio_level,
+        meters_x,
+        audio_wave_y,
+        meter_w,
+        total_wave_h,
+        "S",
+        font,
+    );
 
     let mic_level = app.capture_state.mic_waveform.lock().unwrap().rms(2048);
     vertex_builder.vu_meter_vertical(
