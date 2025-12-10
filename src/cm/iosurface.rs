@@ -263,7 +263,10 @@ impl std::fmt::Debug for IOSurfaceLockGuard<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IOSurfaceLockGuard")
             .field("read_only", &self.read_only)
-            .field("surface_size", &(self.surface.width(), self.surface.height()))
+            .field(
+                "surface_size",
+                &(self.surface.width(), self.surface.height()),
+            )
             .finish()
     }
 }

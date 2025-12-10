@@ -1,7 +1,9 @@
 //! `SCStreamDelegateTrait` tests
 
 use screencapturekit::error::SCError;
-use screencapturekit::stream::delegate_trait::{ErrorHandler, SCStreamDelegateTrait, StreamCallbacks};
+use screencapturekit::stream::delegate_trait::{
+    ErrorHandler, SCStreamDelegateTrait, StreamCallbacks,
+};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 
@@ -176,10 +178,7 @@ fn test_stream_callbacks_on_stop() {
     called.store(false, Ordering::SeqCst);
     callbacks.stream_did_stop(Some("test error".to_string()));
     assert!(called.load(Ordering::SeqCst));
-    assert_eq!(
-        error_msg.lock().unwrap().as_deref(),
-        Some("test error")
-    );
+    assert_eq!(error_msg.lock().unwrap().as_deref(), Some("test error"));
 }
 
 #[test]
@@ -303,8 +302,8 @@ fn test_stream_callbacks_partial_handlers() {
     let active_clone = Arc::clone(&active_called);
 
     // Only set one callback
-    let callbacks = StreamCallbacks::new()
-        .on_active(move || active_clone.store(true, Ordering::SeqCst));
+    let callbacks =
+        StreamCallbacks::new().on_active(move || active_clone.store(true, Ordering::SeqCst));
 
     // Call all methods - only the one with handler should do anything
     callbacks.stream_did_stop(None);

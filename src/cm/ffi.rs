@@ -328,16 +328,8 @@ extern "C" {
     pub fn io_surface_is_in_use(surface: *mut std::ffi::c_void) -> bool;
     pub fn io_surface_increment_use_count(surface: *mut std::ffi::c_void);
     pub fn io_surface_decrement_use_count(surface: *mut std::ffi::c_void);
-    pub fn io_surface_lock(
-        surface: *mut std::ffi::c_void,
-        options: u32,
-        seed: *mut u32,
-    ) -> i32;
-    pub fn io_surface_unlock(
-        surface: *mut std::ffi::c_void,
-        options: u32,
-        seed: *mut u32,
-    ) -> i32;
+    pub fn io_surface_lock(surface: *mut std::ffi::c_void, options: u32, seed: *mut u32) -> i32;
+    pub fn io_surface_unlock(surface: *mut std::ffi::c_void, options: u32, seed: *mut u32) -> i32;
     pub fn io_surface_release(surface: *mut std::ffi::c_void);
     pub fn io_surface_retain(surface: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
 }
