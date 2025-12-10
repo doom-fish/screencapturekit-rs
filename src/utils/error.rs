@@ -493,49 +493,53 @@ pub const SC_STREAM_ERROR_DOMAIN: &str = "com.apple.screencapturekit";
 /// Error codes from Apple's `SCStreamError.Code`
 ///
 /// These correspond to the error codes returned by `ScreenCaptureKit` operations.
+///
+/// Based on Apple's `SCStreamErrorCode` from `SCError.h`.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SCStreamErrorCode {
-    /// User declined the recording permission request
+    /// The user chose not to authorize capture
     UserDeclined = -3801,
-    /// Failed to start the audio capture
-    FailedToStartAudioCapture = -3802,
-    /// Failed to start the stream
-    FailedToStart = -3803,
-    /// Attempt to start a stream that's already running
-    AttemptToStartStreamState = -3804,
-    /// Attempt to stop a stream that's not running
-    AttemptToStopStreamState = -3805,
-    /// Attempt to update the filter while stream is running
-    AttemptToUpdateFilterState = -3806,
-    /// Attempt to configure the stream while it's running
-    AttemptToConfigState = -3807,
-    /// Internal error occurred
-    InternalError = -3808,
-    /// Invalid parameter was passed
-    InvalidParameter = -3809,
-    /// No window list provided
-    NoWindowList = -3810,
-    /// No display list provided
-    NoDisplayList = -3811,
-    /// No filter provided
-    NoCaptureSource = -3812,
-    /// Failed to remove stream output
-    RemovingStream = -3813,
-    /// User stopped the stream
-    UserStopped = -3814,
-    /// Failed to start the stream extension
-    FailedToStartExtension = -3815,
-    /// Failed to start the microphone capture (macOS 15.0+)
-    FailedToStartMicrophoneCapture = -3816,
-    /// System stopped the stream (macOS 15.0+)
-    SystemStoppedStream = -3817,
-    /// Failed to get the application connection status
-    FailedApplicationConnectionStatus = -3818,
-    /// Failed to get the application connection invalid parameter
-    FailedApplicationConnectionInvalidParameter = -3819,
-    /// Failed to get the capture source
-    FailedNoMatchingApplicationContext = -3820,
+    /// The stream failed to start
+    FailedToStart = -3802,
+    /// The stream failed due to missing entitlements
+    MissingEntitlements = -3803,
+    /// Failed during recording - application connection invalid
+    FailedApplicationConnectionInvalid = -3804,
+    /// Failed during recording - application connection interrupted
+    FailedApplicationConnectionInterrupted = -3805,
+    /// Failed during recording - context id does not match application
+    FailedNoMatchingApplicationContext = -3806,
+    /// Failed due to attempting to start a stream that's already in a recording state
+    AttemptToStartStreamState = -3807,
+    /// Failed due to attempting to stop a stream that's already in a recording state
+    AttemptToStopStreamState = -3808,
+    /// Failed due to attempting to update the filter on a stream
+    AttemptToUpdateFilterState = -3809,
+    /// Failed due to attempting to update stream config on a stream
+    AttemptToConfigState = -3810,
+    /// Failed to start due to video/audio capture failure
+    InternalError = -3811,
+    /// Failed due to invalid parameter
+    InvalidParameter = -3812,
+    /// Failed due to no window list
+    NoWindowList = -3813,
+    /// Failed due to no display list
+    NoDisplayList = -3814,
+    /// Failed due to no display or window list to capture
+    NoCaptureSource = -3815,
+    /// Failed to remove stream
+    RemovingStream = -3816,
+    /// The stream was stopped by the user
+    UserStopped = -3817,
+    /// The stream failed to start audio (macOS 13.0+)
+    FailedToStartAudioCapture = -3818,
+    /// The stream failed to stop audio (macOS 13.0+)
+    FailedToStopAudioCapture = -3819,
+    /// The stream failed to start microphone (macOS 15.0+)
+    FailedToStartMicrophoneCapture = -3820,
+    /// The stream was stopped by the system (macOS 15.0+)
+    SystemStoppedStream = -3821,
 }
 
 impl SCStreamErrorCode {
@@ -543,25 +547,26 @@ impl SCStreamErrorCode {
     pub fn from_raw(code: i32) -> Option<Self> {
         match code {
             -3801 => Some(Self::UserDeclined),
-            -3802 => Some(Self::FailedToStartAudioCapture),
-            -3803 => Some(Self::FailedToStart),
-            -3804 => Some(Self::AttemptToStartStreamState),
-            -3805 => Some(Self::AttemptToStopStreamState),
-            -3806 => Some(Self::AttemptToUpdateFilterState),
-            -3807 => Some(Self::AttemptToConfigState),
-            -3808 => Some(Self::InternalError),
-            -3809 => Some(Self::InvalidParameter),
-            -3810 => Some(Self::NoWindowList),
-            -3811 => Some(Self::NoDisplayList),
-            -3812 => Some(Self::NoCaptureSource),
-            -3813 => Some(Self::RemovingStream),
-            -3814 => Some(Self::UserStopped),
-            -3815 => Some(Self::FailedToStartExtension),
-            -3816 => Some(Self::FailedToStartMicrophoneCapture),
-            -3817 => Some(Self::SystemStoppedStream),
-            -3818 => Some(Self::FailedApplicationConnectionStatus),
-            -3819 => Some(Self::FailedApplicationConnectionInvalidParameter),
-            -3820 => Some(Self::FailedNoMatchingApplicationContext),
+            -3802 => Some(Self::FailedToStart),
+            -3803 => Some(Self::MissingEntitlements),
+            -3804 => Some(Self::FailedApplicationConnectionInvalid),
+            -3805 => Some(Self::FailedApplicationConnectionInterrupted),
+            -3806 => Some(Self::FailedNoMatchingApplicationContext),
+            -3807 => Some(Self::AttemptToStartStreamState),
+            -3808 => Some(Self::AttemptToStopStreamState),
+            -3809 => Some(Self::AttemptToUpdateFilterState),
+            -3810 => Some(Self::AttemptToConfigState),
+            -3811 => Some(Self::InternalError),
+            -3812 => Some(Self::InvalidParameter),
+            -3813 => Some(Self::NoWindowList),
+            -3814 => Some(Self::NoDisplayList),
+            -3815 => Some(Self::NoCaptureSource),
+            -3816 => Some(Self::RemovingStream),
+            -3817 => Some(Self::UserStopped),
+            -3818 => Some(Self::FailedToStartAudioCapture),
+            -3819 => Some(Self::FailedToStopAudioCapture),
+            -3820 => Some(Self::FailedToStartMicrophoneCapture),
+            -3821 => Some(Self::SystemStoppedStream),
             _ => None,
         }
     }
@@ -576,8 +581,17 @@ impl std::fmt::Display for SCStreamErrorCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UserDeclined => write!(f, "User declined screen recording"),
-            Self::FailedToStartAudioCapture => write!(f, "Failed to start audio capture"),
             Self::FailedToStart => write!(f, "Failed to start stream"),
+            Self::MissingEntitlements => write!(f, "Missing entitlements"),
+            Self::FailedApplicationConnectionInvalid => {
+                write!(f, "Application connection invalid")
+            }
+            Self::FailedApplicationConnectionInterrupted => {
+                write!(f, "Application connection interrupted")
+            }
+            Self::FailedNoMatchingApplicationContext => {
+                write!(f, "No matching application context")
+            }
             Self::AttemptToStartStreamState => write!(f, "Stream is already running"),
             Self::AttemptToStopStreamState => write!(f, "Stream is not running"),
             Self::AttemptToUpdateFilterState => write!(f, "Cannot update filter while streaming"),
@@ -589,18 +603,10 @@ impl std::fmt::Display for SCStreamErrorCode {
             Self::NoCaptureSource => write!(f, "No capture source provided"),
             Self::RemovingStream => write!(f, "Failed to remove stream"),
             Self::UserStopped => write!(f, "User stopped the stream"),
-            Self::FailedToStartExtension => write!(f, "Failed to start extension"),
+            Self::FailedToStartAudioCapture => write!(f, "Failed to start audio capture"),
+            Self::FailedToStopAudioCapture => write!(f, "Failed to stop audio capture"),
             Self::FailedToStartMicrophoneCapture => write!(f, "Failed to start microphone capture"),
             Self::SystemStoppedStream => write!(f, "System stopped the stream"),
-            Self::FailedApplicationConnectionStatus => {
-                write!(f, "Failed application connection status")
-            }
-            Self::FailedApplicationConnectionInvalidParameter => {
-                write!(f, "Failed application connection invalid parameter")
-            }
-            Self::FailedNoMatchingApplicationContext => {
-                write!(f, "No matching application context")
-            }
         }
     }
 }

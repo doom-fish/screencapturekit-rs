@@ -39,6 +39,8 @@ fn test_set_pixel_format() {
         PixelFormat::YCbCr_420v,
         PixelFormat::YCbCr_420f,
         PixelFormat::l10r,
+        PixelFormat::xf44,
+        PixelFormat::RGhA,
     ];
 
     for format in formats {
@@ -456,4 +458,93 @@ fn test_preserves_aspect_ratio_builder() {
     let config = SCStreamConfiguration::new().with_preserves_aspect_ratio(true);
 
     assert!(config.preserves_aspect_ratio());
+}
+
+// MARK: - Pixel Format Tests
+
+#[test]
+fn test_pixel_format_xf44() {
+    // xf44: 2 plane "full" range YCbCr10 4:4:4 (10-bit)
+    let format = PixelFormat::xf44;
+    let display = format!("{format}");
+    assert_eq!(display, "xf44");
+}
+
+#[test]
+fn test_pixel_format_rgha() {
+    // RGhA: 64-bit RGBA IEEE half-precision float (HDR)
+    let format = PixelFormat::RGhA;
+    let display = format!("{format}");
+    assert_eq!(display, "RGhA");
+}
+
+#[test]
+fn test_all_pixel_formats() {
+    let formats = [
+        (PixelFormat::BGRA, "BGRA"),
+        (PixelFormat::l10r, "l10r"),
+        (PixelFormat::YCbCr_420v, "420v"),
+        (PixelFormat::YCbCr_420f, "420f"),
+        (PixelFormat::xf44, "xf44"),
+        (PixelFormat::RGhA, "RGhA"),
+    ];
+
+    for (format, expected_display) in formats {
+        let display = format!("{format}");
+        assert_eq!(
+            display, expected_display,
+            "Display mismatch for {format:?}"
+        );
+    }
+}
+
+#[test]
+fn test_pixel_format_roundtrip() {
+    use screencapturekit::utils::four_char_code::FourCharCode;
+
+    let formats = [
+        PixelFormat::BGRA,
+        PixelFormat::l10r,
+        PixelFormat::YCbCr_420v,
+        PixelFormat::YCbCr_420f,
+        PixelFormat::xf44,
+        PixelFormat::RGhA,
+    ];
+
+    for format in formats {
+        let four_cc: FourCharCode = format.into();
+        let back: PixelFormat = four_cc.into();
+        assert_eq!(format, back, "Roundtrip failed for {format:?}");
+    }
+}
+
+#[test]
+fn test_pixel_format_hash_all() {
+    use std::collections::HashSet;
+
+    let mut set = HashSet::new();
+    set.insert(PixelFormat::BGRA);
+    set.insert(PixelFormat::l10r);
+    set.insert(PixelFormat::YCbCr_420v);
+    set.insert(PixelFormat::YCbCr_420f);
+    set.insert(PixelFormat::xf44);
+    set.insert(PixelFormat::RGhA);
+
+    assert_eq!(set.len(), 6);
+}
+
+#[test]
+fn test_hdr_pixel_formats() {
+    // These formats are typically used for HDR capture
+    let hdr_formats = [
+        PixelFormat::l10r,  // 10-bit ARGB
+        PixelFormat::xf44,  // 10-bit YCbCr 4:4:4
+        PixelFormat::RGhA,  // 16-bit half-precision float
+    ];
+
+    for format in hdr_formats {
+        let mut config = SCStreamConfiguration::default();
+        config.set_pixel_format(format);
+        // Just verify HDR formats can be set
+    }
 }

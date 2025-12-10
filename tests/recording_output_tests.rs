@@ -316,3 +316,284 @@ fn test_recording_output_file_type_array_matches_count() {
     // The array length should match the count
     assert_eq!(file_types.len(), count);
 }
+
+// MARK: - SCRecordingOutputDelegate Tests
+
+#[test]
+fn test_recording_delegate_trait_implementation() {
+    use screencapturekit::recording_output::SCRecordingOutputDelegate;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
+
+    struct TestRecordingDelegate {
+        start_count: Arc<AtomicU32>,
+        finish_count: Arc<AtomicU32>,
+        fail_count: Arc<AtomicU32>,
+        last_error: Arc<std::sync::Mutex<Option<String>>>,
+    }
+
+    impl SCRecordingOutputDelegate for TestRecordingDelegate {
+        fn recording_did_start(&self) {
+            self.start_count.fetch_add(1, Ordering::SeqCst);
+        }
+
+        fn recording_did_finish(&self) {
+            self.finish_count.fetch_add(1, Ordering::SeqCst);
+        }
+
+        fn recording_did_fail(&self, error: String) {
+            self.fail_count.fetch_add(1, Ordering::SeqCst);
+            *self.last_error.lock().unwrap() = Some(error);
+        }
+    }
+
+    let delegate = TestRecordingDelegate {
+        start_count: Arc::new(AtomicU32::new(0)),
+        finish_count: Arc::new(AtomicU32::new(0)),
+        fail_count: Arc::new(AtomicU32::new(0)),
+        last_error: Arc::new(std::sync::Mutex::new(None)),
+    };
+
+    // Test start callback
+    delegate.recording_did_start();
+    assert_eq!(delegate.start_count.load(Ordering::SeqCst), 1);
+
+    // Test finish callback
+    delegate.recording_did_finish();
+    assert_eq!(delegate.finish_count.load(Ordering::SeqCst), 1);
+
+    // Test fail callback
+    delegate.recording_did_fail("Test error".to_string());
+    assert_eq!(delegate.fail_count.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        delegate.last_error.lock().unwrap().as_deref(),
+        Some("Test error")
+    );
+}
+
+#[test]
+fn test_recording_delegate_default_implementations() {
+    use screencapturekit::recording_output::SCRecordingOutputDelegate;
+
+    struct MinimalRecordingDelegate;
+    impl SCRecordingOutputDelegate for MinimalRecordingDelegate {}
+
+    let delegate = MinimalRecordingDelegate;
+
+    // These should not panic - they have default empty implementations
+    delegate.recording_did_start();
+    delegate.recording_did_finish();
+    delegate.recording_did_fail("error".to_string());
+}
+
+// MARK: - RecordingCallbacks Tests
+
+#[test]
+fn test_recording_callbacks_new() {
+    use screencapturekit::recording_output::RecordingCallbacks;
+
+    let callbacks = RecordingCallbacks::new();
+    // Should not panic
+    drop(callbacks);
+}
+
+#[test]
+fn test_recording_callbacks_default() {
+    use screencapturekit::recording_output::RecordingCallbacks;
+
+    let callbacks = RecordingCallbacks::default();
+    // Should not panic
+    drop(callbacks);
+}
+
+#[test]
+fn test_recording_callbacks_on_start() {
+    use screencapturekit::recording_output::{RecordingCallbacks, SCRecordingOutputDelegate};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let called = Arc::new(AtomicBool::new(false));
+    let called_clone = Arc::clone(&called);
+
+    let callbacks = RecordingCallbacks::new().on_start(move || {
+        called_clone.store(true, Ordering::SeqCst);
+    });
+
+    callbacks.recording_did_start();
+    assert!(called.load(Ordering::SeqCst));
+}
+
+#[test]
+fn test_recording_callbacks_on_finish() {
+    use screencapturekit::recording_output::{RecordingCallbacks, SCRecordingOutputDelegate};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let called = Arc::new(AtomicBool::new(false));
+    let called_clone = Arc::clone(&called);
+
+    let callbacks = RecordingCallbacks::new().on_finish(move || {
+        called_clone.store(true, Ordering::SeqCst);
+    });
+
+    callbacks.recording_did_finish();
+    assert!(called.load(Ordering::SeqCst));
+}
+
+#[test]
+fn test_recording_callbacks_on_fail() {
+    use screencapturekit::recording_output::{RecordingCallbacks, SCRecordingOutputDelegate};
+    use std::sync::Arc;
+
+    let error_msg = Arc::new(std::sync::Mutex::new(String::new()));
+    let error_clone = Arc::clone(&error_msg);
+
+    let callbacks = RecordingCallbacks::new().on_fail(move |error| {
+        *error_clone.lock().unwrap() = error;
+    });
+
+    callbacks.recording_did_fail("test failure".to_string());
+    assert_eq!(error_msg.lock().unwrap().as_str(), "test failure");
+}
+
+#[test]
+fn test_recording_callbacks_all_callbacks() {
+    use screencapturekit::recording_output::{RecordingCallbacks, SCRecordingOutputDelegate};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let start_called = Arc::new(AtomicBool::new(false));
+    let finish_called = Arc::new(AtomicBool::new(false));
+    let fail_called = Arc::new(AtomicBool::new(false));
+
+    let start_clone = Arc::clone(&start_called);
+    let finish_clone = Arc::clone(&finish_called);
+    let fail_clone = Arc::clone(&fail_called);
+
+    let callbacks = RecordingCallbacks::new()
+        .on_start(move || start_clone.store(true, Ordering::SeqCst))
+        .on_finish(move || finish_clone.store(true, Ordering::SeqCst))
+        .on_fail(move |_| fail_clone.store(true, Ordering::SeqCst));
+
+    // Trigger all callbacks
+    callbacks.recording_did_start();
+    callbacks.recording_did_finish();
+    callbacks.recording_did_fail("error".to_string());
+
+    // Verify all were called
+    assert!(start_called.load(Ordering::SeqCst));
+    assert!(finish_called.load(Ordering::SeqCst));
+    assert!(fail_called.load(Ordering::SeqCst));
+}
+
+#[test]
+fn test_recording_callbacks_without_handlers() {
+    use screencapturekit::recording_output::{RecordingCallbacks, SCRecordingOutputDelegate};
+
+    // Test that callbacks without handlers don't panic
+    let callbacks = RecordingCallbacks::new();
+
+    callbacks.recording_did_start();
+    callbacks.recording_did_finish();
+    callbacks.recording_did_fail("error".to_string());
+}
+
+#[test]
+fn test_recording_callbacks_partial_handlers() {
+    use screencapturekit::recording_output::{RecordingCallbacks, SCRecordingOutputDelegate};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let fail_called = Arc::new(AtomicBool::new(false));
+    let fail_clone = Arc::clone(&fail_called);
+
+    // Only set one callback
+    let callbacks = RecordingCallbacks::new().on_fail(move |_| fail_clone.store(true, Ordering::SeqCst));
+
+    // Call all methods - only the one with handler should do anything
+    callbacks.recording_did_start();
+    callbacks.recording_did_finish();
+    callbacks.recording_did_fail("error".to_string());
+
+    assert!(fail_called.load(Ordering::SeqCst));
+}
+
+#[test]
+fn test_recording_callbacks_debug() {
+    use screencapturekit::recording_output::RecordingCallbacks;
+
+    let callbacks = RecordingCallbacks::new()
+        .on_start(|| {})
+        .on_fail(|_| {});
+
+    let debug_str = format!("{callbacks:?}");
+    assert!(debug_str.contains("RecordingCallbacks"));
+    assert!(debug_str.contains("on_start"));
+    assert!(debug_str.contains("on_fail"));
+    assert!(debug_str.contains("on_finish"));
+}
+
+#[test]
+fn test_recording_callbacks_is_send() {
+    use screencapturekit::recording_output::RecordingCallbacks;
+
+    fn assert_send<T: Send>() {}
+    assert_send::<RecordingCallbacks>();
+}
+
+#[test]
+fn test_recording_callbacks_multiple_calls() {
+    use screencapturekit::recording_output::{RecordingCallbacks, SCRecordingOutputDelegate};
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
+
+    let start_count = Arc::new(AtomicU32::new(0));
+    let finish_count = Arc::new(AtomicU32::new(0));
+
+    let start_clone = Arc::clone(&start_count);
+    let finish_clone = Arc::clone(&finish_count);
+
+    let callbacks = RecordingCallbacks::new()
+        .on_start(move || {
+            start_clone.fetch_add(1, Ordering::SeqCst);
+        })
+        .on_finish(move || {
+            finish_clone.fetch_add(1, Ordering::SeqCst);
+        });
+
+    // Call start multiple times (simulating restart scenarios)
+    callbacks.recording_did_start();
+    callbacks.recording_did_start();
+    callbacks.recording_did_finish();
+
+    assert_eq!(start_count.load(Ordering::SeqCst), 2);
+    assert_eq!(finish_count.load(Ordering::SeqCst), 1);
+}
+
+// MARK: - Delegate with SCRecordingOutput Integration
+
+#[test]
+fn test_recording_output_with_delegate() {
+    use screencapturekit::recording_output::RecordingCallbacks;
+    use std::path::PathBuf;
+
+    let path = PathBuf::from("/tmp/test_delegate_recording.mp4");
+    let config = SCRecordingOutputConfiguration::new().with_output_url(&path);
+
+    let callbacks = RecordingCallbacks::new()
+        .on_start(|| println!("Recording started"))
+        .on_finish(|| println!("Recording finished"))
+        .on_fail(|e| eprintln!("Recording failed: {e}"));
+
+    let result = SCRecordingOutput::new_with_delegate(&config, callbacks);
+
+    match result {
+        Some(output) => {
+            println!("✓ Recording output with delegate created successfully");
+            drop(output);
+        }
+        None => {
+            println!("⚠ Recording output creation requires macOS 15.0+ runtime");
+        }
+    }
+}

@@ -31,6 +31,10 @@ pub enum PixelFormat {
     YCbCr_420v,
     /// Two-plane "full" range YCbCr 4:2:0
     YCbCr_420f,
+    /// Two-plane "full" range `YCbCr10` 4:4:4 (10-bit)
+    xf44,
+    /// 64-bit RGBA IEEE half-precision float, 16-bit little-endian (HDR)
+    RGhA,
 }
 impl Display for PixelFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -47,6 +51,8 @@ impl From<PixelFormat> for FourCharCode {
             PixelFormat::l10r => Self::from_bytes(*b"l10r"),
             PixelFormat::YCbCr_420v => Self::from_bytes(*b"420v"),
             PixelFormat::YCbCr_420f => Self::from_bytes(*b"420f"),
+            PixelFormat::xf44 => Self::from_bytes(*b"xf44"),
+            PixelFormat::RGhA => Self::from_bytes(*b"RGhA"),
         }
     }
 }
@@ -63,6 +69,8 @@ impl From<FourCharCode> for PixelFormat {
             "l10r" => Self::l10r,
             "420v" => Self::YCbCr_420v,
             "420f" => Self::YCbCr_420f,
+            "xf44" => Self::xf44,
+            "RGhA" => Self::RGhA,
             _ => Self::BGRA, // Default to BGRA for unknown formats (including "BGRA")
         }
     }
