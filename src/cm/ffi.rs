@@ -296,9 +296,48 @@ extern "C" {
         sample_buffer_out: *mut *mut std::ffi::c_void,
     ) -> i32;
 
+    // IOSurface functions
     pub fn io_surface_get_width(surface: *mut std::ffi::c_void) -> usize;
     pub fn io_surface_get_height(surface: *mut std::ffi::c_void) -> usize;
     pub fn io_surface_get_bytes_per_row(surface: *mut std::ffi::c_void) -> usize;
+    pub fn io_surface_get_alloc_size(surface: *mut std::ffi::c_void) -> usize;
+    pub fn io_surface_get_pixel_format(surface: *mut std::ffi::c_void) -> u32;
+    pub fn io_surface_get_id(surface: *mut std::ffi::c_void) -> u32;
+    pub fn io_surface_get_seed(surface: *mut std::ffi::c_void) -> u32;
+    pub fn io_surface_get_plane_count(surface: *mut std::ffi::c_void) -> usize;
+    pub fn io_surface_get_width_of_plane(
+        surface: *mut std::ffi::c_void,
+        plane_index: usize,
+    ) -> usize;
+    pub fn io_surface_get_height_of_plane(
+        surface: *mut std::ffi::c_void,
+        plane_index: usize,
+    ) -> usize;
+    pub fn io_surface_get_bytes_per_row_of_plane(
+        surface: *mut std::ffi::c_void,
+        plane_index: usize,
+    ) -> usize;
+    pub fn io_surface_get_base_address_of_plane(
+        surface: *mut std::ffi::c_void,
+        plane_index: usize,
+    ) -> *mut std::ffi::c_void;
+    pub fn io_surface_get_base_address(surface: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+    pub fn io_surface_get_bytes_per_element(surface: *mut std::ffi::c_void) -> usize;
+    pub fn io_surface_get_element_width(surface: *mut std::ffi::c_void) -> usize;
+    pub fn io_surface_get_element_height(surface: *mut std::ffi::c_void) -> usize;
+    pub fn io_surface_is_in_use(surface: *mut std::ffi::c_void) -> bool;
+    pub fn io_surface_increment_use_count(surface: *mut std::ffi::c_void);
+    pub fn io_surface_decrement_use_count(surface: *mut std::ffi::c_void);
+    pub fn io_surface_lock(
+        surface: *mut std::ffi::c_void,
+        options: u32,
+        seed: *mut u32,
+    ) -> i32;
+    pub fn io_surface_unlock(
+        surface: *mut std::ffi::c_void,
+        options: u32,
+        seed: *mut u32,
+    ) -> i32;
     pub fn io_surface_release(surface: *mut std::ffi::c_void);
     pub fn io_surface_retain(surface: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
 }

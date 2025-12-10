@@ -108,6 +108,26 @@ fn test_shareable_content_info_debug() {
 }
 
 #[test]
+fn test_shareable_content_info_display() {
+    cg_init_for_headless_ci();
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let display = &content.displays()[0];
+
+    let filter = SCContentFilter::builder()
+        .display(display)
+        .exclude_windows(&[])
+        .build();
+
+    if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
+        let display_str = format!("{info}");
+        assert!(display_str.contains("ContentInfo"));
+        assert!(display_str.contains("px"));
+        assert!(display_str.contains("scale"));
+        println!("Display: {display_str}");
+    }
+}
+
+#[test]
 fn test_shareable_content_info_send_sync() {
     fn assert_send<T: Send>() {}
     fn assert_sync<T: Sync>() {}

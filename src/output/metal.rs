@@ -2000,8 +2000,11 @@ mod tests {
             .with_pixel_format(pixel_format::BGRA)
             .with_time(1.5);
 
-        assert_eq!(uniforms.viewport_size, [1920.0, 1080.0]);
-        assert_eq!(uniforms.texture_size, [1920.0, 1080.0]);
+        // Use epsilon comparison for floats
+        assert!((uniforms.viewport_size[0] - 1920.0).abs() < f32::EPSILON);
+        assert!((uniforms.viewport_size[1] - 1080.0).abs() < f32::EPSILON);
+        assert!((uniforms.texture_size[0] - 1920.0).abs() < f32::EPSILON);
+        assert!((uniforms.texture_size[1] - 1080.0).abs() < f32::EPSILON);
         assert_eq!(uniforms.pixel_format, pixel_format::BGRA.as_u32());
         assert!((uniforms.time - 1.5).abs() < f32::EPSILON);
     }
