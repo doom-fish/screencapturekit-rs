@@ -29,7 +29,7 @@ pub use audio::{
 };
 pub use block_buffer::CMBlockBuffer;
 pub use format_description::CMFormatDescription;
-pub use frame_status::{SCFrameStatus, SCStreamFrameInfoKey};
+pub use frame_status::SCFrameStatus;
 pub use iosurface::{IOSurface, IOSurfaceLockGuard};
 pub use pixel_buffer::{CVPixelBuffer, CVPixelBufferLockGuard, CVPixelBufferPool};
 pub use sample_buffer::CMSampleBuffer;
