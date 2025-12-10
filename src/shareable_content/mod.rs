@@ -511,6 +511,21 @@ impl fmt::Debug for SCShareableContentInfo {
 }
 
 #[cfg(feature = "macos_14_0")]
+impl fmt::Display for SCShareableContentInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (width, height) = self.pixel_size();
+        write!(
+            f,
+            "ContentInfo({:?}, {}x{} px, scale: {})",
+            self.style(),
+            width,
+            height,
+            self.point_pixel_scale()
+        )
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
 unsafe impl Send for SCShareableContentInfo {}
 #[cfg(feature = "macos_14_0")]
 unsafe impl Sync for SCShareableContentInfo {}

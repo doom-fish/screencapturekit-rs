@@ -36,15 +36,15 @@ public func io_surface_get_base_address(_ surface: UnsafeMutableRawPointer) -> U
 }
 
 @_cdecl("io_surface_lock")
-public func io_surface_lock(_ surface: UnsafeMutableRawPointer, _ options: UInt32) -> Int32 {
+public func io_surface_lock(_ surface: UnsafeMutableRawPointer, _ options: UInt32, _ seedOut: UnsafeMutablePointer<UInt32>?) -> Int32 {
     let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
-    return IOSurfaceLock(ioSurface, IOSurfaceLockOptions(rawValue: options), nil)
+    return IOSurfaceLock(ioSurface, IOSurfaceLockOptions(rawValue: options), seedOut)
 }
 
 @_cdecl("io_surface_unlock")
-public func io_surface_unlock(_ surface: UnsafeMutableRawPointer, _ options: UInt32) -> Int32 {
+public func io_surface_unlock(_ surface: UnsafeMutableRawPointer, _ options: UInt32, _ seedOut: UnsafeMutablePointer<UInt32>?) -> Int32 {
     let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
-    return IOSurfaceUnlock(ioSurface, IOSurfaceLockOptions(rawValue: options), nil)
+    return IOSurfaceUnlock(ioSurface, IOSurfaceLockOptions(rawValue: options), seedOut)
 }
 
 @_cdecl("io_surface_is_in_use")
@@ -93,12 +93,12 @@ public func iosurface_get_base_address(_ surface: UnsafeMutableRawPointer) -> Un
 
 @_cdecl("iosurface_lock")
 public func iosurface_lock(_ surface: UnsafeMutableRawPointer, _ options: UInt32) -> Int32 {
-    io_surface_lock(surface, options)
+    io_surface_lock(surface, options, nil)
 }
 
 @_cdecl("iosurface_unlock")
 public func iosurface_unlock(_ surface: UnsafeMutableRawPointer, _ options: UInt32) -> Int32 {
-    io_surface_unlock(surface, options)
+    io_surface_unlock(surface, options, nil)
 }
 
 @_cdecl("iosurface_is_in_use")
@@ -188,4 +188,54 @@ public func iosurface_get_bytes_per_row_of_plane(_ surface: UnsafeMutableRawPoin
 public func io_surface_hash(_ surface: UnsafeMutableRawPointer) -> Int {
     let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
     return ioSurface.hashValue
+}
+
+// MARK: - Additional IOSurface Functions
+
+@_cdecl("io_surface_get_alloc_size")
+public func io_surface_get_alloc_size(_ surface: UnsafeMutableRawPointer) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetAllocSize(ioSurface)
+}
+
+@_cdecl("io_surface_get_id")
+public func io_surface_get_id(_ surface: UnsafeMutableRawPointer) -> UInt32 {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetID(ioSurface)
+}
+
+@_cdecl("io_surface_get_seed")
+public func io_surface_get_seed(_ surface: UnsafeMutableRawPointer) -> UInt32 {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetSeed(ioSurface)
+}
+
+@_cdecl("io_surface_get_bytes_per_element")
+public func io_surface_get_bytes_per_element(_ surface: UnsafeMutableRawPointer) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetBytesPerElement(ioSurface)
+}
+
+@_cdecl("io_surface_get_element_width")
+public func io_surface_get_element_width(_ surface: UnsafeMutableRawPointer) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetElementWidth(ioSurface)
+}
+
+@_cdecl("io_surface_get_element_height")
+public func io_surface_get_element_height(_ surface: UnsafeMutableRawPointer) -> Int {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    return IOSurfaceGetElementHeight(ioSurface)
+}
+
+@_cdecl("io_surface_increment_use_count")
+public func io_surface_increment_use_count(_ surface: UnsafeMutableRawPointer) {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    IOSurfaceIncrementUseCount(ioSurface)
+}
+
+@_cdecl("io_surface_decrement_use_count")
+public func io_surface_decrement_use_count(_ surface: UnsafeMutableRawPointer) {
+    let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
+    IOSurfaceDecrementUseCount(ioSurface)
 }

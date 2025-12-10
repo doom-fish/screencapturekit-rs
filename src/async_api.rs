@@ -148,6 +148,92 @@ impl AsyncSCShareableContentOptions {
 
         AsyncShareableContentFuture { inner: future }
     }
+
+    /// Asynchronously get shareable content with only windows below a reference window
+    ///
+    /// This returns windows that are stacked below the specified reference window
+    /// in the window layering order.
+    ///
+    /// # Arguments
+    ///
+    /// * `reference_window` - The window to use as the reference point
+    pub fn below_window(
+        self,
+        reference_window: &crate::shareable_content::SCWindow,
+    ) -> AsyncShareableContentFuture {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_shareable_content_get_below_window(
+                self.exclude_desktop_windows,
+                reference_window.as_ptr(),
+                shareable_content_callback,
+                context,
+            );
+        }
+
+        AsyncShareableContentFuture { inner: future }
+    }
+
+    /// Asynchronously get shareable content with only windows above a reference window
+    ///
+    /// This returns windows that are stacked above the specified reference window
+    /// in the window layering order.
+    ///
+    /// # Arguments
+    ///
+    /// * `reference_window` - The window to use as the reference point
+    pub fn above_window(
+        self,
+        reference_window: &crate::shareable_content::SCWindow,
+    ) -> AsyncShareableContentFuture {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_shareable_content_get_above_window(
+                self.exclude_desktop_windows,
+                reference_window.as_ptr(),
+                shareable_content_callback,
+                context,
+            );
+        }
+
+        AsyncShareableContentFuture { inner: future }
+    }
+}
+
+impl AsyncSCShareableContent {
+    /// Asynchronously get shareable content for the current process only (macOS 14.4+)
+    ///
+    /// This retrieves content that the current process can capture without
+    /// requiring user authorization via TCC (Transparency, Consent, and Control).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use screencapturekit::async_api::AsyncSCShareableContent;
+    ///
+    /// // Get content capturable without TCC authorization
+    /// let content = AsyncSCShareableContent::current_process().await?;
+    /// println!("Found {} windows for current process", content.windows().len());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "macos_14_4")]
+    pub fn current_process() -> AsyncShareableContentFuture {
+        let (future, context) = AsyncCompletion::create();
+
+        unsafe {
+            crate::ffi::sc_shareable_content_get_current_process_displays(
+                shareable_content_callback,
+                context,
+            );
+        }
+
+        AsyncShareableContentFuture { inner: future }
+    }
 }
 
 // ============================================================================

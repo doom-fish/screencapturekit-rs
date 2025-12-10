@@ -106,8 +106,12 @@ impl SCWindow {
         unsafe { crate::ffi::sc_window_is_on_screen(self.0) }
     }
 
-    /// Check if window is active (macOS 14.0+)
-    #[cfg(feature = "macos_14_0")]
+    /// Check if window is active (macOS 13.1+)
+    ///
+    /// With Stage Manager, a window can be offscreen but still active.
+    /// This property indicates whether the window is currently active,
+    /// regardless of its on-screen status.
+    #[cfg(feature = "macos_13_0")]
     pub fn is_active(&self) -> bool {
         unsafe { crate::ffi::sc_window_is_active(self.0) }
     }
@@ -138,7 +142,7 @@ impl fmt::Debug for SCWindow {
             .field("frame", &self.frame())
             .field("window_layer", &self.window_layer())
             .field("is_on_screen", &self.is_on_screen());
-        #[cfg(feature = "macos_14_0")]
+        #[cfg(feature = "macos_13_0")]
         debug.field("is_active", &self.is_active());
         debug.finish()
     }

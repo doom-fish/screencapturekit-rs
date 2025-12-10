@@ -57,6 +57,11 @@ png = "0.18"
 tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
 winit = "0.30"
 raw-window-handle = "0.6"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "capture_benchmark"
+harness = false
 
 [package.metadata.docs.rs]
 # Build documentation with all features enabled
