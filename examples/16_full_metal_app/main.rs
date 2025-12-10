@@ -73,12 +73,15 @@ use std::mem::size_of;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+use raw_window_handle::HasWindowHandle;
 use screencapturekit::content_sharing_picker::SCPickedSource;
 use screencapturekit::output::metal::{autoreleasepool, setup_metal_view};
 use screencapturekit::prelude::*;
-use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
-use winit::event_loop::ControlFlow;
+use winit::application::ApplicationHandler;
+use winit::event::{ElementState, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::keyboard::{KeyCode, PhysicalKey};
+use winit::window::{Window, WindowId};
 
 use capture::CaptureState;
 use font::BitmapFont;
@@ -293,17 +296,17 @@ impl AppState {
     }
 
     /// Handle keyboard input in main menu
-    fn handle_menu_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+    fn handle_menu_key(&mut self, keycode: KeyCode) -> KeyAction {
         let menu_items = self.overlay.menu_items();
         match keycode {
-            VirtualKeyCode::Up if self.overlay.menu_selection > 0 => {
+            KeyCode::ArrowUp if self.overlay.menu_selection > 0 => {
                 self.overlay.menu_selection -= 1;
                 println!(
                     "⬆️  Menu selection: {} ({})",
                     self.overlay.menu_selection, menu_items[self.overlay.menu_selection]
                 );
             }
-            VirtualKeyCode::Down => {
+            KeyCode::ArrowDown => {
                 let max = self.overlay.menu_count().saturating_sub(1);
                 if self.overlay.menu_selection < max {
                     self.overlay.menu_selection += 1;
@@ -313,40 +316,40 @@ impl AppState {
                     );
                 }
             }
-            VirtualKeyCode::Return | VirtualKeyCode::Space => {
+            KeyCode::Enter | KeyCode::Space => {
                 return self.handle_menu_selection();
             }
-            VirtualKeyCode::Escape | VirtualKeyCode::H => {
+            KeyCode::Escape | KeyCode::KeyH => {
                 self.overlay.show_help = false;
             }
-            VirtualKeyCode::Q => return KeyAction::Quit,
+            KeyCode::KeyQ => return KeyAction::Quit,
             _ => {}
         }
         KeyAction::None
     }
 
     /// Handle keyboard input in config menu
-    fn handle_config_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+    fn handle_config_key(&mut self, keycode: KeyCode) -> KeyAction {
         match keycode {
-            VirtualKeyCode::Up if self.overlay.config_selection > 0 => {
+            KeyCode::ArrowUp if self.overlay.config_selection > 0 => {
                 self.overlay.config_selection -= 1;
             }
-            VirtualKeyCode::Down => {
+            KeyCode::ArrowDown => {
                 let max = ConfigMenu::option_count().saturating_sub(1);
                 if self.overlay.config_selection < max {
                     self.overlay.config_selection += 1;
                 }
             }
-            VirtualKeyCode::Left | VirtualKeyCode::Right => {
+            KeyCode::ArrowLeft | KeyCode::ArrowRight => {
                 ConfigMenu::toggle_or_adjust(
                     &mut self.stream_config,
                     &mut self.mic_device_idx,
                     self.overlay.config_selection,
-                    keycode == VirtualKeyCode::Right,
+                    keycode == KeyCode::ArrowRight,
                 );
                 self.apply_config_to_stream();
             }
-            VirtualKeyCode::Return | VirtualKeyCode::Space => {
+            KeyCode::Enter | KeyCode::Space => {
                 ConfigMenu::toggle_or_adjust(
                     &mut self.stream_config,
                     &mut self.mic_device_idx,
@@ -355,11 +358,11 @@ impl AppState {
                 );
                 self.apply_config_to_stream();
             }
-            VirtualKeyCode::Escape | VirtualKeyCode::Back => {
+            KeyCode::Escape | KeyCode::Backspace => {
                 self.overlay.show_config = false;
                 self.overlay.show_help = true;
             }
-            VirtualKeyCode::Q => return KeyAction::Quit,
+            KeyCode::KeyQ => return KeyAction::Quit,
             _ => {}
         }
         KeyAction::None
@@ -367,59 +370,59 @@ impl AppState {
 
     /// Handle keyboard input in recording config menu (macOS 15.0+)
     #[cfg(feature = "macos_15_0")]
-    fn handle_recording_config_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+    fn handle_recording_config_key(&mut self, keycode: KeyCode) -> KeyAction {
         use crate::recording::RecordingConfigMenu;
 
         match keycode {
-            VirtualKeyCode::Up if self.overlay.recording_config_selection > 0 => {
+            KeyCode::ArrowUp if self.overlay.recording_config_selection > 0 => {
                 self.overlay.recording_config_selection -= 1;
             }
-            VirtualKeyCode::Down => {
+            KeyCode::ArrowDown => {
                 let max = RecordingConfigMenu::option_count().saturating_sub(1);
                 if self.overlay.recording_config_selection < max {
                     self.overlay.recording_config_selection += 1;
                 }
             }
-            VirtualKeyCode::Left | VirtualKeyCode::Right => {
+            KeyCode::ArrowLeft | KeyCode::ArrowRight => {
                 RecordingConfigMenu::toggle_or_adjust(
                     &mut self.recording_config,
                     self.overlay.recording_config_selection,
-                    keycode == VirtualKeyCode::Right,
+                    keycode == KeyCode::ArrowRight,
                 );
             }
-            VirtualKeyCode::Return | VirtualKeyCode::Space => {
+            KeyCode::Enter | KeyCode::Space => {
                 RecordingConfigMenu::toggle_or_adjust(
                     &mut self.recording_config,
                     self.overlay.recording_config_selection,
                     true,
                 );
             }
-            VirtualKeyCode::Escape | VirtualKeyCode::Back => {
+            KeyCode::Escape | KeyCode::Backspace => {
                 self.overlay.show_recording_config = false;
                 self.overlay.show_help = true;
             }
-            VirtualKeyCode::Q => return KeyAction::Quit,
+            KeyCode::KeyQ => return KeyAction::Quit,
             _ => {}
         }
         KeyAction::None
     }
 
     /// Handle direct keyboard shortcuts (no menu shown)
-    fn handle_direct_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+    fn handle_direct_key(&mut self, keycode: KeyCode) -> KeyAction {
         match keycode {
-            VirtualKeyCode::Space => self.toggle_capture(),
-            VirtualKeyCode::P => self.open_picker(),
-            VirtualKeyCode::W => self.overlay.show_waveform = !self.overlay.show_waveform,
-            VirtualKeyCode::H => self.overlay.show_help = true,
-            VirtualKeyCode::C => self.overlay.show_config = true,
-            VirtualKeyCode::M => {
+            KeyCode::Space => self.toggle_capture(),
+            KeyCode::KeyP => self.open_picker(),
+            KeyCode::KeyW => self.overlay.show_waveform = !self.overlay.show_waveform,
+            KeyCode::KeyH => self.overlay.show_help = true,
+            KeyCode::KeyC => self.overlay.show_config = true,
+            KeyCode::KeyM => {
                 let new_val = !self.stream_config.captures_microphone();
                 self.stream_config.set_captures_microphone(new_val);
                 println!("🎤 Microphone: {}", if new_val { "On" } else { "Off" });
                 self.apply_config_to_stream();
             }
-            VirtualKeyCode::S => self.take_screenshot(),
-            VirtualKeyCode::R => {
+            KeyCode::KeyS => self.take_screenshot(),
+            KeyCode::KeyR => {
                 #[cfg(feature = "macos_15_0")]
                 {
                     if self.recording_state.is_active() {
@@ -442,14 +445,14 @@ impl AppState {
                     println!("⚠️  Recording requires macOS 15.0+ (macos_15_0 feature)");
                 }
             }
-            VirtualKeyCode::Escape | VirtualKeyCode::Q => return KeyAction::Quit,
+            KeyCode::Escape | KeyCode::KeyQ => return KeyAction::Quit,
             _ => {}
         }
         KeyAction::None
     }
 
     /// Main keyboard input handler - routes to appropriate sub-handler
-    fn handle_key(&mut self, keycode: VirtualKeyCode) -> KeyAction {
+    fn handle_key(&mut self, keycode: KeyCode) -> KeyAction {
         #[cfg(feature = "macos_15_0")]
         let show_any_config = self.overlay.show_config || self.overlay.show_recording_config;
         #[cfg(not(feature = "macos_15_0"))]
@@ -474,152 +477,204 @@ impl AppState {
     }
 }
 
-fn main() {
-    println!("🎮 Metal Overlay Renderer");
-    println!("========================\n");
+/// Application wrapper for winit 0.30 `ApplicationHandler`
+#[allow(clippy::struct_field_names)]
+struct App {
+    window: Option<Window>,
+    device: MetalDevice,
+    layer: MetalLayer,
+    #[allow(dead_code)]
+    library: renderer::MetalLibrary,
+    overlay_pipeline: renderer::MetalRenderPipelineState,
+    fullscreen_pipeline: renderer::MetalRenderPipelineState,
+    ycbcr_pipeline: renderer::MetalRenderPipelineState,
+    command_queue: renderer::MetalCommandQueue,
+    app_state: AppState,
+    font: BitmapFont,
+    vertex_builder: VertexBufferBuilder,
+    time: f32,
+}
 
-    // Create window
-    let event_loop = winit::event_loop::EventLoop::new();
-    let window = winit::window::WindowBuilder::new()
-        .with_inner_size(winit::dpi::LogicalSize::new(1280, 720))
-        .with_title("ScreenCaptureKit Metal Overlay")
-        .build(&event_loop)
-        .unwrap();
+impl App {
+    fn new() -> Self {
+        // Initialize Metal
+        let device = MetalDevice::system_default().expect("No Metal device found");
+        println!("🖥️  Metal device: {}", device.name());
 
-    // Initialize Metal
-    let device = MetalDevice::system_default().expect("No Metal device found");
-    println!("🖥️  Metal device: {}", device.name());
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_presents_with_transaction(false);
 
-    let layer = MetalLayer::new();
-    layer.set_device(&device);
-    layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
-    layer.set_presents_with_transaction(false);
+        // Compile shaders
+        println!("🔧 Compiling shaders...");
+        let library = device
+            .create_library_with_source(SHADER_SOURCE)
+            .expect("Failed to compile shaders");
+        println!("✅ Shaders compiled");
 
-    // Attach layer to window
-    unsafe {
-        match window.raw_window_handle() {
-            RawWindowHandle::AppKit(handle) => {
-                setup_metal_view(handle.ns_view.cast(), &layer);
+        // Create pipelines
+        let overlay_pipeline =
+            create_pipeline(&device, &library, "vertex_colored", "fragment_colored")
+                .expect("Failed to create overlay pipeline");
+        let fullscreen_pipeline = create_textured_pipeline(&device, &library, "fragment_textured");
+        let ycbcr_pipeline = create_textured_pipeline(&device, &library, "fragment_ycbcr");
+        let command_queue = device
+            .create_command_queue()
+            .expect("Failed to create command queue");
+
+        Self {
+            window: None,
+            device,
+            layer,
+            library,
+            overlay_pipeline,
+            fullscreen_pipeline,
+            ycbcr_pipeline,
+            command_queue,
+            app_state: AppState::new(),
+            font: BitmapFont::new(),
+            vertex_builder: VertexBufferBuilder::new(),
+            time: 0.0,
+        }
+    }
+}
+
+impl ApplicationHandler for App {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.window.is_some() {
+            return;
+        }
+
+        let window_attrs = Window::default_attributes()
+            .with_inner_size(winit::dpi::LogicalSize::new(1280, 720))
+            .with_title("ScreenCaptureKit Metal Overlay");
+        let window = event_loop.create_window(window_attrs).unwrap();
+
+        // Attach layer to window
+        unsafe {
+            use raw_window_handle::RawWindowHandle;
+            match window.window_handle().unwrap().as_raw() {
+                RawWindowHandle::AppKit(handle) => {
+                    setup_metal_view(handle.ns_view.as_ptr().cast(), &self.layer);
+                }
+                _ => panic!("Unsupported window handle"),
             }
-            _ => panic!("Unsupported window handle"),
+        }
+
+        let draw_size = window.inner_size();
+        self.layer
+            .set_drawable_size(f64::from(draw_size.width), f64::from(draw_size.height));
+
+        println!("🎮 Press ENTER to pick a source");
+        self.window = Some(window);
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(window) = &self.window {
+            window.request_redraw();
         }
     }
 
-    let draw_size = window.inner_size();
-    layer.set_drawable_size(f64::from(draw_size.width), f64::from(draw_size.height));
-
-    // Compile shaders
-    println!("🔧 Compiling shaders...");
-    let library = device
-        .create_library_with_source(SHADER_SOURCE)
-        .expect("Failed to compile shaders");
-    println!("✅ Shaders compiled");
-
-    // Create pipelines
-    let overlay_pipeline = create_pipeline(&device, &library, "vertex_colored", "fragment_colored")
-        .expect("Failed to create overlay pipeline");
-    let fullscreen_pipeline = create_textured_pipeline(&device, &library, "fragment_textured");
-    let ycbcr_pipeline = create_textured_pipeline(&device, &library, "fragment_ycbcr");
-    let command_queue = device
-        .create_command_queue()
-        .expect("Failed to create command queue");
-
-    // Application state
-    let mut app = AppState::new();
-    let font = BitmapFont::new();
-    let mut vertex_builder = VertexBufferBuilder::new();
-    let mut time = 0.0f32;
-
-    println!("🎮 Press ENTER to pick a source");
-
-    // Event loop
-    event_loop.run(move |event, _, control_flow| {
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
         autoreleasepool(|| {
-            *control_flow = ControlFlow::Poll;
-            app.process_pending_picker();
+            self.app_state.process_pending_picker();
 
             match event {
-                Event::MainEventsCleared => window.request_redraw(),
+                WindowEvent::CloseRequested => event_loop.exit(),
 
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested => *control_flow = ControlFlow::ExitWithCode(0),
+                WindowEvent::Resized(size) => {
+                    self.layer
+                        .set_drawable_size(f64::from(size.width), f64::from(size.height));
+                }
 
-                    WindowEvent::Resized(size) => {
-                        layer.set_drawable_size(f64::from(size.width), f64::from(size.height));
+                WindowEvent::KeyboardInput {
+                    event:
+                        winit::event::KeyEvent {
+                            physical_key: PhysicalKey::Code(keycode),
+                            state: ElementState::Pressed,
+                            ..
+                        },
+                    ..
+                } => {
+                    if matches!(self.app_state.handle_key(keycode), KeyAction::Quit) {
+                        event_loop.exit();
                     }
+                }
 
-                    WindowEvent::KeyboardInput {
-                        input:
-                            winit::event::KeyboardInput {
-                                virtual_keycode: Some(keycode),
-                                state: ElementState::Pressed,
-                                ..
-                            },
-                        ..
-                    } => {
-                        if matches!(app.handle_key(keycode), KeyAction::Quit) {
-                            *control_flow = ControlFlow::ExitWithCode(0);
-                        }
-                    }
-                    _ => {}
-                },
-
-                Event::RedrawRequested(_) => {
-                    time += 0.016;
+                WindowEvent::RedrawRequested => {
+                    self.time += 0.016;
+                    let Some(window) = &self.window else { return };
                     let size = window.inner_size();
                     let (width, height) = (size.width as f32, size.height as f32);
 
                     // Get capture textures
-                    let capture_textures = get_capture_textures(&app, &device);
+                    let capture_textures = get_capture_textures(&self.app_state, &self.device);
 
                     // Build UI vertices
                     build_ui_vertices(
-                        &mut vertex_builder,
-                        &font,
-                        &app,
+                        &mut self.vertex_builder,
+                        &self.font,
+                        &self.app_state,
                         capture_textures.as_ref(),
                         width,
                         height,
                     );
 
                     // Create GPU buffers
-                    let vertex_buffer = vertex_builder.build(&device);
-                    vertex_buffer
-                        .did_modify_range(0..(vertex_builder.vertex_count() * size_of::<Vertex>()));
+                    let vertex_buffer = self.vertex_builder.build(&self.device);
+                    vertex_buffer.did_modify_range(
+                        0..(self.vertex_builder.vertex_count() * size_of::<Vertex>()),
+                    );
 
                     let uniforms = match &capture_textures {
-                        Some(tex) => {
-                            Uniforms::from_captured_textures(width, height, tex).with_time(time)
-                        }
+                        Some(tex) => Uniforms::from_captured_textures(width, height, tex)
+                            .with_time(self.time),
                         None => Uniforms::new(
                             width,
                             height,
-                            app.capture_size.0 as f32,
-                            app.capture_size.1 as f32,
+                            self.app_state.capture_size.0 as f32,
+                            self.app_state.capture_size.1 as f32,
                         )
-                        .with_time(time),
+                        .with_time(self.time),
                     };
-                    let uniforms_buffer = device
+                    let uniforms_buffer = self
+                        .device
                         .create_buffer_with_data(&uniforms)
                         .expect("Failed to create uniforms buffer");
 
                     // Render
                     render_frame(
-                        &layer,
-                        &command_queue,
+                        &self.layer,
+                        &self.command_queue,
                         capture_textures.as_ref(),
                         &uniforms_buffer,
                         &vertex_buffer,
-                        vertex_builder.vertex_count(),
-                        &fullscreen_pipeline,
-                        &ycbcr_pipeline,
-                        &overlay_pipeline,
+                        self.vertex_builder.vertex_count(),
+                        &self.fullscreen_pipeline,
+                        &self.ycbcr_pipeline,
+                        &self.overlay_pipeline,
                     );
                 }
                 _ => {}
             }
         });
-    });
+    }
+}
+
+fn main() {
+    println!("🎮 Metal Overlay Renderer");
+    println!("========================\n");
+
+    let event_loop = EventLoop::new().unwrap();
+    event_loop.set_control_flow(ControlFlow::Poll);
+    let mut app = App::new();
+    event_loop.run_app(&mut app).unwrap();
 }
 
 /// Create a textured pipeline with the specified fragment function
