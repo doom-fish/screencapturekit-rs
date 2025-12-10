@@ -1,8 +1,11 @@
 //! Screen capture handler
+//!
+//! This module demonstrates both basic and advanced `IOSurface` inspection APIs.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+use screencapturekit::output::metal::{pixel_format, IOSurfaceInfo};
 use screencapturekit::output::{CVPixelBufferIOSurface, IOSurface};
 use screencapturekit::prelude::*;
 
@@ -13,6 +16,8 @@ pub struct CaptureState {
     pub audio_waveform: Mutex<WaveformBuffer>,
     pub mic_waveform: Mutex<WaveformBuffer>,
     pub latest_surface: Mutex<Option<IOSurface>>,
+    /// Cached surface info for display (updated on first frame or format change)
+    pub surface_info: Mutex<Option<IOSurfaceInfo>>,
 }
 
 impl CaptureState {
@@ -22,7 +27,32 @@ impl CaptureState {
             audio_waveform: Mutex::new(WaveformBuffer::new(4096)),
             mic_waveform: Mutex::new(WaveformBuffer::new(4096)),
             latest_surface: Mutex::new(None),
+            surface_info: Mutex::new(None),
         }
+    }
+
+    /// Get a formatted string describing the current surface format
+    pub fn format_info(&self) -> Option<String> {
+        let info = self.surface_info.lock().ok()?.clone()?;
+        let format_str = if pixel_format::is_ycbcr_biplanar(info.pixel_format) {
+            let range = if pixel_format::is_full_range(info.pixel_format) {
+                "full"
+            } else {
+                "video"
+            };
+            format!("YCbCr 4:2:0 ({range} range)")
+        } else if info.pixel_format.equals(pixel_format::BGRA) {
+            "BGRA 8-bit".to_string()
+        } else if info.pixel_format.equals(pixel_format::L10R) {
+            "BGR10A2 10-bit".to_string()
+        } else {
+            format!("{}", info.pixel_format)
+        };
+
+        Some(format!(
+            "{}x{} {} ({} planes, {} bytes/row)",
+            info.width, info.height, format_str, info.plane_count, info.bytes_per_row
+        ))
     }
 }
 
@@ -49,6 +79,8 @@ impl SCStreamOutputTrait for CaptureHandler {
                 if let Some(pixel_buffer) = sample.image_buffer() {
                     if pixel_buffer.is_backed_by_iosurface() {
                         if let Some(surface) = pixel_buffer.iosurface() {
+                            // Update surface info on first frame or format change
+                            self.update_surface_info(&surface);
                             *self.state.latest_surface.lock().unwrap() = Some(surface);
                         }
                     }
@@ -78,6 +110,55 @@ impl SCStreamOutputTrait for CaptureHandler {
                     }
                 }
             }
+        }
+    }
+}
+
+impl CaptureHandler {
+    /// Update cached surface info if format changed
+    fn update_surface_info(&self, surface: &IOSurface) {
+        let new_info = surface.info();
+
+        // Check if we need to update (first frame or format change)
+        let needs_update = {
+            let current = self.state.surface_info.lock().unwrap();
+            match current.as_ref() {
+                None => true,
+                Some(info) => {
+                    info.width != new_info.width
+                        || info.height != new_info.height
+                        || !info.pixel_format.equals(new_info.pixel_format)
+                }
+            }
+        };
+
+        if needs_update {
+            // Log detailed surface info using the introspection APIs
+            println!("📊 IOSurface Info:");
+            println!("   Size: {}x{}", new_info.width, new_info.height);
+            println!("   Format: {}", new_info.pixel_format);
+            println!("   Bytes/row: {}", new_info.bytes_per_row);
+            println!("   Planes: {}", new_info.plane_count);
+
+            // Show plane details for multi-planar formats
+            for plane in &new_info.planes {
+                println!(
+                    "   Plane {}: {}x{}, {} bytes/row",
+                    plane.index, plane.width, plane.height, plane.bytes_per_row
+                );
+            }
+
+            // Show texture params that would be used for Metal
+            let tex_params = surface.texture_params();
+            println!("   Metal textures needed: {}", tex_params.len());
+            for (i, param) in tex_params.iter().enumerate() {
+                println!(
+                    "   Texture {}: {}x{} {:?}",
+                    i, param.width, param.height, param.format
+                );
+            }
+
+            *self.state.surface_info.lock().unwrap() = Some(new_info);
         }
     }
 }

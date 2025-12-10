@@ -735,6 +735,7 @@ fn build_ui_vertices(
     // Menu overlays
     if app.overlay.show_help {
         let source_str = format_picked_source(&app.picked_source);
+        let format_str = app.capture_state.format_info().unwrap_or_default();
         vertex_builder.help_overlay(
             font,
             width,
@@ -742,6 +743,7 @@ fn build_ui_vertices(
             app.capturing.load(Ordering::Relaxed),
             app.recording.load(Ordering::Relaxed),
             &source_str,
+            &format_str,
             app.overlay.menu_selection,
             app.overlay.menu_items(),
         );
@@ -792,10 +794,13 @@ fn build_status_text(app: &AppState, capture_textures: Option<&CaptureTextures>)
     let mic_peak = app.capture_state.mic_waveform.lock().unwrap().peak(512);
 
     if let Some(tex) = capture_textures {
+        // Show format info from advanced introspection API
+        let format_str = if tex.is_ycbcr() { "YCbCr" } else { "BGRA" };
         format!(
-            "LIVE {}x{} F:{} A:{}k P:{:.2} M:{}k P:{:.2}",
+            "LIVE {}x{} {} F:{} A:{}k P:{:.2} M:{}k P:{:.2}",
             tex.width,
             tex.height,
+            format_str,
             fps,
             audio_samples / 1000,
             audio_peak,

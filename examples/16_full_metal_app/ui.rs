@@ -30,6 +30,7 @@ impl VertexBufferBuilder {
         is_capturing: bool,
         is_recording: bool,
         source_name: &str,
+        format_info: &str,
         menu_selection: usize,
         menu_items: &[&str],
     ) {
@@ -66,9 +67,11 @@ impl VertexBufferBuilder {
             })
             .collect();
 
+        // Add extra line for format info if available
+        let extra_lines = if format_info.is_empty() { 0.0 } else { 1.0 };
         let item_count = menu_items.len() as f32;
         let box_w = (320.0 * base_scale).min(vw * 0.8);
-        let box_h = (line_h * (item_count + 2.5) + padding * 2.0).min(vh * 0.75);
+        let box_h = (line_h * (item_count + 2.5 + extra_lines) + padding * 2.0).min(vh * 0.75);
         let x = (vw - box_w) / 2.0;
         let y = (vh - box_h) / 2.0;
 
@@ -159,6 +162,26 @@ impl VertexBufferBuilder {
             [0.3, 0.15, 0.4, 0.4],
         );
         ly += line_h * 0.4;
+
+        // Show format info if available (from IOSurface introspection)
+        if !format_info.is_empty() {
+            // Truncate if too long
+            let display_info = if format_info.len() > 40 {
+                format!("{}...", &format_info.chars().take(37).collect::<String>())
+            } else {
+                format_info.to_string()
+            };
+            self.text(
+                font,
+                &display_info,
+                text_x,
+                ly,
+                scale * 0.6,
+                NEON_PURPLE,
+            );
+            ly += line_h * 0.8;
+        }
+
         self.text(
             font,
             "ARROWS  ENTER  ESC",
