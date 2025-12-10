@@ -44,7 +44,7 @@ pub use running_application::SCRunningApplication;
 pub use window::SCWindow;
 
 use crate::error::SCError;
-use crate::utils::sync_completion::{error_from_cstr, SyncCompletion};
+use crate::utils::completion::{error_from_cstr, SyncCompletion};
 use core::fmt;
 use std::ffi::c_void;
 

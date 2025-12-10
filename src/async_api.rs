@@ -28,7 +28,7 @@ use crate::error::SCError;
 use crate::shareable_content::SCShareableContent;
 use crate::stream::configuration::SCStreamConfiguration;
 use crate::stream::content_filter::SCContentFilter;
-use crate::utils::sync_completion::{error_from_cstr, AsyncCompletion, AsyncCompletionFuture};
+use crate::utils::completion::{error_from_cstr, AsyncCompletion, AsyncCompletionFuture};
 use std::ffi::c_void;
 use std::future::Future;
 use std::pin::Pin;
