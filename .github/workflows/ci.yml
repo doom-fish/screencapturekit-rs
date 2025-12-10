@@ -49,9 +49,6 @@ jobs:
           - os: macos-14
             name: macOS 14 (Sonoma) ARM64
             features: "async,macos_14_4"
-          - os: macos-14-intel
-            name: macOS 14 (Sonoma) Intel
-            features: "async,macos_14_4"
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
             features: "async,macos_15_2"
@@ -97,9 +94,6 @@ jobs:
         include:
           - os: macos-14
             name: macOS 14 (Sonoma) ARM64
-            features: "async,macos_14_4"
-          - os: macos-14-intel
-            name: macOS 14 (Sonoma) Intel
             features: "async,macos_14_4"
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
