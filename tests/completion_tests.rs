@@ -1,6 +1,6 @@
-//! Tests for sync completion utilities
+//! Tests for completion utilities
 
-use screencapturekit::utils::sync_completion::{
+use screencapturekit::utils::completion::{
     error_from_cstr, AsyncCompletion, SyncCompletion, UnitCompletion,
 };
 use std::future::Future;
