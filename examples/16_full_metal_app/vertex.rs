@@ -127,11 +127,7 @@ impl VertexBufferBuilder {
             let segment = &samples[start_idx.min(samples.len() - 1)..end_idx.min(samples.len())];
 
             // Use peak value in segment (more responsive than RMS)
-            let peak = segment
-                .iter()
-                .map(|s| s.abs())
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap_or(0.0);
+            let peak = segment.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
 
             // Aggressive amplification for visibility (audio is typically quiet)
             let amplified = (peak * 8.0).clamp(0.0, 1.0);
