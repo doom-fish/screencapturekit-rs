@@ -10,6 +10,14 @@ use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+// Initialize CoreGraphics to prevent CGS_REQUIRE_INIT crashes
+fn init_cg() {
+    extern "C" {
+        fn sc_initialize_core_graphics();
+    }
+    unsafe { sc_initialize_core_graphics() }
+}
+
 struct FrameHandler {
     count: Arc<AtomicUsize>,
 }
@@ -21,6 +29,7 @@ impl SCStreamOutputTrait for FrameHandler {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    init_cg();
     println!("🪟 Window Capture\n");
 
     // 1. Get available content
@@ -45,16 +54,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // 3. Find a window (example: Safari)
+    // 3. Find a window - prefer Safari, but fallback to any visible window
     let window = windows
         .iter()
         .find(|w| {
             w.owning_application()
                 .is_some_and(|app| app.application_name().contains("Safari"))
         })
-        .ok_or("Safari window not found. Try another app.")?;
+        .or_else(|| {
+            // Fallback: find any on-screen window with a title
+            windows.iter().find(|w| {
+                w.is_on_screen()
+                    && w.frame().width > 100.0
+                    && w.frame().height > 100.0
+                    && w.title().is_some_and(|t| !t.is_empty())
+            })
+        })
+        .or_else(|| {
+            // Last resort: any on-screen window
+            windows.iter().find(|w| w.is_on_screen())
+        })
+        .ok_or("No suitable window found")?;
 
-    println!("\nCapturing: {}\n", window.title().unwrap_or_default());
+    let app_name = window
+        .owning_application()
+        .map(|app| app.application_name())
+        .unwrap_or_default();
+    println!(
+        "\nCapturing: {} - {}\n",
+        app_name,
+        window.title().unwrap_or_default()
+    );
 
     // 4. Create window filter
     let filter = SCContentFilter::builder().window(window).build();
