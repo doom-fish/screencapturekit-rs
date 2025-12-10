@@ -13,27 +13,40 @@ fn test_error_domain_constant() {
 
 #[test]
 fn test_error_code_values() {
-    // Verify the raw values match Apple's SCStreamError.Code
+    // Verify the raw values match Apple's SCStreamError.Code from SCError.h
     assert_eq!(SCStreamErrorCode::UserDeclined as i32, -3801);
-    assert_eq!(SCStreamErrorCode::FailedToStartAudioCapture as i32, -3802);
-    assert_eq!(SCStreamErrorCode::FailedToStart as i32, -3803);
-    assert_eq!(SCStreamErrorCode::AttemptToStartStreamState as i32, -3804);
-    assert_eq!(SCStreamErrorCode::AttemptToStopStreamState as i32, -3805);
-    assert_eq!(SCStreamErrorCode::AttemptToUpdateFilterState as i32, -3806);
-    assert_eq!(SCStreamErrorCode::AttemptToConfigState as i32, -3807);
-    assert_eq!(SCStreamErrorCode::InternalError as i32, -3808);
-    assert_eq!(SCStreamErrorCode::InvalidParameter as i32, -3809);
-    assert_eq!(SCStreamErrorCode::NoWindowList as i32, -3810);
-    assert_eq!(SCStreamErrorCode::NoDisplayList as i32, -3811);
-    assert_eq!(SCStreamErrorCode::NoCaptureSource as i32, -3812);
-    assert_eq!(SCStreamErrorCode::RemovingStream as i32, -3813);
-    assert_eq!(SCStreamErrorCode::UserStopped as i32, -3814);
-    assert_eq!(SCStreamErrorCode::FailedToStartExtension as i32, -3815);
+    assert_eq!(SCStreamErrorCode::FailedToStart as i32, -3802);
+    assert_eq!(SCStreamErrorCode::MissingEntitlements as i32, -3803);
+    assert_eq!(
+        SCStreamErrorCode::FailedApplicationConnectionInvalid as i32,
+        -3804
+    );
+    assert_eq!(
+        SCStreamErrorCode::FailedApplicationConnectionInterrupted as i32,
+        -3805
+    );
+    assert_eq!(
+        SCStreamErrorCode::FailedNoMatchingApplicationContext as i32,
+        -3806
+    );
+    assert_eq!(SCStreamErrorCode::AttemptToStartStreamState as i32, -3807);
+    assert_eq!(SCStreamErrorCode::AttemptToStopStreamState as i32, -3808);
+    assert_eq!(SCStreamErrorCode::AttemptToUpdateFilterState as i32, -3809);
+    assert_eq!(SCStreamErrorCode::AttemptToConfigState as i32, -3810);
+    assert_eq!(SCStreamErrorCode::InternalError as i32, -3811);
+    assert_eq!(SCStreamErrorCode::InvalidParameter as i32, -3812);
+    assert_eq!(SCStreamErrorCode::NoWindowList as i32, -3813);
+    assert_eq!(SCStreamErrorCode::NoDisplayList as i32, -3814);
+    assert_eq!(SCStreamErrorCode::NoCaptureSource as i32, -3815);
+    assert_eq!(SCStreamErrorCode::RemovingStream as i32, -3816);
+    assert_eq!(SCStreamErrorCode::UserStopped as i32, -3817);
+    assert_eq!(SCStreamErrorCode::FailedToStartAudioCapture as i32, -3818);
+    assert_eq!(SCStreamErrorCode::FailedToStopAudioCapture as i32, -3819);
     assert_eq!(
         SCStreamErrorCode::FailedToStartMicrophoneCapture as i32,
-        -3816
+        -3820
     );
-    assert_eq!(SCStreamErrorCode::SystemStoppedStream as i32, -3817);
+    assert_eq!(SCStreamErrorCode::SystemStoppedStream as i32, -3821);
 }
 
 // MARK: - Error Code Conversion
@@ -42,22 +55,29 @@ fn test_error_code_values() {
 fn test_error_code_from_raw_valid() {
     let codes = [
         (-3801, SCStreamErrorCode::UserDeclined),
-        (-3802, SCStreamErrorCode::FailedToStartAudioCapture),
-        (-3803, SCStreamErrorCode::FailedToStart),
-        (-3804, SCStreamErrorCode::AttemptToStartStreamState),
-        (-3805, SCStreamErrorCode::AttemptToStopStreamState),
-        (-3806, SCStreamErrorCode::AttemptToUpdateFilterState),
-        (-3807, SCStreamErrorCode::AttemptToConfigState),
-        (-3808, SCStreamErrorCode::InternalError),
-        (-3809, SCStreamErrorCode::InvalidParameter),
-        (-3810, SCStreamErrorCode::NoWindowList),
-        (-3811, SCStreamErrorCode::NoDisplayList),
-        (-3812, SCStreamErrorCode::NoCaptureSource),
-        (-3813, SCStreamErrorCode::RemovingStream),
-        (-3814, SCStreamErrorCode::UserStopped),
-        (-3815, SCStreamErrorCode::FailedToStartExtension),
-        (-3816, SCStreamErrorCode::FailedToStartMicrophoneCapture),
-        (-3817, SCStreamErrorCode::SystemStoppedStream),
+        (-3802, SCStreamErrorCode::FailedToStart),
+        (-3803, SCStreamErrorCode::MissingEntitlements),
+        (-3804, SCStreamErrorCode::FailedApplicationConnectionInvalid),
+        (
+            -3805,
+            SCStreamErrorCode::FailedApplicationConnectionInterrupted,
+        ),
+        (-3806, SCStreamErrorCode::FailedNoMatchingApplicationContext),
+        (-3807, SCStreamErrorCode::AttemptToStartStreamState),
+        (-3808, SCStreamErrorCode::AttemptToStopStreamState),
+        (-3809, SCStreamErrorCode::AttemptToUpdateFilterState),
+        (-3810, SCStreamErrorCode::AttemptToConfigState),
+        (-3811, SCStreamErrorCode::InternalError),
+        (-3812, SCStreamErrorCode::InvalidParameter),
+        (-3813, SCStreamErrorCode::NoWindowList),
+        (-3814, SCStreamErrorCode::NoDisplayList),
+        (-3815, SCStreamErrorCode::NoCaptureSource),
+        (-3816, SCStreamErrorCode::RemovingStream),
+        (-3817, SCStreamErrorCode::UserStopped),
+        (-3818, SCStreamErrorCode::FailedToStartAudioCapture),
+        (-3819, SCStreamErrorCode::FailedToStopAudioCapture),
+        (-3820, SCStreamErrorCode::FailedToStartMicrophoneCapture),
+        (-3821, SCStreamErrorCode::SystemStoppedStream),
     ];
 
     for (raw, expected) in codes {
@@ -68,7 +88,7 @@ fn test_error_code_from_raw_valid() {
 
 #[test]
 fn test_error_code_from_raw_invalid() {
-    let invalid_codes = [0, 1, -1, -3800, -3821, -9999, i32::MAX, i32::MIN];
+    let invalid_codes = [0, 1, -1, -3800, -3822, -9999, i32::MAX, i32::MIN];
 
     for code in invalid_codes {
         let result = SCStreamErrorCode::from_raw(code);
@@ -89,8 +109,11 @@ fn test_error_code_display() {
 fn test_all_error_codes_display() {
     let codes = [
         SCStreamErrorCode::UserDeclined,
-        SCStreamErrorCode::FailedToStartAudioCapture,
         SCStreamErrorCode::FailedToStart,
+        SCStreamErrorCode::MissingEntitlements,
+        SCStreamErrorCode::FailedApplicationConnectionInvalid,
+        SCStreamErrorCode::FailedApplicationConnectionInterrupted,
+        SCStreamErrorCode::FailedNoMatchingApplicationContext,
         SCStreamErrorCode::AttemptToStartStreamState,
         SCStreamErrorCode::AttemptToStopStreamState,
         SCStreamErrorCode::AttemptToUpdateFilterState,
@@ -102,7 +125,8 @@ fn test_all_error_codes_display() {
         SCStreamErrorCode::NoCaptureSource,
         SCStreamErrorCode::RemovingStream,
         SCStreamErrorCode::UserStopped,
-        SCStreamErrorCode::FailedToStartExtension,
+        SCStreamErrorCode::FailedToStartAudioCapture,
+        SCStreamErrorCode::FailedToStopAudioCapture,
         SCStreamErrorCode::FailedToStartMicrophoneCapture,
         SCStreamErrorCode::SystemStoppedStream,
     ];
@@ -263,6 +287,7 @@ fn test_scstream_error_display_with_message() {
 fn test_audio_related_errors() {
     let audio_errors = [
         SCStreamErrorCode::FailedToStartAudioCapture,
+        SCStreamErrorCode::FailedToStopAudioCapture,
         SCStreamErrorCode::FailedToStartMicrophoneCapture,
     ];
 
@@ -305,5 +330,80 @@ fn test_configuration_errors() {
         let error = SCError::from_stream_error_code(code);
         let display = format!("{error}");
         assert!(!display.is_empty());
+    }
+}
+
+// MARK: - New Error Codes (macOS 13.0+, 15.0+)
+
+#[test]
+fn test_macos_13_audio_errors() {
+    // FailedToStartAudioCapture and FailedToStopAudioCapture are macOS 13.0+
+    let audio_start = SCStreamErrorCode::FailedToStartAudioCapture;
+    let audio_stop = SCStreamErrorCode::FailedToStopAudioCapture;
+
+    assert_eq!(audio_start as i32, -3818);
+    assert_eq!(audio_stop as i32, -3819);
+
+    // Verify they can be created from raw values
+    assert_eq!(
+        SCStreamErrorCode::from_raw(-3818),
+        Some(SCStreamErrorCode::FailedToStartAudioCapture)
+    );
+    assert_eq!(
+        SCStreamErrorCode::from_raw(-3819),
+        Some(SCStreamErrorCode::FailedToStopAudioCapture)
+    );
+}
+
+#[test]
+fn test_macos_15_errors() {
+    // FailedToStartMicrophoneCapture and SystemStoppedStream are macOS 15.0+
+    let mic = SCStreamErrorCode::FailedToStartMicrophoneCapture;
+    let system_stopped = SCStreamErrorCode::SystemStoppedStream;
+
+    assert_eq!(mic as i32, -3820);
+    assert_eq!(system_stopped as i32, -3821);
+
+    // Verify they can be created from raw values
+    assert_eq!(
+        SCStreamErrorCode::from_raw(-3820),
+        Some(SCStreamErrorCode::FailedToStartMicrophoneCapture)
+    );
+    assert_eq!(
+        SCStreamErrorCode::from_raw(-3821),
+        Some(SCStreamErrorCode::SystemStoppedStream)
+    );
+}
+
+#[test]
+fn test_entitlements_error() {
+    let code = SCStreamErrorCode::MissingEntitlements;
+    assert_eq!(code as i32, -3803);
+
+    let error = SCError::from_stream_error_code(code);
+    let display = format!("{error}");
+    assert!(display.to_lowercase().contains("entitlement"));
+}
+
+#[test]
+fn test_application_connection_errors() {
+    let codes = [
+        (
+            SCStreamErrorCode::FailedApplicationConnectionInvalid,
+            -3804,
+        ),
+        (
+            SCStreamErrorCode::FailedApplicationConnectionInterrupted,
+            -3805,
+        ),
+        (
+            SCStreamErrorCode::FailedNoMatchingApplicationContext,
+            -3806,
+        ),
+    ];
+
+    for (code, expected_value) in codes {
+        assert_eq!(code as i32, expected_value);
+        assert_eq!(SCStreamErrorCode::from_raw(expected_value), Some(code));
     }
 }
