@@ -496,6 +496,74 @@ public func cm_block_buffer_release(_ blockBuffer: UnsafeMutableRawPointer) {
     _ = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeRetainedValue()
 }
 
+@_cdecl("cm_block_buffer_retain")
+public func cm_block_buffer_retain(_ blockBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
+    return Unmanaged.passRetained(buffer).toOpaque()
+}
+
+@_cdecl("cm_block_buffer_get_data_length")
+public func cm_block_buffer_get_data_length(_ blockBuffer: UnsafeMutableRawPointer) -> Int {
+    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
+    return CMBlockBufferGetDataLength(buffer)
+}
+
+@_cdecl("cm_block_buffer_is_empty")
+public func cm_block_buffer_is_empty(_ blockBuffer: UnsafeMutableRawPointer) -> Bool {
+    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
+    return CMBlockBufferIsEmpty(buffer)
+}
+
+@_cdecl("cm_block_buffer_is_range_contiguous")
+public func cm_block_buffer_is_range_contiguous(_ blockBuffer: UnsafeMutableRawPointer, _ offset: Int, _ length: Int) -> Bool {
+    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
+    return CMBlockBufferIsRangeContiguous(buffer, atOffset: offset, length: length)
+}
+
+@_cdecl("cm_block_buffer_get_data_pointer")
+public func cm_block_buffer_get_data_pointer(
+    _ blockBuffer: UnsafeMutableRawPointer,
+    _ offset: Int,
+    _ outLengthAtOffset: UnsafeMutablePointer<Int>,
+    _ outTotalLength: UnsafeMutablePointer<Int>,
+    _ outDataPointer: UnsafeMutablePointer<UnsafeMutableRawPointer?>
+) -> Int32 {
+    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
+    var lengthAtOffset: Int = 0
+    var totalLength: Int = 0
+    var dataPointer: UnsafeMutablePointer<CChar>?
+    
+    let status = CMBlockBufferGetDataPointer(
+        buffer,
+        atOffset: offset,
+        lengthAtOffsetOut: &lengthAtOffset,
+        totalLengthOut: &totalLength,
+        dataPointerOut: &dataPointer
+    )
+    
+    outLengthAtOffset.pointee = lengthAtOffset
+    outTotalLength.pointee = totalLength
+    outDataPointer.pointee = dataPointer.map { UnsafeMutableRawPointer($0) }
+    
+    return status
+}
+
+@_cdecl("cm_block_buffer_copy_data_bytes")
+public func cm_block_buffer_copy_data_bytes(
+    _ blockBuffer: UnsafeMutableRawPointer,
+    _ offsetToData: Int,
+    _ dataLength: Int,
+    _ destination: UnsafeMutableRawPointer
+) -> Int32 {
+    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
+    return CMBlockBufferCopyDataBytes(
+        buffer,
+        atOffset: offsetToData,
+        dataLength: dataLength,
+        destination: destination
+    )
+}
+
 @_cdecl("cm_sample_buffer_get_audio_buffer_data_byte_size")
 public func cm_sample_buffer_get_audio_buffer_data_byte_size(_ sampleBuffer: UnsafeMutableRawPointer, _ index: UInt32) -> UInt32 {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()

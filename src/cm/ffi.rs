@@ -76,6 +76,27 @@ extern "C" {
         out_block_buffer: *mut *mut std::ffi::c_void,
     );
     pub fn cm_block_buffer_release(block_buffer: *mut std::ffi::c_void);
+    pub fn cm_block_buffer_retain(block_buffer: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+    pub fn cm_block_buffer_get_data_length(block_buffer: *mut std::ffi::c_void) -> usize;
+    pub fn cm_block_buffer_is_empty(block_buffer: *mut std::ffi::c_void) -> bool;
+    pub fn cm_block_buffer_is_range_contiguous(
+        block_buffer: *mut std::ffi::c_void,
+        offset: usize,
+        length: usize,
+    ) -> bool;
+    pub fn cm_block_buffer_get_data_pointer(
+        block_buffer: *mut std::ffi::c_void,
+        offset: usize,
+        out_length_at_offset: *mut usize,
+        out_total_length: *mut usize,
+        out_data_pointer: *mut *mut std::ffi::c_void,
+    ) -> i32;
+    pub fn cm_block_buffer_copy_data_bytes(
+        block_buffer: *mut std::ffi::c_void,
+        offset_to_data: usize,
+        data_length: usize,
+        destination: *mut std::ffi::c_void,
+    ) -> i32;
     pub fn cm_sample_buffer_get_data_buffer(
         sample_buffer: *mut std::ffi::c_void,
     ) -> *mut std::ffi::c_void;
