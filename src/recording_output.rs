@@ -5,10 +5,25 @@
 //!
 //! Requires the `macos_15_0` feature flag to be enabled.
 
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 use crate::cm::CMTime;
+
+/// Global registry for recording delegates - maps unique ID to delegate entry
+static RECORDING_DELEGATE_REGISTRY: Mutex<Option<HashMap<usize, RecordingDelegateEntry>>> =
+    Mutex::new(None);
+
+/// Counter for generating unique delegate IDs
+static NEXT_DELEGATE_ID: AtomicUsize = AtomicUsize::new(1);
+
+struct RecordingDelegateEntry {
+    delegate: Box<dyn SCRecordingOutputDelegate>,
+    ref_count: usize,
+}
 
 /// Video codec for recording
 #[repr(i32)]
@@ -388,48 +403,59 @@ impl SCRecordingOutputDelegate for RecordingCallbacks {
 /// Available on macOS 15.0+
 pub struct SCRecordingOutput {
     ptr: *const c_void,
-    /// Raw pointer to the delegate box, kept alive for the lifetime of the recording output.
-    /// The Swift side uses this pointer for callbacks.
-    delegate_ptr: Option<*mut Box<dyn SCRecordingOutputDelegate>>,
+    /// ID into the delegate registry, if a delegate was set
+    delegate_id: Option<usize>,
 }
 
-// C callback trampolines for delegate
+// C callback trampolines for delegate - ctx is the recording ptr as usize
 extern "C" fn recording_started_callback(ctx: *mut c_void) {
-    if !ctx.is_null() {
-        let delegate = unsafe { &**(ctx as *const Box<dyn SCRecordingOutputDelegate>) };
-        delegate.recording_did_start();
+    let key = ctx as usize;
+    if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
+        if let Some(ref delegates) = *registry {
+            if let Some(entry) = delegates.get(&key) {
+                entry.delegate.recording_did_start();
+            }
+        }
     }
 }
 
 extern "C" fn recording_failed_callback(ctx: *mut c_void, error_code: i32, error: *const i8) {
-    if !ctx.is_null() {
-        let delegate = unsafe { &**(ctx as *const Box<dyn SCRecordingOutputDelegate>) };
-        let error_str = if error.is_null() {
-            String::from("Unknown error")
-        } else {
-            unsafe { std::ffi::CStr::from_ptr(error) }
-                .to_string_lossy()
-                .into_owned()
-        };
+    let key = ctx as usize;
+    let error_str = if error.is_null() {
+        String::from("Unknown error")
+    } else {
+        unsafe { std::ffi::CStr::from_ptr(error) }
+            .to_string_lossy()
+            .into_owned()
+    };
 
-        // Include error code in the message if it's a known SCStreamError
-        let full_error = if error_code != 0 {
-            crate::error::SCStreamErrorCode::from_raw(error_code).map_or_else(
-                || format!("{error_str} (code: {error_code})"),
-                |code| format!("{error_str} ({code})"),
-            )
-        } else {
-            error_str
-        };
+    // Include error code in the message if it's a known SCStreamError
+    let full_error = if error_code != 0 {
+        crate::error::SCStreamErrorCode::from_raw(error_code).map_or_else(
+            || format!("{error_str} (code: {error_code})"),
+            |code| format!("{error_str} ({code})"),
+        )
+    } else {
+        error_str
+    };
 
-        delegate.recording_did_fail(full_error);
+    if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
+        if let Some(ref delegates) = *registry {
+            if let Some(entry) = delegates.get(&key) {
+                entry.delegate.recording_did_fail(full_error);
+            }
+        }
     }
 }
 
 extern "C" fn recording_finished_callback(ctx: *mut c_void) {
-    if !ctx.is_null() {
-        let delegate = unsafe { &**(ctx as *const Box<dyn SCRecordingOutputDelegate>) };
-        delegate.recording_did_finish();
+    let key = ctx as usize;
+    if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
+        if let Some(ref delegates) = *registry {
+            if let Some(entry) = delegates.get(&key) {
+                entry.delegate.recording_did_finish();
+            }
+        }
     }
 }
 
@@ -445,7 +471,7 @@ impl SCRecordingOutput {
         } else {
             Some(Self {
                 ptr,
-                delegate_ptr: None,
+                delegate_id: None,
             })
         }
     }
@@ -459,15 +485,35 @@ impl SCRecordingOutput {
     ///
     /// # Errors
     /// Returns None if the system is not macOS 15.0+ or creation fails
+    ///
+    /// # Panics
+    /// Panics if the delegate registry mutex is poisoned
     pub fn new_with_delegate<D: SCRecordingOutputDelegate>(
         config: &SCRecordingOutputConfiguration,
         delegate: D,
     ) -> Option<Self> {
-        let boxed_delegate: Box<dyn SCRecordingOutputDelegate> = Box::new(delegate);
-        // We need a stable pointer to the Box itself, so we box the box
-        let boxed_box = Box::new(boxed_delegate);
-        let raw_ptr = Box::into_raw(boxed_box);
-        let ctx = raw_ptr.cast::<c_void>();
+        // Generate a unique ID for this delegate
+        let delegate_id = NEXT_DELEGATE_ID.fetch_add(1, Ordering::Relaxed);
+
+        // Store delegate in registry before creating recording output
+        {
+            let mut registry = RECORDING_DELEGATE_REGISTRY.lock().unwrap();
+            if registry.is_none() {
+                *registry = Some(HashMap::new());
+            }
+            if let Some(ref mut delegates) = *registry {
+                delegates.insert(
+                    delegate_id,
+                    RecordingDelegateEntry {
+                        delegate: Box::new(delegate),
+                        ref_count: 1,
+                    },
+                );
+            }
+        }
+
+        // Use delegate_id as context
+        let ctx = delegate_id as *mut c_void;
 
         let ptr = unsafe {
             crate::ffi::sc_recording_output_create_with_delegate(
@@ -478,17 +524,19 @@ impl SCRecordingOutput {
                 ctx,
             )
         };
+
         if ptr.is_null() {
-            // Clean up the leaked box on failure
-            unsafe {
-                let _ = Box::from_raw(raw_ptr);
+            // Clean up delegate from registry on failure
+            if let Ok(mut registry) = RECORDING_DELEGATE_REGISTRY.lock() {
+                if let Some(ref mut delegates) = *registry {
+                    delegates.remove(&delegate_id);
+                }
             }
             None
         } else {
-            // Keep the raw pointer so we can clean it up on drop
             Some(Self {
                 ptr,
-                delegate_ptr: Some(raw_ptr),
+                delegate_id: Some(delegate_id),
             })
         }
     }
@@ -525,10 +573,21 @@ impl SCRecordingOutput {
 
 impl Clone for SCRecordingOutput {
     fn clone(&self) -> Self {
+        // Increment delegate ref count if one exists for this recording
+        if let Some(delegate_id) = self.delegate_id {
+            if let Ok(mut registry) = RECORDING_DELEGATE_REGISTRY.lock() {
+                if let Some(ref mut delegates) = *registry {
+                    if let Some(entry) = delegates.get_mut(&delegate_id) {
+                        entry.ref_count += 1;
+                    }
+                }
+            }
+        }
+
         unsafe {
             Self {
                 ptr: crate::ffi::sc_recording_output_retain(self.ptr),
-                delegate_ptr: None, // Delegate is not cloned - only one owner
+                delegate_id: self.delegate_id,
             }
         }
     }
@@ -539,19 +598,31 @@ impl std::fmt::Debug for SCRecordingOutput {
         f.debug_struct("SCRecordingOutput")
             .field("recorded_duration", &self.recorded_duration())
             .field("recorded_file_size", &self.recorded_file_size())
-            .field("has_delegate", &self.delegate_ptr.is_some())
+            .field("has_delegate", &self.delegate_id.is_some())
             .finish_non_exhaustive()
     }
 }
 
 impl Drop for SCRecordingOutput {
     fn drop(&mut self) {
-        // Clean up the delegate if we own it
-        if let Some(delegate_ptr) = self.delegate_ptr.take() {
-            unsafe {
-                let _ = Box::from_raw(delegate_ptr);
+        // Decrement delegate ref count and clean up if this is the last reference
+        if let Some(delegate_id) = self.delegate_id {
+            let mut should_remove = false;
+            if let Ok(mut registry) = RECORDING_DELEGATE_REGISTRY.lock() {
+                if let Some(ref mut delegates) = *registry {
+                    if let Some(entry) = delegates.get_mut(&delegate_id) {
+                        entry.ref_count -= 1;
+                        if entry.ref_count == 0 {
+                            should_remove = true;
+                        }
+                    }
+                    if should_remove {
+                        delegates.remove(&delegate_id);
+                    }
+                }
             }
         }
+
         if !self.ptr.is_null() {
             unsafe {
                 crate::ffi::sc_recording_output_release(self.ptr);
