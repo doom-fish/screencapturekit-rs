@@ -977,3 +977,171 @@ mod content_picker_tests {
         SCContentSharingPicker::set_maximum_stream_count(1);
     }
 }
+
+// ============================================================================
+// Async/await tests using tokio runtime
+// ============================================================================
+
+#[cfg(feature = "async")]
+mod tokio_async_tests {
+    use screencapturekit::async_api::*;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+    use screencapturekit::stream::output_type::SCStreamOutputType;
+
+    #[tokio::test]
+    async fn test_async_shareable_content_get() {
+        // This tests the callback path through the FFI
+        let result = AsyncSCShareableContent::get().await;
+        assert!(result.is_ok());
+
+        let content = result.unwrap();
+        // Should have at least one display
+        assert!(!content.displays().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_async_shareable_content_with_options() {
+        let result = AsyncSCShareableContent::with_options()
+            .exclude_desktop_windows(true)
+            .on_screen_windows_only(true)
+            .get()
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_async_shareable_content_current_process() {
+        let result = AsyncSCShareableContent::current_process().await;
+        // May or may not succeed depending on permissions
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_async_stream_next_await() {
+        let content = AsyncSCShareableContent::get().await.unwrap();
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+
+            let config = SCStreamConfiguration::new()
+                .with_width(160)
+                .with_height(120);
+
+            let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+
+            if stream.start_capture().is_ok() {
+                // Use tokio timeout to avoid hanging
+                let timeout_result =
+                    tokio::time::timeout(std::time::Duration::from_millis(500), stream.next())
+                        .await;
+
+                match timeout_result {
+                    Ok(Some(_sample)) => {
+                        // Got a frame via async/await path
+                    }
+                    Ok(None) => {
+                        // Stream closed
+                    }
+                    Err(_) => {
+                        // Timeout - that's okay for this test
+                    }
+                }
+
+                let _ = stream.stop_capture();
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_async_stream_multiple_next_await() {
+        let content = AsyncSCShareableContent::get().await.unwrap();
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+
+            let config = SCStreamConfiguration::new()
+                .with_width(160)
+                .with_height(120);
+
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+
+            if stream.start_capture().is_ok() {
+                // Try to get multiple frames with timeout
+                for _ in 0..3 {
+                    let timeout_result =
+                        tokio::time::timeout(std::time::Duration::from_millis(200), stream.next())
+                            .await;
+
+                    if timeout_result.is_err() {
+                        break; // Timeout is fine
+                    }
+                }
+
+                let _ = stream.stop_capture();
+            }
+        }
+    }
+
+    #[cfg(feature = "macos_14_0")]
+    #[tokio::test]
+    async fn test_async_screenshot_capture_image() {
+        use screencapturekit::async_api::AsyncSCScreenshotManager;
+
+        let content = AsyncSCShareableContent::get().await.unwrap();
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+
+            let config = SCStreamConfiguration::new()
+                .with_width(320)
+                .with_height(240);
+
+            let result = AsyncSCScreenshotManager::capture_image(&filter, &config).await;
+            match result {
+                Ok(image) => {
+                    assert!(image.width() > 0);
+                    assert!(image.height() > 0);
+                }
+                Err(_) => {
+                    // Permission error is okay
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "macos_14_0")]
+    #[tokio::test]
+    async fn test_async_screenshot_capture_sample_buffer() {
+        use screencapturekit::async_api::AsyncSCScreenshotManager;
+
+        let content = AsyncSCShareableContent::get().await.unwrap();
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+
+            let config = SCStreamConfiguration::new()
+                .with_width(320)
+                .with_height(240);
+
+            let result = AsyncSCScreenshotManager::capture_sample_buffer(&filter, &config).await;
+            match result {
+                Ok(sample) => {
+                    assert!(sample.is_valid());
+                }
+                Err(_) => {
+                    // Permission error is okay
+                }
+            }
+        }
+    }
+}
