@@ -547,6 +547,15 @@ extern "C" {
     pub fn iosurface_get_width_of_plane(iosurface: *const c_void, plane: isize) -> isize;
     pub fn iosurface_get_height_of_plane(iosurface: *const c_void, plane: isize) -> isize;
     pub fn iosurface_get_bytes_per_row_of_plane(iosurface: *const c_void, plane: isize) -> isize;
+
+    // IOSurface creation (for testing)
+    pub fn io_surface_create(
+        width: usize,
+        height: usize,
+        pixel_format: u32,
+        bytes_per_element: usize,
+        surface_out: *mut *mut c_void,
+    ) -> i32;
 }
 
 // MARK: - SCContentSharingPicker (macOS 14.0+)

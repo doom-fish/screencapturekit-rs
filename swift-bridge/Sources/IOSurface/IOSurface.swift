@@ -239,3 +239,34 @@ public func io_surface_decrement_use_count(_ surface: UnsafeMutableRawPointer) {
     let ioSurface = Unmanaged<IOSurface>.fromOpaque(surface).takeUnretainedValue()
     IOSurfaceDecrementUseCount(ioSurface)
 }
+
+// MARK: - IOSurface Creation (for testing)
+
+/// Create an IOSurface with the given dimensions and pixel format
+@_cdecl("io_surface_create")
+public func io_surface_create(
+    _ width: Int,
+    _ height: Int,
+    _ pixelFormat: UInt32,
+    _ bytesPerElement: Int,
+    _ surfaceOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
+) -> Int32 {
+    let bytesPerRow = width * bytesPerElement
+    
+    let properties: [IOSurfacePropertyKey: Any] = [
+        .width: width,
+        .height: height,
+        .bytesPerElement: bytesPerElement,
+        .bytesPerRow: bytesPerRow,
+        .allocSize: bytesPerRow * height,
+        .pixelFormat: pixelFormat,
+    ]
+    
+    guard let surface = IOSurface(properties: properties) else {
+        surfaceOut.pointee = nil
+        return -1
+    }
+    
+    surfaceOut.pointee = Unmanaged.passRetained(surface).toOpaque()
+    return 0
+}

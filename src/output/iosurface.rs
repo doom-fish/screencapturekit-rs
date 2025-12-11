@@ -185,6 +185,48 @@ impl std::hash::Hash for IOSurface {
 }
 
 impl IOSurface {
+    /// Create a new `IOSurface` with the given dimensions and pixel format
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - Width in pixels
+    /// * `height` - Height in pixels
+    /// * `pixel_format` - Pixel format as a `FourCC` code (e.g., 0x42475241 for 'BGRA')
+    /// * `bytes_per_element` - Bytes per pixel (e.g., 4 for BGRA)
+    ///
+    /// # Returns
+    ///
+    /// `Some(IOSurface)` if creation succeeded, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::output::IOSurface;
+    ///
+    /// // Create a 100x100 BGRA IOSurface
+    /// let surface = IOSurface::create(100, 100, 0x42475241, 4)
+    ///     .expect("Failed to create IOSurface");
+    /// assert_eq!(surface.width(), 100);
+    /// assert_eq!(surface.height(), 100);
+    /// ```
+    #[must_use]
+    pub fn create(
+        width: usize,
+        height: usize,
+        pixel_format: u32,
+        bytes_per_element: usize,
+    ) -> Option<Self> {
+        let mut ptr: *mut c_void = std::ptr::null_mut();
+        let status = unsafe {
+            crate::ffi::io_surface_create(width, height, pixel_format, bytes_per_element, &mut ptr)
+        };
+        if status == 0 && !ptr.is_null() {
+            Some(Self(ptr.cast_const()))
+        } else {
+            None
+        }
+    }
+
     /// Create from raw pointer (used internally)
     pub(crate) unsafe fn from_ptr(ptr: *const c_void) -> Option<Self> {
         if ptr.is_null() {
