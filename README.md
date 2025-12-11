@@ -3,21 +3,11 @@
 </div>
 
 <div align="center"><p>
-    <a href="https://crates.io/crates/screencapturekit">
-      <img alt="Crates.io" src="https://img.shields.io/crates/v/screencapturekit?style=for-the-badge&logo=rust&color=C9CBFF&logoColor=D9E0EE&labelColor=302D41" />
-    </a>
-    <a href="https://doom-fish.github.io/screencapturekit-rs/screencapturekit/">
-      <img alt="Documentation" src="https://img.shields.io/badge/docs-GitHub%20Pages-blue?style=for-the-badge&logo=gitbook&color=8bd5ca&logoColor=D9E0EE&labelColor=302D41" />
-    </a>
-    <a href="https://github.com/doom-fish/screencapturekit-rs#license">
-      <img alt="License" src="https://img.shields.io/crates/l/screencapturekit?style=for-the-badge&logo=apache&color=ee999f&logoColor=D9E0EE&labelColor=302D41" />
-    </a>
-    <a href="https://github.com/doom-fish/screencapturekit-rs/actions">
-      <img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/doom-fish/screencapturekit-rs/ci.yml?branch=main&style=for-the-badge&logo=github&color=c69ff5&logoColor=D9E0EE&labelColor=302D41" />
-    </a>
-    <a href="https://github.com/doom-fish/screencapturekit-rs/stargazers">
-      <img alt="Stars" src="https://img.shields.io/github/stars/doom-fish/screencapturekit-rs?style=for-the-badge&logo=starship&color=F5E0DC&logoColor=D9E0EE&labelColor=302D41" />
-    </a>
+    <a href="https://crates.io/crates/screencapturekit"><img alt="Crates.io" src="https://img.shields.io/crates/v/screencapturekit?style=for-the-badge&logo=rust&color=C9CBFF&logoColor=D9E0EE&labelColor=302D41" /></a>
+    <a href="https://doom-fish.github.io/screencapturekit-rs/screencapturekit/"><img alt="Documentation" src="https://img.shields.io/badge/docs-GitHub%20Pages-blue?style=for-the-badge&logo=gitbook&color=8bd5ca&logoColor=D9E0EE&labelColor=302D41" /></a>
+    <a href="https://github.com/doom-fish/screencapturekit-rs#license"><img alt="License" src="https://img.shields.io/crates/l/screencapturekit?style=for-the-badge&logo=apache&color=ee999f&logoColor=D9E0EE&labelColor=302D41" /></a>
+    <a href="https://github.com/doom-fish/screencapturekit-rs/actions"><img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/doom-fish/screencapturekit-rs/ci.yml?branch=main&style=for-the-badge&logo=github&color=c69ff5&logoColor=D9E0EE&labelColor=302D41" /></a>
+    <a href="https://github.com/doom-fish/screencapturekit-rs/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/doom-fish/screencapturekit-rs?style=for-the-badge&logo=starship&color=F5E0DC&logoColor=D9E0EE&labelColor=302D41" /></a>
 </p></div>
 
 > **💼 Looking for a hosted desktop recording API?**  
