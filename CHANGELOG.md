@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1](https://github.com/doom-fish/screencapturekit-rs/compare/v1.4.0...v1.4.1) - 2025-12-11
+
+### Fixed
+
+- correct include_applications doctest to pass required second argument
+
+### Other
+
+- improve lib.rs documentation with more examples and patterns
+- simplify window title comparison in example
+- add missing examples 16 and 17 to lib.rs
+
 ## [1.4.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.3.0...v1.4.0) - 2025-12-11
 
 ### Added
