@@ -31,10 +31,65 @@ fn test_async_shareable_content_options_default() {
 }
 
 #[test]
+fn test_async_shareable_content_options_clone() {
+    let options = AsyncSCShareableContentOptions::default().exclude_desktop_windows(true);
+    let cloned = options.clone();
+    assert_eq!(options, cloned);
+}
+
+#[test]
+fn test_async_shareable_content_options_debug() {
+    let options = AsyncSCShareableContentOptions::default();
+    let debug_str = format!("{:?}", options);
+    assert!(debug_str.contains("AsyncSCShareableContentOptions"));
+}
+
+#[test]
+fn test_async_shareable_content_options_builder_chain() {
+    // Test all builder methods
+    let options = AsyncSCShareableContentOptions::default()
+        .exclude_desktop_windows(false)
+        .on_screen_windows_only(false)
+        .exclude_desktop_windows(true)
+        .on_screen_windows_only(true);
+
+    // Each call should update the value
+    let expected = AsyncSCShareableContentOptions::default()
+        .exclude_desktop_windows(true)
+        .on_screen_windows_only(true);
+
+    assert_eq!(options, expected);
+}
+
+#[test]
 fn test_async_shareable_content_debug() {
     let content = AsyncSCShareableContent;
     let debug_str = format!("{:?}", content);
     assert!(debug_str.contains("AsyncSCShareableContent"));
+}
+
+#[test]
+fn test_async_shareable_content_clone() {
+    let content = AsyncSCShareableContent;
+    let cloned = content;
+    // Both are unit structs, should be equal
+    let _ = cloned;
+}
+
+#[test]
+fn test_async_shareable_content_copy() {
+    let content = AsyncSCShareableContent;
+    let copied = content;
+    // Copy trait test
+    let _ = (content, copied);
+}
+
+#[test]
+fn test_async_shareable_content_with_options() {
+    // Test that with_options returns the options builder
+    let options = AsyncSCShareableContent::with_options();
+    let debug_str = format!("{:?}", options);
+    assert!(debug_str.contains("AsyncSCShareableContentOptions"));
 }
 
 #[test]
@@ -93,6 +148,21 @@ fn test_next_sample_debug() {
     assert_debug::<NextSample<'_>>();
 }
 
+#[test]
+fn test_async_stream_output_type() {
+    // Test SCStreamOutputType enum values
+    assert_ne!(SCStreamOutputType::Screen, SCStreamOutputType::Audio);
+
+    let screen = SCStreamOutputType::Screen;
+    let audio = SCStreamOutputType::Audio;
+
+    let debug_screen = format!("{:?}", screen);
+    let debug_audio = format!("{:?}", audio);
+
+    assert!(debug_screen.contains("Screen"));
+    assert!(debug_audio.contains("Audio"));
+}
+
 #[cfg(feature = "macos_14_0")]
 mod macos_14_tests {
     use super::*;
@@ -101,6 +171,13 @@ mod macos_14_tests {
     fn test_async_screenshot_manager_exists() {
         // Just verify the type exists and is accessible
         let _ = AsyncSCScreenshotManager;
+    }
+
+    #[test]
+    fn test_async_screenshot_manager_debug() {
+        let manager = AsyncSCScreenshotManager;
+        let debug_str = format!("{:?}", manager);
+        assert!(debug_str.contains("AsyncSCScreenshotManager"));
     }
 
     #[test]
@@ -119,6 +196,13 @@ mod macos_14_tests {
     #[test]
     fn test_async_content_sharing_picker_exists() {
         let _ = AsyncSCContentSharingPicker;
+    }
+
+    #[test]
+    fn test_async_content_sharing_picker_debug() {
+        let picker = AsyncSCContentSharingPicker;
+        let debug_str = format!("{:?}", picker);
+        assert!(debug_str.contains("AsyncSCContentSharingPicker"));
     }
 }
 
@@ -160,6 +244,20 @@ mod macos_15_tests {
         let event = RecordingEvent::Failed("clone test".to_string());
         let cloned = event.clone();
         assert_eq!(event, cloned);
+    }
+
+    #[test]
+    fn test_recording_event_equality() {
+        assert_eq!(RecordingEvent::Started, RecordingEvent::Started);
+        assert_eq!(RecordingEvent::Finished, RecordingEvent::Finished);
+        assert_ne!(RecordingEvent::Started, RecordingEvent::Finished);
+
+        let failed1 = RecordingEvent::Failed("error".to_string());
+        let failed2 = RecordingEvent::Failed("error".to_string());
+        let failed3 = RecordingEvent::Failed("different".to_string());
+
+        assert_eq!(failed1, failed2);
+        assert_ne!(failed1, failed3);
     }
 
     #[test]
