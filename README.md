@@ -8,9 +8,25 @@
 > **💼 Looking for a hosted desktop recording API?**  
 > Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) - an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
 
-Safe, idiomatic Rust bindings for macOS ScreenCaptureKit framework.
+Safe, idiomatic Rust bindings for Apple's [ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit) framework.
 
 Capture screen content, windows, and applications with high performance and low overhead on macOS 12.3+.
+
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Key Concepts](#-key-concepts)
+- [Feature Flags](#-feature-flags)
+- [API Overview](#-api-overview)
+- [Examples](#-examples)
+- [Testing](#-testing)
+- [Architecture](#-architecture)
+- [Troubleshooting](#-troubleshooting)
+- [Platform Requirements](#-platform-requirements)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ## ✨ Features
 
@@ -423,50 +439,69 @@ config.set_should_be_opaque(true);
 
 ### Core Types
 
-- **`SCShareableContent`** - Query available displays, windows, and applications
-- **`SCContentFilter`** - Define what to capture (display/window/app)
-- **`SCStreamConfiguration`** - Configure resolution, format, audio, etc.
-- **`SCStream`** - Main capture stream with output handlers
-- **`CMSampleBuffer`** - Frame data with timing and metadata
+| Type | Description |
+|------|-------------|
+| [`SCShareableContent`] | Query available displays, windows, and applications |
+| [`SCContentFilter`] | Define what to capture (display/window/app) |
+| [`SCStreamConfiguration`] | Configure resolution, format, audio, etc. |
+| [`SCStream`] | Main capture stream with output handlers |
+| [`CMSampleBuffer`] | Frame data with timing and metadata |
+
+[`SCShareableContent`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/shareable_content/struct.SCShareableContent.html
+[`SCContentFilter`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/stream/content_filter/struct.SCContentFilter.html
+[`SCStreamConfiguration`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/stream/configuration/struct.SCStreamConfiguration.html
+[`SCStream`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/stream/sc_stream/struct.SCStream.html
+[`CMSampleBuffer`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/cm/struct.CMSampleBuffer.html
 
 ### Async API (requires `async` feature)
 
-- **`AsyncSCShareableContent`** - Async content queries
-- **`AsyncSCStream`** - Async stream with frame iteration
-- **`AsyncSCScreenshotManager`** - Async screenshot capture (macOS 14.0+)
-- **`AsyncSCContentSharingPicker`** - Async content picker UI (macOS 14.0+)
+| Type | Description |
+|------|-------------|
+| `AsyncSCShareableContent` | Async content queries |
+| `AsyncSCStream` | Async stream with frame iteration |
+| `AsyncSCScreenshotManager` | Async screenshot capture (macOS 14.0+) |
+| `AsyncSCContentSharingPicker` | Async content picker UI (macOS 14.0+) |
 
 ### Display & Window Types
 
-- **`SCDisplay`** - Display information (resolution, ID, etc.)
-- **`SCWindow`** - Window information (title, bounds, owner, etc.)
-- **`SCRunningApplication`** - Application information (name, PID, etc.)
+| Type | Description |
+|------|-------------|
+| `SCDisplay` | Display information (resolution, ID, frame) |
+| `SCWindow` | Window information (title, bounds, owner, layer) |
+| `SCRunningApplication` | Application information (name, bundle ID, PID) |
 
 ### Media Types
 
-- **`CMSampleBuffer`** - Sample buffer with timing and attachments
-- **`CMTime`** - High-precision timestamps
-- **`IOSurface`** - GPU-backed pixel buffers
-- **`CGImage`** - CoreGraphics images
+| Type | Description |
+|------|-------------|
+| `CMSampleBuffer` | Sample buffer with timing and attachments |
+| `CMTime` | High-precision timestamps with timescale |
+| `IOSurface` | GPU-backed pixel buffers for zero-copy access |
+| `CGImage` | Core Graphics images for screenshots |
+| `CVPixelBuffer` | Core Video pixel buffer with lock guards |
 
-### Metal Types (output::metal)
+### Metal Types (`metal` module)
 
-- **`MetalDevice`** - Metal GPU device wrapper
-- **`MetalTexture`** - Metal texture with automatic retain/release
-- **`MetalBuffer`** - Vertex/uniform buffer
-- **`MetalCommandQueue`** / **`MetalCommandBuffer`** - Command submission
-- **`MetalLayer`** - CAMetalLayer for window rendering
-- **`MetalRenderPipelineState`** - Compiled render pipeline
-- **`CapturedTextures<T>`** - Multi-plane texture container (Y + CbCr for YCbCr formats)
-- **`Uniforms`** - Shader uniform structure matching `SHADER_SOURCE`
+| Type | Description |
+|------|-------------|
+| `MetalDevice` | Metal GPU device wrapper |
+| `MetalTexture` | Metal texture with automatic retain/release |
+| `MetalBuffer` | Vertex/uniform buffer |
+| `MetalCommandQueue` / `MetalCommandBuffer` | Command submission |
+| `MetalLayer` | `CAMetalLayer` for window rendering |
+| `MetalRenderPipelineState` | Compiled render pipeline |
+| `CapturedTextures<T>` | Multi-plane texture container (Y + CbCr for YCbCr) |
+| `Uniforms` | Shader uniform structure matching `SHADER_SOURCE` |
 
 ### Configuration Types
 
-- **`PixelFormat`** - BGRA, YCbCr420v, YCbCr420f, l10r (10-bit)
-- **`SCPresenterOverlayAlertSetting`** - Privacy alert behavior
-- **`SCCaptureDynamicRange`** - HDR/SDR modes (macOS 15.0+)
-- **`SCScreenshotConfiguration`** - Advanced screenshot config (macOS 26.0+)
-- **`SCScreenshotDynamicRange`** - SDR/HDR screenshot output (macOS 26.0+)
+| Type | Description |
+|------|-------------|
+| `PixelFormat` | BGRA, YCbCr420v, YCbCr420f, l10r (10-bit) |
+| `SCPresenterOverlayAlertSetting` | Privacy alert behavior |
+| `SCCaptureDynamicRange` | HDR/SDR modes (macOS 15.0+) |
+| `SCScreenshotConfiguration` | Advanced screenshot config (macOS 26.0+) |
+| `SCScreenshotDynamicRange` | SDR/HDR screenshot output (macOS 26.0+) |
 
 ## 🏃 Examples
 
@@ -566,13 +601,82 @@ screencapturekit/
 - **Thread Safety** - Safe to share across threads (where supported)
 - **Leak Free** - Comprehensive leak tests ensure no memory leaks
 
+## ❓ Troubleshooting
+
+### Permission Denied / No Displays Found
+
+**Problem**: `SCShareableContent::get()` returns an error or empty lists.
+
+**Solution**: Grant screen recording permission:
+1. Open **System Preferences** → **Privacy & Security** → **Screen Recording**
+2. Add your app or Terminal to the list
+3. Restart your application
+
+For development, you may need to add Terminal.app to the allowed list.
+
+### Entitlements for App Store / Notarization
+
+**Problem**: App crashes or permissions fail after notarization.
+
+**Solution**: Add required entitlements to your `entitlements.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.screen-capture</key>
+    <true/>
+</dict>
+</plist>
+```
+
+### Black Frames / No Video Data
+
+**Problem**: Frames are received but contain no visible content.
+
+**Solutions**:
+1. Ensure the captured window/display is visible (not minimized)
+2. Check that `pixel_format` matches your processing expectations
+3. Verify the content filter includes the correct display/window
+4. On Apple Silicon, ensure proper GPU access
+
+### Audio Capture Not Working
+
+**Problem**: Audio samples not received or empty.
+
+**Solutions**:
+1. Enable audio capture: `.with_captures_audio(true)`
+2. Add an audio output handler: `stream.add_output_handler(handler, SCStreamOutputType::Audio)`
+3. Verify `sample_rate` and `channel_count` are set correctly
+
+### Build Errors
+
+**Problem**: Compilation fails with Swift bridge errors.
+
+**Solutions**:
+1. Ensure Xcode Command Line Tools are installed: `xcode-select --install`
+2. Clean and rebuild: `cargo clean && cargo build`
+3. Check that you're on macOS (this crate is macOS-only)
+
 ## 🔧 Platform Requirements
 
 - **macOS 12.3+** (Monterey) - Base ScreenCaptureKit support
-- **macOS 13.0+** (Ventura) - Additional features with `macos_13_0`
-- **macOS 14.0+** (Sonoma) - Content picker, advanced config
-- **macOS 15.0+** (Sequoia) - Recording output, HDR capture
+- **macOS 13.0+** (Ventura) - Audio capture, synchronization clock
+- **macOS 14.0+** (Sonoma) - Content picker, screenshots, content info
+- **macOS 15.0+** (Sequoia) - Recording output, HDR capture, microphone
 - **macOS 26.0+** (Tahoe) - Advanced screenshot config, HDR screenshot output
+
+### Screen Recording Permission
+
+Screen recording requires explicit user permission. For development:
+- Terminal/IDE must be in **System Preferences** → **Privacy & Security** → **Screen Recording**
+
+For distribution:
+- Add `NSScreenCaptureUsageDescription` to your `Info.plist`
+- Sign with appropriate entitlements for notarization
 
 ## 🤝 Contributing
 

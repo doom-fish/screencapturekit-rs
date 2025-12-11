@@ -227,6 +227,22 @@ impl AppState {
         }
     }
 
+    /// Restart capture (stop then start)
+    fn restart_capture(&mut self) {
+        if self.capturing.load(Ordering::Relaxed) {
+            stop_capture(&mut self.stream, &self.capturing);
+            start_capture(
+                &mut self.stream,
+                self.current_filter.as_ref(),
+                self.capture_size,
+                &self.stream_config,
+                &self.capture_state,
+                &self.capturing,
+                false,
+            );
+        }
+    }
+
     /// Open content picker
     fn open_picker(&self) {
         if let Some(ref s) = self.stream {
@@ -341,22 +357,38 @@ impl AppState {
                 }
             }
             KeyCode::ArrowLeft | KeyCode::ArrowRight => {
+                let mic_before = self.stream_config.captures_microphone();
                 ConfigMenu::toggle_or_adjust(
                     &mut self.stream_config,
                     &mut self.mic_device_idx,
                     self.overlay.config_selection,
                     keycode == KeyCode::ArrowRight,
                 );
-                self.apply_config_to_stream();
+                let mic_after = self.stream_config.captures_microphone();
+                // Microphone requires stream restart (macOS limitation)
+                if mic_before != mic_after && self.capturing.load(Ordering::Relaxed) {
+                    println!("🔄 Restarting stream for microphone change...");
+                    self.restart_capture();
+                } else {
+                    self.apply_config_to_stream();
+                }
             }
             KeyCode::Enter | KeyCode::Space => {
+                let mic_before = self.stream_config.captures_microphone();
                 ConfigMenu::toggle_or_adjust(
                     &mut self.stream_config,
                     &mut self.mic_device_idx,
                     self.overlay.config_selection,
                     true,
                 );
-                self.apply_config_to_stream();
+                let mic_after = self.stream_config.captures_microphone();
+                // Microphone requires stream restart (macOS limitation)
+                if mic_before != mic_after && self.capturing.load(Ordering::Relaxed) {
+                    println!("🔄 Restarting stream for microphone change...");
+                    self.restart_capture();
+                } else {
+                    self.apply_config_to_stream();
+                }
             }
             KeyCode::Escape | KeyCode::Backspace => {
                 self.overlay.show_config = false;
@@ -418,8 +450,17 @@ impl AppState {
             KeyCode::KeyM => {
                 let new_val = !self.stream_config.captures_microphone();
                 self.stream_config.set_captures_microphone(new_val);
+                // Also clear device ID when disabling (as per Apple's sample)
+                if !new_val {
+                    self.stream_config.clear_microphone_capture_device_id();
+                }
                 println!("🎤 Microphone: {}", if new_val { "On" } else { "Off" });
-                self.apply_config_to_stream();
+                // Note: captureMicrophone cannot be changed dynamically via updateConfiguration
+                // (macOS limitation), so we need to restart the stream
+                if self.capturing.load(Ordering::Relaxed) {
+                    println!("🔄 Restarting stream for microphone change...");
+                    self.restart_capture();
+                }
             }
             KeyCode::KeyS => self.take_screenshot(),
             KeyCode::KeyR => {

@@ -4,11 +4,19 @@
 //!
 //! ## Main Components
 //!
-//! - [`SCStream`] - The main capture stream
-//! - [`configuration::SCStreamConfiguration`] - Stream configuration (resolution, FPS, etc.)
-//! - [`content_filter::SCContentFilter`] - Filter for selecting what to capture
+//! - [`SCStream`] - The main capture stream that manages the capture session
+//! - [`configuration::SCStreamConfiguration`] - Stream configuration (resolution, FPS, pixel format, audio)
+//! - [`content_filter::SCContentFilter`] - Filter for selecting what to capture (display, window, app)
 //! - [`output_trait::SCStreamOutputTrait`] - Trait for receiving captured frames
-//! - [`output_type::SCStreamOutputType`] - Type of output (screen, audio)
+//! - [`output_type::SCStreamOutputType`] - Type of output (screen, audio, microphone)
+//! - [`delegate_trait::SCStreamDelegateTrait`] - Trait for stream lifecycle events
+//!
+//! ## Workflow
+//!
+//! 1. Query available content with [`SCShareableContent`](crate::shareable_content::SCShareableContent)
+//! 2. Create a content filter with [`SCContentFilter::builder()`](content_filter::SCContentFilter::builder)
+//! 3. Configure the stream with [`SCStreamConfiguration::new()`](configuration::SCStreamConfiguration::new)
+//! 4. Create and start the stream with [`SCStream::new()`](SCStream::new)
 //!
 //! ## Example
 //!
@@ -26,6 +34,10 @@
 //!     .with_height(1080);
 //!
 //! let mut stream = SCStream::new(&filter, &config);
+//! stream.add_output_handler(
+//!     |sample, output_type| println!("Got frame!"),
+//!     SCStreamOutputType::Screen
+//! );
 //! stream.start_capture()?;
 //! # Ok::<(), screencapturekit::error::SCError>(())
 //! ```

@@ -2,6 +2,39 @@
 //!
 //! This module provides a safe Rust wrapper around GCD (Grand Central Dispatch) queues
 //! that can be used with `ScreenCaptureKit` streams.
+//!
+//! ## When to Use Custom Queues
+//!
+//! By default, stream output handlers are called on a system-managed queue. Use a custom
+//! queue when you need:
+//!
+//! - **Priority control** - Use `UserInteractive` `QoS` for low-latency UI updates
+//! - **Thread isolation** - Ensure handlers run on a specific queue
+//! - **Performance tuning** - Adjust queue priority based on your app's needs
+//!
+//! ## Example
+//!
+//! ```rust,no_run
+//! use screencapturekit::dispatch_queue::{DispatchQueue, DispatchQoS};
+//! use screencapturekit::prelude::*;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # let content = SCShareableContent::get()?;
+//! # let display = &content.displays()[0];
+//! # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+//! # let config = SCStreamConfiguration::default();
+//! // Create a high-priority queue for frame processing
+//! let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
+//!
+//! let mut stream = SCStream::new(&filter, &config);
+//! stream.add_output_handler_with_queue(
+//!     |_sample, _type| println!("Got frame!"),
+//!     SCStreamOutputType::Screen,
+//!     Some(&queue)
+//! );
+//! # Ok(())
+//! # }
+//! ```
 
 use std::ffi::{c_void, CString};
 use std::fmt;

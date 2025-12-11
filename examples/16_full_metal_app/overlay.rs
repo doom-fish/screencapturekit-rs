@@ -213,7 +213,12 @@ impl ConfigMenu {
                 config.set_captures_audio(!config.captures_audio());
             }
             3 => {
-                config.set_captures_microphone(!config.captures_microphone());
+                let new_val = !config.captures_microphone();
+                config.set_captures_microphone(new_val);
+                // Also clear device ID when disabling (as per Apple's sample)
+                if !new_val {
+                    config.clear_microphone_capture_device_id();
+                }
             }
             4 => {
                 // Mic Device
@@ -329,7 +334,7 @@ pub fn default_stream_config() -> SCStreamConfiguration {
         .with_shows_cursor(true)
         .with_captures_audio(true)
         .with_excludes_current_process_audio(true)
-        .with_captures_microphone(true)
+        .with_captures_microphone(false) // Microphone off by default, press 'M' to enable
         .with_channel_count(2)
         .with_sample_rate(48000)
         .with_scales_to_fit(true)

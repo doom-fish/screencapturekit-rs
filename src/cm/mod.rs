@@ -6,12 +6,35 @@
 //! ## Main Types
 //!
 //! - [`CMSampleBuffer`] - Container for media samples (audio/video frames)
-//! - [`CMTime`] - Time value with rational timescale
-//! - [`IOSurface`] - Hardware-accelerated surface
+//! - [`CMTime`] - Time value with rational timescale for precise timing
+//! - [`IOSurface`] - Hardware-accelerated surface for zero-copy GPU access
 //! - [`CMBlockBuffer`] - Block of contiguous data (audio/compressed video)
-//! - [`AudioBuffer`] - Audio data buffer
-//! - [`AudioBufferList`] - Collection of audio buffers
-//! - [`SCFrameStatus`] - Status of a captured frame
+//! - [`AudioBuffer`] - Audio data buffer with sample data
+//! - [`AudioBufferList`] - Collection of audio buffers for multi-channel audio
+//! - [`SCFrameStatus`] - Status of a captured frame (complete, idle, dropped, etc.)
+//!
+//! ## Example
+//!
+//! ```rust,no_run
+//! use screencapturekit::cm::{CMSampleBuffer, CMTime, SCFrameStatus};
+//!
+//! fn process_frame(sample: CMSampleBuffer) {
+//!     // Check frame status
+//!     if sample.frame_status() == Some(SCFrameStatus::Complete) {
+//!         // Get timestamp
+//!         let pts = sample.presentation_timestamp();
+//!         println!("Frame at {:?}", pts);
+//!
+//!         // Access pixel buffer for CPU processing
+//!         if let Some(pixel_buffer) = sample.image_buffer() {
+//!             // Access IOSurface for GPU processing
+//!             if let Some(surface) = pixel_buffer.io_surface() {
+//!                 println!("Surface: {}x{}", surface.width(), surface.height());
+//!             }
+//!         }
+//!     }
+//! }
+//! ```
 
 mod audio;
 mod block_buffer;

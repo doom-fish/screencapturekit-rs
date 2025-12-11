@@ -12,7 +12,7 @@
 //! - **Audio capture** - System audio and microphone input (macOS 13.0+)
 //! - **Real-time frame processing** - High-performance callbacks with custom dispatch queues
 //! - **Async support** - Runtime-agnostic async API (Tokio, async-std, smol, etc.)
-//! - **Zero-copy GPU access** - Direct `IOSurface` access for Metal/OpenGL integration
+//! - **Zero-copy GPU access** - Direct [`IOSurface`] access for Metal/OpenGL integration
 //! - **Screenshots** - Single-frame capture without streaming (macOS 14.0+)
 //! - **Recording** - Direct-to-file recording (macOS 15.0+)
 //!
@@ -161,9 +161,9 @@
 //! # }
 //! ```
 //!
-//! ### `IOSurface` (GPU)
+//! ### [`IOSurface`] (GPU)
 //!
-//! For Metal/OpenGL integration, access the underlying `IOSurface`:
+//! For Metal/OpenGL integration, access the underlying [`IOSurface`]:
 //!
 //! ```rust,no_run
 //! use screencapturekit::prelude::*;
@@ -216,17 +216,26 @@
 //!
 //! | Module | Description |
 //! |--------|-------------|
-//! | [`stream`] | Stream configuration and management |
+//! | [`stream`] | Stream configuration and management ([`SCStream`], [`SCContentFilter`]) |
 //! | [`shareable_content`] | Display, window, and application enumeration |
-//! | [`cm`] | Core Media types (`CMSampleBuffer`, `CMTime`, `IOSurface`, etc.) |
-//! | [`cv`] | Core Video types (`CVPixelBuffer`, `CVPixelBufferPool`, lock guards) |
-//! | [`cg`] | Core Graphics types (`CGRect`, `CGSize`, etc.) |
+//! | [`cm`] | Core Media types ([`CMSampleBuffer`], [`CMTime`], [`IOSurface`]) |
+//! | [`cv`] | Core Video types ([`CVPixelBuffer`], lock guards) |
+//! | [`cg`] | Core Graphics types ([`CGRect`], [`CGSize`]) |
 //! | [`metal`] | Metal texture helpers for zero-copy GPU rendering |
 //! | [`dispatch_queue`] | Custom dispatch queues for callbacks |
 //! | [`error`] | Error types and result aliases |
 //! | [`async_api`] | Async wrappers (requires `async` feature) |
 //! | [`screenshot_manager`] | Single-frame capture (macOS 14.0+) |
 //! | [`recording_output`] | Direct file recording (macOS 15.0+) |
+//!
+//! [`SCStream`]: stream::sc_stream::SCStream
+//! [`SCContentFilter`]: stream::content_filter::SCContentFilter
+//! [`CMSampleBuffer`]: cm::CMSampleBuffer
+//! [`CMTime`]: cm::CMTime
+//! [`IOSurface`]: cm::IOSurface
+//! [`CVPixelBuffer`]: cv::CVPixelBuffer
+//! [`CGRect`]: cg::CGRect
+//! [`CGSize`]: cg::CGSize
 //!
 //! ## Feature Flags
 //!

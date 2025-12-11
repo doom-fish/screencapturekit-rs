@@ -1,9 +1,56 @@
 //! `SCRecordingOutput` - Direct video file recording
 //!
-//! Available on macOS 15.0+
-//! Provides direct encoding of screen capture to video files.
+//! Available on macOS 15.0+.
+//! Provides direct encoding of screen capture to video files with hardware acceleration.
 //!
 //! Requires the `macos_15_0` feature flag to be enabled.
+//!
+//! ## When to Use
+//!
+//! Use `SCRecordingOutput` when you need:
+//! - Direct recording to MP4/MOV files without manual encoding
+//! - Hardware-accelerated H.264 or HEVC encoding
+//! - Recording with automatic file management
+//!
+//! For custom processing of frames, use [`SCStream`](crate::stream::SCStream) with
+//! output handlers instead.
+//!
+//! ## Example
+//!
+//! ```no_run
+//! use screencapturekit::recording_output::{
+//!     SCRecordingOutput, SCRecordingOutputConfiguration, SCRecordingOutputCodec
+//! };
+//! use screencapturekit::prelude::*;
+//! use std::path::Path;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let content = SCShareableContent::get()?;
+//! let display = &content.displays()[0];
+//! let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+//! let config = SCStreamConfiguration::new()
+//!     .with_width(1920)
+//!     .with_height(1080);
+//!
+//! // Configure recording output
+//! let rec_config = SCRecordingOutputConfiguration::new()
+//!     .with_output_url(Path::new("/tmp/recording.mp4"))
+//!     .with_video_codec(SCRecordingOutputCodec::HEVC);
+//!
+//! let recording = SCRecordingOutput::new(&rec_config).ok_or("Failed to create recording")?;
+//!
+//! // Add to stream and start
+//! let mut stream = SCStream::new(&filter, &config);
+//! stream.add_recording_output(&recording)?;
+//! stream.start_capture()?;
+//!
+//! // ... record for desired duration ...
+//!
+//! stream.stop_capture()?;
+//! stream.remove_recording_output(&recording)?;
+//! # Ok(())
+//! # }
+//! ```
 
 use std::collections::HashMap;
 use std::ffi::c_void;
