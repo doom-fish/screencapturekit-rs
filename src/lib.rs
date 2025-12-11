@@ -277,6 +277,8 @@
 //! - `13_advanced_config` - HDR, presets, microphone (macOS 15.0+)
 //! - `14_app_capture` - Application-based filtering
 //! - `15_memory_leak_check` - Memory leak detection
+//! - `16_full_metal_app` - Full Metal GUI application (macOS 14.0+)
+//! - `17_metal_textures` - Metal texture creation from IOSurface
 //!
 //! ## Common Patterns
 //!
