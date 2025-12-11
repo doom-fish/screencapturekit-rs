@@ -3,7 +3,22 @@
 //! This module provides access to the system's displays, windows, and running
 //! applications that can be captured by `ScreenCaptureKit`.
 //!
+//! ## Main Types
+//!
+//! - [`SCShareableContent`] - Container for all available content (displays, windows, apps)
+//! - [`SCDisplay`] - A physical or virtual display that can be captured
+//! - [`SCWindow`] - A window that can be captured
+//! - [`SCRunningApplication`] - A running application whose windows can be captured
+//!
+//! ## Workflow
+//!
+//! 1. Call [`SCShareableContent::get()`] to retrieve available content
+//! 2. Select displays/windows/apps to capture
+//! 3. Create an [`SCContentFilter`](crate::stream::content_filter::SCContentFilter) from the selection
+//!
 //! # Examples
+//!
+//! ## List All Content
 //!
 //! ```no_run
 //! use screencapturekit::shareable_content::SCShareableContent;
@@ -30,8 +45,24 @@
 //!
 //! // List applications
 //! for app in content.applications() {
-//!     println!("App: {}", app.application_name());
+//!     println!("App: {} ({})", app.application_name(), app.bundle_identifier());
 //! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Filter On-Screen Windows Only
+//!
+//! ```no_run
+//! use screencapturekit::shareable_content::SCShareableContent;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let content = SCShareableContent::with_options()
+//!     .on_screen_windows_only(true)
+//!     .exclude_desktop_windows(true)
+//!     .get()?;
+//!
+//! println!("Found {} on-screen windows", content.windows().len());
 //! # Ok(())
 //! # }
 //! ```

@@ -1,16 +1,23 @@
 //! `SCContentSharingPicker` - UI for selecting content to share
 //!
-//! Available on macOS 14.0+
+//! Available on macOS 14.0+.
 //! Provides a system UI for users to select displays, windows, or applications to share.
 //!
-//! # APIs
+//! ## When to Use
+//!
+//! Use the content sharing picker when:
+//! - You want users to choose what to capture via a native macOS UI
+//! - You need consistent UX with other screen sharing apps
+//! - You want to avoid manually listing and presenting content options
+//!
+//! ## APIs
 //!
 //! | Method | Returns | Use Case |
 //! |--------|---------|----------|
-//! | `show()` | callback with `SCPickerOutcome` | Get filter + metadata (dimensions, picked content) |
-//! | `show_filter()` | callback with `SCPickerFilterOutcome` | Just get the filter |
+//! | [`SCContentSharingPicker::show()`] | callback with [`SCPickerOutcome`] | Get filter + metadata (dimensions, picked content) |
+//! | [`SCContentSharingPicker::show_filter()`] | callback with [`SCPickerFilterOutcome`] | Just get the filter |
 //!
-//! For async/await, use `AsyncSCContentSharingPicker` from the `async_api` module.
+//! For async/await, use [`AsyncSCContentSharingPicker`](crate::async_api::AsyncSCContentSharingPicker) from the `async_api` module.
 //!
 //! # Examples
 //!
@@ -25,6 +32,7 @@
 //!         SCPickerOutcome::Picked(result) => {
 //!             let (width, height) = result.pixel_size();
 //!             let filter = result.filter();
+//!             println!("Selected content: {}x{}", width, height);
 //!             // Create stream with the filter...
 //!         }
 //!         SCPickerOutcome::Cancelled => println!("Cancelled"),
@@ -43,8 +51,20 @@
 //!     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
 //!         let (width, height) = result.pixel_size();
 //!         let filter = result.filter();
+//!         println!("Selected: {}x{}", width, height);
 //!     }
 //! }
+//! ```
+//!
+//! ## Configure Picker Modes
+//! ```no_run
+//! use screencapturekit::content_sharing_picker::*;
+//!
+//! let mut config = SCContentSharingPickerConfiguration::new();
+//! // Only allow single display selection
+//! config.set_allowed_picker_modes(&[SCContentSharingPickerMode::SingleDisplay]);
+//! // Exclude specific apps from the picker
+//! config.set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"]);
 //! ```
 
 use crate::stream::content_filter::SCContentFilter;

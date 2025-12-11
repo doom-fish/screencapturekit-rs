@@ -12,6 +12,21 @@
 //! - Native Metal device and texture types (no external crate needed)
 //! - Embedded Metal shaders for common rendering scenarios
 //!
+//! ## When to Use
+//!
+//! Use this module when you need:
+//! - **Real-time rendering** - Display captured frames in a Metal view
+//! - **GPU processing** - Apply compute shaders to captured content
+//! - **Zero-copy performance** - Avoid CPU-GPU memory transfers
+//!
+//! For CPU-based processing, use [`CVPixelBuffer`](crate::cv::CVPixelBuffer) with lock guards instead.
+//!
+//! ## Workflow
+//!
+//! 1. Get `IOSurface` from captured frame via [`CMSampleBuffer::image_buffer()`](crate::cm::CMSampleBuffer::image_buffer)
+//! 2. Create Metal textures with [`IOSurface::create_metal_textures()`](crate::cm::IOSurface::create_metal_textures)
+//! 3. Render using the built-in shaders or your own
+//!
 //! ## Example
 //!
 //! ```no_run
@@ -29,12 +44,29 @@
 //!             if let Some(textures) = surface.create_metal_textures(device) {
 //!                 if textures.is_ycbcr() {
 //!                     // Use YCbCr shader with plane0 (Y) and plane1 (CbCr)
+//!                     println!("YCbCr texture: {}x{}",
+//!                         textures.plane0.width(), textures.plane0.height());
+//!                 } else {
+//!                     // Use single-plane shader (BGRA, l10r)
+//!                     println!("Single-plane texture: {}x{}",
+//!                         textures.plane0.width(), textures.plane0.height());
 //!                 }
 //!             }
 //!         }
 //!     }
 //! }
 //! ```
+//!
+//! ## Built-in Shaders
+//!
+//! The [`SHADER_SOURCE`] constant contains Metal shaders for common rendering scenarios:
+//!
+//! | Function | Description |
+//! |----------|-------------|
+//! | `vertex_fullscreen` | Aspect-ratio-preserving fullscreen quad |
+//! | `fragment_textured` | BGRA/L10R single-texture rendering |
+//! | `fragment_ycbcr` | YCbCr biplanar (420v/420f) to RGB conversion |
+//! | `vertex_colored` / `fragment_colored` | UI overlay rendering |
 
 use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;

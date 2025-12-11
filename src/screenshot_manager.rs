@@ -1,7 +1,44 @@
 //! `SCScreenshotManager` - Single-shot screenshot capture
 //!
-//! Available on macOS 14.0+
+//! Available on macOS 14.0+.
 //! Provides high-quality screenshot capture without the overhead of setting up a stream.
+//!
+//! ## When to Use
+//!
+//! Use `SCScreenshotManager` when you need:
+//! - A single screenshot rather than continuous capture
+//! - Quick capture without stream setup/teardown overhead
+//! - Direct saving to image files
+//!
+//! For continuous capture, use [`SCStream`](crate::stream::SCStream) instead.
+//!
+//! ## Example
+//!
+//! ```no_run
+//! use screencapturekit::screenshot_manager::{SCScreenshotManager, ImageFormat};
+//! use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
+//! use screencapturekit::shareable_content::SCShareableContent;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let content = SCShareableContent::get()?;
+//! let display = &content.displays()[0];
+//! let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+//! let config = SCStreamConfiguration::new()
+//!     .with_width(1920)
+//!     .with_height(1080);
+//!
+//! // Capture as CGImage
+//! let image = SCScreenshotManager::capture_image(&filter, &config)?;
+//! println!("Screenshot: {}x{}", image.width(), image.height());
+//!
+//! // Save to file
+//! image.save_png("/tmp/screenshot.png")?;
+//!
+//! // Or save as JPEG with quality
+//! image.save("/tmp/screenshot.jpg", ImageFormat::Jpeg(0.85))?;
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::error::SCError;
 use crate::stream::configuration::SCStreamConfiguration;

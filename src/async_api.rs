@@ -3,7 +3,17 @@
 //! This module provides async versions of operations when the `async` feature is enabled.
 //! The async API is **executor-agnostic** and works with any async runtime (Tokio, async-std, smol, etc.).
 //!
-//! # Runtime Agnostic Design
+//! ## Available Types
+//!
+//! | Type | Description |
+//! |------|-------------|
+//! | [`AsyncSCShareableContent`] | Async content queries |
+//! | [`AsyncSCStream`] | Async stream with frame iteration |
+//! | [`AsyncSCScreenshotManager`] | Async screenshot capture (macOS 14.0+) |
+//! | [`AsyncSCContentSharingPicker`] | Async content picker UI (macOS 14.0+) |
+//! | [`AsyncSCRecordingOutput`] | Async recording with events (macOS 15.0+) |
+//!
+//! ## Runtime Agnostic Design
 //!
 //! This async API uses only `std` types and works with **any** async runtime:
 //! - Uses callback-based Swift FFI for true async operations
@@ -11,7 +21,9 @@
 //! - Uses `std::task::{Poll, Waker}` for async primitives
 //! - Uses `std::future::Future` trait
 //!
-//! # Examples
+//! ## Examples
+//!
+//! ### Basic Async Content Query
 //!
 //! ```rust,no_run
 //! # #[tokio::main]
@@ -20,6 +32,36 @@
 //!
 //! let content = AsyncSCShareableContent::get().await?;
 //! println!("Found {} displays", content.displays().len());
+//! println!("Found {} windows", content.windows().len());
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Async Stream with Frame Iteration
+//!
+//! ```rust,no_run
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
+//! use screencapturekit::stream::configuration::SCStreamConfiguration;
+//! use screencapturekit::stream::content_filter::SCContentFilter;
+//! use screencapturekit::stream::output_type::SCStreamOutputType;
+//!
+//! let content = AsyncSCShareableContent::get().await?;
+//! let display = &content.displays()[0];
+//! let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+//! let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+//!
+//! let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+//! stream.start_capture()?;
+//!
+//! // Process frames asynchronously
+//! for _ in 0..100 {
+//!     if let Some(frame) = stream.next().await {
+//!         println!("Got frame at {:?}", frame.presentation_timestamp());
+//!     }
+//! }
+//!
+//! stream.stop_capture()?;
 //! # Ok(())
 //! # }
 //! ```
