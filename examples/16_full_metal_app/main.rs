@@ -778,23 +778,10 @@ fn build_ui_vertices(
 /// Build status bar text
 fn build_status_text(app: &AppState, capture_textures: Option<&CaptureTextures>) -> String {
     let fps = app.capture_state.frame_count.load(Ordering::Relaxed);
-    let audio_samples = app
-        .capture_state
-        .audio_waveform
-        .lock()
-        .unwrap()
-        .sample_count();
-    let mic_samples = app
-        .capture_state
-        .mic_waveform
-        .lock()
-        .unwrap()
-        .sample_count();
-    let audio_peak = app.capture_state.audio_waveform.lock().unwrap().peak(512);
-    let mic_peak = app.capture_state.mic_waveform.lock().unwrap().peak(512);
+    let (audio_samples, audio_peak) = app.capture_state.audio_stats();
+    let (mic_samples, mic_peak) = app.capture_state.mic_stats();
 
     if let Some(tex) = capture_textures {
-        // Show format info from advanced introspection API
         let format_str = if tex.is_ycbcr() { "YCbCr" } else { "BGRA" };
         format!(
             "LIVE {}x{} {} F:{} A:{}k P:{:.2} M:{}k P:{:.2}",
@@ -821,96 +808,88 @@ fn build_waveform_ui(
     app: &AppState,
     width: f32,
 ) {
-    let single_wave_h = 40.0;
-    let wave_spacing = 4.0;
-    let total_wave_h = single_wave_h * 2.0 + wave_spacing;
-    let bar_y = 36.0;
-    let meter_w = 24.0;
-    let padding = 8.0;
-    let label_w = 24.0;
+    // Layout constants
+    const WAVE_HEIGHT: f32 = 40.0;
+    const WAVE_SPACING: f32 = 4.0;
+    const BAR_Y: f32 = 36.0;
+    const METER_WIDTH: f32 = 24.0;
+    const PADDING: f32 = 8.0;
+    const LABEL_WIDTH: f32 = 24.0;
+
+    // Colors
+    const AUDIO_COLOR: [f32; 4] = [0.0, 0.9, 0.8, 0.9];
+    const AUDIO_LABEL: [f32; 4] = [0.0, 0.9, 0.8, 0.7];
+    const MIC_COLOR: [f32; 4] = [1.0, 0.3, 0.7, 0.9];
+    const MIC_LABEL: [f32; 4] = [1.0, 0.3, 0.7, 0.7];
+    const BG_COLOR: [f32; 4] = [0.08, 0.08, 0.1, 0.9];
+
+    let total_wave_h = WAVE_HEIGHT.mul_add(2.0, WAVE_SPACING);
+    let meters_space = METER_WIDTH.mul_add(2.0, PADDING * 3.0);
+    let wave_w = width - meters_space - PADDING - LABEL_WIDTH;
+    let wave_x = PADDING + LABEL_WIDTH;
+    let audio_wave_y = BAR_Y + 4.0;
+    let mic_wave_y = audio_wave_y + WAVE_HEIGHT + WAVE_SPACING;
+    let meters_x = width - meters_space + PADDING;
 
     // Background
-    vertex_builder.rect(
-        0.0,
-        bar_y,
-        width,
-        total_wave_h + 12.0,
-        [0.08, 0.08, 0.1, 0.9],
-    );
-
-    let meters_space = meter_w * 2.0 + padding * 3.0;
-    let wave_w = width - meters_space - padding - label_w;
-    let wave_x = padding + label_w;
-    let audio_wave_y = bar_y + 4.0;
+    vertex_builder.rect(0.0, BAR_Y, width, total_wave_h + 12.0, BG_COLOR);
 
     // System audio waveform
     vertex_builder.text(
         font,
         "SYS",
-        padding,
-        audio_wave_y + single_wave_h / 2.0 - 4.0,
+        PADDING,
+        audio_wave_y + WAVE_HEIGHT / 2.0 - 4.0,
         1.0,
-        [0.0, 0.9, 0.8, 0.7],
+        AUDIO_LABEL,
     );
-    let audio_samples = app
-        .capture_state
-        .audio_waveform
-        .lock()
-        .unwrap()
-        .display_samples(512);
+    let audio_samples = app.capture_state.audio_display_samples(512);
     vertex_builder.waveform(
         &audio_samples,
         wave_x,
         audio_wave_y,
         wave_w,
-        single_wave_h,
-        [0.0, 0.9, 0.8, 0.9],
+        WAVE_HEIGHT,
+        AUDIO_COLOR,
     );
 
     // Microphone waveform
-    let mic_wave_y = audio_wave_y + single_wave_h + wave_spacing;
     vertex_builder.text(
         font,
         "MIC",
-        padding,
-        mic_wave_y + single_wave_h / 2.0 - 4.0,
+        PADDING,
+        mic_wave_y + WAVE_HEIGHT / 2.0 - 4.0,
         1.0,
-        [1.0, 0.3, 0.7, 0.7],
+        MIC_LABEL,
     );
-    let mic_samples = app
-        .capture_state
-        .mic_waveform
-        .lock()
-        .unwrap()
-        .display_samples(512);
+    let mic_samples = app.capture_state.mic_display_samples(512);
     vertex_builder.waveform(
         &mic_samples,
         wave_x,
         mic_wave_y,
         wave_w,
-        single_wave_h,
-        [1.0, 0.3, 0.7, 0.9],
+        WAVE_HEIGHT,
+        MIC_COLOR,
     );
 
     // VU meters
-    let meters_x = width - meters_space + padding;
-    let audio_level = app.capture_state.audio_waveform.lock().unwrap().rms(2048);
+    let audio_level = app.capture_state.audio_rms(2048);
     vertex_builder.vu_meter_vertical(
         audio_level,
         meters_x,
         audio_wave_y,
-        meter_w,
+        METER_WIDTH,
         total_wave_h,
         "S",
         font,
     );
 
-    let mic_level = app.capture_state.mic_waveform.lock().unwrap().rms(2048);
+    let mic_level = app.capture_state.mic_rms(2048);
     vertex_builder.vu_meter_vertical(
         mic_level,
-        meters_x + meter_w + padding,
+        meters_x + METER_WIDTH + PADDING,
         audio_wave_y,
-        meter_w,
+        METER_WIDTH,
         total_wave_h,
         "M",
         font,

@@ -13,13 +13,32 @@ use crate::font::BitmapFont;
 use crate::overlay::ConfigMenu;
 use crate::vertex::VertexBufferBuilder;
 
-// Synthwave color constants
-const NEON_PINK: [f32; 4] = [1.0, 0.2, 0.6, 1.0];
-const NEON_CYAN: [f32; 4] = [0.0, 1.0, 0.9, 1.0];
+// =============================================================================
+// Color Palette - Synthwave Theme
+// =============================================================================
+
+/// Neon pink accent color
+pub const NEON_PINK: [f32; 4] = [1.0, 0.2, 0.6, 1.0];
+/// Neon cyan accent color  
+pub const NEON_CYAN: [f32; 4] = [0.0, 1.0, 0.9, 1.0];
+/// Neon purple accent color
+pub const NEON_PURPLE: [f32; 4] = [0.7, 0.3, 1.0, 1.0];
+/// Neon yellow highlight color
+pub const NEON_YELLOW: [f32; 4] = [1.0, 0.95, 0.3, 1.0];
+/// Dark background with slight purple tint
+pub const DARK_BG: [f32; 4] = [0.04, 0.02, 0.08, 0.95];
+/// Standard text color
+pub const TEXT_COLOR: [f32; 4] = [0.8, 0.8, 0.9, 1.0];
+/// Dimmed text color for hints
+pub const DIM_TEXT: [f32; 4] = [0.5, 0.4, 0.6, 1.0];
+/// Separator line color
+pub const SEPARATOR: [f32; 4] = [0.3, 0.15, 0.4, 0.4];
+/// On/enabled indicator
 #[allow(dead_code)]
-const NEON_PURPLE: [f32; 4] = [0.7, 0.3, 1.0, 1.0];
-const NEON_YELLOW: [f32; 4] = [1.0, 0.95, 0.3, 1.0];
-const DARK_BG: [f32; 4] = [0.04, 0.02, 0.08, 0.95];
+pub const ON_COLOR: [f32; 4] = [0.3, 1.0, 0.5, 1.0];
+/// Off/disabled indicator
+#[allow(dead_code)]
+pub const OFF_COLOR: [f32; 4] = [1.0, 0.4, 0.4, 1.0];
 
 impl VertexBufferBuilder {
     pub fn help_overlay(
@@ -86,7 +105,7 @@ impl VertexBufferBuilder {
             };
             (display, NEON_CYAN)
         } else {
-            ("No Source Selected".to_string(), [0.5, 0.4, 0.6, 1.0])
+            ("No Source Selected".to_string(), DIM_TEXT)
         };
 
         let title_scale = scale * 1.4;
@@ -132,11 +151,7 @@ impl VertexBufferBuilder {
                 self.text(font, ">", x + padding * 0.5, text_y, scale, NEON_YELLOW);
             }
 
-            let item_color = if is_selected {
-                NEON_CYAN
-            } else {
-                [0.8, 0.8, 0.9, 1.0]
-            };
+            let item_color = if is_selected { NEON_CYAN } else { TEXT_COLOR };
 
             self.text(font, item, text_x, text_y, scale, item_color);
 
@@ -154,13 +169,7 @@ impl VertexBufferBuilder {
 
         // Footer
         ly += line_h * 0.2;
-        self.rect(
-            x + padding,
-            ly,
-            box_w - padding * 2.0,
-            1.0,
-            [0.3, 0.15, 0.4, 0.4],
-        );
+        self.rect(x + padding, ly, box_w - padding * 2.0, 1.0, SEPARATOR);
         ly += line_h * 0.4;
 
         // Show format info if available (from IOSurface introspection)
@@ -181,7 +190,7 @@ impl VertexBufferBuilder {
             text_x,
             ly,
             scale * 0.6,
-            [0.5, 0.4, 0.6, 1.0],
+            DIM_TEXT,
         );
     }
 
@@ -311,20 +320,14 @@ impl VertexBufferBuilder {
 
         // Footer
         ly += line_h * 0.2;
-        self.rect(
-            x + padding,
-            ly,
-            box_w - padding * 2.0,
-            1.0,
-            [0.3, 0.15, 0.4, 0.4],
-        );
+        self.rect(x + padding, ly, box_w - padding * 2.0, 1.0, SEPARATOR);
         ly += line_h * 0.4;
         let hint = if is_capturing {
             "L/R  ENTER=Apply  ESC"
         } else {
             "LEFT/RIGHT  ESC"
         };
-        self.text(font, hint, text_x, ly, scale * 0.6, [0.5, 0.4, 0.6, 1.0]);
+        self.text(font, hint, text_x, ly, scale * 0.6, DIM_TEXT);
     }
 
     #[cfg(feature = "macos_15_0")]
@@ -393,11 +396,7 @@ impl VertexBufferBuilder {
                 self.text(font, ">", x + padding * 0.5, text_y, scale, NEON_YELLOW);
             }
 
-            let item_color = if is_selected {
-                NEON_CYAN
-            } else {
-                [0.8, 0.8, 0.9, 1.0]
-            };
+            let item_color = if is_selected { NEON_CYAN } else { TEXT_COLOR };
 
             self.text(font, item, text_x, text_y, scale, item_color);
 
@@ -413,21 +412,8 @@ impl VertexBufferBuilder {
 
         // Footer
         ly += line_h * 0.2;
-        self.rect(
-            x + padding,
-            ly,
-            box_w - padding * 2.0,
-            1.0,
-            [0.3, 0.15, 0.4, 0.4],
-        );
+        self.rect(x + padding, ly, box_w - padding * 2.0, 1.0, SEPARATOR);
         ly += line_h * 0.4;
-        self.text(
-            font,
-            "LEFT/RIGHT  ESC",
-            text_x,
-            ly,
-            scale * 0.6,
-            [0.5, 0.4, 0.6, 1.0],
-        );
+        self.text(font, "LEFT/RIGHT  ESC", text_x, ly, scale * 0.6, DIM_TEXT);
     }
 }

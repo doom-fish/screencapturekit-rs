@@ -54,6 +54,38 @@ impl CaptureState {
             info.width, info.height, format_str, info.plane_count, info.bytes_per_row
         ))
     }
+
+    /// Get audio stats for status display
+    pub fn audio_stats(&self) -> (u64, f32) {
+        let waveform = self.audio_waveform.lock().unwrap();
+        (waveform.sample_count(), waveform.peak(512))
+    }
+
+    /// Get microphone stats for status display
+    pub fn mic_stats(&self) -> (u64, f32) {
+        let waveform = self.mic_waveform.lock().unwrap();
+        (waveform.sample_count(), waveform.peak(512))
+    }
+
+    /// Get display samples for waveform visualization
+    pub fn audio_display_samples(&self, count: usize) -> Vec<f32> {
+        self.audio_waveform.lock().unwrap().display_samples(count)
+    }
+
+    /// Get display samples for mic waveform visualization
+    pub fn mic_display_samples(&self, count: usize) -> Vec<f32> {
+        self.mic_waveform.lock().unwrap().display_samples(count)
+    }
+
+    /// Get RMS level for VU meter
+    pub fn audio_rms(&self, count: usize) -> f32 {
+        self.audio_waveform.lock().unwrap().rms(count)
+    }
+
+    /// Get RMS level for mic VU meter
+    pub fn mic_rms(&self, count: usize) -> f32 {
+        self.mic_waveform.lock().unwrap().rms(count)
+    }
 }
 
 pub struct CaptureHandler {
