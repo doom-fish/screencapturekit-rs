@@ -644,8 +644,7 @@
 //! // Capture only windows from this app
 //! let filter = SCContentFilter::builder()
 //!     .display(&display)
-//!     .include_applications(&[safari])
-//!     .exclude_windows(&[])  // Don't exclude any windows
+//!     .include_applications(&[safari], &[])  // Include Safari, no excepted windows
 //!     .build();
 //! # Ok(())
 //! # }
