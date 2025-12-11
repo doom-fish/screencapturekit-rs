@@ -6,9 +6,8 @@
 //! - Accessing `IOSurface` properties
 //! - Locking and reading `IOSurface` data
 
-use screencapturekit::output::{
-    CVPixelBufferIOSurface, IOSurfaceLockOptions, PixelBufferCursorExt,
-};
+use screencapturekit::cm::IOSurfaceLockOptions;
+use screencapturekit::cv::PixelBufferCursorExt;
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -25,8 +24,8 @@ impl SCStreamOutputTrait for Handler {
             if n % 60 == 0 {
                 if let Some(pixel_buffer) = sample.image_buffer() {
                     // Check if IOSurface-backed
-                    if pixel_buffer.is_backed_by_iosurface() {
-                        if let Some(iosurface) = pixel_buffer.iosurface() {
+                    if pixel_buffer.is_backed_by_io_surface() {
+                        if let Some(iosurface) = pixel_buffer.io_surface() {
                             println!("\n📹 Frame {n} - IOSurface");
                             println!(
                                 "   Dimensions: {}x{}",
@@ -38,7 +37,7 @@ impl SCStreamOutputTrait for Handler {
                             println!("   In use: {}", iosurface.is_in_use());
 
                             // Lock and access data
-                            if let Ok(guard) = iosurface.lock(IOSurfaceLockOptions::ReadOnly) {
+                            if let Ok(guard) = iosurface.lock(IOSurfaceLockOptions::READ_ONLY) {
                                 let mut cursor = guard.cursor();
 
                                 // Read first pixel

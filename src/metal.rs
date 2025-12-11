@@ -15,9 +15,8 @@
 //! ## Example
 //!
 //! ```no_run
-//! use screencapturekit::output::metal::MetalDevice;
-//! use screencapturekit::output::CVPixelBufferIOSurface;
-//! use screencapturekit::cm::CMSampleBuffer;
+//! use screencapturekit::metal::MetalDevice;
+//! use screencapturekit::cm::{CMSampleBuffer, IOSurface};
 //!
 //! // Get the system default Metal device
 //! let device = MetalDevice::system_default().expect("No Metal device");
@@ -25,7 +24,7 @@
 //! // In your frame handler
 //! fn handle_frame(sample: &CMSampleBuffer, device: &MetalDevice) {
 //!     if let Some(pixel_buffer) = sample.image_buffer() {
-//!         if let Some(surface) = pixel_buffer.iosurface() {
+//!         if let Some(surface) = pixel_buffer.io_surface() {
 //!             // Create textures directly - no closures or factories needed
 //!             if let Some(textures) = surface.create_metal_textures(device) {
 //!                 if textures.is_ycbcr() {
@@ -40,7 +39,7 @@
 use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
-use super::IOSurface;
+use crate::cm::IOSurface;
 use crate::FourCharCode;
 
 /// Pixel format constants using [`FourCharCode`]
@@ -296,7 +295,7 @@ impl IOSurface {
     /// # Example
     ///
     /// ```no_run
-    /// use screencapturekit::output::IOSurface;
+    /// use screencapturekit::cm::IOSurface;
     /// use std::ffi::c_void;
     ///
     /// fn example(surface: &IOSurface) {
@@ -513,8 +512,8 @@ impl Uniforms {
     /// # Example
     ///
     /// ```no_run
-    /// use screencapturekit::output::metal::{MetalDevice, Uniforms};
-    /// use screencapturekit::output::IOSurface;
+    /// use screencapturekit::metal::{MetalDevice, Uniforms};
+    /// use screencapturekit::cm::IOSurface;
     ///
     /// fn example(surface: &IOSurface, device: &MetalDevice) {
     ///     if let Some(textures) = surface.create_metal_textures(device) {
@@ -542,7 +541,7 @@ impl Uniforms {
     ///
     /// Accepts either a `FourCharCode` or a raw `u32`:
     /// ```no_run
-    /// use screencapturekit::output::metal::{Uniforms, pixel_format};
+    /// use screencapturekit::metal::{Uniforms, pixel_format};
     ///
     /// let uniforms = Uniforms::new(1920.0, 1080.0, 1920.0, 1080.0)
     ///     .with_pixel_format(pixel_format::BGRA);
@@ -873,7 +872,7 @@ impl MetalDevice {
     /// # Example
     ///
     /// ```no_run
-    /// use screencapturekit::output::metal::{MetalDevice, Uniforms};
+    /// use screencapturekit::metal::{MetalDevice, Uniforms};
     ///
     /// fn example() {
     ///     let device = MetalDevice::system_default().expect("No Metal device");
@@ -1844,8 +1843,8 @@ impl IOSurface {
     /// # Example
     ///
     /// ```no_run
-    /// use screencapturekit::output::metal::MetalDevice;
-    /// use screencapturekit::output::IOSurface;
+    /// use screencapturekit::metal::MetalDevice;
+    /// use screencapturekit::cm::IOSurface;
     ///
     /// fn example(surface: &IOSurface) {
     ///     let device = MetalDevice::system_default().expect("No Metal device");
@@ -1902,7 +1901,7 @@ impl IOSurface {
         let ptr = unsafe {
             metal_create_texture_from_iosurface(
                 device.as_ptr(),
-                self.as_ptr().cast_mut(),
+                self.as_ptr(),
                 params.plane,
                 params.width,
                 params.height,
@@ -1930,7 +1929,7 @@ extern "C" {
 /// # Example
 ///
 /// ```no_run
-/// use screencapturekit::output::metal::autoreleasepool;
+/// use screencapturekit::metal::autoreleasepool;
 ///
 /// autoreleasepool(|| {
 ///     // Code that creates temporary Objective-C objects
@@ -1962,7 +1961,7 @@ where
 /// # Example
 ///
 /// ```no_run
-/// use screencapturekit::output::metal::{setup_metal_view, MetalLayer};
+/// use screencapturekit::metal::{setup_metal_view, MetalLayer};
 /// use std::ffi::c_void;
 ///
 /// fn example(ns_view: *mut c_void) {

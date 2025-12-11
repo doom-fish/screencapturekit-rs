@@ -1,8 +1,68 @@
 //! `CVPixelBuffer` - Video pixel buffer
 
 use super::ffi;
-use super::IOSurface;
+use crate::cm::IOSurface;
 use std::fmt;
+use std::io::{self, Read, Seek, SeekFrom};
+
+/// Lock flags for `CVPixelBuffer`
+///
+/// This is a bitmask type matching Apple's `CVPixelBufferLockFlags`.
+///
+/// # Examples
+///
+/// ```
+/// use screencapturekit::cv::CVPixelBufferLockFlags;
+///
+/// // Read-only lock
+/// let flags = CVPixelBufferLockFlags::READ_ONLY;
+/// assert!(flags.is_read_only());
+///
+/// // Read-write lock (default)
+/// let flags = CVPixelBufferLockFlags::NONE;
+/// assert!(!flags.is_read_only());
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct CVPixelBufferLockFlags(u32);
+
+impl CVPixelBufferLockFlags {
+    /// No special options (read-write lock)
+    pub const NONE: Self = Self(0);
+
+    /// Read-only lock - use when you only need to read data.
+    /// This allows Core Video to keep caches valid.
+    pub const READ_ONLY: Self = Self(0x0000_0001);
+
+    /// Create from a raw u32 value
+    #[must_use]
+    pub const fn from_bits(bits: u32) -> Self {
+        Self(bits)
+    }
+
+    /// Convert to u32 for FFI
+    #[must_use]
+    pub const fn as_u32(self) -> u32 {
+        self.0
+    }
+
+    /// Check if this is a read-only lock
+    #[must_use]
+    pub const fn is_read_only(self) -> bool {
+        (self.0 & Self::READ_ONLY.0) != 0
+    }
+
+    /// Check if no flags are set (read-write lock)
+    #[must_use]
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl From<CVPixelBufferLockFlags> for u32 {
+    fn from(flags: CVPixelBufferLockFlags) -> Self {
+        flags.0
+    }
+}
 
 #[derive(Debug)]
 pub struct CVPixelBuffer(*mut std::ffi::c_void);
@@ -58,7 +118,7 @@ impl CVPixelBuffer {
     /// # Examples
     ///
     /// ```
-    /// use screencapturekit::cm::CVPixelBuffer;
+    /// use screencapturekit::cv::CVPixelBuffer;
     ///
     /// // Create a 1920x1080 BGRA pixel buffer
     /// let buffer = CVPixelBuffer::create(1920, 1080, 0x42475241)
@@ -106,7 +166,7 @@ impl CVPixelBuffer {
     /// # Examples
     ///
     /// ```
-    /// use screencapturekit::cm::CVPixelBuffer;
+    /// use screencapturekit::cv::CVPixelBuffer;
     ///
     /// // Create pixel data (100x100 BGRA image)
     /// let width = 100;
@@ -282,8 +342,11 @@ impl CVPixelBuffer {
         unsafe { ffi::cv_pixel_buffer_get_height_of_plane(self.0, plane_index) }
     }
 
-    /// Get the base address of a specific plane
-    pub fn base_address_of_plane(&self, plane_index: usize) -> Option<*mut u8> {
+    /// Get the base address of a specific plane (internal use only)
+    ///
+    /// # Safety
+    /// Caller must ensure the buffer is locked before accessing the returned pointer.
+    fn base_address_of_plane_raw(&self, plane_index: usize) -> Option<*mut u8> {
         unsafe {
             let ptr = ffi::cv_pixel_buffer_get_base_address_of_plane(self.0, plane_index);
             if ptr.is_null() {
@@ -344,9 +407,9 @@ impl CVPixelBuffer {
     /// # Errors
     ///
     /// Returns a Core Video error code if the lock operation fails.
-    pub fn lock_raw(&self, flags: u32) -> Result<(), i32> {
+    pub fn lock_raw(&self, flags: CVPixelBufferLockFlags) -> Result<(), i32> {
         unsafe {
-            let result = ffi::cv_pixel_buffer_lock_base_address(self.0, flags);
+            let result = ffi::cv_pixel_buffer_lock_base_address(self.0, flags.as_u32());
             if result == 0 {
                 Ok(())
             } else {
@@ -360,9 +423,9 @@ impl CVPixelBuffer {
     /// # Errors
     ///
     /// Returns a Core Video error code if the unlock operation fails.
-    pub fn unlock_raw(&self, flags: u32) -> Result<(), i32> {
+    pub fn unlock_raw(&self, flags: CVPixelBufferLockFlags) -> Result<(), i32> {
         unsafe {
-            let result = ffi::cv_pixel_buffer_unlock_base_address(self.0, flags);
+            let result = ffi::cv_pixel_buffer_unlock_base_address(self.0, flags.as_u32());
             if result == 0 {
                 Ok(())
             } else {
@@ -371,7 +434,11 @@ impl CVPixelBuffer {
         }
     }
 
-    pub fn base_address(&self) -> Option<*mut u8> {
+    /// Get the base address (internal use only)
+    ///
+    /// # Safety
+    /// Caller must ensure the buffer is locked before accessing the returned pointer.
+    fn base_address_raw(&self) -> Option<*mut u8> {
         unsafe {
             let ptr = ffi::cv_pixel_buffer_get_base_address(self.0);
             if ptr.is_null() {
@@ -392,55 +459,296 @@ impl CVPixelBuffer {
 
     /// Lock the base address and return a guard for RAII-style access
     ///
+    /// # Arguments
+    ///
+    /// * `flags` - Lock flags (use `CVPixelBufferLockFlags::READ_ONLY` for read-only access)
+    ///
     /// # Errors
     ///
     /// Returns a Core Video error code if the lock operation fails.
-    pub fn lock_base_address(&self, read_only: bool) -> Result<CVPixelBufferLockGuard<'_>, i32> {
-        let flags = u32::from(read_only);
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::cv::{CVPixelBuffer, CVPixelBufferLockFlags};
+    ///
+    /// fn read_buffer(buffer: &CVPixelBuffer) {
+    ///     let guard = buffer.lock(CVPixelBufferLockFlags::READ_ONLY).unwrap();
+    ///     let data = guard.as_slice();
+    ///     println!("Buffer has {} bytes", data.len());
+    ///     // Buffer automatically unlocked when guard drops
+    /// }
+    /// ```
+    pub fn lock(&self, flags: CVPixelBufferLockFlags) -> Result<CVPixelBufferLockGuard<'_>, i32> {
         self.lock_raw(flags)?;
         Ok(CVPixelBufferLockGuard {
             buffer: self,
-            read_only,
+            flags,
         })
+    }
+
+    /// Lock the base address for read-only access
+    ///
+    /// This is a convenience method equivalent to `lock(CVPixelBufferLockFlags::READ_ONLY)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the lock operation fails.
+    pub fn lock_read_only(&self) -> Result<CVPixelBufferLockGuard<'_>, i32> {
+        self.lock(CVPixelBufferLockFlags::READ_ONLY)
+    }
+
+    /// Lock the base address for read-write access
+    ///
+    /// This is a convenience method equivalent to `lock(CVPixelBufferLockFlags::NONE)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a Core Video error code if the lock operation fails.
+    pub fn lock_read_write(&self) -> Result<CVPixelBufferLockGuard<'_>, i32> {
+        self.lock(CVPixelBufferLockFlags::NONE)
     }
 }
 
 /// RAII guard for locked `CVPixelBuffer` base address
 pub struct CVPixelBufferLockGuard<'a> {
     buffer: &'a CVPixelBuffer,
-    read_only: bool,
+    flags: CVPixelBufferLockFlags,
 }
 
 impl CVPixelBufferLockGuard<'_> {
+    /// Get the base address of the locked buffer
     pub fn base_address(&self) -> *const u8 {
         self.buffer
-            .base_address()
+            .base_address_raw()
             .unwrap_or(std::ptr::null_mut())
             .cast_const()
     }
 
-    pub fn base_address_mut(&mut self) -> *mut u8 {
-        if self.read_only {
-            std::ptr::null_mut()
+    /// Get mutable base address (only valid for read-write locks)
+    ///
+    /// Returns `None` if this is a read-only lock.
+    pub fn base_address_mut(&mut self) -> Option<*mut u8> {
+        if self.flags.is_read_only() {
+            None
         } else {
-            self.buffer.base_address().unwrap_or(std::ptr::null_mut())
+            self.buffer.base_address_raw()
         }
+    }
+
+    /// Get the base address of a specific plane
+    ///
+    /// For multi-planar formats like YCbCr 4:2:0:
+    /// - Plane 0: Y (luminance) data
+    /// - Plane 1: `CbCr` (chrominance) data
+    ///
+    /// Returns `None` if the plane index is out of bounds.
+    pub fn base_address_of_plane(&self, plane_index: usize) -> Option<*const u8> {
+        self.buffer
+            .base_address_of_plane_raw(plane_index)
+            .map(<*mut u8>::cast_const)
+    }
+
+    /// Get the mutable base address of a specific plane
+    ///
+    /// Returns `None` if this is a read-only lock or the plane index is out of bounds.
+    pub fn base_address_of_plane_mut(&mut self, plane_index: usize) -> Option<*mut u8> {
+        if self.flags.is_read_only() {
+            return None;
+        }
+        self.buffer.base_address_of_plane_raw(plane_index)
+    }
+
+    /// Get the width of the buffer
+    pub fn width(&self) -> usize {
+        self.buffer.width()
+    }
+
+    /// Get the height of the buffer
+    pub fn height(&self) -> usize {
+        self.buffer.height()
+    }
+
+    /// Get bytes per row
+    pub fn bytes_per_row(&self) -> usize {
+        self.buffer.bytes_per_row()
+    }
+
+    /// Get the data size in bytes
+    ///
+    /// This provides API parity with `IOSurfaceLockGuard::data_size()`.
+    pub fn data_size(&self) -> usize {
+        self.buffer.data_size()
+    }
+
+    /// Get the number of planes
+    pub fn plane_count(&self) -> usize {
+        self.buffer.plane_count()
+    }
+
+    /// Get the width of a specific plane
+    pub fn width_of_plane(&self, plane_index: usize) -> usize {
+        self.buffer.width_of_plane(plane_index)
+    }
+
+    /// Get the height of a specific plane
+    pub fn height_of_plane(&self, plane_index: usize) -> usize {
+        self.buffer.height_of_plane(plane_index)
+    }
+
+    /// Get the bytes per row of a specific plane
+    pub fn bytes_per_row_of_plane(&self, plane_index: usize) -> usize {
+        self.buffer.bytes_per_row_of_plane(plane_index)
+    }
+
+    /// Get data as a byte slice
+    ///
+    /// The lock guard ensures the buffer is locked for the lifetime of the slice.
+    pub fn as_slice(&self) -> &[u8] {
+        let ptr = self.base_address();
+        let len = self.buffer.height() * self.buffer.bytes_per_row();
+        if ptr.is_null() || len == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(ptr, len) }
+        }
+    }
+
+    /// Get data as a mutable byte slice (only valid for read-write locks)
+    ///
+    /// Returns `None` if this is a read-only lock.
+    pub fn as_slice_mut(&mut self) -> Option<&mut [u8]> {
+        let ptr = self.base_address_mut()?;
+        let len = self.buffer.height() * self.buffer.bytes_per_row();
+        if ptr.is_null() || len == 0 {
+            Some(&mut [])
+        } else {
+            Some(unsafe { std::slice::from_raw_parts_mut(ptr, len) })
+        }
+    }
+
+    /// Get a slice of plane data
+    ///
+    /// Returns the data for a specific plane as a byte slice.
+    ///
+    /// Returns `None` if the plane index is out of bounds.
+    pub fn plane_data(&self, plane_index: usize) -> Option<&[u8]> {
+        let base = self.base_address_of_plane(plane_index)?;
+        let height = self.buffer.height_of_plane(plane_index);
+        let bytes_per_row = self.buffer.bytes_per_row_of_plane(plane_index);
+        Some(unsafe { std::slice::from_raw_parts(base, height * bytes_per_row) })
+    }
+
+    /// Get a specific row from a plane as a slice
+    ///
+    /// Returns `None` if the plane or row index is out of bounds.
+    pub fn plane_row(&self, plane_index: usize, row_index: usize) -> Option<&[u8]> {
+        if !self.buffer.is_planar() || plane_index >= self.buffer.plane_count() {
+            return None;
+        }
+        let height = self.buffer.height_of_plane(plane_index);
+        if row_index >= height {
+            return None;
+        }
+        let base = self.base_address_of_plane(plane_index)?;
+        let bytes_per_row = self.buffer.bytes_per_row_of_plane(plane_index);
+        Some(unsafe {
+            std::slice::from_raw_parts(base.add(row_index * bytes_per_row), bytes_per_row)
+        })
+    }
+
+    /// Get a specific row as a slice
+    ///
+    /// Returns `None` if the row index is out of bounds.
+    pub fn row(&self, row_index: usize) -> Option<&[u8]> {
+        if row_index >= self.height() {
+            return None;
+        }
+        let ptr = self.base_address();
+        if ptr.is_null() {
+            return None;
+        }
+        unsafe {
+            let row_ptr = ptr.add(row_index * self.bytes_per_row());
+            Some(std::slice::from_raw_parts(row_ptr, self.bytes_per_row()))
+        }
+    }
+
+    /// Access buffer with a standard `std::io::Cursor`
+    ///
+    /// Returns a cursor over the buffer data that implements `Read` and `Seek`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::cv::{CVPixelBuffer, CVPixelBufferLockFlags};
+    /// use std::io::{Read, Seek, SeekFrom};
+    ///
+    /// fn read_buffer(buffer: &CVPixelBuffer) {
+    ///     let guard = buffer.lock(CVPixelBufferLockFlags::READ_ONLY).unwrap();
+    ///     let mut cursor = guard.cursor();
+    ///
+    ///     // Read first 4 bytes
+    ///     let mut pixel = [0u8; 4];
+    ///     cursor.read_exact(&mut pixel).unwrap();
+    ///
+    ///     // Seek to row 10
+    ///     let offset = 10 * guard.bytes_per_row();
+    ///     cursor.seek(SeekFrom::Start(offset as u64)).unwrap();
+    /// }
+    /// ```
+    pub fn cursor(&self) -> io::Cursor<&[u8]> {
+        io::Cursor::new(self.as_slice())
+    }
+
+    /// Get raw pointer to buffer data
+    pub fn as_ptr(&self) -> *const u8 {
+        self.base_address()
+    }
+
+    /// Get mutable raw pointer to buffer data (only valid for read-write locks)
+    ///
+    /// Returns `None` if this is a read-only lock.
+    pub fn as_mut_ptr(&mut self) -> Option<*mut u8> {
+        self.base_address_mut()
+    }
+
+    /// Check if this is a read-only lock
+    pub const fn is_read_only(&self) -> bool {
+        self.flags.is_read_only()
+    }
+
+    /// Get the lock options
+    pub const fn options(&self) -> CVPixelBufferLockFlags {
+        self.flags
+    }
+
+    /// Get the pixel format
+    pub fn pixel_format(&self) -> u32 {
+        self.buffer.pixel_format()
     }
 }
 
 impl Drop for CVPixelBufferLockGuard<'_> {
     fn drop(&mut self) {
-        let flags = u32::from(self.read_only);
-        let _ = self.buffer.unlock_raw(flags);
+        let _ = self.buffer.unlock_raw(self.flags);
     }
 }
 
 impl std::fmt::Debug for CVPixelBufferLockGuard<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CVPixelBufferLockGuard")
-            .field("read_only", &self.read_only)
+            .field("flags", &self.flags)
             .field("buffer_size", &(self.buffer.width(), self.buffer.height()))
             .finish()
+    }
+}
+
+impl std::ops::Deref for CVPixelBufferLockGuard<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
     }
 }
 
@@ -678,5 +986,37 @@ unsafe impl Sync for CVPixelBufferPool {}
 impl fmt::Display for CVPixelBufferPool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "CVPixelBufferPool")
+    }
+}
+
+/// Extension trait for `io::Cursor` to add pixel buffer specific operations
+pub trait PixelBufferCursorExt {
+    /// Seek to a specific pixel coordinate (x, y)
+    ///
+    /// Assumes 4 bytes per pixel (BGRA format).
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the seek operation fails.
+    fn seek_to_pixel(&mut self, x: usize, y: usize, bytes_per_row: usize) -> io::Result<u64>;
+
+    /// Read a single pixel (4 bytes: BGRA)
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the read operation fails.
+    fn read_pixel(&mut self) -> io::Result<[u8; 4]>;
+}
+
+impl<T: AsRef<[u8]>> PixelBufferCursorExt for io::Cursor<T> {
+    fn seek_to_pixel(&mut self, x: usize, y: usize, bytes_per_row: usize) -> io::Result<u64> {
+        let pos = y * bytes_per_row + x * 4; // 4 bytes per pixel (BGRA)
+        self.seek(SeekFrom::Start(pos as u64))
+    }
+
+    fn read_pixel(&mut self) -> io::Result<[u8; 4]> {
+        let mut pixel = [0u8; 4];
+        self.read_exact(&mut pixel)?;
+        Ok(pixel)
     }
 }

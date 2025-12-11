@@ -146,12 +146,12 @@
 //!
 //! ```rust,no_run
 //! use screencapturekit::prelude::*;
-//! use screencapturekit::output::{CVImageBufferLockExt, PixelBufferLockFlags};
+//! use screencapturekit::cv::{CVPixelBuffer, CVPixelBufferLockFlags};
 //!
 //! # fn handle(sample: CMSampleBuffer) {
 //! if let Some(buffer) = sample.image_buffer() {
 //!     // Lock for CPU access
-//!     if let Ok(guard) = buffer.lock(PixelBufferLockFlags::ReadOnly) {
+//!     if let Ok(guard) = buffer.lock(CVPixelBufferLockFlags::READ_ONLY) {
 //!         let pixels = guard.as_slice();
 //!         let width = guard.width();
 //!         let height = guard.height();
@@ -218,9 +218,10 @@
 //! |--------|-------------|
 //! | [`stream`] | Stream configuration and management |
 //! | [`shareable_content`] | Display, window, and application enumeration |
-//! | [`cm`] | Core Media types (`CMSampleBuffer`, `CMTime`, etc.) |
+//! | [`cm`] | Core Media types (`CMSampleBuffer`, `CMTime`, `IOSurface`, etc.) |
+//! | [`cv`] | Core Video types (`CVPixelBuffer`, `CVPixelBufferPool`, lock guards) |
 //! | [`cg`] | Core Graphics types (`CGRect`, `CGSize`, etc.) |
-//! | [`output`] | Frame buffer access and pixel manipulation |
+//! | [`metal`] | Metal texture helpers for zero-copy GPU rendering |
 //! | [`dispatch_queue`] | Custom dispatch queues for callbacks |
 //! | [`error`] | Error types and result aliases |
 //! | [`async_api`] | Async wrappers (requires `async` feature) |
@@ -332,10 +333,11 @@ pub mod cg;
 pub mod cm;
 #[cfg(feature = "macos_14_0")]
 pub mod content_sharing_picker;
+pub mod cv;
 pub mod dispatch_queue;
 pub mod error;
 pub mod ffi;
-pub mod output;
+pub mod metal;
 #[cfg(feature = "macos_15_0")]
 pub mod recording_output;
 pub mod screenshot_manager;
@@ -349,8 +351,9 @@ pub mod async_api;
 // Re-export commonly used types
 pub use cm::{
     codec_types, media_types, AudioBuffer, AudioBufferList, CMFormatDescription, CMSampleBuffer,
-    CMSampleTimingInfo, CMTime, CVPixelBuffer, CVPixelBufferPool, IOSurface, SCFrameStatus,
+    CMSampleTimingInfo, CMTime, IOSurface, SCFrameStatus,
 };
+pub use cv::{CVPixelBuffer, CVPixelBufferPool};
 pub use utils::four_char_code::FourCharCode;
 
 /// Prelude module for convenient imports

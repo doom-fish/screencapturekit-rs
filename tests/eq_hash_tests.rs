@@ -269,34 +269,34 @@ fn test_error_eq() {
 
 #[test]
 fn test_lock_options_eq_and_hash() {
-    use screencapturekit::output::pixel_buffer::PixelBufferLockFlags;
+    use screencapturekit::cv::CVPixelBufferLockFlags;
 
-    let read1 = PixelBufferLockFlags::ReadOnly;
-    let read2 = PixelBufferLockFlags::ReadOnly;
+    let read1 = CVPixelBufferLockFlags::READ_ONLY;
+    let read2 = CVPixelBufferLockFlags::READ_ONLY;
 
     assert_eq!(read1, read2);
 
     let mut flags = HashSet::new();
-    flags.insert(PixelBufferLockFlags::ReadOnly);
-    flags.insert(PixelBufferLockFlags::ReadOnly); // Duplicate
+    flags.insert(CVPixelBufferLockFlags::READ_ONLY);
+    flags.insert(CVPixelBufferLockFlags::READ_ONLY); // Duplicate
     assert_eq!(flags.len(), 1);
 }
 
 #[test]
 fn test_iosurface_lock_options_eq_and_hash() {
-    use screencapturekit::output::iosurface::IOSurfaceLockOptions;
+    use screencapturekit::cm::IOSurfaceLockOptions;
 
-    let opt1 = IOSurfaceLockOptions::ReadOnly;
-    let opt2 = IOSurfaceLockOptions::ReadOnly;
-    let opt3 = IOSurfaceLockOptions::AvoidSync;
+    let opt1 = IOSurfaceLockOptions::READ_ONLY;
+    let opt2 = IOSurfaceLockOptions::READ_ONLY;
+    let opt3 = IOSurfaceLockOptions::AVOID_SYNC;
 
     assert_eq!(opt1, opt2);
     assert_ne!(opt1, opt3);
 
     let mut options_set = HashSet::new();
-    options_set.insert(IOSurfaceLockOptions::ReadOnly);
-    options_set.insert(IOSurfaceLockOptions::AvoidSync);
-    options_set.insert(IOSurfaceLockOptions::ReadOnly); // Duplicate
+    options_set.insert(IOSurfaceLockOptions::READ_ONLY);
+    options_set.insert(IOSurfaceLockOptions::AVOID_SYNC);
+    options_set.insert(IOSurfaceLockOptions::READ_ONLY); // Duplicate
     assert_eq!(options_set.len(), 2);
 }
 

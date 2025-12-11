@@ -7,7 +7,6 @@
 //!
 //! - [`CMSampleBuffer`] - Container for media samples (audio/video frames)
 //! - [`CMTime`] - Time value with rational timescale
-//! - [`CVPixelBuffer`] - Video pixel buffer
 //! - [`IOSurface`] - Hardware-accelerated surface
 //! - [`CMBlockBuffer`] - Block of contiguous data (audio/compressed video)
 //! - [`AudioBuffer`] - Audio data buffer
@@ -19,8 +18,7 @@ mod block_buffer;
 pub mod ffi;
 mod format_description;
 mod frame_status;
-mod iosurface;
-mod pixel_buffer;
+pub mod iosurface;
 mod sample_buffer;
 mod time;
 
@@ -31,8 +29,7 @@ pub use audio::{
 pub use block_buffer::CMBlockBuffer;
 pub use format_description::CMFormatDescription;
 pub use frame_status::SCFrameStatus;
-pub use iosurface::{IOSurface, IOSurfaceLockGuard};
-pub use pixel_buffer::{CVPixelBuffer, CVPixelBufferLockGuard, CVPixelBufferPool};
+pub use iosurface::{IOSurface, IOSurfaceLockGuard, IOSurfaceLockOptions, PlaneProperties};
 pub use sample_buffer::CMSampleBuffer;
 pub use time::{CMClock, CMSampleTimingInfo, CMTime};
 

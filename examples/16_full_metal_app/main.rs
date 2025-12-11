@@ -75,7 +75,7 @@ use std::sync::{Arc, Mutex};
 
 use raw_window_handle::HasWindowHandle;
 use screencapturekit::content_sharing_picker::SCPickedSource;
-use screencapturekit::output::metal::{autoreleasepool, setup_metal_view};
+use screencapturekit::metal::{autoreleasepool, setup_metal_view};
 use screencapturekit::prelude::*;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, WindowEvent};

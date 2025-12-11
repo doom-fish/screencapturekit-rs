@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod iosurface_plane_tests {
-    use screencapturekit::output::iosurface::{IOSurface, IOSurfaceLockOptions, PlaneProperties};
+    use screencapturekit::cm::{IOSurface, IOSurfaceLockOptions, PlaneProperties};
 
     #[test]
     fn test_ycbcr_iosurface_plane_methods() {
@@ -78,7 +78,7 @@ mod iosurface_plane_tests {
             alloc_size,
             None,
         ) {
-            if let Ok(guard) = surface.lock(IOSurfaceLockOptions::ReadOnly) {
+            if let Ok(guard) = surface.lock(IOSurfaceLockOptions::READ_ONLY) {
                 // Test as_ptr
                 let ptr = guard.as_ptr();
                 assert!(!ptr.is_null());
@@ -90,9 +90,10 @@ mod iosurface_plane_tests {
             }
 
             // Test mutable access with AvoidSync (allows write)
-            if let Ok(mut guard) = surface.lock(IOSurfaceLockOptions::AvoidSync) {
-                let mut_ptr = guard.as_mut_ptr();
-                assert!(!mut_ptr.is_null());
+            if let Ok(mut guard) = surface.lock(IOSurfaceLockOptions::AVOID_SYNC) {
+                let mut_ptr = guard.base_address_mut();
+                assert!(mut_ptr.is_some());
+                assert!(!mut_ptr.unwrap().is_null());
             }
         }
     }
@@ -161,7 +162,7 @@ mod iosurface_plane_tests {
             alloc_size,
             Some(&planes),
         ) {
-            if let Ok(guard) = surface.lock(IOSurfaceLockOptions::ReadOnly) {
+            if let Ok(guard) = surface.lock(IOSurfaceLockOptions::READ_ONLY) {
                 // Test base_address_of_plane
                 let plane0_addr = guard.base_address_of_plane(0);
                 assert!(plane0_addr.is_some());
@@ -229,7 +230,7 @@ mod iosurface_plane_tests {
             alloc_size,
             None,
         ) {
-            if let Ok(guard) = surface.lock(IOSurfaceLockOptions::ReadOnly) {
+            if let Ok(guard) = surface.lock(IOSurfaceLockOptions::READ_ONLY) {
                 // Single-plane surfaces have plane_count() == 0
                 // So plane methods should return None
                 assert!(guard.base_address_of_plane(0).is_none());

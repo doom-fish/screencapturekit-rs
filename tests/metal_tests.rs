@@ -1,8 +1,8 @@
 //! Tests for Metal integration and pixel format utilities
 
-use screencapturekit::output::metal::pixel_format;
-use screencapturekit::output::metal::Uniforms;
-use screencapturekit::output::metal::{
+use screencapturekit::metal::pixel_format;
+use screencapturekit::metal::Uniforms;
+use screencapturekit::metal::{
     MTLBlendFactor, MTLBlendOperation, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
     MTLStoreAction, MTLVertexFormat, MTLVertexStepFunction, MetalPixelFormat, ResourceOptions,
 };
@@ -195,7 +195,7 @@ fn test_default_impls() {
 
 #[test]
 fn test_shader_source_exists() {
-    use screencapturekit::output::metal::SHADER_SOURCE;
+    use screencapturekit::metal::SHADER_SOURCE;
     assert!(!SHADER_SOURCE.is_empty());
     assert!(SHADER_SOURCE.contains("vertex_fullscreen"));
     assert!(SHADER_SOURCE.contains("fragment_textured"));
@@ -209,7 +209,7 @@ fn test_shader_source_exists() {
 // ============================================================================
 
 mod metal_device_tests {
-    use screencapturekit::output::metal::MetalDevice;
+    use screencapturekit::metal::MetalDevice;
 
     #[test]
     fn test_metal_device_system_default() {
@@ -264,7 +264,7 @@ mod metal_device_tests {
 
     #[test]
     fn test_metal_library_creation() {
-        use screencapturekit::output::metal::SHADER_SOURCE;
+        use screencapturekit::metal::SHADER_SOURCE;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let library = device.create_library_with_source(SHADER_SOURCE);
@@ -273,7 +273,7 @@ mod metal_device_tests {
 
     #[test]
     fn test_metal_library_get_function() {
-        use screencapturekit::output::metal::SHADER_SOURCE;
+        use screencapturekit::metal::SHADER_SOURCE;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let library = device
@@ -297,7 +297,7 @@ mod metal_device_tests {
 
     #[test]
     fn test_metal_function_debug() {
-        use screencapturekit::output::metal::SHADER_SOURCE;
+        use screencapturekit::metal::SHADER_SOURCE;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let library = device
@@ -335,8 +335,8 @@ mod metal_device_tests {
 // ============================================================================
 
 mod metal_texture_tests {
-    use screencapturekit::output::metal::MetalDevice;
-    use screencapturekit::output::IOSurface;
+    use screencapturekit::cm::IOSurface;
+    use screencapturekit::metal::MetalDevice;
 
     // Note: IOSurface textures require 16-byte aligned bytesPerRow
     // For BGRA (4 bytes per pixel), width must be multiple of 4
@@ -373,7 +373,7 @@ mod metal_texture_tests {
 
     #[test]
     fn test_metal_texture_pixel_format() {
-        use screencapturekit::output::metal::MetalPixelFormat;
+        use screencapturekit::metal::MetalPixelFormat;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let surface = IOSurface::create(64, 64, 0x42475241, 4).expect("Failed to create IOSurface");
@@ -439,7 +439,7 @@ mod metal_texture_tests {
 
     #[test]
     fn test_texture_params_metal_pixel_format() {
-        use screencapturekit::output::metal::MetalPixelFormat;
+        use screencapturekit::metal::MetalPixelFormat;
 
         let surface =
             IOSurface::create(128, 128, 0x42475241, 4).expect("Failed to create IOSurface");
@@ -453,7 +453,7 @@ mod metal_texture_tests {
 
     #[test]
     fn test_uniforms_from_captured_textures() {
-        use screencapturekit::output::metal::Uniforms;
+        use screencapturekit::metal::Uniforms;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let surface =
@@ -478,7 +478,7 @@ mod metal_texture_tests {
 // ============================================================================
 
 mod metal_pipeline_tests {
-    use screencapturekit::output::metal::{
+    use screencapturekit::metal::{
         MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor, SHADER_SOURCE,
     };
 
@@ -566,7 +566,7 @@ mod metal_pipeline_tests {
 // ============================================================================
 
 mod metal_layer_tests {
-    use screencapturekit::output::metal::{MTLPixelFormat, MetalDevice, MetalLayer};
+    use screencapturekit::metal::{MTLPixelFormat, MetalDevice, MetalLayer};
 
     #[test]
     fn test_metal_layer_creation() {
@@ -622,10 +622,10 @@ mod metal_layer_tests {
 // ============================================================================
 
 mod metal_render_pass_tests {
-    use screencapturekit::output::metal::{
+    use screencapturekit::cm::IOSurface;
+    use screencapturekit::metal::{
         MTLLoadAction, MTLStoreAction, MetalDevice, MetalRenderPassDescriptor,
     };
-    use screencapturekit::output::IOSurface;
 
     #[test]
     fn test_render_pass_descriptor_creation() {
@@ -685,7 +685,7 @@ mod metal_render_pass_tests {
 // ============================================================================
 
 mod metal_textures_closure_tests {
-    use screencapturekit::output::IOSurface;
+    use screencapturekit::cm::IOSurface;
 
     #[test]
     fn test_metal_textures_with_closure() {
@@ -713,7 +713,7 @@ mod metal_textures_closure_tests {
             IOSurface::create(128, 128, 0x42475241, 4).expect("Failed to create IOSurface");
 
         // Closure returns None
-        let textures: Option<screencapturekit::output::metal::CapturedTextures<()>> =
+        let textures: Option<screencapturekit::metal::CapturedTextures<()>> =
             surface.metal_textures(|_params, _ptr| None);
 
         assert!(textures.is_none());
@@ -733,7 +733,7 @@ mod metal_textures_closure_tests {
 // ============================================================================
 
 mod metal_buffer_tests {
-    use screencapturekit::output::metal::{MetalDevice, ResourceOptions};
+    use screencapturekit::metal::{MetalDevice, ResourceOptions};
 
     #[test]
     fn test_create_buffer() {
@@ -783,7 +783,7 @@ mod metal_buffer_tests {
 
     #[test]
     fn test_create_buffer_with_data() {
-        use screencapturekit::output::metal::Uniforms;
+        use screencapturekit::metal::Uniforms;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let uniforms = Uniforms::new(1920.0, 1080.0, 1920.0, 1080.0);
@@ -810,7 +810,7 @@ mod metal_buffer_tests {
 // ============================================================================
 
 mod metal_command_tests {
-    use screencapturekit::output::metal::{MTLPixelFormat, MetalDevice, SHADER_SOURCE};
+    use screencapturekit::metal::{MTLPixelFormat, MetalDevice, SHADER_SOURCE};
 
     #[test]
     fn test_command_buffer_debug() {
@@ -865,7 +865,7 @@ mod metal_command_tests {
 
     #[test]
     fn test_pipeline_state_as_ptr() {
-        use screencapturekit::output::metal::MetalRenderPipelineDescriptor;
+        use screencapturekit::metal::MetalRenderPipelineDescriptor;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let library = device
@@ -897,9 +897,7 @@ mod metal_command_tests {
 // ============================================================================
 
 mod metal_vertex_descriptor_tests {
-    use screencapturekit::output::metal::{
-        MTLVertexFormat, MTLVertexStepFunction, MetalVertexDescriptor,
-    };
+    use screencapturekit::metal::{MTLVertexFormat, MTLVertexStepFunction, MetalVertexDescriptor};
 
     #[test]
     fn test_vertex_descriptor_creation() {
@@ -957,7 +955,7 @@ mod metal_vertex_descriptor_tests {
 // ============================================================================
 
 mod metal_render_encoder_tests {
-    use screencapturekit::output::metal::{
+    use screencapturekit::metal::{
         MTLLoadAction, MTLPixelFormat, MTLPrimitiveType, MTLStoreAction, MetalDevice, MetalLayer,
         MetalRenderPassDescriptor, MetalRenderPipelineDescriptor, ResourceOptions, Uniforms,
         SHADER_SOURCE,
@@ -1101,7 +1099,7 @@ mod metal_render_encoder_tests {
 
     #[test]
     fn test_render_encoder_set_fragment_texture() {
-        use screencapturekit::output::IOSurface;
+        use screencapturekit::cm::IOSurface;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let layer = MetalLayer::new();
@@ -1256,7 +1254,7 @@ mod metal_render_encoder_tests {
 
 #[test]
 fn test_iosurface_info() {
-    use screencapturekit::output::IOSurface;
+    use screencapturekit::cm::IOSurface;
 
     let surface = IOSurface::create(200, 100, 0x42475241, 4).expect("Failed to create IOSurface");
     let info = surface.info();
@@ -1271,7 +1269,7 @@ fn test_iosurface_info() {
 
 #[test]
 fn test_iosurface_info_debug() {
-    use screencapturekit::output::IOSurface;
+    use screencapturekit::cm::IOSurface;
 
     let surface = IOSurface::create(50, 50, 0x42475241, 4).expect("Failed to create IOSurface");
     let info = surface.info();
@@ -1284,7 +1282,7 @@ fn test_iosurface_info_debug() {
 
 #[test]
 fn test_iosurface_info_clone() {
-    use screencapturekit::output::IOSurface;
+    use screencapturekit::cm::IOSurface;
 
     let surface = IOSurface::create(100, 100, 0x42475241, 4).expect("Failed to create IOSurface");
     let info = surface.info();
@@ -1296,7 +1294,7 @@ fn test_iosurface_info_clone() {
 
 #[test]
 fn test_plane_info_debug() {
-    use screencapturekit::output::metal::PlaneInfo;
+    use screencapturekit::metal::PlaneInfo;
 
     let plane = PlaneInfo {
         index: 0,
@@ -1386,8 +1384,8 @@ fn test_mtl_primitive_type_copy() {
 
 // YCbCr surface and Metal texture tests
 mod ycbcr_tests {
-    use screencapturekit::output::iosurface::{IOSurface, PlaneProperties};
-    use screencapturekit::output::metal::MetalDevice;
+    use screencapturekit::cm::{IOSurface, PlaneProperties};
+    use screencapturekit::metal::MetalDevice;
 
     fn create_ycbcr_surface(width: usize, height: usize) -> Option<IOSurface> {
         let y_bytes_per_row = (width + 63) & !63;
