@@ -892,6 +892,368 @@ mod metal_command_tests {
     }
 }
 
+// ============================================================================
+// Vertex Descriptor Tests
+// ============================================================================
+
+mod metal_vertex_descriptor_tests {
+    use screencapturekit::output::metal::{
+        MTLVertexFormat, MTLVertexStepFunction, MetalVertexDescriptor,
+    };
+
+    #[test]
+    fn test_vertex_descriptor_creation() {
+        let desc = MetalVertexDescriptor::new();
+        let debug_str = format!("{:?}", desc);
+        assert!(debug_str.contains("MetalVertexDescriptor"));
+    }
+
+    #[test]
+    fn test_vertex_descriptor_default() {
+        let desc = MetalVertexDescriptor::default();
+        let ptr = desc.as_ptr();
+        assert!(!ptr.is_null());
+    }
+
+    #[test]
+    fn test_vertex_descriptor_set_attribute() {
+        let desc = MetalVertexDescriptor::new();
+        // Set position attribute: Float4 at offset 0, buffer 0
+        desc.set_attribute(0, MTLVertexFormat::Float4, 0, 0);
+        // Set texcoord attribute: Float2 at offset 16, buffer 0
+        desc.set_attribute(1, MTLVertexFormat::Float2, 16, 0);
+    }
+
+    #[test]
+    fn test_vertex_descriptor_set_layout() {
+        let desc = MetalVertexDescriptor::new();
+        // Set buffer 0 layout: stride 24, per-vertex
+        desc.set_layout(0, 24, MTLVertexStepFunction::PerVertex);
+        // Set buffer 1 layout: stride 64, per-instance
+        desc.set_layout(1, 64, MTLVertexStepFunction::PerInstance);
+    }
+
+    #[test]
+    fn test_vertex_descriptor_full_setup() {
+        let desc = MetalVertexDescriptor::new();
+
+        // Position (Float4) at attribute 0
+        desc.set_attribute(0, MTLVertexFormat::Float4, 0, 0);
+        // Color (Float4) at attribute 1
+        desc.set_attribute(1, MTLVertexFormat::Float4, 16, 0);
+        // TexCoord (Float2) at attribute 2
+        desc.set_attribute(2, MTLVertexFormat::Float2, 32, 0);
+
+        // Layout for buffer 0
+        desc.set_layout(0, 40, MTLVertexStepFunction::PerVertex);
+
+        let ptr = desc.as_ptr();
+        assert!(!ptr.is_null());
+    }
+}
+
+// ============================================================================
+// Render Encoder Tests (using CAMetalLayer drawable)
+// ============================================================================
+
+mod metal_render_encoder_tests {
+    use screencapturekit::output::metal::{
+        MTLLoadAction, MTLPixelFormat, MTLPrimitiveType, MTLStoreAction, MetalDevice, MetalLayer,
+        MetalRenderPassDescriptor, MetalRenderPipelineDescriptor, ResourceOptions, Uniforms,
+        SHADER_SOURCE,
+    };
+
+    #[test]
+    fn test_layer_drawable_and_texture() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(64.0, 64.0);
+
+        // Get drawable from layer
+        let drawable = layer.next_drawable();
+        assert!(drawable.is_some(), "Should get drawable from layer");
+
+        let drawable = drawable.unwrap();
+        let texture = drawable.texture();
+
+        assert_eq!(texture.width(), 64);
+        assert_eq!(texture.height(), 64);
+    }
+
+    #[test]
+    fn test_render_command_encoder_creation() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(64.0, 64.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let texture = drawable.texture();
+
+        let queue = device.create_command_queue().expect("No queue");
+        let cmd_buffer = queue.command_buffer().expect("No command buffer");
+
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass.set_color_attachment_texture(0, &texture);
+        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+        render_pass.set_color_attachment_clear_color(0, 0.0, 0.0, 0.0, 1.0);
+
+        let encoder = cmd_buffer.render_command_encoder(&render_pass);
+        assert!(encoder.is_some(), "Should create render encoder");
+
+        let encoder = encoder.unwrap();
+        encoder.end_encoding();
+    }
+
+    #[test]
+    fn test_render_encoder_set_pipeline_state() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(64.0, 64.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let texture = drawable.texture();
+
+        // Create pipeline
+        let library = device
+            .create_library_with_source(SHADER_SOURCE)
+            .expect("Shader compile failed");
+        let vertex_fn = library.get_function("vertex_fullscreen").expect("No fn");
+        let fragment_fn = library.get_function("fragment_textured").expect("No fn");
+
+        let pipeline_desc = MetalRenderPipelineDescriptor::new();
+        pipeline_desc.set_vertex_function(&vertex_fn);
+        pipeline_desc.set_fragment_function(&fragment_fn);
+        pipeline_desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+
+        let pipeline = device
+            .create_render_pipeline_state(&pipeline_desc)
+            .expect("No pipeline");
+
+        // Create encoder and set pipeline
+        let queue = device.create_command_queue().expect("No queue");
+        let cmd_buffer = queue.command_buffer().expect("No buffer");
+
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass.set_color_attachment_texture(0, &texture);
+        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+
+        let encoder = cmd_buffer
+            .render_command_encoder(&render_pass)
+            .expect("No encoder");
+        encoder.set_render_pipeline_state(&pipeline);
+        encoder.end_encoding();
+
+        cmd_buffer.commit();
+    }
+
+    #[test]
+    fn test_render_encoder_set_buffers() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(64.0, 64.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let texture = drawable.texture();
+
+        // Create buffers
+        let uniforms = Uniforms::new(64.0, 64.0, 64.0, 64.0);
+        let uniform_buffer = device
+            .create_buffer_with_data(&uniforms)
+            .expect("No buffer");
+
+        let vertex_data = [0.0f32; 24]; // 6 vertices * 4 floats
+        let vertex_buffer = device
+            .create_buffer(
+                std::mem::size_of_val(&vertex_data),
+                ResourceOptions::CPU_CACHE_MODE_DEFAULT_CACHE,
+            )
+            .expect("No buffer");
+
+        // Create encoder
+        let queue = device.create_command_queue().expect("No queue");
+        let cmd_buffer = queue.command_buffer().expect("No buffer");
+
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass.set_color_attachment_texture(0, &texture);
+        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+
+        let encoder = cmd_buffer
+            .render_command_encoder(&render_pass)
+            .expect("No encoder");
+
+        encoder.set_vertex_buffer(&vertex_buffer, 0, 0);
+        encoder.set_fragment_buffer(&uniform_buffer, 0, 0);
+        encoder.end_encoding();
+
+        cmd_buffer.commit();
+    }
+
+    #[test]
+    fn test_render_encoder_set_fragment_texture() {
+        use screencapturekit::output::IOSurface;
+
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(64.0, 64.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let target_texture = drawable.texture();
+
+        // Create source texture from IOSurface
+        let surface = IOSurface::create(64, 64, 0x42475241, 4).expect("Failed to create IOSurface");
+        let source_textures = surface.create_metal_textures(&device).expect("No textures");
+
+        // Create encoder
+        let queue = device.create_command_queue().expect("No queue");
+        let cmd_buffer = queue.command_buffer().expect("No buffer");
+
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass.set_color_attachment_texture(0, &target_texture);
+        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+
+        let encoder = cmd_buffer
+            .render_command_encoder(&render_pass)
+            .expect("No encoder");
+
+        encoder.set_fragment_texture(&source_textures.plane0, 0);
+        encoder.end_encoding();
+
+        cmd_buffer.commit();
+    }
+
+    #[test]
+    fn test_render_encoder_draw_primitives() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(64.0, 64.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let texture = drawable.texture();
+
+        // Create pipeline
+        let library = device
+            .create_library_with_source(SHADER_SOURCE)
+            .expect("Shader compile failed");
+        let vertex_fn = library.get_function("vertex_fullscreen").expect("No fn");
+        let fragment_fn = library.get_function("fragment_textured").expect("No fn");
+
+        let pipeline_desc = MetalRenderPipelineDescriptor::new();
+        pipeline_desc.set_vertex_function(&vertex_fn);
+        pipeline_desc.set_fragment_function(&fragment_fn);
+        pipeline_desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+
+        let pipeline = device
+            .create_render_pipeline_state(&pipeline_desc)
+            .expect("No pipeline");
+
+        // Create encoder and draw
+        let queue = device.create_command_queue().expect("No queue");
+        let cmd_buffer = queue.command_buffer().expect("No buffer");
+
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass.set_color_attachment_texture(0, &texture);
+        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+
+        let encoder = cmd_buffer
+            .render_command_encoder(&render_pass)
+            .expect("No encoder");
+
+        encoder.set_render_pipeline_state(&pipeline);
+        encoder.draw_primitives(MTLPrimitiveType::Triangle, 0, 6);
+        encoder.end_encoding();
+
+        cmd_buffer.commit();
+    }
+
+    #[test]
+    fn test_drawable_debug() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(32.0, 32.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let debug_str = format!("{:?}", drawable);
+        assert!(debug_str.contains("MetalDrawable"));
+    }
+
+    #[test]
+    fn test_render_encoder_debug() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(32.0, 32.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let texture = drawable.texture();
+
+        let queue = device.create_command_queue().expect("No queue");
+        let cmd_buffer = queue.command_buffer().expect("No buffer");
+
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass.set_color_attachment_texture(0, &texture);
+        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+
+        let encoder = cmd_buffer
+            .render_command_encoder(&render_pass)
+            .expect("No encoder");
+
+        let debug_str = format!("{:?}", encoder);
+        assert!(debug_str.contains("MetalRenderCommandEncoder"));
+
+        encoder.end_encoding();
+    }
+
+    #[test]
+    fn test_render_encoder_as_ptr() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(32.0, 32.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let texture = drawable.texture();
+
+        let queue = device.create_command_queue().expect("No queue");
+        let cmd_buffer = queue.command_buffer().expect("No buffer");
+
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass.set_color_attachment_texture(0, &texture);
+        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+
+        let encoder = cmd_buffer
+            .render_command_encoder(&render_pass)
+            .expect("No encoder");
+
+        let ptr = encoder.as_ptr();
+        assert!(!ptr.is_null());
+
+        encoder.end_encoding();
+    }
+}
+
 #[test]
 fn test_iosurface_info() {
     use screencapturekit::output::IOSurface;
