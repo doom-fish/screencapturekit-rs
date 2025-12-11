@@ -5,7 +5,7 @@ use std::mem::size_of;
 use crate::vertex::Vertex;
 
 // Re-export the library's native Metal types
-pub use screencapturekit::output::metal::{
+pub use screencapturekit::metal::{
     MTLBlendFactor, MTLBlendOperation, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
     MTLStoreAction, MTLVertexFormat, MTLVertexStepFunction, MetalBuffer, MetalCapturedTextures,
     MetalCommandQueue, MetalDevice, MetalLayer, MetalLibrary, MetalRenderPassDescriptor,

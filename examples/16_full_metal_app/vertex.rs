@@ -10,12 +10,12 @@
 
 use std::mem::size_of;
 
-use screencapturekit::output::metal::{MetalBuffer, MetalDevice, ResourceOptions};
+use screencapturekit::metal::{MetalBuffer, MetalDevice, ResourceOptions};
 
 use crate::font::BitmapFont;
 
 // Re-export Uniforms from the library for convenience
-pub use screencapturekit::output::metal::Uniforms;
+pub use screencapturekit::metal::Uniforms;
 
 #[repr(C)]
 #[derive(Clone, Copy)]

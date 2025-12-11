@@ -5,8 +5,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use screencapturekit::output::metal::{pixel_format, IOSurfaceInfo};
-use screencapturekit::output::{CVPixelBufferIOSurface, IOSurface};
+use screencapturekit::cm::IOSurface;
+use screencapturekit::metal::{pixel_format, IOSurfaceInfo};
 use screencapturekit::prelude::*;
 
 use crate::waveform::WaveformBuffer;
@@ -109,8 +109,8 @@ impl SCStreamOutputTrait for CaptureHandler {
             SCStreamOutputType::Screen => {
                 self.state.frame_count.fetch_add(1, Ordering::Relaxed);
                 if let Some(pixel_buffer) = sample.image_buffer() {
-                    if pixel_buffer.is_backed_by_iosurface() {
-                        if let Some(surface) = pixel_buffer.iosurface() {
+                    if pixel_buffer.is_backed_by_io_surface() {
+                        if let Some(surface) = pixel_buffer.io_surface() {
                             // Update surface info on first frame or format change
                             self.update_surface_info(&surface);
                             *self.state.latest_surface.lock().unwrap() = Some(surface);

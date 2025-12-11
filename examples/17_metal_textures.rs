@@ -11,11 +11,10 @@
 //! Note: This example demonstrates the API without creating a window.
 //! See `16_full_metal_app` for a complete windowed application.
 
-use screencapturekit::output::metal::{
+use screencapturekit::metal::{
     MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor, MetalRenderPipelineState, Uniforms,
     SHADER_SOURCE,
 };
-use screencapturekit::output::CVPixelBufferIOSurface;
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -100,7 +99,7 @@ impl SCStreamOutputTrait for Handler {
             return;
         };
 
-        let Some(surface) = pixel_buffer.iosurface() else {
+        let Some(surface) = pixel_buffer.io_surface() else {
             println!("⚠️  Frame {n} - Not IOSurface-backed");
             return;
         };

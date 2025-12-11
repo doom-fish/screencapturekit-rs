@@ -7,7 +7,7 @@
 //! - Reading specific pixel coordinates
 //! - Direct slice access
 
-use screencapturekit::output::{CVImageBufferLockExt, PixelBufferCursorExt, PixelBufferLockFlags};
+use screencapturekit::cv::{CVPixelBufferLockFlags, PixelBufferCursorExt};
 use screencapturekit::prelude::*;
 use std::io::{Read, Seek, SeekFrom};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -25,7 +25,7 @@ impl SCStreamOutputTrait for Handler {
             // Process every 60th frame
             if n % 60 == 0 {
                 if let Some(pixel_buffer) = sample.image_buffer() {
-                    if let Ok(guard) = pixel_buffer.lock(PixelBufferLockFlags::ReadOnly) {
+                    if let Ok(guard) = pixel_buffer.lock(CVPixelBufferLockFlags::READ_ONLY) {
                         println!("\n📹 Frame {n}");
                         println!("   Size: {}x{}", guard.width(), guard.height());
                         println!("   Bytes per row: {}", guard.bytes_per_row());

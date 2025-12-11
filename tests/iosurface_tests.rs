@@ -1,21 +1,36 @@
 //! IOSurface and pixel buffer tests
 
-use screencapturekit::output::{
-    CVImageBufferLockExt, CVPixelBufferIOSurface, IOSurface, IOSurfaceLockOptions,
-    PixelBufferLockFlags,
-};
+use screencapturekit::cm::{IOSurface, IOSurfaceLockOptions};
+use screencapturekit::cv::{CVPixelBuffer, CVPixelBufferLockFlags};
 
 #[test]
 fn test_iosurface_lock_options_values() {
-    assert_eq!(IOSurfaceLockOptions::ReadOnly.as_u32(), 0x0000_0001);
-    assert_eq!(IOSurfaceLockOptions::AvoidSync.as_u32(), 0x0000_0002);
+    assert_eq!(IOSurfaceLockOptions::READ_ONLY.as_u32(), 0x0000_0001);
+    assert_eq!(IOSurfaceLockOptions::AVOID_SYNC.as_u32(), 0x0000_0002);
+}
+
+#[test]
+fn test_iosurface_lock_options_combined() {
+    let combined = IOSurfaceLockOptions::READ_ONLY | IOSurfaceLockOptions::AVOID_SYNC;
+    assert_eq!(combined.as_u32(), 0x0000_0003);
+    assert!(combined.contains(IOSurfaceLockOptions::READ_ONLY));
+    assert!(combined.contains(IOSurfaceLockOptions::AVOID_SYNC));
+    assert!(combined.is_read_only());
 }
 
 #[test]
 fn test_iosurface_lock_options_debug() {
-    let opt = IOSurfaceLockOptions::ReadOnly;
+    let opt = IOSurfaceLockOptions::READ_ONLY;
     let debug_str = format!("{:?}", opt);
-    assert!(debug_str.contains("ReadOnly"));
+    assert!(debug_str.contains("IOSurfaceLockOptions"));
+}
+
+#[test]
+fn test_cvpixelbuffer_lock_flags_values() {
+    assert_eq!(CVPixelBufferLockFlags::READ_ONLY.as_u32(), 0x0000_0001);
+    assert_eq!(CVPixelBufferLockFlags::NONE.as_u32(), 0x0000_0000);
+    assert!(CVPixelBufferLockFlags::READ_ONLY.is_read_only());
+    assert!(!CVPixelBufferLockFlags::NONE.is_read_only());
 }
 
 #[test]
@@ -56,7 +71,7 @@ fn test_iosurface_lock_and_access() {
     let surface = IOSurface::create(10, 10, 0x42475241, 4).expect("Failed to create IOSurface");
 
     let guard = surface
-        .lock(IOSurfaceLockOptions::ReadOnly)
+        .lock(IOSurfaceLockOptions::READ_ONLY)
         .expect("Failed to lock IOSurface");
 
     assert_eq!(guard.width(), 10);
@@ -66,9 +81,6 @@ fn test_iosurface_lock_and_access() {
     // Test as_slice
     let slice = guard.as_slice();
     assert!(!slice.is_empty());
-
-    // Test Deref
-    let _: &[u8] = &guard;
 }
 
 #[test]
@@ -76,7 +88,7 @@ fn test_iosurface_lock_guard_row() {
     let surface = IOSurface::create(20, 20, 0x42475241, 4).expect("Failed to create IOSurface");
 
     let guard = surface
-        .lock(IOSurfaceLockOptions::ReadOnly)
+        .lock(IOSurfaceLockOptions::READ_ONLY)
         .expect("Failed to lock IOSurface");
 
     // Valid row
@@ -99,10 +111,10 @@ fn test_iosurface_lock_guard_cursor() {
     let surface = IOSurface::create(10, 10, 0x42475241, 4).expect("Failed to create IOSurface");
 
     let guard = surface
-        .lock(IOSurfaceLockOptions::ReadOnly)
+        .lock(IOSurfaceLockOptions::READ_ONLY)
         .expect("Failed to lock IOSurface");
 
-    let mut cursor = guard.cursor();
+    let mut cursor = unsafe { guard.cursor() };
     let mut buf = [0u8; 4];
     let result = cursor.read_exact(&mut buf);
     assert!(result.is_ok());
@@ -113,13 +125,13 @@ fn test_iosurface_lock_guard_debug() {
     let surface = IOSurface::create(50, 50, 0x42475241, 4).expect("Failed to create IOSurface");
 
     let guard = surface
-        .lock(IOSurfaceLockOptions::ReadOnly)
+        .lock(IOSurfaceLockOptions::READ_ONLY)
         .expect("Failed to lock IOSurface");
 
     let debug_str = format!("{:?}", guard);
     assert!(debug_str.contains("IOSurfaceLockGuard"));
-    assert!(debug_str.contains("width"));
-    assert!(debug_str.contains("height"));
+    assert!(debug_str.contains("options"));
+    assert!(debug_str.contains("surface_size"));
 }
 
 #[test]
@@ -140,21 +152,8 @@ fn test_iosurface_as_ptr() {
 }
 
 #[test]
-fn test_pixel_buffer_lock_flags_values() {
-    assert_eq!(PixelBufferLockFlags::ReadOnly.as_u64(), 0x0000_0001);
-    assert_eq!(PixelBufferLockFlags::ReadOnly.as_u32(), 0x0000_0001);
-}
-
-#[test]
-fn test_pixel_buffer_lock_flags_debug() {
-    let flags = PixelBufferLockFlags::ReadOnly;
-    let debug_str = format!("{:?}", flags);
-    assert!(debug_str.contains("ReadOnly"));
-}
-
-#[test]
 fn test_pixel_buffer_create_and_lock() {
-    use screencapturekit::cm::CVPixelBuffer;
+    use screencapturekit::cv::CVPixelBuffer;
 
     // Create a test pixel buffer (BGRA format)
     let buffer =
@@ -164,7 +163,7 @@ fn test_pixel_buffer_create_and_lock() {
     assert_eq!(buffer.height(), 100);
 
     // Lock for reading
-    let guard = buffer.lock(PixelBufferLockFlags::ReadOnly);
+    let guard = buffer.lock(CVPixelBufferLockFlags::READ_ONLY);
     assert!(guard.is_ok());
 
     let guard = guard.unwrap();
@@ -182,12 +181,12 @@ fn test_pixel_buffer_create_and_lock() {
 
 #[test]
 fn test_pixel_buffer_lock_guard_row_access() {
-    use screencapturekit::cm::CVPixelBuffer;
+    use screencapturekit::cv::CVPixelBuffer;
 
     let buffer = CVPixelBuffer::create(50, 50, 0x42475241).expect("Failed to create pixel buffer");
 
     let guard = buffer
-        .lock(PixelBufferLockFlags::ReadOnly)
+        .lock(CVPixelBufferLockFlags::READ_ONLY)
         .expect("Failed to lock buffer");
 
     // Valid row access
@@ -208,13 +207,13 @@ fn test_pixel_buffer_lock_guard_row_access() {
 
 #[test]
 fn test_pixel_buffer_lock_guard_cursor() {
-    use screencapturekit::cm::CVPixelBuffer;
+    use screencapturekit::cv::CVPixelBuffer;
     use std::io::Read;
 
     let buffer = CVPixelBuffer::create(10, 10, 0x42475241).expect("Failed to create pixel buffer");
 
     let guard = buffer
-        .lock(PixelBufferLockFlags::ReadOnly)
+        .lock(CVPixelBufferLockFlags::READ_ONLY)
         .expect("Failed to lock buffer");
 
     let mut cursor = guard.cursor();
@@ -225,47 +224,47 @@ fn test_pixel_buffer_lock_guard_cursor() {
 
 #[test]
 fn test_pixel_buffer_lock_guard_debug() {
-    use screencapturekit::cm::CVPixelBuffer;
+    use screencapturekit::cv::CVPixelBuffer;
 
     let buffer =
         CVPixelBuffer::create(100, 100, 0x42475241).expect("Failed to create pixel buffer");
 
     let guard = buffer
-        .lock(PixelBufferLockFlags::ReadOnly)
+        .lock(CVPixelBufferLockFlags::READ_ONLY)
         .expect("Failed to lock buffer");
 
     let debug_str = format!("{:?}", guard);
-    assert!(debug_str.contains("PixelBufferLockGuard"));
-    assert!(debug_str.contains("width"));
-    assert!(debug_str.contains("height"));
+    assert!(debug_str.contains("CVPixelBufferLockGuard"));
+    assert!(debug_str.contains("flags"));
+    assert!(debug_str.contains("buffer_size"));
 }
 
 #[test]
 fn test_pixel_buffer_iosurface_trait() {
-    use screencapturekit::cm::CVPixelBuffer;
+    use screencapturekit::cv::CVPixelBuffer;
 
     let buffer =
         CVPixelBuffer::create(100, 100, 0x42475241).expect("Failed to create pixel buffer");
 
     // Simple pixel buffers might not be backed by IOSurface
-    let is_backed = buffer.is_backed_by_iosurface();
+    let is_backed = buffer.is_backed_by_io_surface();
     // Just test that the method works, result depends on implementation
     let _ = is_backed;
 
-    let iosurface = buffer.iosurface();
+    let iosurface = buffer.io_surface();
     // iosurface may or may not be available depending on buffer creation
     let _ = iosurface;
 }
 
 #[test]
 fn test_pixel_buffer_planar_methods() {
-    use screencapturekit::cm::CVPixelBuffer;
+    use screencapturekit::cv::CVPixelBuffer;
 
     let buffer =
         CVPixelBuffer::create(100, 100, 0x42475241).expect("Failed to create pixel buffer");
 
     let guard = buffer
-        .lock(PixelBufferLockFlags::ReadOnly)
+        .lock(CVPixelBufferLockFlags::READ_ONLY)
         .expect("Failed to lock buffer");
 
     // BGRA is not planar, so plane_count should be 0
@@ -275,14 +274,14 @@ fn test_pixel_buffer_planar_methods() {
 
 #[test]
 fn test_pixel_buffer_cursor_extension_trait() {
-    use screencapturekit::cm::CVPixelBuffer;
-    use screencapturekit::output::PixelBufferCursorExt;
+    use screencapturekit::cv::CVPixelBuffer;
+    use screencapturekit::cv::PixelBufferCursorExt;
     use std::io::{Seek, SeekFrom};
 
     let buffer = CVPixelBuffer::create(10, 10, 0x42475241).expect("Failed to create pixel buffer");
 
     let guard = buffer
-        .lock(PixelBufferLockFlags::ReadOnly)
+        .lock(CVPixelBufferLockFlags::READ_ONLY)
         .expect("Failed to lock buffer");
 
     let mut cursor = guard.cursor();
@@ -306,7 +305,7 @@ fn test_iosurface_lock_guard_as_ptr() {
     let surface = IOSurface::create(10, 10, 0x42475241, 4).expect("Failed to create IOSurface");
 
     let guard = surface
-        .lock(IOSurfaceLockOptions::ReadOnly)
+        .lock(IOSurfaceLockOptions::READ_ONLY)
         .expect("Failed to lock IOSurface");
 
     let ptr = guard.as_ptr();
@@ -344,8 +343,8 @@ fn test_iosurface_hash() {
 // ============================================================================
 
 mod multiplanar_tests {
-    use screencapturekit::output::iosurface::PlaneProperties;
-    use screencapturekit::output::IOSurface;
+    use screencapturekit::cm::IOSurface;
+    use screencapturekit::cm::PlaneProperties;
 
     /// Create a YCbCr 4:2:0 biplanar surface (like 420v or 420f)
     fn create_ycbcr_420(width: usize, height: usize, full_range: bool) -> Option<IOSurface> {
@@ -451,7 +450,7 @@ mod multiplanar_tests {
         let surface = create_ycbcr_420(640, 480, false).expect("Failed to create surface");
 
         // The is_ycbcr_biplanar check uses pixel_format
-        use screencapturekit::output::metal::pixel_format;
+        use screencapturekit::metal::pixel_format;
         assert!(pixel_format::is_ycbcr_biplanar(surface.pixel_format()));
     }
 
@@ -545,13 +544,13 @@ mod multiplanar_tests {
         assert_eq!(params[0].height, 1080);
 
         // L10R should use BGR10A2Unorm
-        use screencapturekit::output::metal::MetalPixelFormat;
+        use screencapturekit::metal::MetalPixelFormat;
         assert_eq!(params[0].format, MetalPixelFormat::BGR10A2Unorm);
     }
 
     #[test]
     fn test_l10r_not_ycbcr() {
-        use screencapturekit::output::metal::pixel_format;
+        use screencapturekit::metal::pixel_format;
         assert!(!pixel_format::is_ycbcr_biplanar(0x6c313072));
     }
 

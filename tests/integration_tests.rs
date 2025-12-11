@@ -1,4 +1,5 @@
 use screencapturekit::{
+    cv::CVPixelBufferLockFlags,
     shareable_content::SCShareableContent,
     stream::{
         configuration::SCStreamConfiguration, content_filter::SCContentFilter,
@@ -340,7 +341,7 @@ fn test_pixel_buffer_locking() {
         // Test read lock
         {
             let lock_guard = pixel_buffer
-                .lock_base_address(true)
+                .lock(CVPixelBufferLockFlags::READ_ONLY)
                 .expect("Failed to lock base address for reading");
 
             let base_address = lock_guard.base_address();
@@ -358,11 +359,18 @@ fn test_pixel_buffer_locking() {
         // Test write lock
         {
             let mut lock_guard = pixel_buffer
-                .lock_base_address(false)
+                .lock(CVPixelBufferLockFlags::NONE)
                 .expect("Failed to lock base address for writing");
 
             let base_address_mut = lock_guard.base_address_mut();
-            assert!(!base_address_mut.is_null(), "Mutable base address is null");
+            assert!(
+                base_address_mut.is_some(),
+                "Mutable base address should be available for read-write lock"
+            );
+            assert!(
+                !base_address_mut.unwrap().is_null(),
+                "Mutable base address is null"
+            );
 
             // Lock guard automatically unlocks when dropped
         }

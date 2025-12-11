@@ -3,8 +3,9 @@
 use super::ffi;
 use super::{
     AudioBuffer, AudioBufferList, AudioBufferListRaw, CMBlockBuffer, CMFormatDescription,
-    CMSampleTimingInfo, CMTime, CVPixelBuffer, SCFrameStatus,
+    CMSampleTimingInfo, CMTime, SCFrameStatus,
 };
+use crate::cv::CVPixelBuffer;
 use std::fmt;
 
 /// Opaque handle to `CMSampleBuffer`
@@ -63,7 +64,8 @@ impl CMSampleBuffer {
     /// # Examples
     ///
     /// ```
-    /// use screencapturekit::cm::{CMSampleBuffer, CVPixelBuffer, CMTime};
+    /// use screencapturekit::cm::{CMSampleBuffer, CMTime};
+    /// use screencapturekit::cv::CVPixelBuffer;
     ///
     /// // Create a pixel buffer
     /// let pixel_buffer = CVPixelBuffer::create(1920, 1080, 0x42475241)
