@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2](https://github.com/doom-fish/screencapturekit-rs/compare/v1.4.1...v1.4.2) - 2025-12-11
+
+### Fixed
+
+- remove whitespace between badges
+
+### Other
+
+- update README badges to match LazyVim style
+
 ## [1.4.1](https://github.com/doom-fish/screencapturekit-rs/compare/v1.4.0...v1.4.1) - 2025-12-11
 
 ### Fixed
