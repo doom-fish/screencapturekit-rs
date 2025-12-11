@@ -556,6 +556,24 @@ extern "C" {
         bytes_per_element: usize,
         surface_out: *mut *mut c_void,
     ) -> i32;
+
+    // IOSurface creation with full properties (for multi-planar formats)
+    pub fn io_surface_create_with_properties(
+        width: usize,
+        height: usize,
+        pixel_format: u32,
+        bytes_per_element: usize,
+        bytes_per_row: usize,
+        alloc_size: usize,
+        plane_count: usize,
+        plane_widths: *const usize,
+        plane_heights: *const usize,
+        plane_bytes_per_row: *const usize,
+        plane_bytes_per_element: *const usize,
+        plane_offsets: *const usize,
+        plane_sizes: *const usize,
+        surface_out: *mut *mut c_void,
+    ) -> i32;
 }
 
 // MARK: - SCContentSharingPicker (macOS 14.0+)

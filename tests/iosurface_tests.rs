@@ -338,3 +338,251 @@ fn test_iosurface_hash() {
     assert!(set.contains(&surface1));
     assert!(!set.contains(&surface2));
 }
+
+// ============================================================================
+// Multi-planar IOSurface tests (YCbCr, L10R)
+// ============================================================================
+
+mod multiplanar_tests {
+    use screencapturekit::output::iosurface::PlaneProperties;
+    use screencapturekit::output::IOSurface;
+
+    /// Create a YCbCr 4:2:0 biplanar surface (like 420v or 420f)
+    fn create_ycbcr_420(width: usize, height: usize, full_range: bool) -> Option<IOSurface> {
+        // 420v = 0x34323076, 420f = 0x34323066
+        let pixel_format: u32 = if full_range { 0x34323066 } else { 0x34323076 };
+
+        // Align dimensions to even for 4:2:0
+        let aligned_width = (width + 1) & !1;
+        let aligned_height = (height + 1) & !1;
+
+        // Plane 0: Y (luminance) - full resolution, 1 byte per pixel
+        let plane0_width = aligned_width;
+        let plane0_height = aligned_height;
+        let plane0_bpr = (plane0_width + 15) & !15; // 16-byte aligned
+        let plane0_size = plane0_bpr * plane0_height;
+
+        // Plane 1: CbCr (chrominance) - half resolution, 2 bytes per pixel
+        let plane1_width = aligned_width / 2;
+        let plane1_height = aligned_height / 2;
+        let plane1_bpr = (plane1_width * 2 + 15) & !15; // 16-byte aligned
+        let plane1_size = plane1_bpr * plane1_height;
+
+        let total_size = plane0_size + plane1_size;
+
+        let planes = [
+            PlaneProperties {
+                width: plane0_width,
+                height: plane0_height,
+                bytes_per_row: plane0_bpr,
+                bytes_per_element: 1,
+                offset: 0,
+                size: plane0_size,
+            },
+            PlaneProperties {
+                width: plane1_width,
+                height: plane1_height,
+                bytes_per_row: plane1_bpr,
+                bytes_per_element: 2,
+                offset: plane0_size,
+                size: plane1_size,
+            },
+        ];
+
+        IOSurface::create_with_properties(
+            aligned_width,
+            aligned_height,
+            pixel_format,
+            1, // bytes_per_element for plane 0
+            plane0_bpr,
+            total_size,
+            Some(&planes),
+        )
+    }
+
+    #[test]
+    fn test_ycbcr_420v_creation() {
+        let surface = create_ycbcr_420(1920, 1080, false).expect("Failed to create 420v surface");
+
+        assert_eq!(surface.width(), 1920);
+        assert_eq!(surface.height(), 1080);
+        assert_eq!(surface.pixel_format(), 0x34323076); // '420v'
+        assert_eq!(surface.plane_count(), 2);
+    }
+
+    #[test]
+    fn test_ycbcr_420f_creation() {
+        let surface = create_ycbcr_420(1920, 1080, true).expect("Failed to create 420f surface");
+
+        assert_eq!(surface.pixel_format(), 0x34323066); // '420f'
+        assert_eq!(surface.plane_count(), 2);
+    }
+
+    #[test]
+    fn test_ycbcr_plane_dimensions() {
+        let surface = create_ycbcr_420(1920, 1080, false).expect("Failed to create 420v surface");
+
+        // Plane 0: Y - full resolution
+        assert_eq!(surface.width_of_plane(0), 1920);
+        assert_eq!(surface.height_of_plane(0), 1080);
+
+        // Plane 1: CbCr - half resolution
+        assert_eq!(surface.width_of_plane(1), 960);
+        assert_eq!(surface.height_of_plane(1), 540);
+    }
+
+    #[test]
+    fn test_ycbcr_bytes_per_row() {
+        let surface = create_ycbcr_420(1920, 1080, false).expect("Failed to create 420v surface");
+
+        // Plane 0: Y - 1 byte per pixel, 16-byte aligned
+        let plane0_bpr = surface.bytes_per_row_of_plane(0);
+        assert!(plane0_bpr >= 1920);
+        assert_eq!(plane0_bpr % 16, 0);
+
+        // Plane 1: CbCr - 2 bytes per pixel, 16-byte aligned
+        let plane1_bpr = surface.bytes_per_row_of_plane(1);
+        assert!(plane1_bpr >= 960 * 2);
+        assert_eq!(plane1_bpr % 16, 0);
+    }
+
+    #[test]
+    fn test_ycbcr_is_biplanar() {
+        let surface = create_ycbcr_420(640, 480, false).expect("Failed to create surface");
+
+        // The is_ycbcr_biplanar check uses pixel_format
+        use screencapturekit::output::metal::pixel_format;
+        assert!(pixel_format::is_ycbcr_biplanar(surface.pixel_format()));
+    }
+
+    #[test]
+    fn test_ycbcr_texture_params() {
+        let surface = create_ycbcr_420(1920, 1080, false).expect("Failed to create surface");
+
+        let params = surface.texture_params();
+        assert_eq!(params.len(), 2);
+
+        // Plane 0: Y
+        assert_eq!(params[0].width, 1920);
+        assert_eq!(params[0].height, 1080);
+        assert_eq!(params[0].plane, 0);
+
+        // Plane 1: CbCr
+        assert_eq!(params[1].width, 960);
+        assert_eq!(params[1].height, 540);
+        assert_eq!(params[1].plane, 1);
+    }
+
+    #[test]
+    fn test_ycbcr_info() {
+        let surface = create_ycbcr_420(640, 480, false).expect("Failed to create surface");
+
+        let info = surface.info();
+        assert_eq!(info.width, 640);
+        assert_eq!(info.height, 480);
+        assert_eq!(info.plane_count, 2);
+        assert_eq!(info.planes.len(), 2);
+
+        // Plane 0
+        assert_eq!(info.planes[0].index, 0);
+        assert_eq!(info.planes[0].width, 640);
+        assert_eq!(info.planes[0].height, 480);
+
+        // Plane 1
+        assert_eq!(info.planes[1].index, 1);
+        assert_eq!(info.planes[1].width, 320);
+        assert_eq!(info.planes[1].height, 240);
+    }
+
+    #[test]
+    fn test_l10r_creation() {
+        // L10R = 'l10r' = 0x6c313072, 4 bytes per pixel (10+10+10+2 bits)
+        let width = 1920usize;
+        let height = 1080usize;
+        let bytes_per_element = 4usize;
+        let bytes_per_row = (width * bytes_per_element + 15) & !15;
+        let alloc_size = bytes_per_row * height;
+
+        let surface = IOSurface::create_with_properties(
+            width,
+            height,
+            0x6c313072, // 'l10r'
+            bytes_per_element,
+            bytes_per_row,
+            alloc_size,
+            None,
+        )
+        .expect("Failed to create L10R surface");
+
+        assert_eq!(surface.width(), 1920);
+        assert_eq!(surface.height(), 1080);
+        assert_eq!(surface.pixel_format(), 0x6c313072);
+        assert_eq!(surface.plane_count(), 0); // Single-plane
+    }
+
+    #[test]
+    fn test_l10r_texture_params() {
+        let width = 1920usize;
+        let height = 1080usize;
+        let bytes_per_element = 4usize;
+        let bytes_per_row = (width * bytes_per_element + 15) & !15;
+        let alloc_size = bytes_per_row * height;
+
+        let surface = IOSurface::create_with_properties(
+            width,
+            height,
+            0x6c313072,
+            bytes_per_element,
+            bytes_per_row,
+            alloc_size,
+            None,
+        )
+        .expect("Failed to create L10R surface");
+
+        let params = surface.texture_params();
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0].width, 1920);
+        assert_eq!(params[0].height, 1080);
+
+        // L10R should use BGR10A2Unorm
+        use screencapturekit::output::metal::MetalPixelFormat;
+        assert_eq!(params[0].format, MetalPixelFormat::BGR10A2Unorm);
+    }
+
+    #[test]
+    fn test_l10r_not_ycbcr() {
+        use screencapturekit::output::metal::pixel_format;
+        assert!(!pixel_format::is_ycbcr_biplanar(0x6c313072));
+    }
+
+    #[test]
+    fn test_plane_properties_debug() {
+        let props = PlaneProperties {
+            width: 1920,
+            height: 1080,
+            bytes_per_row: 1920,
+            bytes_per_element: 1,
+            offset: 0,
+            size: 1920 * 1080,
+        };
+
+        let debug_str = format!("{:?}", props);
+        assert!(debug_str.contains("PlaneProperties"));
+        assert!(debug_str.contains("width"));
+    }
+
+    #[test]
+    fn test_plane_properties_clone_eq() {
+        let props = PlaneProperties {
+            width: 100,
+            height: 100,
+            bytes_per_row: 128,
+            bytes_per_element: 1,
+            offset: 0,
+            size: 12800,
+        };
+
+        let cloned = props;
+        assert_eq!(props, cloned);
+    }
+}

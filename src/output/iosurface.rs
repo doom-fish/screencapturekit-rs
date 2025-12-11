@@ -184,6 +184,23 @@ impl std::hash::Hash for IOSurface {
     }
 }
 
+/// Properties for a single plane in a multi-planar `IOSurface`
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlaneProperties {
+    /// Width of this plane in pixels
+    pub width: usize,
+    /// Height of this plane in pixels
+    pub height: usize,
+    /// Bytes per row for this plane
+    pub bytes_per_row: usize,
+    /// Bytes per element for this plane
+    pub bytes_per_element: usize,
+    /// Offset from the start of the surface allocation
+    pub offset: usize,
+    /// Size of this plane in bytes
+    pub size: usize,
+}
+
 impl IOSurface {
     /// Create a new `IOSurface` with the given dimensions and pixel format
     ///
@@ -220,6 +237,155 @@ impl IOSurface {
         let status = unsafe {
             crate::ffi::io_surface_create(width, height, pixel_format, bytes_per_element, &mut ptr)
         };
+        if status == 0 && !ptr.is_null() {
+            Some(Self(ptr.cast_const()))
+        } else {
+            None
+        }
+    }
+
+    /// Create an `IOSurface` with full properties including multi-planar support
+    ///
+    /// This is the general API for creating `IOSurface`s with any pixel format,
+    /// including multi-planar formats like YCbCr 4:2:0.
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - Width in pixels
+    /// * `height` - Height in pixels
+    /// * `pixel_format` - Pixel format as `FourCC` (e.g., 0x42475241 for BGRA)
+    /// * `bytes_per_element` - Bytes per pixel element
+    /// * `bytes_per_row` - Bytes per row (should be 16-byte aligned for Metal)
+    /// * `alloc_size` - Total allocation size in bytes
+    /// * `planes` - Optional slice of plane info for multi-planar formats
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::output::IOSurface;
+    /// use screencapturekit::output::iosurface::PlaneProperties;
+    ///
+    /// // Create a YCbCr 420v biplanar surface
+    /// let width = 1920usize;
+    /// let height = 1080usize;
+    /// let plane0_bpr = (width + 15) & !15;  // 16-byte aligned
+    /// let plane1_bpr = (width + 15) & !15;
+    /// let plane0_size = plane0_bpr * height;
+    /// let plane1_size = plane1_bpr * (height / 2);
+    ///
+    /// let planes = [
+    ///     PlaneProperties {
+    ///         width,
+    ///         height,
+    ///         bytes_per_row: plane0_bpr,
+    ///         bytes_per_element: 1,
+    ///         offset: 0,
+    ///         size: plane0_size,
+    ///     },
+    ///     PlaneProperties {
+    ///         width: width / 2,
+    ///         height: height / 2,
+    ///         bytes_per_row: plane1_bpr,
+    ///         bytes_per_element: 2,
+    ///         offset: plane0_size,
+    ///         size: plane1_size,
+    ///     },
+    /// ];
+    ///
+    /// let surface = IOSurface::create_with_properties(
+    ///     width,
+    ///     height,
+    ///     0x34323076,  // '420v'
+    ///     1,
+    ///     plane0_bpr,
+    ///     plane0_size + plane1_size,
+    ///     Some(&planes),
+    /// );
+    /// ```
+    #[must_use]
+    #[allow(clippy::option_if_let_else)]
+    pub fn create_with_properties(
+        width: usize,
+        height: usize,
+        pixel_format: u32,
+        bytes_per_element: usize,
+        bytes_per_row: usize,
+        alloc_size: usize,
+        planes: Option<&[PlaneProperties]>,
+    ) -> Option<Self> {
+        let mut ptr: *mut c_void = std::ptr::null_mut();
+
+        let (
+            plane_count,
+            plane_widths,
+            plane_heights,
+            plane_row_bytes,
+            plane_elem_bytes,
+            plane_offsets,
+            plane_sizes,
+        ) = if let Some(p) = planes {
+            let widths: Vec<usize> = p.iter().map(|x| x.width).collect();
+            let heights: Vec<usize> = p.iter().map(|x| x.height).collect();
+            let row_bytes: Vec<usize> = p.iter().map(|x| x.bytes_per_row).collect();
+            let elem_bytes: Vec<usize> = p.iter().map(|x| x.bytes_per_element).collect();
+            let offsets: Vec<usize> = p.iter().map(|x| x.offset).collect();
+            let sizes: Vec<usize> = p.iter().map(|x| x.size).collect();
+            (
+                p.len(),
+                widths,
+                heights,
+                row_bytes,
+                elem_bytes,
+                offsets,
+                sizes,
+            )
+        } else {
+            (0, vec![], vec![], vec![], vec![], vec![], vec![])
+        };
+
+        let status = unsafe {
+            crate::ffi::io_surface_create_with_properties(
+                width,
+                height,
+                pixel_format,
+                bytes_per_element,
+                bytes_per_row,
+                alloc_size,
+                plane_count,
+                if plane_count > 0 {
+                    plane_widths.as_ptr()
+                } else {
+                    std::ptr::null()
+                },
+                if plane_count > 0 {
+                    plane_heights.as_ptr()
+                } else {
+                    std::ptr::null()
+                },
+                if plane_count > 0 {
+                    plane_row_bytes.as_ptr()
+                } else {
+                    std::ptr::null()
+                },
+                if plane_count > 0 {
+                    plane_elem_bytes.as_ptr()
+                } else {
+                    std::ptr::null()
+                },
+                if plane_count > 0 {
+                    plane_offsets.as_ptr()
+                } else {
+                    std::ptr::null()
+                },
+                if plane_count > 0 {
+                    plane_sizes.as_ptr()
+                } else {
+                    std::ptr::null()
+                },
+                &mut ptr,
+            )
+        };
+
         if status == 0 && !ptr.is_null() {
             Some(Self(ptr.cast_const()))
         } else {

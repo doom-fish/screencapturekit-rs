@@ -270,3 +270,75 @@ public func io_surface_create(
     surfaceOut.pointee = Unmanaged.passRetained(surface).toOpaque()
     return 0
 }
+
+/// Create an IOSurface with full properties dictionary
+/// This mirrors Apple's IOSurface(properties:) initializer
+///
+/// Properties format (JSON-like structure passed as pointers):
+/// - width: Int
+/// - height: Int  
+/// - pixelFormat: UInt32
+/// - bytesPerElement: Int
+/// - bytesPerRow: Int
+/// - allocSize: Int
+/// - planeCount: Int (0 for single-plane)
+/// - For each plane (if planeCount > 0):
+///   - planeWidths[i], planeHeights[i], planeBytesPerRow[i], planeBytesPerElement[i], planeOffsets[i], planeSizes[i]
+@_cdecl("io_surface_create_with_properties")
+public func io_surface_create_with_properties(
+    _ width: Int,
+    _ height: Int,
+    _ pixelFormat: UInt32,
+    _ bytesPerElement: Int,
+    _ bytesPerRow: Int,
+    _ allocSize: Int,
+    _ planeCount: Int,
+    _ planeWidths: UnsafePointer<Int>?,
+    _ planeHeights: UnsafePointer<Int>?,
+    _ planeBytesPerRow: UnsafePointer<Int>?,
+    _ planeBytesPerElement: UnsafePointer<Int>?,
+    _ planeOffsets: UnsafePointer<Int>?,
+    _ planeSizes: UnsafePointer<Int>?,
+    _ surfaceOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
+) -> Int32 {
+    var properties: [IOSurfacePropertyKey: Any] = [
+        .width: width,
+        .height: height,
+        .pixelFormat: pixelFormat,
+        .bytesPerElement: bytesPerElement,
+        .bytesPerRow: bytesPerRow,
+        .allocSize: allocSize,
+    ]
+    
+    if planeCount > 0,
+       let widths = planeWidths,
+       let heights = planeHeights,
+       let bprs = planeBytesPerRow,
+       let bpes = planeBytesPerElement,
+       let offsets = planeOffsets,
+       let sizes = planeSizes {
+        
+        var planeInfo: [[IOSurfacePropertyKey: Any]] = []
+        for i in 0..<planeCount {
+            planeInfo.append([
+                .planeWidth: widths[i],
+                .planeHeight: heights[i],
+                .planeBytesPerRow: bprs[i],
+                .planeBytesPerElement: bpes[i],
+                .planeElementWidth: 1,
+                .planeElementHeight: 1,
+                .planeOffset: offsets[i],
+                .planeSize: sizes[i],
+            ])
+        }
+        properties[.planeInfo] = planeInfo
+    }
+    
+    guard let surface = IOSurface(properties: properties) else {
+        surfaceOut.pointee = nil
+        return -1
+    }
+    
+    surfaceOut.pointee = Unmanaged.passRetained(surface).toOpaque()
+    return 0
+}
