@@ -1,6 +1,7 @@
 //! Tests for Metal integration and pixel format utilities
 
 use screencapturekit::output::metal::pixel_format;
+use screencapturekit::output::metal::PlaneInfo;
 use screencapturekit::output::metal::Uniforms;
 use screencapturekit::output::metal::{
     MTLBlendFactor, MTLBlendOperation, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
@@ -202,4 +203,134 @@ fn test_shader_source_exists() {
     assert!(SHADER_SOURCE.contains("fragment_ycbcr"));
     assert!(SHADER_SOURCE.contains("vertex_colored"));
     assert!(SHADER_SOURCE.contains("fragment_colored"));
+}
+
+#[test]
+fn test_iosurface_info() {
+    use screencapturekit::output::IOSurface;
+
+    let surface = IOSurface::create(200, 100, 0x42475241, 4).expect("Failed to create IOSurface");
+    let info = surface.info();
+
+    assert_eq!(info.width, 200);
+    assert_eq!(info.height, 100);
+    assert!(info.bytes_per_row >= 800);
+    assert_eq!(info.pixel_format.as_u32(), 0x42475241);
+    assert_eq!(info.plane_count, 0);
+    assert!(info.planes.is_empty());
+}
+
+#[test]
+fn test_iosurface_info_debug() {
+    use screencapturekit::output::IOSurface;
+
+    let surface = IOSurface::create(50, 50, 0x42475241, 4).expect("Failed to create IOSurface");
+    let info = surface.info();
+
+    let debug_str = format!("{:?}", info);
+    assert!(debug_str.contains("IOSurfaceInfo"));
+    assert!(debug_str.contains("width"));
+    assert!(debug_str.contains("height"));
+}
+
+#[test]
+fn test_iosurface_info_clone() {
+    use screencapturekit::output::IOSurface;
+
+    let surface = IOSurface::create(100, 100, 0x42475241, 4).expect("Failed to create IOSurface");
+    let info = surface.info();
+    let cloned = info.clone();
+
+    assert_eq!(info.width, cloned.width);
+    assert_eq!(info.height, cloned.height);
+}
+
+#[test]
+fn test_plane_info_debug() {
+    use screencapturekit::output::metal::PlaneInfo;
+
+    let plane = PlaneInfo {
+        index: 0,
+        width: 100,
+        height: 100,
+        bytes_per_row: 400,
+    };
+
+    let debug_str = format!("{:?}", plane);
+    assert!(debug_str.contains("PlaneInfo"));
+    assert!(debug_str.contains("index"));
+}
+
+#[test]
+fn test_pixel_format_all_constants() {
+    assert_eq!(pixel_format::BGRA.as_u32(), u32::from_be_bytes(*b"BGRA"));
+    assert_eq!(pixel_format::L10R.as_u32(), u32::from_be_bytes(*b"l10r"));
+    assert_eq!(
+        pixel_format::YCBCR_420V.as_u32(),
+        u32::from_be_bytes(*b"420v")
+    );
+    assert_eq!(
+        pixel_format::YCBCR_420F.as_u32(),
+        u32::from_be_bytes(*b"420f")
+    );
+}
+
+#[test]
+fn test_pixel_format_is_ycbcr_with_raw_u32() {
+    // Test with raw u32 values
+    let ycbcr_420v_raw = u32::from_be_bytes(*b"420v");
+    let ycbcr_420f_raw = u32::from_be_bytes(*b"420f");
+    let bgra_raw = u32::from_be_bytes(*b"BGRA");
+
+    assert!(pixel_format::is_ycbcr_biplanar(ycbcr_420v_raw));
+    assert!(pixel_format::is_ycbcr_biplanar(ycbcr_420f_raw));
+    assert!(!pixel_format::is_ycbcr_biplanar(bgra_raw));
+}
+
+#[test]
+fn test_pixel_format_l10r_not_ycbcr() {
+    assert!(!pixel_format::is_ycbcr_biplanar(pixel_format::L10R));
+}
+
+#[test]
+fn test_metal_pixel_format_default() {
+    let default = MTLPixelFormat::default();
+    // Default is BGRA8Unorm
+    assert_eq!(default.raw(), 80);
+}
+
+#[test]
+fn test_metal_pixel_format_debug() {
+    let format = MTLPixelFormat::BGRA8Unorm;
+    let debug_str = format!("{:?}", format);
+    assert!(debug_str.contains("BGRA8Unorm"));
+}
+
+#[test]
+fn test_metal_pixel_format_copy() {
+    let format = MetalPixelFormat::BGRA8Unorm;
+    let copy = format;
+    assert_eq!(format, copy);
+}
+
+#[test]
+fn test_uniforms_size() {
+    // Uniforms should be a known size for GPU buffer alignment
+    let size = std::mem::size_of::<Uniforms>();
+    // Minimum: 2 floats viewport + 2 floats texture + 1 float time + 1 u32 format = 24 bytes
+    assert!(size >= 24);
+}
+
+#[test]
+fn test_mtl_vertex_format_copy() {
+    let format = MTLVertexFormat::Float4;
+    let copy = format;
+    assert_eq!(format.raw(), copy.raw());
+}
+
+#[test]
+fn test_mtl_primitive_type_copy() {
+    let ptype = MTLPrimitiveType::Triangle;
+    let copy = ptype;
+    assert_eq!(ptype.raw(), copy.raw());
 }
