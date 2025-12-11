@@ -135,6 +135,74 @@ impl IOSurfaceLockGuard<'_> {
     pub fn cursor(&self) -> io::Cursor<&[u8]> {
         io::Cursor::new(self.as_slice())
     }
+
+    /// Get the base address of a specific plane
+    ///
+    /// For multi-planar formats like YCbCr 4:2:0, each plane has its own base address:
+    /// - Plane 0: Y (luminance) data
+    /// - Plane 1: `CbCr` (chrominance) data
+    ///
+    /// Returns `None` if the plane index is out of bounds.
+    ///
+    /// # Safety
+    ///
+    /// The returned pointer is only valid while this lock guard is held.
+    #[allow(clippy::cast_sign_loss)]
+    pub fn base_address_of_plane(&self, plane: usize) -> Option<*mut u8> {
+        let plane_count =
+            unsafe { crate::ffi::iosurface_get_plane_count(self.surface_ptr) as usize };
+        if plane >= plane_count {
+            return None;
+        }
+        let ptr = unsafe {
+            crate::cm::ffi::io_surface_get_base_address_of_plane(self.surface_ptr.cast_mut(), plane)
+        };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(ptr.cast::<u8>())
+        }
+    }
+
+    /// Get a slice of plane data
+    ///
+    /// Returns the data for a specific plane as a byte slice. The slice size is
+    /// calculated from the plane's height and bytes per row.
+    ///
+    /// Returns `None` if the plane index is out of bounds.
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+    pub fn plane_data(&self, plane: usize) -> Option<&[u8]> {
+        let base = self.base_address_of_plane(plane)?;
+        let height = unsafe {
+            crate::ffi::iosurface_get_height_of_plane(self.surface_ptr, plane as isize) as usize
+        };
+        let bytes_per_row = unsafe {
+            crate::ffi::iosurface_get_bytes_per_row_of_plane(self.surface_ptr, plane as isize)
+                as usize
+        };
+        Some(unsafe { std::slice::from_raw_parts(base, height * bytes_per_row) })
+    }
+
+    /// Get a specific row from a plane as a slice
+    ///
+    /// Returns `None` if the plane or row index is out of bounds.
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+    pub fn plane_row(&self, plane: usize, row_index: usize) -> Option<&[u8]> {
+        let height = unsafe {
+            crate::ffi::iosurface_get_height_of_plane(self.surface_ptr, plane as isize) as usize
+        };
+        if row_index >= height {
+            return None;
+        }
+        let base = self.base_address_of_plane(plane)?;
+        let bytes_per_row = unsafe {
+            crate::ffi::iosurface_get_bytes_per_row_of_plane(self.surface_ptr, plane as isize)
+                as usize
+        };
+        Some(unsafe {
+            std::slice::from_raw_parts(base.add(row_index * bytes_per_row), bytes_per_row)
+        })
+    }
 }
 
 impl Drop for IOSurfaceLockGuard<'_> {
