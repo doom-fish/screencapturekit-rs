@@ -132,6 +132,36 @@ fn test_async_stream_creation() {
 
             // Test inner() accessor
             let _inner = stream.inner();
+
+            // Test debug
+            let debug_str = format!("{:?}", stream);
+            assert!(debug_str.contains("AsyncSCStream"));
+            assert!(debug_str.contains("buffered_count"));
+            assert!(debug_str.contains("is_closed"));
+        }
+    }
+}
+
+#[test]
+fn test_async_stream_with_audio() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    if let Ok(content) = SCShareableContent::get() {
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+            let config = SCStreamConfiguration::new()
+                .with_width(100)
+                .with_height(100);
+
+            // Create with Audio output type
+            let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Audio);
+            assert!(!stream.is_closed());
+            assert_eq!(stream.buffered_count(), 0);
         }
     }
 }
