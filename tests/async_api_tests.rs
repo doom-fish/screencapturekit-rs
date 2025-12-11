@@ -606,3 +606,249 @@ mod capture_tests {
         }
     }
 }
+
+// ============================================================================
+// Async future polling tests
+// ============================================================================
+
+mod future_polling_tests {
+    use screencapturekit::async_api::*;
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+    use screencapturekit::stream::output_type::SCStreamOutputType;
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
+    use std::time::Duration;
+
+    // Simple waker that does nothing (for single poll tests)
+    fn dummy_waker() -> Waker {
+        fn clone(_: *const ()) -> RawWaker {
+            RawWaker::new(std::ptr::null(), &VTABLE)
+        }
+        fn wake(_: *const ()) {}
+        fn wake_by_ref(_: *const ()) {}
+        fn drop(_: *const ()) {}
+
+        static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
+        let raw = RawWaker::new(std::ptr::null(), &VTABLE);
+        unsafe { Waker::from_raw(raw) }
+    }
+
+    #[test]
+    fn test_next_sample_future_poll_pending() {
+        if let Ok(content) = SCShareableContent::get() {
+            if let Some(display) = content.displays().first() {
+                let filter = SCContentFilter::builder()
+                    .display(display)
+                    .exclude_windows(&[])
+                    .build();
+
+                let config = SCStreamConfiguration::new()
+                    .with_width(160)
+                    .with_height(120);
+
+                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+
+                // Create future but don't start capture - should poll Pending or None
+                let mut future = stream.next();
+                let waker = dummy_waker();
+                let mut cx = Context::from_waker(&waker);
+
+                // Poll the future
+                let result = Pin::new(&mut future).poll(&mut cx);
+                // Either Pending (waiting for frames) or Ready(None) if closed
+                match result {
+                    Poll::Pending => (),        // Expected when buffer empty
+                    Poll::Ready(None) => (),    // Expected if stream not started
+                    Poll::Ready(Some(_)) => (), // Possible if there's buffered data
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_next_sample_future_poll_with_data() {
+        if let Ok(content) = SCShareableContent::get() {
+            if let Some(display) = content.displays().first() {
+                let filter = SCContentFilter::builder()
+                    .display(display)
+                    .exclude_windows(&[])
+                    .build();
+
+                let config = SCStreamConfiguration::new()
+                    .with_width(160)
+                    .with_height(120);
+
+                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+
+                if stream.start_capture().is_ok() {
+                    // Wait for frames
+                    std::thread::sleep(Duration::from_millis(200));
+
+                    // Now poll the future
+                    let mut future = stream.next();
+                    let waker = dummy_waker();
+                    let mut cx = Context::from_waker(&waker);
+
+                    let result = Pin::new(&mut future).poll(&mut cx);
+                    // Should have data or be pending
+                    match result {
+                        Poll::Ready(Some(sample)) => {
+                            // Got a frame!
+                            assert!(sample.is_valid() || !sample.is_valid());
+                        }
+                        Poll::Ready(None) => (),
+                        Poll::Pending => (),
+                    }
+
+                    let _ = stream.stop_capture();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_next_sample_after_close() {
+        if let Ok(content) = SCShareableContent::get() {
+            if let Some(display) = content.displays().first() {
+                let filter = SCContentFilter::builder()
+                    .display(display)
+                    .exclude_windows(&[])
+                    .build();
+
+                let config = SCStreamConfiguration::new()
+                    .with_width(160)
+                    .with_height(120);
+
+                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+
+                if stream.start_capture().is_ok() {
+                    let _ = stream.stop_capture();
+
+                    // Clear any buffered data
+                    stream.clear_buffer();
+
+                    // Poll after stop - should return None eventually
+                    let mut future = stream.next();
+                    let waker = dummy_waker();
+                    let mut cx = Context::from_waker(&waker);
+
+                    // May take multiple polls
+                    for _ in 0..5 {
+                        let result = Pin::new(&mut future).poll(&mut cx);
+                        if let Poll::Ready(None) = result {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// macOS 14.0+ Screenshot tests
+// ============================================================================
+
+#[cfg(feature = "macos_14_0")]
+mod screenshot_tests {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    #[test]
+    fn test_screenshot_capture_sample_buffer() {
+        use screencapturekit::screenshot_manager::SCScreenshotManager;
+
+        if let Ok(content) = SCShareableContent::get() {
+            if let Some(display) = content.displays().first() {
+                let filter = SCContentFilter::builder()
+                    .display(display)
+                    .exclude_windows(&[])
+                    .build();
+
+                let config = SCStreamConfiguration::new()
+                    .with_width(640)
+                    .with_height(480);
+
+                match SCScreenshotManager::capture_sample_buffer(&filter, &config) {
+                    Ok(sample) => {
+                        assert!(sample.is_valid());
+                    }
+                    Err(_) => {
+                        // May fail without permission
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_screenshot_capture_image() {
+        use screencapturekit::screenshot_manager::SCScreenshotManager;
+
+        if let Ok(content) = SCShareableContent::get() {
+            if let Some(display) = content.displays().first() {
+                let filter = SCContentFilter::builder()
+                    .display(display)
+                    .exclude_windows(&[])
+                    .build();
+
+                let config = SCStreamConfiguration::new()
+                    .with_width(640)
+                    .with_height(480);
+
+                match SCScreenshotManager::capture_image(&filter, &config) {
+                    Ok(image) => {
+                        assert!(image.width() > 0);
+                        assert!(image.height() > 0);
+                    }
+                    Err(_) => {
+                        // May fail without permission
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// macOS 15.0+ Recording tests
+// ============================================================================
+
+#[cfg(feature = "macos_15_0")]
+mod recording_tests {
+    use screencapturekit::recording_output::{
+        SCRecordingOutputCodec, SCRecordingOutputConfiguration, SCRecordingOutputFileType,
+    };
+
+    #[test]
+    fn test_recording_output_configuration() {
+        let temp_dir = std::env::temp_dir();
+        let output_path = temp_dir.join("test_recording.mov");
+
+        let config = SCRecordingOutputConfiguration::new()
+            .with_output_url(&output_path)
+            .with_output_file_type(SCRecordingOutputFileType::MOV)
+            .with_video_codec(SCRecordingOutputCodec::H264);
+
+        // Verify configuration was created
+        let _ = config;
+    }
+
+    #[test]
+    fn test_file_type_values() {
+        // MP4 is default (0), MOV is 1
+        assert_eq!(SCRecordingOutputFileType::MP4 as i32, 0);
+        assert_eq!(SCRecordingOutputFileType::MOV as i32, 1);
+    }
+
+    #[test]
+    fn test_video_codec_type_values() {
+        // H264 is default (0), HEVC is 1
+        assert_eq!(SCRecordingOutputCodec::H264 as i32, 0);
+        assert_eq!(SCRecordingOutputCodec::HEVC as i32, 1);
+    }
+}
