@@ -353,4 +353,12 @@ extern "C" {
     pub fn io_surface_unlock(surface: *mut std::ffi::c_void, options: u32, seed: *mut u32) -> i32;
     pub fn io_surface_release(surface: *mut std::ffi::c_void);
     pub fn io_surface_retain(surface: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+
+    // CMBlockBuffer creation (for testing)
+    pub fn cm_block_buffer_create_with_data(
+        data: *const std::ffi::c_void,
+        data_length: usize,
+        block_buffer_out: *mut *mut std::ffi::c_void,
+    ) -> i32;
+    pub fn cm_block_buffer_create_empty(block_buffer_out: *mut *mut std::ffi::c_void) -> i32;
 }

@@ -882,3 +882,72 @@ public func cm_format_description_hash(_ formatDescription: UnsafeMutableRawPoin
     let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
     return desc.hashValue
 }
+
+// MARK: - CMBlockBuffer Creation (for testing)
+
+/// Create a CMBlockBuffer with the given data for testing purposes
+@_cdecl("cm_block_buffer_create_with_data")
+public func cm_block_buffer_create_with_data(
+    _ data: UnsafeRawPointer,
+    _ dataLength: Int,
+    _ blockBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
+) -> Int32 {
+    var blockBuffer: CMBlockBuffer?
+    
+    // Create a block buffer with memory block
+    let status = CMBlockBufferCreateWithMemoryBlock(
+        allocator: kCFAllocatorDefault,
+        memoryBlock: nil,  // Let CM allocate memory
+        blockLength: dataLength,
+        blockAllocator: kCFAllocatorDefault,
+        customBlockSource: nil,
+        offsetToData: 0,
+        dataLength: dataLength,
+        flags: 0,
+        blockBufferOut: &blockBuffer
+    )
+    
+    guard status == noErr, let buffer = blockBuffer else {
+        blockBufferOut.pointee = nil
+        return status
+    }
+    
+    // Copy data into the block buffer
+    let copyStatus = CMBlockBufferReplaceDataBytes(
+        with: data,
+        blockBuffer: buffer,
+        offsetIntoDestination: 0,
+        dataLength: dataLength
+    )
+    
+    guard copyStatus == noErr else {
+        blockBufferOut.pointee = nil
+        return copyStatus
+    }
+    
+    blockBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
+    return noErr
+}
+
+/// Create an empty CMBlockBuffer for testing
+@_cdecl("cm_block_buffer_create_empty")
+public func cm_block_buffer_create_empty(
+    _ blockBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
+) -> Int32 {
+    var blockBuffer: CMBlockBuffer?
+    
+    let status = CMBlockBufferCreateEmpty(
+        allocator: kCFAllocatorDefault,
+        capacity: 0,
+        flags: 0,
+        blockBufferOut: &blockBuffer
+    )
+    
+    if status == noErr, let buffer = blockBuffer {
+        blockBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
+    } else {
+        blockBufferOut.pointee = nil
+    }
+    
+    return status
+}

@@ -61,6 +61,66 @@ impl std::hash::Hash for CMBlockBuffer {
 }
 
 impl CMBlockBuffer {
+    /// Create a new `CMBlockBuffer` with the given data
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The data to copy into the block buffer
+    ///
+    /// # Returns
+    ///
+    /// `Some(CMBlockBuffer)` if successful, `None` if creation failed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::cm::CMBlockBuffer;
+    ///
+    /// let data = vec![1u8, 2, 3, 4, 5];
+    /// let buffer = CMBlockBuffer::create(&data).expect("Failed to create buffer");
+    /// assert_eq!(buffer.data_length(), 5);
+    /// ```
+    #[must_use]
+    pub fn create(data: &[u8]) -> Option<Self> {
+        if data.is_empty() {
+            return Self::create_empty();
+        }
+        let mut ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+        let status = unsafe {
+            ffi::cm_block_buffer_create_with_data(data.as_ptr().cast(), data.len(), &mut ptr)
+        };
+        if status == 0 && !ptr.is_null() {
+            Some(Self(ptr))
+        } else {
+            None
+        }
+    }
+
+    /// Create an empty `CMBlockBuffer`
+    ///
+    /// # Returns
+    ///
+    /// `Some(CMBlockBuffer)` if successful, `None` if creation failed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use screencapturekit::cm::CMBlockBuffer;
+    ///
+    /// let buffer = CMBlockBuffer::create_empty().expect("Failed to create empty buffer");
+    /// assert!(buffer.is_empty());
+    /// ```
+    #[must_use]
+    pub fn create_empty() -> Option<Self> {
+        let mut ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+        let status = unsafe { ffi::cm_block_buffer_create_empty(&mut ptr) };
+        if status == 0 && !ptr.is_null() {
+            Some(Self(ptr))
+        } else {
+            None
+        }
+    }
+
     /// Create from a raw pointer, returning `None` if null
     pub fn from_raw(ptr: *mut std::ffi::c_void) -> Option<Self> {
         if ptr.is_null() {

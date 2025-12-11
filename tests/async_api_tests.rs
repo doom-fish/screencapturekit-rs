@@ -1,0 +1,176 @@
+//! Async API tests
+//!
+//! These tests verify the async API types and traits work correctly.
+//! Note: Tests that require screen capture permission are marked no_run.
+
+#![cfg(feature = "async")]
+
+use screencapturekit::async_api::*;
+use screencapturekit::stream::output_type::SCStreamOutputType;
+
+#[test]
+fn test_async_shareable_content_options_builder() {
+    let options = AsyncSCShareableContentOptions::default()
+        .exclude_desktop_windows(true)
+        .on_screen_windows_only(true);
+
+    // Test that builder pattern works (options are consumed)
+    assert_eq!(
+        options,
+        AsyncSCShareableContentOptions::default()
+            .exclude_desktop_windows(true)
+            .on_screen_windows_only(true)
+    );
+}
+
+#[test]
+fn test_async_shareable_content_options_default() {
+    let options = AsyncSCShareableContentOptions::default();
+    let default = AsyncSCShareableContentOptions::default();
+    assert_eq!(options, default);
+}
+
+#[test]
+fn test_async_shareable_content_debug() {
+    let content = AsyncSCShareableContent;
+    let debug_str = format!("{:?}", content);
+    assert!(debug_str.contains("AsyncSCShareableContent"));
+}
+
+#[test]
+fn test_async_shareable_content_future_debug() {
+    // Create a future and verify it has Debug
+    fn assert_debug<T: std::fmt::Debug>() {}
+    assert_debug::<AsyncShareableContentFuture>();
+}
+
+#[test]
+fn test_async_stream_creation() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    // This may fail if no permission, that's OK - we're testing the API surface
+    if let Ok(content) = SCShareableContent::get() {
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+            let config = SCStreamConfiguration::new()
+                .with_width(100)
+                .with_height(100);
+
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+
+            // Test basic methods
+            assert!(!stream.is_closed());
+            assert_eq!(stream.buffered_count(), 0);
+
+            // Test try_next on empty buffer
+            let sample = stream.try_next();
+            assert!(sample.is_none());
+
+            // Test clear_buffer
+            stream.clear_buffer();
+            assert_eq!(stream.buffered_count(), 0);
+
+            // Test inner() accessor
+            let _inner = stream.inner();
+        }
+    }
+}
+
+#[test]
+fn test_async_stream_debug() {
+    fn assert_debug<T: std::fmt::Debug>() {}
+    assert_debug::<AsyncSCStream>();
+}
+
+#[test]
+fn test_next_sample_debug() {
+    fn assert_debug<T: std::fmt::Debug>() {}
+    assert_debug::<NextSample<'_>>();
+}
+
+#[cfg(feature = "macos_14_0")]
+mod macos_14_tests {
+    use super::*;
+
+    #[test]
+    fn test_async_screenshot_manager_exists() {
+        // Just verify the type exists and is accessible
+        let _ = AsyncSCScreenshotManager;
+    }
+
+    #[test]
+    fn test_async_screenshot_future_debug() {
+        fn assert_debug<T: std::fmt::Debug>() {}
+        assert_debug::<AsyncScreenshotFuture<()>>();
+    }
+
+    #[test]
+    fn test_async_picker_future_debug() {
+        fn assert_debug<T: std::fmt::Debug>() {}
+        assert_debug::<AsyncPickerFuture>();
+        assert_debug::<AsyncPickerFilterFuture>();
+    }
+
+    #[test]
+    fn test_async_content_sharing_picker_exists() {
+        let _ = AsyncSCContentSharingPicker;
+    }
+}
+
+#[cfg(feature = "macos_15_0")]
+mod macos_15_tests {
+    use super::*;
+
+    #[test]
+    fn test_recording_event_variants() {
+        let started = RecordingEvent::Started;
+        let finished = RecordingEvent::Finished;
+        let failed = RecordingEvent::Failed("test error".to_string());
+
+        assert_eq!(started, RecordingEvent::Started);
+        assert_eq!(finished, RecordingEvent::Finished);
+        assert_ne!(started, finished);
+
+        if let RecordingEvent::Failed(msg) = failed {
+            assert_eq!(msg, "test error");
+        } else {
+            panic!("Expected Failed variant");
+        }
+    }
+
+    #[test]
+    fn test_recording_event_debug() {
+        let event = RecordingEvent::Started;
+        let debug_str = format!("{:?}", event);
+        assert!(debug_str.contains("Started"));
+
+        let event = RecordingEvent::Failed("error".to_string());
+        let debug_str = format!("{:?}", event);
+        assert!(debug_str.contains("Failed"));
+        assert!(debug_str.contains("error"));
+    }
+
+    #[test]
+    fn test_recording_event_clone() {
+        let event = RecordingEvent::Failed("clone test".to_string());
+        let cloned = event.clone();
+        assert_eq!(event, cloned);
+    }
+
+    #[test]
+    fn test_next_recording_event_debug() {
+        fn assert_debug<T: std::fmt::Debug>() {}
+        assert_debug::<NextRecordingEvent<'_>>();
+    }
+
+    #[test]
+    fn test_async_recording_output_debug() {
+        fn assert_debug<T: std::fmt::Debug>() {}
+        assert_debug::<AsyncSCRecordingOutput>();
+    }
+}
