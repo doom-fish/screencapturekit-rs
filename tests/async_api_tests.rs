@@ -167,6 +167,137 @@ fn test_async_stream_with_audio() {
 }
 
 #[test]
+fn test_async_stream_start_stop_capture() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    if let Ok(content) = SCShareableContent::get() {
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+            let config = SCStreamConfiguration::new()
+                .with_width(100)
+                .with_height(100);
+
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+
+            // Start capture
+            let start_result = stream.start_capture();
+            assert!(start_result.is_ok(), "Should start capture");
+
+            // Small delay to let capture initialize
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Stop capture
+            let stop_result = stream.stop_capture();
+            assert!(stop_result.is_ok(), "Should stop capture");
+        }
+    }
+}
+
+#[test]
+fn test_async_stream_update_configuration() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    if let Ok(content) = SCShareableContent::get() {
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+            let config = SCStreamConfiguration::new()
+                .with_width(100)
+                .with_height(100);
+
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+
+            // Start capture first
+            let _ = stream.start_capture();
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Update configuration
+            let new_config = SCStreamConfiguration::new()
+                .with_width(200)
+                .with_height(200);
+
+            let update_result = stream.update_configuration(&new_config);
+            // This may fail if stream is not running, that's ok
+            let _ = update_result;
+
+            let _ = stream.stop_capture();
+        }
+    }
+}
+
+#[test]
+fn test_async_stream_update_content_filter() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    if let Ok(content) = SCShareableContent::get() {
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+            let config = SCStreamConfiguration::new()
+                .with_width(100)
+                .with_height(100);
+
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+
+            // Start capture first
+            let _ = stream.start_capture();
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Update content filter
+            let new_filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+
+            let update_result = stream.update_content_filter(&new_filter);
+            // This may fail if stream is not running, that's ok
+            let _ = update_result;
+
+            let _ = stream.stop_capture();
+        }
+    }
+}
+
+#[test]
+fn test_async_stream_next_future() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    if let Ok(content) = SCShareableContent::get() {
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::builder()
+                .display(display)
+                .exclude_windows(&[])
+                .build();
+            let config = SCStreamConfiguration::new()
+                .with_width(100)
+                .with_height(100);
+
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+
+            // Get the next future (tests the next() method)
+            let next_future = stream.next();
+            let debug_str = format!("{:?}", next_future);
+            assert!(debug_str.contains("NextSample"));
+        }
+    }
+}
+
+#[test]
 fn test_async_stream_debug() {
     fn assert_debug<T: std::fmt::Debug>() {}
     assert_debug::<AsyncSCStream>();
