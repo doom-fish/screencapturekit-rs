@@ -292,7 +292,7 @@
 //! let windows = content.windows();
 //! let window = windows
 //!     .iter()
-//!     .find(|w| w.title().as_deref() == Some("Safari"))
+//!     .find(|w| w.title().is_some_and(|t| t == "Safari"))
 //!     .ok_or("Window not found")?;
 //!
 //! let filter = SCContentFilter::builder()
