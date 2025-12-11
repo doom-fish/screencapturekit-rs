@@ -8,7 +8,7 @@
 > **💼 Looking for a hosted desktop recording API?**  
 > Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) - an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
 
-<video src="docs/assets/demo.mp4" autoplay loop muted playsinline width="100%"></video>
+![Demo](docs/assets/demo.gif)
 
 Safe, idiomatic Rust bindings for Apple's [ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit) framework.
 
