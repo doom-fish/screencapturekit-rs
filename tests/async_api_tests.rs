@@ -1145,3 +1145,38 @@ mod tokio_async_tests {
         }
     }
 }
+
+// ============================================================================
+// Additional async coverage tests
+// ============================================================================
+
+#[cfg(feature = "async")]
+mod additional_async_tests {
+    use screencapturekit::async_api::*;
+
+    #[tokio::test]
+    async fn test_async_shareable_content_below_window() {
+        let content = AsyncSCShareableContent::get().await.unwrap();
+        if let Some(window) = content.windows().first() {
+            let result = AsyncSCShareableContent::with_options()
+                .exclude_desktop_windows(true)
+                .below_window(window)
+                .await;
+            // May succeed or fail depending on window state
+            let _ = result;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_async_shareable_content_above_window() {
+        let content = AsyncSCShareableContent::get().await.unwrap();
+        if let Some(window) = content.windows().first() {
+            let result = AsyncSCShareableContent::with_options()
+                .exclude_desktop_windows(false)
+                .above_window(window)
+                .await;
+            // May succeed or fail depending on window state
+            let _ = result;
+        }
+    }
+}

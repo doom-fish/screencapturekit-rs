@@ -1383,3 +1383,170 @@ fn test_mtl_primitive_type_copy() {
     let copy = ptype;
     assert_eq!(ptype.raw(), copy.raw());
 }
+
+// YCbCr surface and Metal texture tests
+mod ycbcr_tests {
+    use screencapturekit::output::iosurface::{IOSurface, PlaneProperties};
+    use screencapturekit::output::metal::MetalDevice;
+
+    fn create_ycbcr_surface(width: usize, height: usize) -> Option<IOSurface> {
+        let y_bytes_per_row = (width + 63) & !63;
+        let y_size = y_bytes_per_row * height;
+
+        let uv_width = width / 2;
+        let uv_height = height / 2;
+        let uv_bytes_per_row = ((uv_width * 2) + 63) & !63;
+        let uv_size = uv_bytes_per_row * uv_height;
+
+        let alloc_size = y_size + uv_size;
+
+        let planes = [
+            PlaneProperties {
+                width,
+                height,
+                bytes_per_row: y_bytes_per_row,
+                bytes_per_element: 1,
+                offset: 0,
+                size: y_size,
+            },
+            PlaneProperties {
+                width: uv_width,
+                height: uv_height,
+                bytes_per_row: uv_bytes_per_row,
+                bytes_per_element: 2,
+                offset: y_size,
+                size: uv_size,
+            },
+        ];
+
+        IOSurface::create_with_properties(
+            width,
+            height,
+            0x34323076, // '420v'
+            1,
+            y_bytes_per_row,
+            alloc_size,
+            Some(&planes),
+        )
+    }
+
+    #[test]
+    fn test_ycbcr_surface_texture_params() {
+        let width = 128;
+        let height = 128;
+
+        if let Some(surface) = create_ycbcr_surface(width, height) {
+            let params = surface.texture_params();
+
+            // YCbCr should have 2 texture params
+            assert_eq!(params.len(), 2);
+
+            // First plane (Y) should be full size
+            assert_eq!(params[0].width, width);
+            assert_eq!(params[0].height, height);
+            assert_eq!(params[0].plane, 0);
+
+            // Second plane (UV) should be half size
+            assert_eq!(params[1].width, width / 2);
+            assert_eq!(params[1].height, height / 2);
+            assert_eq!(params[1].plane, 1);
+        }
+    }
+
+    #[test]
+    fn test_ycbcr_metal_textures() {
+        if let Some(_device) = MetalDevice::system_default() {
+            if let Some(surface) = create_ycbcr_surface(64, 64) {
+                // Use metal_textures with a simple closure
+                let textures =
+                    surface.metal_textures(|_params, _iosurface_ptr| -> Option<()> { None });
+                assert!(textures.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn test_ycbcr_420f_surface() {
+        let width = 64;
+        let height = 64;
+
+        let y_bytes_per_row = (width + 63) & !63;
+        let y_size = y_bytes_per_row * height;
+        let uv_width = width / 2;
+        let uv_height = height / 2;
+        let uv_bytes_per_row = ((uv_width * 2) + 63) & !63;
+        let uv_size = uv_bytes_per_row * uv_height;
+        let alloc_size = y_size + uv_size;
+
+        let planes = [
+            PlaneProperties {
+                width,
+                height,
+                bytes_per_row: y_bytes_per_row,
+                bytes_per_element: 1,
+                offset: 0,
+                size: y_size,
+            },
+            PlaneProperties {
+                width: uv_width,
+                height: uv_height,
+                bytes_per_row: uv_bytes_per_row,
+                bytes_per_element: 2,
+                offset: y_size,
+                size: uv_size,
+            },
+        ];
+
+        if let Some(surface) = IOSurface::create_with_properties(
+            width,
+            height,
+            0x34323066, // '420f'
+            1,
+            y_bytes_per_row,
+            alloc_size,
+            Some(&planes),
+        ) {
+            let params = surface.texture_params();
+            assert_eq!(params.len(), 2);
+            assert!(surface.is_ycbcr_biplanar());
+        }
+    }
+
+    #[test]
+    fn test_unknown_format_fallback() {
+        let width = 64;
+        let height = 64;
+        let bytes_per_row = (width * 4 + 63) & !63;
+        let alloc_size = bytes_per_row * height;
+
+        if let Some(surface) = IOSurface::create_with_properties(
+            width,
+            height,
+            0x12345678, // Unknown format
+            4,
+            bytes_per_row,
+            alloc_size,
+            None,
+        ) {
+            let params = surface.texture_params();
+            // Should fall back to BGRA single plane
+            assert_eq!(params.len(), 1);
+            assert_eq!(params[0].plane, 0);
+        }
+    }
+
+    #[test]
+    fn test_iosurface_info() {
+        let width = 128;
+        let height = 96;
+
+        if let Some(surface) = create_ycbcr_surface(width, height) {
+            let info = surface.info();
+
+            assert_eq!(info.width, width);
+            assert_eq!(info.height, height);
+            assert_eq!(info.plane_count, 2);
+            assert!(info.planes.len() >= 2);
+        }
+    }
+}
