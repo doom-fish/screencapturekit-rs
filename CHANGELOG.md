@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.3.0...v1.4.0) - 2025-12-11
+
+### Added
+
+- *(iosurface)* add plane access methods to lock guard
+- add IOSurface::create_with_properties for multi-planar surfaces
+- *(examples)* improve metal app VU meter and add texture example
+- *(cm)* add comprehensive CMBlockBuffer API with cursor support
+- *(example)* demonstrate IOSurface introspection APIs
+- expand IOSurface API and add async improvements
+- *(metal)* add vertex descriptor and UI helpers
+- *(cm)* add Debug and Clone impls for CoreMedia types
+- *(recording,screenshot)* add Debug impls
+- *(stream)* add delegate registry with reference counting
+- *(async)* add Debug impls for async types
+- add Metal/IOSurface helpers and audio format improvements
+- *(screenshot)* add multi-format image saving support
+- *(cm)* add frame info accessors to CMSampleBuffer
+
+### Fixed
+
+- *(tests)* update import after completion rename
+- *(docs)* use ignore for async feature-gated doctest
+- *(error)* correct SCStreamErrorCode values to match Apple SDK
+- *(recording)* use ref-counted delegate registry for SCRecordingOutput
+- *(example)* add window fallback and CG init to 02_window_capture
+- *(example)* handle NaN in waveform vertex calculation
+- *(example)* handle NaN in waveform peak calculation
+- *(stream)* clone handlers when cloning SCStream
+- *(stream)* increment delegate ref count on clone
+- *(filter)* remove Default impl and panic on empty builder
+
+### Other
+
+- remove demo.mp4 from git tracking (now hosted externally)
+- Update README.md
+- Add GitHub asset link to README
+- Update README.md
+- update
+- update video
+- move demo video before TOC
+- add 15s high quality demo video
+- use GIF for README demo (GitHub compatibility)
+- add demo video to README
+- improve module documentation with examples and tables
+- reorganize pixel buffer and IOSurface modules
+- add tokio async/await tests for FFI callbacks
+- add content sharing picker tests
+- add async future polling and version-specific tests
+- add async stream capture tests
+- add async stream lifecycle tests
+- add Metal vertex descriptor and render encoder tests
+- expand async stream tests
+- add Metal layer, render pass, buffer, and closure API tests
+- add comprehensive Metal device and texture tests
+- expand async API and metal tests
+- add IOSurface creation API and comprehensive tests
+- add comprehensive tests for CMBlockBuffer, pixel buffer, and async API
+- cancel in-progress runs on new push to same branch
+- *(tests)* extract inline tests from metal.rs to tests/
+- remove macos-14-intel from CI matrix
+- *(cm)* remove unused SCStreamFrameInfoKey
+- *(utils)* rename sync_completion to completion
+- *(cg)* split into separate modules
+- use macos-14-intel instead of macos-14-large
+- add cargo fmt to testing instructions
+- apply cargo fmt formatting
+- use macos-15-intel label, remove macos-26 Intel (not available)
+- update matrix to include Intel/ARM for macOS 14+
+- *(deps)* update winit to 0.30 and raw-window-handle to 0.6
+- fix formatting issues
+- *(examples)* improve full_metal_app example
+- *(swift)* minor formatting cleanup
+- remove unused dependency
+- *(async_api)* convert doc examples from ignore to no_run
+- *(content_sharing_picker)* convert doc examples from ignore to no_run
+- *(metal)* convert doc examples from ignore to no_run
+- *(screenshot_manager)* convert doc examples from ignore to no_run
+- *(configuration)* convert doc examples from ignore to no_run
+- *(sync_completion)* convert doc example from ignore to no_run
+- update README to use macos_26_0 as latest feature
+- fix rustfmt formatting issues
+- *(tests)* rename sync_completion_tests to completion_tests
+
 ## [1.3.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.2.0...v1.3.0) - 2025-11-30
 
 ### Added
