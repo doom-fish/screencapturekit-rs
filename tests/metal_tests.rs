@@ -1,7 +1,6 @@
 //! Tests for Metal integration and pixel format utilities
 
 use screencapturekit::output::metal::pixel_format;
-use screencapturekit::output::metal::PlaneInfo;
 use screencapturekit::output::metal::Uniforms;
 use screencapturekit::output::metal::{
     MTLBlendFactor, MTLBlendOperation, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
@@ -203,6 +202,363 @@ fn test_shader_source_exists() {
     assert!(SHADER_SOURCE.contains("fragment_ycbcr"));
     assert!(SHADER_SOURCE.contains("vertex_colored"));
     assert!(SHADER_SOURCE.contains("fragment_colored"));
+}
+
+// ============================================================================
+// Metal Device Tests (requires actual GPU)
+// ============================================================================
+
+mod metal_device_tests {
+    use screencapturekit::output::metal::MetalDevice;
+
+    #[test]
+    fn test_metal_device_system_default() {
+        let device = MetalDevice::system_default();
+        assert!(device.is_some(), "Should have a Metal device on macOS");
+    }
+
+    #[test]
+    fn test_metal_device_name() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let name = device.name();
+        assert!(!name.is_empty(), "Device should have a name");
+        println!("Metal device: {}", name);
+    }
+
+    #[test]
+    fn test_metal_device_as_ptr() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let ptr = device.as_ptr();
+        assert!(!ptr.is_null());
+    }
+
+    #[test]
+    fn test_metal_device_debug() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let debug_str = format!("{:?}", device);
+        assert!(debug_str.contains("MetalDevice"));
+    }
+
+    #[test]
+    fn test_metal_command_queue_creation() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let queue = device.create_command_queue();
+        assert!(queue.is_some(), "Should be able to create command queue");
+    }
+
+    #[test]
+    fn test_metal_command_queue_as_ptr() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let queue = device.create_command_queue().expect("No command queue");
+        let ptr = queue.as_ptr();
+        assert!(!ptr.is_null());
+    }
+
+    #[test]
+    fn test_metal_command_queue_debug() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let queue = device.create_command_queue().expect("No command queue");
+        let debug_str = format!("{:?}", queue);
+        assert!(debug_str.contains("MetalCommandQueue"));
+    }
+
+    #[test]
+    fn test_metal_library_creation() {
+        use screencapturekit::output::metal::SHADER_SOURCE;
+
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let library = device.create_library_with_source(SHADER_SOURCE);
+        assert!(library.is_ok(), "Should compile shaders: {:?}", library);
+    }
+
+    #[test]
+    fn test_metal_library_get_function() {
+        use screencapturekit::output::metal::SHADER_SOURCE;
+
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let library = device
+            .create_library_with_source(SHADER_SOURCE)
+            .expect("Failed to compile shaders");
+
+        // Test getting vertex and fragment functions
+        let vertex_fn = library.get_function("vertex_fullscreen");
+        assert!(vertex_fn.is_some(), "Should find vertex_fullscreen");
+
+        let fragment_fn = library.get_function("fragment_textured");
+        assert!(fragment_fn.is_some(), "Should find fragment_textured");
+
+        let ycbcr_fn = library.get_function("fragment_ycbcr");
+        assert!(ycbcr_fn.is_some(), "Should find fragment_ycbcr");
+
+        // Non-existent function should return None
+        let missing_fn = library.get_function("nonexistent_function");
+        assert!(missing_fn.is_none());
+    }
+
+    #[test]
+    fn test_metal_function_debug() {
+        use screencapturekit::output::metal::SHADER_SOURCE;
+
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let library = device
+            .create_library_with_source(SHADER_SOURCE)
+            .expect("Failed to compile shaders");
+        let function = library
+            .get_function("vertex_fullscreen")
+            .expect("No function");
+
+        let debug_str = format!("{:?}", function);
+        assert!(debug_str.contains("MetalFunction"));
+    }
+
+    #[test]
+    fn test_metal_command_buffer() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let queue = device.create_command_queue().expect("No command queue");
+        let buffer = queue.command_buffer();
+        assert!(buffer.is_some(), "Should create command buffer");
+    }
+
+    #[test]
+    fn test_metal_command_buffer_commit() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let queue = device.create_command_queue().expect("No command queue");
+        let buffer = queue.command_buffer().expect("No command buffer");
+
+        // Commit should not panic
+        buffer.commit();
+    }
+}
+
+// ============================================================================
+// Metal Texture Tests (requires IOSurface + GPU)
+// ============================================================================
+
+mod metal_texture_tests {
+    use screencapturekit::output::metal::MetalDevice;
+    use screencapturekit::output::IOSurface;
+
+    // Note: IOSurface textures require 16-byte aligned bytesPerRow
+    // For BGRA (4 bytes per pixel), width must be multiple of 4
+
+    #[test]
+    fn test_create_metal_textures_from_iosurface() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let surface =
+            IOSurface::create(128, 128, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let textures = surface.create_metal_textures(&device);
+        assert!(textures.is_some(), "Should create textures");
+
+        let textures = textures.unwrap();
+        assert_eq!(textures.width, 128);
+        assert_eq!(textures.height, 128);
+        assert!(textures.plane1.is_none(), "BGRA should be single-plane");
+        assert!(!textures.is_ycbcr());
+    }
+
+    #[test]
+    fn test_metal_texture_dimensions() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let surface =
+            IOSurface::create(256, 192, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let textures = surface
+            .create_metal_textures(&device)
+            .expect("Failed to create textures");
+
+        assert_eq!(textures.plane0.width(), 256);
+        assert_eq!(textures.plane0.height(), 192);
+    }
+
+    #[test]
+    fn test_metal_texture_pixel_format() {
+        use screencapturekit::output::metal::MetalPixelFormat;
+
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let surface = IOSurface::create(64, 64, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let textures = surface
+            .create_metal_textures(&device)
+            .expect("Failed to create textures");
+
+        // BGRA should use BGRA8Unorm
+        assert_eq!(textures.plane0.pixel_format(), MetalPixelFormat::BGRA8Unorm);
+    }
+
+    #[test]
+    fn test_metal_texture_as_ptr() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let surface = IOSurface::create(64, 64, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let textures = surface
+            .create_metal_textures(&device)
+            .expect("Failed to create textures");
+
+        let ptr = textures.plane0.as_ptr();
+        assert!(!ptr.is_null());
+    }
+
+    #[test]
+    fn test_metal_texture_debug() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let surface = IOSurface::create(64, 64, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let textures = surface
+            .create_metal_textures(&device)
+            .expect("Failed to create textures");
+
+        let debug_str = format!("{:?}", textures.plane0);
+        assert!(debug_str.contains("MetalTexture"));
+    }
+
+    #[test]
+    fn test_captured_textures_debug() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let surface = IOSurface::create(64, 64, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let textures = surface
+            .create_metal_textures(&device)
+            .expect("Failed to create textures");
+
+        let debug_str = format!("{:?}", textures);
+        assert!(debug_str.contains("CapturedTextures"));
+    }
+
+    #[test]
+    fn test_texture_params() {
+        let surface =
+            IOSurface::create(128, 128, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let params = surface.texture_params();
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0].width, 128);
+        assert_eq!(params[0].height, 128);
+        assert_eq!(params[0].plane, 0);
+    }
+
+    #[test]
+    fn test_texture_params_metal_pixel_format() {
+        use screencapturekit::output::metal::MetalPixelFormat;
+
+        let surface =
+            IOSurface::create(128, 128, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let params = surface.texture_params();
+        assert_eq!(
+            params[0].metal_pixel_format(),
+            MetalPixelFormat::BGRA8Unorm.raw()
+        );
+    }
+
+    #[test]
+    fn test_uniforms_from_captured_textures() {
+        use screencapturekit::output::metal::Uniforms;
+
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let surface =
+            IOSurface::create(1920, 1080, 0x42475241, 4).expect("Failed to create IOSurface");
+
+        let textures = surface
+            .create_metal_textures(&device)
+            .expect("Failed to create textures");
+
+        let uniforms = Uniforms::from_captured_textures(1920.0, 1080.0, &textures);
+
+        assert!((uniforms.viewport_size[0] - 1920.0).abs() < f32::EPSILON);
+        assert!((uniforms.viewport_size[1] - 1080.0).abs() < f32::EPSILON);
+        assert!((uniforms.texture_size[0] - 1920.0).abs() < f32::EPSILON);
+        assert!((uniforms.texture_size[1] - 1080.0).abs() < f32::EPSILON);
+        assert_eq!(uniforms.pixel_format, 0x42475241);
+    }
+}
+
+// ============================================================================
+// Render Pipeline Tests
+// ============================================================================
+
+mod metal_pipeline_tests {
+    use screencapturekit::output::metal::{
+        MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor, SHADER_SOURCE,
+    };
+
+    #[test]
+    fn test_render_pipeline_descriptor_creation() {
+        let desc = MetalRenderPipelineDescriptor::new();
+        let debug_str = format!("{:?}", desc);
+        assert!(debug_str.contains("MetalRenderPipelineDescriptor"));
+    }
+
+    #[test]
+    fn test_render_pipeline_descriptor_with_functions() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let library = device
+            .create_library_with_source(SHADER_SOURCE)
+            .expect("Failed to compile shaders");
+
+        let vertex_fn = library
+            .get_function("vertex_fullscreen")
+            .expect("No vertex function");
+        let fragment_fn = library
+            .get_function("fragment_textured")
+            .expect("No fragment function");
+
+        let desc = MetalRenderPipelineDescriptor::new();
+        desc.set_vertex_function(&vertex_fn);
+        desc.set_fragment_function(&fragment_fn);
+
+        let debug_str = format!("{:?}", desc);
+        assert!(debug_str.contains("MetalRenderPipelineDescriptor"));
+    }
+
+    #[test]
+    fn test_render_pipeline_state_creation() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let library = device
+            .create_library_with_source(SHADER_SOURCE)
+            .expect("Failed to compile shaders");
+
+        let vertex_fn = library
+            .get_function("vertex_fullscreen")
+            .expect("No vertex function");
+        let fragment_fn = library
+            .get_function("fragment_textured")
+            .expect("No fragment function");
+
+        let desc = MetalRenderPipelineDescriptor::new();
+        desc.set_vertex_function(&vertex_fn);
+        desc.set_fragment_function(&fragment_fn);
+        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+
+        let pipeline = device.create_render_pipeline_state(&desc);
+        assert!(pipeline.is_some(), "Should create pipeline state");
+    }
+
+    #[test]
+    fn test_render_pipeline_state_debug() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let library = device
+            .create_library_with_source(SHADER_SOURCE)
+            .expect("Failed to compile shaders");
+
+        let vertex_fn = library
+            .get_function("vertex_fullscreen")
+            .expect("No vertex function");
+        let fragment_fn = library
+            .get_function("fragment_textured")
+            .expect("No fragment function");
+
+        let desc = MetalRenderPipelineDescriptor::new();
+        desc.set_vertex_function(&vertex_fn);
+        desc.set_fragment_function(&fragment_fn);
+        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+
+        let pipeline = device
+            .create_render_pipeline_state(&desc)
+            .expect("No pipeline");
+        let debug_str = format!("{:?}", pipeline);
+        assert!(debug_str.contains("MetalRenderPipelineState"));
+    }
 }
 
 #[test]
