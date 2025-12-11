@@ -852,3 +852,128 @@ mod recording_tests {
         assert_eq!(SCRecordingOutputCodec::HEVC as i32, 1);
     }
 }
+
+// ============================================================================
+// macOS 14.0+ Content Sharing Picker tests
+// ============================================================================
+
+#[cfg(feature = "macos_14_0")]
+mod content_picker_tests {
+    use screencapturekit::content_sharing_picker::*;
+
+    #[test]
+    fn test_picker_configuration_new() {
+        let config = SCContentSharingPickerConfiguration::new();
+        // Default should allow changing content
+        let _ = config;
+    }
+
+    #[test]
+    fn test_picker_configuration_allows_changing_content() {
+        let mut config = SCContentSharingPickerConfiguration::new();
+
+        config.set_allows_changing_selected_content(true);
+        assert!(config.allows_changing_selected_content());
+
+        config.set_allows_changing_selected_content(false);
+        assert!(!config.allows_changing_selected_content());
+    }
+
+    #[test]
+    fn test_picker_configuration_allowed_modes() {
+        let mut config = SCContentSharingPickerConfiguration::new();
+
+        config.set_allowed_picker_modes(&[
+            SCContentSharingPickerMode::SingleWindow,
+            SCContentSharingPickerMode::MultipleWindows,
+        ]);
+
+        // Just verify it doesn't crash
+        let _ = config;
+    }
+
+    #[test]
+    fn test_picker_configuration_excluded_bundle_ids() {
+        let mut config = SCContentSharingPickerConfiguration::new();
+
+        config.set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"]);
+        let excluded = config.excluded_bundle_ids();
+        assert_eq!(excluded.len(), 2);
+        assert!(excluded.contains(&"com.apple.finder".to_string()));
+        assert!(excluded.contains(&"com.apple.dock".to_string()));
+    }
+
+    #[test]
+    fn test_picker_configuration_excluded_window_ids() {
+        let mut config = SCContentSharingPickerConfiguration::new();
+
+        config.set_excluded_window_ids(&[123, 456, 789]);
+        let excluded = config.excluded_window_ids();
+        assert_eq!(excluded.len(), 3);
+        assert!(excluded.contains(&123));
+        assert!(excluded.contains(&456));
+        assert!(excluded.contains(&789));
+    }
+
+    #[test]
+    fn test_picker_mode_values() {
+        assert_eq!(SCContentSharingPickerMode::SingleWindow as i32, 0);
+        assert_eq!(SCContentSharingPickerMode::MultipleWindows as i32, 1);
+        assert_eq!(SCContentSharingPickerMode::SingleDisplay as i32, 2);
+        assert_eq!(SCContentSharingPickerMode::SingleApplication as i32, 3);
+        assert_eq!(SCContentSharingPickerMode::MultipleApplications as i32, 4);
+    }
+
+    #[test]
+    fn test_picker_mode_debug() {
+        let mode = SCContentSharingPickerMode::SingleWindow;
+        let debug_str = format!("{:?}", mode);
+        assert!(debug_str.contains("SingleWindow"));
+    }
+
+    #[test]
+    fn test_picker_mode_clone() {
+        let mode1 = SCContentSharingPickerMode::MultipleWindows;
+        let mode2 = mode1;
+        assert_eq!(mode1, mode2);
+    }
+
+    #[test]
+    fn test_picked_source_variants() {
+        let window_source = SCPickedSource::Window("Test Window".to_string());
+        let display_source = SCPickedSource::Display(1);
+        let app_source = SCPickedSource::Application("Test App".to_string());
+        let unknown_source = SCPickedSource::Unknown;
+
+        // Just verify they can be created
+        let _ = (window_source, display_source, app_source, unknown_source);
+    }
+
+    #[test]
+    fn test_picked_source_debug() {
+        let source = SCPickedSource::Display(1);
+        let debug_str = format!("{:?}", source);
+        assert!(debug_str.contains("Display"));
+    }
+
+    #[test]
+    fn test_picker_outcome_debug() {
+        let outcome = SCPickerOutcome::Cancelled;
+        let debug_str = format!("{:?}", outcome);
+        assert!(debug_str.contains("Cancelled"));
+    }
+
+    #[test]
+    fn test_picker_filter_outcome_debug() {
+        let outcome = SCPickerFilterOutcome::Cancelled;
+        let debug_str = format!("{:?}", outcome);
+        assert!(debug_str.contains("Cancelled"));
+    }
+
+    #[test]
+    fn test_set_maximum_stream_count() {
+        // Just verify it doesn't crash
+        SCContentSharingPicker::set_maximum_stream_count(5);
+        SCContentSharingPicker::set_maximum_stream_count(1);
+    }
+}
