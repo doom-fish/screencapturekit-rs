@@ -13,8 +13,6 @@ Safe, idiomatic Rust bindings for Apple's [ScreenCaptureKit](https://developer.a
 Capture screen content, windows, and applications with high performance and low overhead on macOS 12.3+.
 
 
-https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d
-
 
 
 ## 📑 Table of Contents
@@ -43,6 +41,10 @@ https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d
 - 🎨 **IOSurface Access** - Zero-copy GPU texture access for Metal/OpenGL
 - 🛡️ **Memory Safe** - Proper reference counting and leak-free by design
 - 📦 **Zero Dependencies** - No runtime dependencies (only dev dependencies for examples)
+
+
+
+https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d
 
 ## 📦 Installation
 
