@@ -287,7 +287,7 @@ Zero-copy GPU texture access:
 impl SCStreamOutputTrait for Handler {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
         if let Some(pixel_buffer) = sample.image_buffer() {
-            if let Some(surface) = pixel_buffer.io_surface() {
+            if let Some(surface) = pixel_buffer.iosurface() {
                 let width = surface.width();
                 let height = surface.height();
                 
@@ -298,6 +298,87 @@ impl SCStreamOutputTrait for Handler {
     }
 }
 ```
+
+### Metal Integration
+
+Built-in Metal types for hardware-accelerated rendering without external crates:
+
+```rust
+use screencapturekit::output::metal::{
+    MetalDevice, MetalLayer, MetalRenderPassDescriptor, MetalRenderPipelineDescriptor,
+    MTLLoadAction, MTLStoreAction, MTLPrimitiveType, MTLPixelFormat,
+    Uniforms, SHADER_SOURCE,
+};
+use screencapturekit::output::CVPixelBufferIOSurface;
+
+// Get the system default Metal device
+let device = MetalDevice::system_default().expect("No Metal device");
+let command_queue = device.create_command_queue().unwrap();
+
+// Compile built-in shaders (supports BGRA, YCbCr, UI overlays)
+let library = device.create_library_with_source(SHADER_SOURCE)?;
+
+// Create render pipeline for textured rendering
+let vert_fn = library.get_function("vertex_fullscreen").unwrap();
+let frag_fn = library.get_function("fragment_textured").unwrap();
+let pipeline_desc = MetalRenderPipelineDescriptor::new();
+pipeline_desc.set_vertex_function(&vert_fn);
+pipeline_desc.set_fragment_function(&frag_fn);
+pipeline_desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+let pipeline = device.create_render_pipeline_state(&pipeline_desc).unwrap();
+
+// In your frame handler - create textures and render
+impl SCStreamOutputTrait for Handler {
+    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
+        if let Some(pixel_buffer) = sample.image_buffer() {
+            if let Some(surface) = pixel_buffer.iosurface() {
+                // Zero-copy texture creation from IOSurface
+                if let Some(textures) = surface.create_metal_textures(&device) {
+                    // Create uniforms for aspect-ratio-preserving rendering
+                    let uniforms = Uniforms::from_captured_textures(
+                        viewport_width, viewport_height, &textures
+                    );
+                    let uniform_buffer = device.create_buffer_with_data(&uniforms).unwrap();
+                    
+                    // Render to a CAMetalLayer drawable
+                    let drawable = layer.next_drawable().unwrap();
+                    let cmd_buffer = command_queue.command_buffer().unwrap();
+                    
+                    let render_pass = MetalRenderPassDescriptor::new();
+                    render_pass.set_color_attachment_texture(0, &drawable.texture());
+                    render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
+                    render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+                    
+                    let encoder = cmd_buffer.render_command_encoder(&render_pass).unwrap();
+                    encoder.set_render_pipeline_state(&pipeline);
+                    encoder.set_vertex_buffer(&uniform_buffer, 0, 0);
+                    encoder.set_fragment_texture(&textures.plane0, 0);
+                    if let Some(ref plane1) = textures.plane1 {
+                        encoder.set_fragment_texture(plane1, 1);  // CbCr for YCbCr
+                    }
+                    encoder.draw_primitives(MTLPrimitiveType::TriangleStrip, 0, 4);
+                    encoder.end_encoding();
+                    
+                    cmd_buffer.present_drawable(&drawable);
+                    cmd_buffer.commit();
+                }
+            }
+        }
+    }
+}
+```
+
+**Built-in Shader Functions:**
+- `vertex_fullscreen` - Aspect-ratio-preserving fullscreen quad
+- `fragment_textured` - BGRA/L10R single-texture rendering
+- `fragment_ycbcr` - YCbCr biplanar (420v/420f) to RGB conversion
+- `vertex_colored` / `fragment_colored` - UI overlay rendering
+
+**Metal Types:**
+- `MetalDevice`, `MetalCommandQueue`, `MetalCommandBuffer`
+- `MetalTexture`, `MetalBuffer`, `MetalLayer`, `MetalDrawable`
+- `MetalRenderPipelineState`, `MetalRenderPassDescriptor`
+- `CapturedTextures<T>` - Multi-plane texture container (Y + CbCr for YCbCr formats)
 
 ## 🎛️ Feature Flags
 
@@ -368,6 +449,17 @@ config.set_should_be_opaque(true);
 - **`IOSurface`** - GPU-backed pixel buffers
 - **`CGImage`** - CoreGraphics images
 
+### Metal Types (output::metal)
+
+- **`MetalDevice`** - Metal GPU device wrapper
+- **`MetalTexture`** - Metal texture with automatic retain/release
+- **`MetalBuffer`** - Vertex/uniform buffer
+- **`MetalCommandQueue`** / **`MetalCommandBuffer`** - Command submission
+- **`MetalLayer`** - CAMetalLayer for window rendering
+- **`MetalRenderPipelineState`** - Compiled render pipeline
+- **`CapturedTextures<T>`** - Multi-plane texture container (Y + CbCr for YCbCr formats)
+- **`Uniforms`** - Shader uniform structure matching `SHADER_SOURCE`
+
 ### Configuration Types
 
 - **`PixelFormat`** - BGRA, YCbCr420v, YCbCr420f, l10r (10-bit)
@@ -397,6 +489,7 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 14. **`14_app_capture.rs`** - Application-based filtering
 15. **`15_memory_leak_check.rs`** - Memory leak detection with `leaks`
 16. **`16_full_metal_app/`** - Full Metal GUI application (macOS 14.0+)
+17. **`17_metal_textures.rs`** - Metal texture creation from IOSurface
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -408,6 +501,7 @@ cargo run --example 01_basic_capture
 cargo run --example 09_closure_handlers
 cargo run --example 12_stream_updates
 cargo run --example 14_app_capture
+cargo run --example 17_metal_textures
 
 # Feature-gated examples
 cargo run --example 05_screenshot --features macos_14_0

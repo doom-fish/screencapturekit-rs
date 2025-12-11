@@ -28,17 +28,26 @@ pub fn format_picked_source(source: &SCPickedSource) -> String {
     }
 }
 
+/// All picker modes we allow
+const ALL_PICKER_MODES: &[SCContentSharingPickerMode] = &[
+    SCContentSharingPickerMode::SingleWindow,
+    SCContentSharingPickerMode::MultipleWindows,
+    SCContentSharingPickerMode::SingleDisplay,
+    SCContentSharingPickerMode::SingleApplication,
+    SCContentSharingPickerMode::MultipleApplications,
+];
+
+/// Create picker configuration with all modes enabled
+fn create_picker_config() -> SCContentSharingPickerConfiguration {
+    let mut config = SCContentSharingPickerConfiguration::new();
+    config.set_allowed_picker_modes(ALL_PICKER_MODES);
+    config
+}
+
 /// Open content picker without an existing stream
 pub fn open_picker(pending_picker: &Arc<Mutex<PickerResult>>) {
     println!("📺 Opening content picker...");
-    let mut config = SCContentSharingPickerConfiguration::new();
-    config.set_allowed_picker_modes(&[
-        SCContentSharingPickerMode::SingleWindow,
-        SCContentSharingPickerMode::MultipleWindows,
-        SCContentSharingPickerMode::SingleDisplay,
-        SCContentSharingPickerMode::SingleApplication,
-        SCContentSharingPickerMode::MultipleApplications,
-    ]);
+    let config = create_picker_config();
     let pending = Arc::clone(pending_picker);
 
     SCContentSharingPicker::show(&config, move |outcome| {
@@ -49,14 +58,7 @@ pub fn open_picker(pending_picker: &Arc<Mutex<PickerResult>>) {
 /// Open content picker for an existing stream
 pub fn open_picker_for_stream(pending_picker: &Arc<Mutex<PickerResult>>, stream: &SCStream) {
     println!("📺 Opening content picker for stream...");
-    let mut config = SCContentSharingPickerConfiguration::new();
-    config.set_allowed_picker_modes(&[
-        SCContentSharingPickerMode::SingleWindow,
-        SCContentSharingPickerMode::MultipleWindows,
-        SCContentSharingPickerMode::SingleDisplay,
-        SCContentSharingPickerMode::SingleApplication,
-        SCContentSharingPickerMode::MultipleApplications,
-    ]);
+    let config = create_picker_config();
     let pending = Arc::clone(pending_picker);
 
     SCContentSharingPicker::show_for_stream(&config, stream, move |outcome| {
