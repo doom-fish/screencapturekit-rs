@@ -342,7 +342,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
             .with_height(240)
             .with_pixel_format(PixelFormat::BGRA)
             .with_captures_audio(true)
-            .with_sample_rate(44100)
+            .with_sample_rate(24000)
             .with_channel_count(2),
     };
 
