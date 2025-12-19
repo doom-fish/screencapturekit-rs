@@ -1,4 +1,4 @@
-// Fullscreen quad shader for screen capture display
+// Fullscreen quad shader for screen capture display with aspect ratio preservation
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
