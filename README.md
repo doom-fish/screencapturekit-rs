@@ -122,7 +122,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Async Capture
 
-```ignore
+```rust,ignore
 use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
 use screencapturekit::prelude::*;
 
@@ -197,7 +197,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Use the system picker UI to let users choose what to capture:
 
-```ignore
+```rust,ignore
 use screencapturekit::content_sharing_picker::*;
 use screencapturekit::prelude::*;
 
@@ -234,7 +234,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Use the async version in async contexts to avoid blocking:
 
-```ignore
+```rust,ignore
 use screencapturekit::async_api::AsyncSCContentSharingPicker;
 use screencapturekit::content_sharing_picker::*;
 use screencapturekit::prelude::*;
@@ -266,7 +266,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 All types use a consistent `::new()` with `.with_*()` chainable methods pattern:
 
-```ignore
+```rust,ignore
 // Stream configuration
 let config = SCStreamConfiguration::new()
     .with_width(1920)
@@ -291,26 +291,31 @@ let filter = SCContentFilter::create()
 
 Control callback threading with custom dispatch queues:
 
-```rust,no_run
+```rust,ignore
 use screencapturekit::prelude::*;
 use screencapturekit::dispatch_queue::{DispatchQueue, DispatchQoS};
 
-# fn main() -> Result<(), Box<dyn std::error::Error>> {
-# let content = SCShareableContent::get()?;
-# let display = content.displays().into_iter().next().unwrap();
-# let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
-# let config = SCStreamConfiguration::new();
-let mut stream = SCStream::new(&filter, &config);
-
-let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
-
-stream.add_output_handler_with_queue(
-    |_sample: CMSampleBuffer, _of_type: SCStreamOutputType| { /* process frame */ },
-    SCStreamOutputType::Screen,
-    Some(&queue)
-);
-# Ok(())
-# }
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let content = SCShareableContent::get()?;
+    let display = content.displays().into_iter().next().unwrap();
+    let filter = SCContentFilter::create()
+        .with_display(&display)
+        .with_excluding_windows(&[])
+        .build();
+    let config = SCStreamConfiguration::new();
+    
+    let mut stream = SCStream::new(&filter, &config);
+    
+    let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
+    
+    stream.add_output_handler_with_queue(
+        |_sample: CMSampleBuffer, _of_type: SCStreamOutputType| { /* process frame */ },
+        SCStreamOutputType::Screen,
+        Some(&queue)
+    );
+    
+    Ok(())
+}
 ```
 
 **Quality of Service Levels:**
@@ -409,7 +414,7 @@ Feature flags enable APIs for specific macOS versions. They are cumulative (enab
 
 ### Version-Specific Example
 
-```ignore
+```rust,ignore
 let mut config = SCStreamConfiguration::new()
     .with_width(1920)
     .with_height(1080);
