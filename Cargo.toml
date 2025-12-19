@@ -24,6 +24,12 @@ include = [
     "CHANGELOG.md",
 ]
 
+[lints.rust]
+# TODO: Enable after adding unsafe blocks inside unsafe fns
+# unsafe_op_in_unsafe_fn = "warn"
+# TODO: Enable after adding Debug impls to public types
+# missing_debug_implementations = "warn"
+
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
@@ -76,10 +82,36 @@ targets = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
 # Enable rustdoc unstable features for better docs
 rustdoc-args = ["--cfg", "docsrs"]
 
+[badges]
+maintenance = { status = "actively-developed" }
+
+[[example]]
+name = "05_screenshot"
+required-features = ["macos_14_0"]
+
+[[example]]
+name = "08_async"
+required-features = ["async"]
+
+[[example]]
+name = "10_recording_output"
+required-features = ["macos_15_0"]
+
+[[example]]
+name = "11_content_picker"
+required-features = ["macos_14_0"]
+
+[[example]]
+name = "13_advanced_config"
+required-features = ["macos_15_0"]
+
 [[example]]
 name = "16_full_metal_app"
 path = "examples/16_full_metal_app/main.rs"
 required-features = ["macos_14_0"]
+
+# Note: 22_tauri_app is a separate Tauri project, run with:
+#   cd examples/22_tauri_app && npm install && npm run tauri dev
 
 [[example]]
 name = "23_client_server_server"
