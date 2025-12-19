@@ -77,9 +77,9 @@ fn test_screen_capture_with_audio() {
     let display = &displays[0];
     println!("Using display: {}", display.display_id());
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let mut config = SCStreamConfiguration::default();
@@ -165,9 +165,9 @@ fn test_combined_video_audio_capture() {
     let display = &displays[0];
     println!("Capturing display: {}", display.display_id());
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let mut config = SCStreamConfiguration::default();

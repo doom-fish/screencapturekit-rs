@@ -33,6 +33,7 @@ cargo run --example 01_basic_capture
 | 19 | `ffmpeg_encoding` | Real-time H.264 encoding via FFmpeg | - |
 | 20 | `egui_viewer` | egui screen viewer integration | - |
 | 21 | `bevy_streaming` | Bevy texture streaming | - |
+| 22 | `tauri_app` | Tauri 2.0 desktop app with WebGL | `macos_14_0` |
 
 ## Running with Features
 
@@ -77,6 +78,9 @@ cargo run --example 20_egui_viewer
 
 # Bevy streaming
 cargo run --example 21_bevy_streaming
+
+# Tauri app (separate project, use npm)
+cd examples/22_tauri_app && npm install && npm run tauri dev
 
 # All features
 cargo run --example 08_async --all-features

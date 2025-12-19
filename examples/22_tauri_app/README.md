@@ -1,13 +1,13 @@
 # Tauri Screen Capture Example
 
-A complete Tauri 2.0 application demonstrating screencapturekit-rs integration for macOS screen capture.
+A complete Tauri 2.0 application demonstrating screencapturekit-rs integration for macOS screen capture with WebGL rendering.
 
 ## Features
 
-- 📸 **Screenshot capture** - Take screenshots via the system picker
-- 🎥 **Screen recording** - Record screen to MP4 (macOS 15.0+)
-- 📋 **List content** - View available displays, windows, and apps
-- 🖼️ **Preview** - Display captured screenshots in the UI
+- 📸 **Screenshot capture** - Take screenshots of displays and windows
+- 🖼️ **WebGL Preview** - Hardware-accelerated rendering of captured frames
+- 📋 **List content** - View available displays and windows
+- 🎨 **BGRA→RGBA conversion** - Shader-based color space conversion
 
 ## Project Structure
 
@@ -22,7 +22,7 @@ A complete Tauri 2.0 application demonstrating screencapturekit-rs integration f
 │   └── Info.plist          # macOS permissions
 ├── src/
 │   ├── index.html          # Main UI
-│   ├── main.js             # Frontend logic
+│   ├── main.js             # Frontend logic with WebGL
 │   └── styles.css          # Styling
 ├── package.json            # Node dependencies
 └── README.md
@@ -35,7 +35,7 @@ A complete Tauri 2.0 application demonstrating screencapturekit-rs integration f
 - Node.js 18+
 - Rust 1.70+
 - Xcode Command Line Tools
-- macOS 14.0+ (for content picker)
+- macOS 14.0+ (for screenshots)
 
 ### Installation
 
@@ -68,9 +68,9 @@ The Tauri backend exposes these commands:
 |---------|-------------|
 | `list_displays` | Get available displays |
 | `list_windows` | Get available windows |
-| `take_screenshot` | Capture screenshot via picker |
-| `start_recording` | Start screen recording |
-| `stop_recording` | Stop recording and save file |
+| `take_screenshot_display` | Capture display screenshot (RGBA) |
+| `take_screenshot_window` | Capture window screenshot (RGBA) |
+| `get_status` | Get current status |
 
 ## Code Highlights
 
@@ -78,9 +78,10 @@ The Tauri backend exposes these commands:
 
 ```rust
 use screencapturekit::prelude::*;
+use screencapturekit::screenshot_manager::SCScreenshotManager;
 
 #[tauri::command]
-async fn take_screenshot() -> Result<Vec<u8>, String> {
+fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResult, String> {
     let content = SCShareableContent::get().map_err(|e| e.to_string())?;
     let display = &content.displays()[0];
     
@@ -91,25 +92,37 @@ async fn take_screenshot() -> Result<Vec<u8>, String> {
     
     let config = SCStreamConfiguration::new()
         .with_width(display.width() as u32)
-        .with_height(display.height() as u32);
+        .with_height(display.height() as u32)
+        .with_pixel_format(PixelFormat::BGRA);
     
-    let image = SCScreenshotManager::capture_image(&filter, &config)
-        .map_err(|e| e.to_string())?;
+    let image = SCScreenshotManager::capture_image(&filter, &config)?;
     
-    Ok(image.to_png())
+    // Get RGBA data for WebGL rendering
+    let rgba_data = image.rgba_data()?;
+    
+    Ok(ScreenshotResult {
+        data: base64::encode(&rgba_data),
+        width: image.width(),
+        height: image.height(),
+    })
 }
 ```
 
-### Frontend (src/main.js)
+### WebGL Rendering (src/main.js)
+
+The frontend uses WebGL to render RGBA pixel data with BGRA→RGBA color conversion:
 
 ```javascript
-import { invoke } from '@tauri-apps/api/core';
-
-async function captureScreen() {
-  const pngData = await invoke('take_screenshot');
-  const blob = new Blob([new Uint8Array(pngData)], { type: 'image/png' });
-  document.getElementById('preview').src = URL.createObjectURL(blob);
-}
+// Fragment shader converts BGRA to RGBA
+const fragmentShaderSource = `
+  precision mediump float;
+  varying vec2 v_texCoord;
+  uniform sampler2D u_texture;
+  void main() {
+    vec4 color = texture2D(u_texture, v_texCoord);
+    gl_FragColor = vec4(color.b, color.g, color.r, color.a);
+  }
+`;
 ```
 
 ## License

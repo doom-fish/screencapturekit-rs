@@ -183,8 +183,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("No displays found")?;
 
     let filter = SCContentFilter::with()
-        .display(&display)
-        .exclude_windows(&[])
+        .with_display(&display)
+        .with_excluding_windows(&[])
         .build();
 
     // Use YCbCr format for efficient capture (common in screen capture)

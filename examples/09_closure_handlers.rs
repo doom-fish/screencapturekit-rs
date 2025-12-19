@@ -29,8 +29,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create filter and config
     let filter = SCContentFilter::with()
-        .display(&display)
-        .exclude_windows(&[])
+        .with_display(&display)
+        .with_excluding_windows(&[])
         .build();
 
     let config = SCStreamConfiguration::new()

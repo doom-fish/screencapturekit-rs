@@ -18,9 +18,9 @@ fn test_content_filter_builder_display() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     // Verify filter was created (debug output includes pointer)
@@ -34,7 +34,7 @@ fn test_content_filter_builder_window() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
-        let filter = SCContentFilter::builder().window(window).build();
+        let filter = SCContentFilter::with().with_window(window).build();
         let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
     }
@@ -49,9 +49,9 @@ fn test_content_filter_exclude_windows() {
 
     if !windows.is_empty() {
         let window_refs: Vec<&_> = windows.iter().take(2).collect();
-        let filter = SCContentFilter::builder()
-            .display(display)
-            .exclude_windows(&window_refs)
+        let filter = SCContentFilter::with()
+            .with_display(display)
+            .with_excluding_windows(&window_refs)
             .build();
 
         let debug_str = format!("{filter:?}");
@@ -68,9 +68,9 @@ fn test_content_filter_include_windows() {
 
     if !windows.is_empty() {
         let window_refs: Vec<&_> = windows.iter().take(2).collect();
-        let filter = SCContentFilter::builder()
-            .display(display)
-            .include_windows(&window_refs)
+        let filter = SCContentFilter::with()
+            .with_display(display)
+            .with_including_windows(&window_refs)
             .build();
 
         let debug_str = format!("{filter:?}");
@@ -87,9 +87,9 @@ fn test_content_filter_include_applications() {
 
     if !apps.is_empty() {
         let app_refs: Vec<&_> = apps.iter().take(2).collect();
-        let filter = SCContentFilter::builder()
-            .display(display)
-            .include_applications(&app_refs, &[])
+        let filter = SCContentFilter::with()
+            .with_display(display)
+            .with_including_applications(&app_refs, &[])
             .build();
 
         let debug_str = format!("{filter:?}");
@@ -106,10 +106,10 @@ fn test_content_filter_content_rect() {
 
     let rect = CGRect::new(100.0, 100.0, 800.0, 600.0);
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
-        .content_rect(rect)
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .with_content_rect(rect)
         .build();
 
     // Test get_content_rect
@@ -126,9 +126,9 @@ fn test_content_filter_set_content_rect() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let rect = CGRect::new(50.0, 50.0, 400.0, 300.0);
@@ -144,9 +144,9 @@ fn test_content_filter_clone() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let cloned = filter;
@@ -168,9 +168,9 @@ fn test_content_filter_debug_display() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let debug = format!("{filter:?}");
@@ -186,9 +186,9 @@ fn test_content_filter_equality() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter1 = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter1 = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let filter2 = filter1.clone();
@@ -207,9 +207,9 @@ fn test_content_filter_hash() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let mut set = HashSet::new();
@@ -229,9 +229,9 @@ fn test_content_filter_style() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let style = filter.style();
@@ -251,7 +251,7 @@ fn test_content_filter_style_window() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
-        let filter = SCContentFilter::builder().window(window).build();
+        let filter = SCContentFilter::with().with_window(window).build();
         let style = filter.style();
         // Window filters should have Window style
         assert!(matches!(
@@ -269,9 +269,9 @@ fn test_content_filter_point_pixel_scale() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let scale = filter.point_pixel_scale();
@@ -287,9 +287,9 @@ fn test_content_filter_include_menu_bar() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let mut filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let mut filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     // Set include menu bar
@@ -307,9 +307,9 @@ fn test_content_filter_included_displays() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     let included_displays = filter.included_displays();
@@ -326,7 +326,7 @@ fn test_content_filter_included_windows() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
-        let filter = SCContentFilter::builder().window(window).build();
+        let filter = SCContentFilter::with().with_window(window).build();
         let included_windows = filter.included_windows();
         // Window filters should have at least one included window
         // (Note: may return empty on older macOS)
@@ -345,9 +345,9 @@ fn test_content_filter_included_applications() {
 
     if !apps.is_empty() {
         let app_refs: Vec<&_> = apps.iter().take(1).collect();
-        let filter = SCContentFilter::builder()
-            .display(display)
-            .include_applications(&app_refs, &[])
+        let filter = SCContentFilter::with()
+            .with_display(display)
+            .with_including_applications(&app_refs, &[])
             .build();
 
         let included_apps = filter.included_applications();

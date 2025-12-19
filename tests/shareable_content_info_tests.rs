@@ -19,9 +19,9 @@ fn test_shareable_content_info_for_display_filter() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
@@ -52,7 +52,7 @@ fn test_shareable_content_info_for_window_filter() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
-        let filter = SCContentFilter::builder().window(window).build();
+        let filter = SCContentFilter::with().with_window(window).build();
 
         if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
             let style = info.style();
@@ -73,9 +73,9 @@ fn test_shareable_content_info_clone() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
@@ -94,9 +94,9 @@ fn test_shareable_content_info_debug() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
@@ -113,9 +113,9 @@ fn test_shareable_content_info_display() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
@@ -141,9 +141,9 @@ fn test_shareable_content_info_pixel_size_calculation() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
