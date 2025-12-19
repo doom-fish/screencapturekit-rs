@@ -57,9 +57,9 @@
 //! use screencapturekit::shareable_content::SCShareableContent;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let content = SCShareableContent::with_options()
-//!     .on_screen_windows_only(true)
-//!     .exclude_desktop_windows(true)
+//! let content = SCShareableContent::new()
+//!     .with_on_screen_windows_only(true)
+//!     .with_exclude_desktop_windows(true)
 //!     .get()?;
 //!
 //! println!("Found {} on-screen windows", content.windows().len());
@@ -156,7 +156,7 @@ impl SCShareableContent {
     ///
     /// Returns an error if screen recording permission is not granted.
     pub fn get() -> Result<Self, SCError> {
-        Self::with_options().get()
+        SCShareableContentOptions::default().get()
     }
 
     /// Create options builder for customizing shareable content retrieval
@@ -167,13 +167,45 @@ impl SCShareableContent {
     /// use screencapturekit::shareable_content::SCShareableContent;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let content = SCShareableContent::with_options()
-    ///     .on_screen_windows_only(true)
-    ///     .exclude_desktop_windows(true)
+    /// let content = SCShareableContent::new()
+    ///     .with_on_screen_windows_only(true)
+    ///     .with_exclude_desktop_windows(true)
     ///     .get()?;
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
+    pub fn new() -> SCShareableContentOptions {
+        SCShareableContentOptions::default()
+    }
+
+    /// Create options builder for customizing shareable content retrieval
+    ///
+    /// # Deprecated
+    ///
+    /// Use `SCShareableContent::new()` instead for consistency with other types.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::shareable_content::SCShareableContent;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// // Old API (deprecated)
+    /// let content = SCShareableContent::with_options()
+    ///     .on_screen_windows_only(true)
+    ///     .exclude_desktop_windows(true)
+    ///     .get()?;
+    ///
+    /// // New API (preferred)
+    /// let content = SCShareableContent::new()
+    ///     .with_on_screen_windows_only(true)
+    ///     .with_exclude_desktop_windows(true)
+    ///     .get()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[deprecated(since = "1.5.0", note = "Use SCShareableContent::new() instead")]
     pub fn with_options() -> SCShareableContentOptions {
         SCShareableContentOptions::default()
     }
@@ -329,7 +361,7 @@ impl SCShareableContentOptions {
     /// When set to `true`, desktop-level windows (like the desktop background)
     /// are excluded from the returned window list.
     #[must_use]
-    pub fn exclude_desktop_windows(mut self, exclude: bool) -> Self {
+    pub fn with_exclude_desktop_windows(mut self, exclude: bool) -> Self {
         self.exclude_desktop_windows = exclude;
         self
     }
@@ -339,9 +371,27 @@ impl SCShareableContentOptions {
     /// When set to `true`, only windows that are currently visible on screen
     /// are included. Minimized or off-screen windows are excluded.
     #[must_use]
-    pub fn on_screen_windows_only(mut self, on_screen_only: bool) -> Self {
+    pub fn with_on_screen_windows_only(mut self, on_screen_only: bool) -> Self {
         self.on_screen_windows_only = on_screen_only;
         self
+    }
+
+    // =========================================================================
+    // Deprecated methods - use with_* versions instead
+    // =========================================================================
+
+    /// Exclude desktop windows from the shareable content.
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_exclude_desktop_windows() instead")]
+    pub fn exclude_desktop_windows(self, exclude: bool) -> Self {
+        self.with_exclude_desktop_windows(exclude)
+    }
+
+    /// Include only on-screen windows in the shareable content.
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_on_screen_windows_only() instead")]
+    pub fn on_screen_windows_only(self, on_screen_only: bool) -> Self {
+        self.with_on_screen_windows_only(on_screen_only)
     }
 
     /// Get shareable content synchronously

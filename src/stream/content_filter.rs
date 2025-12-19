@@ -13,9 +13,9 @@
 //! let display = &content.displays()[0];
 //!
 //! // Capture entire display
-//! let filter = SCContentFilter::builder()
-//!     .display(display)
-//!     .exclude_windows(&[])
+//! let filter = SCContentFilter::new()
+//!     .with_display(display)
+//!     .with_excluding_windows(&[])
 //!     .build();
 //! # Ok(())
 //! # }
@@ -46,15 +46,15 @@ use crate::{
 /// let display = &content.displays()[0];
 ///
 /// // Capture entire display
-/// let filter = SCContentFilter::builder()
-///     .display(display)
-///     .exclude_windows(&[])
+/// let filter = SCContentFilter::new()
+///     .with_display(display)
+///     .with_excluding_windows(&[])
 ///     .build();
 ///
 /// // Or capture a specific window
 /// let window = &content.windows()[0];
-/// let filter = SCContentFilter::builder()
-///     .window(window)
+/// let filter = SCContentFilter::new()
+///     .with_window(window)
 ///     .build();
 /// # Ok(())
 /// # }
@@ -91,14 +91,49 @@ impl SCContentFilter {
     /// let content = SCShareableContent::get()?;
     /// let display = &content.displays()[0];
     ///
-    /// let filter = SCContentFilter::builder()
-    ///     .display(display)
-    ///     .exclude_windows(&[])
+    /// let filter = SCContentFilter::new()
+    ///     .with_display(display)
+    ///     .with_excluding_windows(&[])
     ///     .build();
     /// # Ok(())
     /// # }
     /// ```
     #[must_use]
+    pub fn new() -> SCContentFilterBuilder {
+        SCContentFilterBuilder::new()
+    }
+
+    /// Creates a content filter builder
+    ///
+    /// # Deprecated
+    ///
+    /// Use `SCContentFilter::new()` instead for consistency with other types.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::prelude::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let content = SCShareableContent::get()?;
+    /// let display = &content.displays()[0];
+    ///
+    /// // Old API (deprecated)
+    /// let filter = SCContentFilter::builder()
+    ///     .display(display)
+    ///     .exclude_windows(&[])
+    ///     .build();
+    ///
+    /// // New API (preferred)
+    /// let filter = SCContentFilter::new()
+    ///     .with_display(display)
+    ///     .with_excluding_windows(&[])
+    ///     .build();
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use SCContentFilter::new() instead")]
     pub fn builder() -> SCContentFilterBuilder {
         SCContentFilterBuilder::new()
     }
@@ -390,21 +425,21 @@ unsafe impl Sync for SCContentFilter {}
 /// let display = &content.displays()[0];
 ///
 /// // Capture entire display
-/// let filter = SCContentFilter::builder()
-///     .display(display)
-///     .exclude_windows(&[])
+/// let filter = SCContentFilter::new()
+///     .with_display(display)
+///     .with_excluding_windows(&[])
 ///     .build();
 ///
 /// // Capture with specific windows excluded
 /// let window = &content.windows()[0];
-/// let filter = SCContentFilter::builder()
-///     .display(display)
-///     .exclude_windows(&[window])
+/// let filter = SCContentFilter::new()
+///     .with_display(display)
+///     .with_excluding_windows(&[window])
 ///     .build();
 ///
 /// // Capture specific window
-/// let filter = SCContentFilter::builder()
-///     .window(window)
+/// let filter = SCContentFilter::new()
+///     .with_window(window)
 ///     .build();
 /// # Ok(())
 /// # }
@@ -449,7 +484,7 @@ impl SCContentFilterBuilder {
 
     /// Set the display to capture
     #[must_use]
-    pub fn display(mut self, display: &SCDisplay) -> Self {
+    pub fn with_display(mut self, display: &SCDisplay) -> Self {
         self.filter_type = FilterType::DisplayExcluding {
             display: display.clone(),
             windows: Vec::new(),
@@ -459,14 +494,14 @@ impl SCContentFilterBuilder {
 
     /// Set the window to capture
     #[must_use]
-    pub fn window(mut self, window: &SCWindow) -> Self {
+    pub fn with_window(mut self, window: &SCWindow) -> Self {
         self.filter_type = FilterType::Window(window.clone());
         self
     }
 
     /// Exclude specific windows from the display capture
     #[must_use]
-    pub fn exclude_windows(mut self, windows: &[&SCWindow]) -> Self {
+    pub fn with_excluding_windows(mut self, windows: &[&SCWindow]) -> Self {
         if let FilterType::DisplayExcluding {
             windows: ref mut excluded,
             ..
@@ -479,7 +514,7 @@ impl SCContentFilterBuilder {
 
     /// Include only specific windows in the display capture
     #[must_use]
-    pub fn include_windows(mut self, windows: &[&SCWindow]) -> Self {
+    pub fn with_including_windows(mut self, windows: &[&SCWindow]) -> Self {
         if let FilterType::DisplayExcluding { display, .. } = self.filter_type {
             self.filter_type = FilterType::DisplayIncluding {
                 display,
@@ -491,7 +526,7 @@ impl SCContentFilterBuilder {
 
     /// Include specific applications and optionally except certain windows
     #[must_use]
-    pub fn include_applications(
+    pub fn with_including_applications(
         mut self,
         applications: &[&SCRunningApplication],
         excepting_windows: &[&SCWindow],
@@ -514,7 +549,7 @@ impl SCContentFilterBuilder {
     /// Windows in `excepting_windows` will still be captured even if their
     /// owning application is excluded.
     #[must_use]
-    pub fn exclude_applications(
+    pub fn with_excluding_applications(
         mut self,
         applications: &[&SCRunningApplication],
         excepting_windows: &[&SCWindow],
@@ -534,9 +569,71 @@ impl SCContentFilterBuilder {
     /// Set the content rectangle (macOS 14.2+)
     #[cfg(feature = "macos_14_2")]
     #[must_use]
-    pub fn content_rect(mut self, rect: CGRect) -> Self {
+    pub fn with_content_rect(mut self, rect: CGRect) -> Self {
         self.content_rect = Some(rect);
         self
+    }
+
+    // =========================================================================
+    // Deprecated methods - use with_* versions instead
+    // =========================================================================
+
+    /// Set the display to capture
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_display() instead")]
+    pub fn display(self, display: &SCDisplay) -> Self {
+        self.with_display(display)
+    }
+
+    /// Set the window to capture
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_window() instead")]
+    pub fn window(self, window: &SCWindow) -> Self {
+        self.with_window(window)
+    }
+
+    /// Exclude specific windows from the display capture
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_excluding_windows() instead")]
+    pub fn exclude_windows(self, windows: &[&SCWindow]) -> Self {
+        self.with_excluding_windows(windows)
+    }
+
+    /// Include only specific windows in the display capture
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_including_windows() instead")]
+    pub fn include_windows(self, windows: &[&SCWindow]) -> Self {
+        self.with_including_windows(windows)
+    }
+
+    /// Include specific applications and optionally except certain windows
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_including_applications() instead")]
+    pub fn include_applications(
+        self,
+        applications: &[&SCRunningApplication],
+        excepting_windows: &[&SCWindow],
+    ) -> Self {
+        self.with_including_applications(applications, excepting_windows)
+    }
+
+    /// Exclude specific applications and optionally except certain windows
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_excluding_applications() instead")]
+    pub fn exclude_applications(
+        self,
+        applications: &[&SCRunningApplication],
+        excepting_windows: &[&SCWindow],
+    ) -> Self {
+        self.with_excluding_applications(applications, excepting_windows)
+    }
+
+    /// Set the content rectangle (macOS 14.2+)
+    #[cfg(feature = "macos_14_2")]
+    #[must_use]
+    #[deprecated(since = "1.5.0", note = "Use with_content_rect() instead")]
+    pub fn content_rect(self, rect: CGRect) -> Self {
+        self.with_content_rect(rect)
     }
 
     /// Build the content filter

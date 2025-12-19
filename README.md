@@ -95,9 +95,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
     
     // Configure capture
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::new()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
     
     let config = SCStreamConfiguration::new()
@@ -131,9 +131,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
     
     // Create filter and config
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::new()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
     
     let config = SCStreamConfiguration::new()
@@ -171,8 +171,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Safari window not found")?;
     
     // Capture window with audio
-    let filter = SCContentFilter::builder()
-        .window(window)
+    let filter = SCContentFilter::new()
+        .with_window(window)
         .build();
     
     let config = SCStreamConfiguration::new()
@@ -261,27 +261,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Builder Pattern
 
-Different types use slightly different patterns:
+All types use a consistent `::new()` with `.with_*()` chainable methods pattern:
 
 ```rust
-// Content filters use .builder() with .build()
-let filter = SCContentFilter::builder()
-    .display(&display)
-    .exclude_windows(&windows)
-    .build();
-
-// Stream configuration uses ::new() with .with_*() chainable methods
+// Stream configuration
 let config = SCStreamConfiguration::new()
     .with_width(1920)
     .with_height(1080)
     .with_pixel_format(PixelFormat::BGRA)
     .with_captures_audio(true);
 
-// Options for content retrieval
-let content = SCShareableContent::with_options()
-    .on_screen_windows_only(true)
-    .exclude_desktop_windows(true)
+// Content retrieval options
+let content = SCShareableContent::new()
+    .with_on_screen_windows_only(true)
+    .with_exclude_desktop_windows(true)
     .get()?;
+
+// Content filters
+let filter = SCContentFilter::new()
+    .with_display(&display)
+    .with_excluding_windows(&windows)
+    .build();
 ```
 
 ### Custom Dispatch Queues
@@ -698,6 +698,16 @@ Contributions welcome! Please:
 2. Add tests for new functionality
 3. Run `cargo test` and `cargo clippy`
 4. Update documentation
+
+## 🚀 Used By
+
+This crate is used by some amazing projects:
+
+- **[AFFiNE](https://github.com/toeverything/AFFiNE)** - Next-gen knowledge base, alternative to Notion and Miro (50k+ ⭐)
+- **[Vibe](https://github.com/thewh1teagle/vibe)** - Transcribe on your own! Local transcription tool (5k+ ⭐)
+- **[Lycoris](https://github.com/solaoi/lycoris)** - Real-time speech recognition & AI-powered note-taking for macOS
+
+*Using screencapturekit-rs? [Let us know](https://github.com/doom-fish/screencapturekit-rs/issues) and we'll add you to the list!*
 
 ## 👥 Contributors
 
