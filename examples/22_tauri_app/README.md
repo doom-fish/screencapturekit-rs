@@ -7,7 +7,6 @@ A complete Tauri 2.0 application demonstrating screencapturekit-rs integration f
 - 📸 **Screenshot capture** - Take screenshots of displays and windows
 - 🖼️ **WebGL Preview** - Hardware-accelerated rendering of captured frames
 - 📋 **List content** - View available displays and windows
-- 🎨 **BGRA→RGBA conversion** - Shader-based color space conversion
 
 ## Project Structure
 
@@ -101,7 +100,7 @@ fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResult, 
     let rgba_data = image.rgba_data()?;
     
     Ok(ScreenshotResult {
-        data: base64::encode(&rgba_data),
+        data: STANDARD.encode(&rgba_data),
         width: image.width(),
         height: image.height(),
     })
@@ -110,20 +109,7 @@ fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResult, 
 
 ### WebGL Rendering (src/main.js)
 
-The frontend uses WebGL to render RGBA pixel data with BGRA→RGBA color conversion:
-
-```javascript
-// Fragment shader converts BGRA to RGBA
-const fragmentShaderSource = `
-  precision mediump float;
-  varying vec2 v_texCoord;
-  uniform sampler2D u_texture;
-  void main() {
-    vec4 color = texture2D(u_texture, v_texCoord);
-    gl_FragColor = vec4(color.b, color.g, color.r, color.a);
-  }
-`;
-```
+The frontend uses WebGL to render RGBA pixel data directly from `CGImage::rgba_data()`.
 
 ## License
 
