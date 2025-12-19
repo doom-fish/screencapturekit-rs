@@ -29,6 +29,8 @@ cargo run --example 01_basic_capture
 | 15 | `memory_leak_check` | Memory leak detection with `leaks` | - |
 | 16 | `full_metal_app` | Full Metal GUI application | `macos_14_0` |
 | 17 | `metal_textures` | Metal texture creation from IOSurface | - |
+| 18 | `wgpu_integration` | Zero-copy wgpu integration | - |
+| 19 | `ffmpeg_encoding` | Real-time H.264 encoding via FFmpeg | - |
 
 ## Running with Features
 
@@ -61,6 +63,12 @@ cargo run --example 16_full_metal_app --features macos_14_0
 
 # Metal textures (no features needed)
 cargo run --example 17_metal_textures
+
+# wgpu integration
+cargo run --example 18_wgpu_integration
+
+# FFmpeg encoding (requires: brew install ffmpeg)
+cargo run --example 19_ffmpeg_encoding
 
 # All features
 cargo run --example 08_async --all-features

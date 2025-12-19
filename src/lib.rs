@@ -1,4 +1,8 @@
-//! # ScreenCaptureKit-rs
+#![doc = include_str!("../README.md")]
+//!
+//! ---
+//!
+//! # API Documentation
 //!
 //! Safe, idiomatic Rust bindings for Apple's [ScreenCaptureKit] framework.
 //!
