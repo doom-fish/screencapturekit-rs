@@ -99,11 +99,11 @@ async fn concurrent_operations() -> Result<(), Box<dyn std::error::Error>> {
     // Run 3 async operations concurrently
     let (result1, result2, result3) = tokio::join!(
         AsyncSCShareableContent::get(),
-        AsyncSCShareableContent::with_options()
-            .on_screen_windows_only(true)
+        AsyncSCShareableContent::create()
+            .with_on_screen_windows_only(true)
             .get(),
-        AsyncSCShareableContent::with_options()
-            .exclude_desktop_windows(true)
+        AsyncSCShareableContent::create()
+            .with_exclude_desktop_windows(true)
             .get(),
     );
 
@@ -149,8 +149,8 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(display) = displays.first() {
         let filter = SCContentFilter::with()
-            .display(display)
-            .exclude_windows(&[])
+            .with_display(display)
+            .with_excluding_windows(&[])
             .build();
 
         let config = SCStreamConfiguration::new()

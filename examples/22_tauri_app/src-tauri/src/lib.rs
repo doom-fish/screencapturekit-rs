@@ -4,11 +4,8 @@
 //! to build a cross-platform (macOS) screen capture application.
 
 use base64::{engine::general_purpose::STANDARD, Engine};
+use screencapturekit::prelude::*;
 use screencapturekit::screenshot_manager::SCScreenshotManager;
-use screencapturekit::shareable_content::SCShareableContent;
-use screencapturekit::stream::configuration::SCStreamConfiguration;
-use screencapturekit::stream::content_filter::SCContentFilter;
-use screencapturekit::prelude::PixelFormat;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::State;
@@ -68,7 +65,7 @@ impl Default for RecordingState {
 
 /// List all available displays
 #[tauri::command]
-pub fn list_displays() -> Result<Vec<DisplayInfo>, String> {
+fn list_displays() -> Result<Vec<DisplayInfo>, String> {
     let content = SCShareableContent::get().map_err(|e| format!("Failed to get content: {}", e))?;
 
     let displays: Vec<DisplayInfo> = content
@@ -88,7 +85,7 @@ pub fn list_displays() -> Result<Vec<DisplayInfo>, String> {
 
 /// List all available windows
 #[tauri::command]
-pub fn list_windows() -> Result<Vec<WindowInfo>, String> {
+fn list_windows() -> Result<Vec<WindowInfo>, String> {
     let content = SCShareableContent::get().map_err(|e| format!("Failed to get content: {}", e))?;
 
     let windows: Vec<WindowInfo> = content
@@ -116,7 +113,7 @@ pub fn list_windows() -> Result<Vec<WindowInfo>, String> {
 
 /// List all running applications
 #[tauri::command]
-pub fn list_applications() -> Result<Vec<AppInfo>, String> {
+fn list_applications() -> Result<Vec<AppInfo>, String> {
     let content = SCShareableContent::get().map_err(|e| format!("Failed to get content: {}", e))?;
 
     let apps: Vec<AppInfo> = content
@@ -134,7 +131,7 @@ pub fn list_applications() -> Result<Vec<AppInfo>, String> {
 
 /// Take a screenshot of the primary display - returns RGBA data for WebGL
 #[tauri::command]
-pub fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResult, String> {
+fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResult, String> {
     let content = SCShareableContent::get().map_err(|e| format!("Failed to get content: {}", e))?;
 
     // Find display by ID or use the first one
@@ -154,8 +151,8 @@ pub fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResu
     };
 
     let filter = SCContentFilter::with()
-        .display(&display)
-        .exclude_windows(&[])
+        .with_display(&display)
+        .with_excluding_windows(&[])
         .build();
 
     let config = SCStreamConfiguration::new()
@@ -180,7 +177,7 @@ pub fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResu
 
 /// Take a screenshot of a specific window - returns RGBA data for WebGL
 #[tauri::command]
-pub fn take_screenshot_window(window_id: u32) -> Result<ScreenshotResult, String> {
+fn take_screenshot_window(window_id: u32) -> Result<ScreenshotResult, String> {
     let content = SCShareableContent::get().map_err(|e| format!("Failed to get content: {}", e))?;
 
     let window = content
@@ -190,7 +187,7 @@ pub fn take_screenshot_window(window_id: u32) -> Result<ScreenshotResult, String
         .cloned()
         .ok_or_else(|| format!("Window {} not found", window_id))?;
 
-    let filter = SCContentFilter::with().window(&window).build();
+    let filter = SCContentFilter::with().with_window(&window).build();
 
     let frame = window.frame();
     let config = SCStreamConfiguration::new()
@@ -215,13 +212,13 @@ pub fn take_screenshot_window(window_id: u32) -> Result<ScreenshotResult, String
 
 /// Check if recording is active
 #[tauri::command]
-pub fn is_recording(state: State<RecordingState>) -> bool {
+fn is_recording(state: State<RecordingState>) -> bool {
     *state.is_recording.lock().unwrap()
 }
 
 /// Get recording status
 #[tauri::command]
-pub fn get_status() -> Result<String, String> {
+fn get_status() -> Result<String, String> {
     let content = SCShareableContent::get().map_err(|e| format!("Failed to get content: {}", e))?;
 
     Ok(format!(

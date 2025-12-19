@@ -143,12 +143,12 @@ impl AsyncSCShareableContent {
     /// - Screen recording permission is not granted
     /// - The system fails to retrieve shareable content
     pub fn get() -> AsyncShareableContentFuture {
-        Self::with_options().get()
+        Self::create().get()
     }
 
     /// Create options builder for customizing shareable content retrieval
     #[must_use]
-    pub fn with_options() -> AsyncSCShareableContentOptions {
+    pub fn create() -> AsyncSCShareableContentOptions {
         AsyncSCShareableContentOptions::default()
     }
 }
@@ -163,14 +163,14 @@ pub struct AsyncSCShareableContentOptions {
 impl AsyncSCShareableContentOptions {
     /// Exclude desktop windows from the shareable content
     #[must_use]
-    pub fn exclude_desktop_windows(mut self, exclude: bool) -> Self {
+    pub fn with_exclude_desktop_windows(mut self, exclude: bool) -> Self {
         self.exclude_desktop_windows = exclude;
         self
     }
 
     /// Include only on-screen windows in the shareable content
     #[must_use]
-    pub fn on_screen_windows_only(mut self, on_screen_only: bool) -> Self {
+    pub fn with_on_screen_windows_only(mut self, on_screen_only: bool) -> Self {
         self.on_screen_windows_only = on_screen_only;
         self
     }

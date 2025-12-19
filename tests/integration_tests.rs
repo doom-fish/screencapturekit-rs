@@ -73,9 +73,9 @@ fn test_video_capture() {
     config.set_captures_audio(false);
 
     // Create filter for the display
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     // Create stream
@@ -149,9 +149,9 @@ fn test_audio_capture() {
     config.set_captures_audio(true);
 
     // Create filter for the display
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     // Create stream
@@ -234,9 +234,9 @@ fn test_video_and_audio_capture() {
     config.set_captures_audio(true);
 
     // Create filter for the display
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
 
     // Create stream
@@ -308,9 +308,9 @@ fn test_pixel_buffer_locking() {
     config.set_height(480);
 
     // Create filter and stream
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
     let mut stream = SCStream::new(&filter, &config);
 
@@ -402,9 +402,9 @@ fn test_iosurface_backed_buffer() {
     config.set_height(1080);
 
     // Create filter and stream
-    let filter = SCContentFilter::builder()
-        .display(display)
-        .exclude_windows(&[])
+    let filter = SCContentFilter::with()
+        .with_display(display)
+        .with_excluding_windows(&[])
         .build();
     let mut stream = SCStream::new(&filter, &config);
 
@@ -470,8 +470,8 @@ fn test_shareable_content_below_window() {
     let reference_window = &windows[0];
 
     // Get content below this window
-    let result = SCShareableContent::with_options()
-        .exclude_desktop_windows(false)
+    let result = SCShareableContent::create()
+        .with_exclude_desktop_windows(false)
         .below_window(reference_window);
 
     match result {
@@ -508,8 +508,8 @@ fn test_shareable_content_above_window() {
     let reference_window = &windows[0];
 
     // Get content above this window
-    let result = SCShareableContent::with_options()
-        .exclude_desktop_windows(false)
+    let result = SCShareableContent::create()
+        .with_exclude_desktop_windows(false)
         .above_window(reference_window);
 
     match result {

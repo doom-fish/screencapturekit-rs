@@ -4,9 +4,6 @@
   "version": "0.1.0",
   "identifier": "com.screencapturekit-rs.tauri-example",
   "build": {
-    "beforeDevCommand": "",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "",
     "frontendDist": "../src"
   },
   "app": {
@@ -26,13 +23,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
+    "icon": [],
     "macOS": {
       "entitlements": null,
       "exceptionDomain": "",

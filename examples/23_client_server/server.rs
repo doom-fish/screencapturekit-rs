@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         display.height()
     );
 
-    let filter = SCContentFilter::builder()
+    let filter = SCContentFilter::with()
         .with_display(&display)
         .with_excluding_windows(&[])
         .build();

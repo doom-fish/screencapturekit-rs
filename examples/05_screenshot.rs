@@ -37,8 +37,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2. Create filter
     let filter = SCContentFilter::with()
-        .display(&display)
-        .exclude_windows(&[])
+        .with_display(&display)
+        .with_excluding_windows(&[])
         .build();
 
     // 3. Get content info (macOS 14.0+ feature)

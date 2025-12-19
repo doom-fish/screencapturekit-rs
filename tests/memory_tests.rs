@@ -71,9 +71,9 @@ fn test_content_filter_memory() {
         // Create many filters
         let filters: Vec<_> = (0..50)
             .map(|_| {
-                SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build()
             })
             .collect();
@@ -116,9 +116,9 @@ fn test_stream_lifecycle() {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::builder()
-            .display(display)
-            .exclude_windows(&[])
+        let filter = SCContentFilter::with()
+            .with_display(display)
+            .with_excluding_windows(&[])
             .build();
 
         let config = SCStreamConfiguration::new()
@@ -151,9 +151,9 @@ fn test_handler_registration_cleanup() {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::builder()
-            .display(display)
-            .exclude_windows(&[])
+        let filter = SCContentFilter::with()
+            .with_display(display)
+            .with_excluding_windows(&[])
             .build();
 
         let config = SCStreamConfiguration::new()
@@ -188,9 +188,9 @@ fn test_closure_handler_memory() {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::builder()
-            .display(display)
-            .exclude_windows(&[])
+        let filter = SCContentFilter::with()
+            .with_display(display)
+            .with_excluding_windows(&[])
             .build();
 
         let config = SCStreamConfiguration::new()
@@ -273,9 +273,9 @@ fn test_multiple_streams_memory() {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::builder()
-            .display(display)
-            .exclude_windows(&[])
+        let filter = SCContentFilter::with()
+            .with_display(display)
+            .with_excluding_windows(&[])
             .build();
 
         let config = SCStreamConfiguration::new()
@@ -315,7 +315,7 @@ fn test_window_filter_memory() {
     if let Some(window) = windows.first() {
         // Create many window filters
         let filters: Vec<_> = (0..50)
-            .map(|_| SCContentFilter::builder().window(window).build())
+            .map(|_| SCContentFilter::with().with_window(window).build())
             .collect();
 
         drop(filters);
@@ -354,9 +354,9 @@ mod macos_14_tests {
         let displays = content.displays();
 
         if let Some(display) = displays.first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
 
             // Create and drop content info multiple times

@@ -81,8 +81,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📦 Option A: Include specific application");
 
     let include_filter = SCContentFilter::with()
-        .display(display)
-        .include_applications(&[app], &[])
+        .with_display(display)
+        .with_including_applications(&[app], &[])
         .build();
 
     println!("   Filter created: include only {}", app.application_name());
@@ -93,8 +93,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📦 Option B: Exclude specific application");
 
     let _exclude_filter = SCContentFilter::with()
-        .display(display)
-        .exclude_applications(&[app], &[])
+        .with_display(display)
+        .with_excluding_applications(&[app], &[])
         .build();
 
     println!("   Filter created: exclude {}", app.application_name());
@@ -119,8 +119,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if !multi_apps.is_empty() {
         let _multi_filter = SCContentFilter::with()
-            .display(display)
-            .include_applications(&multi_apps, &[])
+            .with_display(display)
+            .with_including_applications(&multi_apps, &[])
             .build();
 
         println!("   Filter created for {} apps:", multi_apps.len());

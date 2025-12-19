@@ -30,8 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(feature = "macos_14_0")]
         {
             let filter = SCContentFilter::with()
-                .display(display)
-                .exclude_windows(&[])
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
 
             if let Some(info) =
@@ -92,9 +92,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Custom filtering options
     println!("\n⚙️  Custom Filtering:");
-    let filtered = SCShareableContent::with_options()
-        .on_screen_windows_only(true)
-        .exclude_desktop_windows(true)
+    let filtered = SCShareableContent::create()
+        .with_on_screen_windows_only(true)
+        .with_exclude_desktop_windows(true)
         .get()?;
 
     println!("On-screen windows only: {}", filtered.windows().len());
@@ -107,13 +107,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("\n📊 Content Filter Styles (macOS 14.0+):");
         if let Some(display) = displays.first() {
             let display_filter = SCContentFilter::with()
-                .display(display)
-                .exclude_windows(&[])
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
             println!("  Display filter style: {:?}", display_filter.style());
         }
         if let Some(window) = windows.first() {
-            let window_filter = SCContentFilter::with().window(window).build();
+            let window_filter = SCContentFilter::with().with_window(window).build();
             println!("  Window filter style: {:?}", window_filter.style());
         }
         println!("\n  Style values:");

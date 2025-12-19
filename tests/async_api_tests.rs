@@ -11,15 +11,15 @@ use screencapturekit::stream::output_type::SCStreamOutputType;
 #[test]
 fn test_async_shareable_content_options_builder() {
     let options = AsyncSCShareableContentOptions::default()
-        .exclude_desktop_windows(true)
-        .on_screen_windows_only(true);
+        .with_exclude_desktop_windows(true)
+        .with_on_screen_windows_only(true);
 
     // Test that builder pattern works (options are consumed)
     assert_eq!(
         options,
         AsyncSCShareableContentOptions::default()
-            .exclude_desktop_windows(true)
-            .on_screen_windows_only(true)
+            .with_exclude_desktop_windows(true)
+            .with_on_screen_windows_only(true)
     );
 }
 
@@ -32,7 +32,7 @@ fn test_async_shareable_content_options_default() {
 
 #[test]
 fn test_async_shareable_content_options_clone() {
-    let options = AsyncSCShareableContentOptions::default().exclude_desktop_windows(true);
+    let options = AsyncSCShareableContentOptions::default().with_exclude_desktop_windows(true);
     let cloned = options.clone();
     assert_eq!(options, cloned);
 }
@@ -48,15 +48,15 @@ fn test_async_shareable_content_options_debug() {
 fn test_async_shareable_content_options_builder_chain() {
     // Test all builder methods
     let options = AsyncSCShareableContentOptions::default()
-        .exclude_desktop_windows(false)
-        .on_screen_windows_only(false)
-        .exclude_desktop_windows(true)
-        .on_screen_windows_only(true);
+        .with_exclude_desktop_windows(false)
+        .with_on_screen_windows_only(false)
+        .with_exclude_desktop_windows(true)
+        .with_on_screen_windows_only(true);
 
     // Each call should update the value
     let expected = AsyncSCShareableContentOptions::default()
-        .exclude_desktop_windows(true)
-        .on_screen_windows_only(true);
+        .with_exclude_desktop_windows(true)
+        .with_on_screen_windows_only(true);
 
     assert_eq!(options, expected);
 }
@@ -87,7 +87,7 @@ fn test_async_shareable_content_copy() {
 #[test]
 fn test_async_shareable_content_with_options() {
     // Test that with_options returns the options builder
-    let options = AsyncSCShareableContent::with_options();
+    let options = AsyncSCShareableContent::create();
     let debug_str = format!("{:?}", options);
     assert!(debug_str.contains("AsyncSCShareableContentOptions"));
 }
@@ -108,9 +108,9 @@ fn test_async_stream_creation() {
     // This may fail if no permission, that's OK - we're testing the API surface
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
             let config = SCStreamConfiguration::new()
                 .with_width(100)
@@ -150,9 +150,9 @@ fn test_async_stream_with_audio() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
             let config = SCStreamConfiguration::new()
                 .with_width(100)
@@ -174,9 +174,9 @@ fn test_async_stream_start_stop_capture() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
             let config = SCStreamConfiguration::new()
                 .with_width(100)
@@ -206,9 +206,9 @@ fn test_async_stream_update_configuration() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
             let config = SCStreamConfiguration::new()
                 .with_width(100)
@@ -242,9 +242,9 @@ fn test_async_stream_update_content_filter() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
             let config = SCStreamConfiguration::new()
                 .with_width(100)
@@ -257,9 +257,9 @@ fn test_async_stream_update_content_filter() {
             std::thread::sleep(std::time::Duration::from_millis(100));
 
             // Update content filter
-            let new_filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let new_filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
 
             let update_result = stream.update_content_filter(&new_filter);
@@ -279,9 +279,9 @@ fn test_async_stream_next_future() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
             let config = SCStreamConfiguration::new()
                 .with_width(100)
@@ -450,9 +450,9 @@ mod capture_tests {
     fn test_async_stream_capture_frames() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -489,9 +489,9 @@ mod capture_tests {
     fn test_async_stream_buffer_capacity() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -519,9 +519,9 @@ mod capture_tests {
     fn test_async_stream_clear_buffer() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -548,9 +548,9 @@ mod capture_tests {
     fn test_async_stream_is_closed_after_stop() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -576,9 +576,9 @@ mod capture_tests {
     fn test_async_stream_multiple_try_next() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -640,9 +640,9 @@ mod future_polling_tests {
     fn test_next_sample_future_poll_pending() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -672,9 +672,9 @@ mod future_polling_tests {
     fn test_next_sample_future_poll_with_data() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -713,9 +713,9 @@ mod future_polling_tests {
     fn test_next_sample_after_close() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -764,9 +764,9 @@ mod screenshot_tests {
 
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -791,9 +791,9 @@ mod screenshot_tests {
 
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::builder()
-                    .display(display)
-                    .exclude_windows(&[])
+                let filter = SCContentFilter::with()
+                    .with_display(display)
+                    .with_excluding_windows(&[])
                     .build();
 
                 let config = SCStreamConfiguration::new()
@@ -1002,9 +1002,9 @@ mod tokio_async_tests {
 
     #[tokio::test]
     async fn test_async_shareable_content_with_options() {
-        let result = AsyncSCShareableContent::with_options()
-            .exclude_desktop_windows(true)
-            .on_screen_windows_only(true)
+        let result = AsyncSCShareableContent::create()
+            .with_exclude_desktop_windows(true)
+            .with_on_screen_windows_only(true)
             .get()
             .await;
 
@@ -1022,9 +1022,9 @@ mod tokio_async_tests {
     async fn test_async_stream_next_await() {
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
 
             let config = SCStreamConfiguration::new()
@@ -1060,9 +1060,9 @@ mod tokio_async_tests {
     async fn test_async_stream_multiple_next_await() {
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
 
             let config = SCStreamConfiguration::new()
@@ -1095,9 +1095,9 @@ mod tokio_async_tests {
 
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
 
             let config = SCStreamConfiguration::new()
@@ -1124,9 +1124,9 @@ mod tokio_async_tests {
 
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::builder()
-                .display(display)
-                .exclude_windows(&[])
+            let filter = SCContentFilter::with()
+                .with_display(display)
+                .with_excluding_windows(&[])
                 .build();
 
             let config = SCStreamConfiguration::new()
@@ -1158,8 +1158,8 @@ mod additional_async_tests {
     async fn test_async_shareable_content_below_window() {
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(window) = content.windows().first() {
-            let result = AsyncSCShareableContent::with_options()
-                .exclude_desktop_windows(true)
+            let result = AsyncSCShareableContent::create()
+                .with_exclude_desktop_windows(true)
                 .below_window(window)
                 .await;
             // May succeed or fail depending on window state
@@ -1171,8 +1171,8 @@ mod additional_async_tests {
     async fn test_async_shareable_content_above_window() {
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(window) = content.windows().first() {
-            let result = AsyncSCShareableContent::with_options()
-                .exclude_desktop_windows(false)
+            let result = AsyncSCShareableContent::create()
+                .with_exclude_desktop_windows(false)
                 .above_window(window)
                 .await;
             // May succeed or fail depending on window state
