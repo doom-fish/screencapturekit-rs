@@ -51,7 +51,7 @@ use super::output_type::SCStreamOutputType;
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let content = SCShareableContent::get()?;
 /// # let display = &content.displays()[0];
-/// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+/// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
 /// # let config = SCStreamConfiguration::default();
 /// let mut stream = SCStream::new(&filter, &config);
 ///

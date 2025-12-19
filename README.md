@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
     
     // Configure capture
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -121,7 +121,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Async Capture
 
-```rust
+```ignore
 use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
 use screencapturekit::prelude::*;
 
@@ -132,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
     
     // Create filter and config
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -159,20 +159,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Window Capture with Audio
 
-```rust
+```rust,no_run
 use screencapturekit::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let content = SCShareableContent::get()?;
     
     // Find a specific window
-    let window = content.windows()
+    let windows = content.windows();
+    let window = windows
         .iter()
         .find(|w| w.title().as_deref() == Some("Safari"))
         .ok_or("Safari window not found")?;
     
     // Capture window with audio
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_window(window)
         .build();
     
@@ -195,7 +196,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Use the system picker UI to let users choose what to capture:
 
-```rust
+```ignore
 use screencapturekit::content_sharing_picker::*;
 use screencapturekit::prelude::*;
 
@@ -232,7 +233,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Use the async version in async contexts to avoid blocking:
 
-```rust
+```ignore
 use screencapturekit::async_api::AsyncSCContentSharingPicker;
 use screencapturekit::content_sharing_picker::*;
 use screencapturekit::prelude::*;
@@ -264,7 +265,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 All types use a consistent `::new()` with `.with_*()` chainable methods pattern:
 
-```rust
+```ignore
 // Stream configuration
 let config = SCStreamConfiguration::new()
     .with_width(1920)
@@ -279,7 +280,7 @@ let content = SCShareableContent::create()
     .get()?;
 
 // Content filters
-let filter = SCContentFilter::with()
+let filter = SCContentFilter::create()
     .with_display(&display)
     .with_excluding_windows(&windows)
     .build();
@@ -289,16 +290,26 @@ let filter = SCContentFilter::with()
 
 Control callback threading with custom dispatch queues:
 
-```rust
+```rust,no_run
+use screencapturekit::prelude::*;
 use screencapturekit::dispatch_queue::{DispatchQueue, DispatchQoS};
+
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+# let content = SCShareableContent::get()?;
+# let display = content.displays().into_iter().next().unwrap();
+# let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
+# let config = SCStreamConfiguration::new();
+let mut stream = SCStream::new(&filter, &config);
 
 let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
 
 stream.add_output_handler_with_queue(
-    my_handler,
+    |_sample: CMSampleBuffer, _of_type: SCStreamOutputType| { /* process frame */ },
     SCStreamOutputType::Screen,
     Some(&queue)
 );
+# Ok(())
+# }
 ```
 
 **Quality of Service Levels:**
@@ -312,11 +323,15 @@ stream.add_output_handler_with_queue(
 
 Zero-copy GPU texture access:
 
-```rust
+```rust,no_run
+use screencapturekit::prelude::*;
+
+struct Handler;
+
 impl SCStreamOutputTrait for Handler {
-    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
+    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
         if let Some(pixel_buffer) = sample.image_buffer() {
-            if let Some(surface) = pixel_buffer.iosurface() {
+            if let Some(surface) = pixel_buffer.io_surface() {
                 let width = surface.width();
                 let height = surface.height();
                 
@@ -332,20 +347,20 @@ impl SCStreamOutputTrait for Handler {
 
 Built-in Metal types for hardware-accelerated rendering without external crates:
 
-```rust
-use screencapturekit::output::metal::{
-    MetalDevice, MetalLayer, MetalRenderPassDescriptor, MetalRenderPipelineDescriptor,
+```rust,no_run
+use screencapturekit::prelude::*;
+use screencapturekit::metal::{
+    MetalDevice, MetalRenderPassDescriptor, MetalRenderPipelineDescriptor,
     MTLLoadAction, MTLStoreAction, MTLPrimitiveType, MTLPixelFormat,
     Uniforms, SHADER_SOURCE,
 };
-use screencapturekit::output::CVPixelBufferIOSurface;
 
 // Get the system default Metal device
 let device = MetalDevice::system_default().expect("No Metal device");
 let command_queue = device.create_command_queue().unwrap();
 
 // Compile built-in shaders (supports BGRA, YCbCr, UI overlays)
-let library = device.create_library_with_source(SHADER_SOURCE)?;
+let library = device.create_library_with_source(SHADER_SOURCE).unwrap();
 
 // Create render pipeline for textured rendering
 let vert_fn = library.get_function("vertex_fullscreen").unwrap();
@@ -354,47 +369,7 @@ let pipeline_desc = MetalRenderPipelineDescriptor::new();
 pipeline_desc.set_vertex_function(&vert_fn);
 pipeline_desc.set_fragment_function(&frag_fn);
 pipeline_desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
-let pipeline = device.create_render_pipeline_state(&pipeline_desc).unwrap();
-
-// In your frame handler - create textures and render
-impl SCStreamOutputTrait for Handler {
-    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
-        if let Some(pixel_buffer) = sample.image_buffer() {
-            if let Some(surface) = pixel_buffer.iosurface() {
-                // Zero-copy texture creation from IOSurface
-                if let Some(textures) = surface.create_metal_textures(&device) {
-                    // Create uniforms for aspect-ratio-preserving rendering
-                    let uniforms = Uniforms::from_captured_textures(
-                        viewport_width, viewport_height, &textures
-                    );
-                    let uniform_buffer = device.create_buffer_with_data(&uniforms).unwrap();
-                    
-                    // Render to a CAMetalLayer drawable
-                    let drawable = layer.next_drawable().unwrap();
-                    let cmd_buffer = command_queue.command_buffer().unwrap();
-                    
-                    let render_pass = MetalRenderPassDescriptor::new();
-                    render_pass.set_color_attachment_texture(0, &drawable.texture());
-                    render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-                    render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
-                    
-                    let encoder = cmd_buffer.render_command_encoder(&render_pass).unwrap();
-                    encoder.set_render_pipeline_state(&pipeline);
-                    encoder.set_vertex_buffer(&uniform_buffer, 0, 0);
-                    encoder.set_fragment_texture(&textures.plane0, 0);
-                    if let Some(ref plane1) = textures.plane1 {
-                        encoder.set_fragment_texture(plane1, 1);  // CbCr for YCbCr
-                    }
-                    encoder.draw_primitives(MTLPrimitiveType::TriangleStrip, 0, 4);
-                    encoder.end_encoding();
-                    
-                    cmd_buffer.present_drawable(&drawable);
-                    cmd_buffer.commit();
-                }
-            }
-        }
-    }
-}
+let _pipeline = device.create_render_pipeline_state(&pipeline_desc).unwrap();
 ```
 
 **Built-in Shader Functions:**
@@ -433,7 +408,7 @@ Feature flags enable APIs for specific macOS versions. They are cumulative (enab
 
 ### Version-Specific Example
 
-```rust
+```ignore
 let mut config = SCStreamConfiguration::new()
     .with_width(1920)
     .with_height(1080);
@@ -539,7 +514,7 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 16. **`16_full_metal_app/`** - Full Metal GUI application (macOS 14.0+)
 17. **`17_metal_textures.rs`** - Metal texture creation from `IOSurface`
 18. **`18_wgpu_integration.rs`** - Zero-copy wgpu integration
-19. **`19_ffmpeg_encoding.rs`** - Real-time H.264 encoding via FFmpeg
+19. **`19_ffmpeg_encoding.rs`** - Real-time H.264 encoding via `FFmpeg`
 20. **`20_egui_viewer.rs`** - egui screen viewer integration
 21. **`21_bevy_streaming.rs`** - Bevy texture streaming
 22. **`22_tauri_app/`** - Tauri 2.0 desktop app with WebGL (macOS 14.0+)
@@ -604,7 +579,7 @@ cargo fmt --check
 
 ### Module Organization
 
-```
+```text
 screencapturekit/
 ├── cm/                     # Core Media (CMSampleBuffer, CMTime, IOSurface)
 ├── cv/                     # Core Video (CVPixelBuffer, CVPixelBufferPool)
