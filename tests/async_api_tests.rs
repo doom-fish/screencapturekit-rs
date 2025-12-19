@@ -1,9 +1,10 @@
 //! Async API tests
 //!
 //! These tests verify the async API types and traits work correctly.
-//! Note: Tests that require screen capture permission are marked no_run.
+//! Note: Tests that require screen capture permission are marked `no_run`.
 
 #![cfg(feature = "async")]
+#![allow(clippy::match_same_arms)]
 
 use screencapturekit::async_api::*;
 use screencapturekit::stream::output_type::SCStreamOutputType;
@@ -40,7 +41,7 @@ fn test_async_shareable_content_options_clone() {
 #[test]
 fn test_async_shareable_content_options_debug() {
     let options = AsyncSCShareableContentOptions::default();
-    let debug_str = format!("{:?}", options);
+    let debug_str = format!("{options:?}");
     assert!(debug_str.contains("AsyncSCShareableContentOptions"));
 }
 
@@ -64,7 +65,7 @@ fn test_async_shareable_content_options_builder_chain() {
 #[test]
 fn test_async_shareable_content_debug() {
     let content = AsyncSCShareableContent;
-    let debug_str = format!("{:?}", content);
+    let debug_str = format!("{content:?}");
     assert!(debug_str.contains("AsyncSCShareableContent"));
 }
 
@@ -88,7 +89,7 @@ fn test_async_shareable_content_copy() {
 fn test_async_shareable_content_with_options() {
     // Test that with_options returns the options builder
     let options = AsyncSCShareableContent::create();
-    let debug_str = format!("{:?}", options);
+    let debug_str = format!("{options:?}");
     assert!(debug_str.contains("AsyncSCShareableContentOptions"));
 }
 
@@ -108,7 +109,7 @@ fn test_async_stream_creation() {
     // This may fail if no permission, that's OK - we're testing the API surface
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -134,7 +135,7 @@ fn test_async_stream_creation() {
             let _inner = stream.inner();
 
             // Test debug
-            let debug_str = format!("{:?}", stream);
+            let debug_str = format!("{stream:?}");
             assert!(debug_str.contains("AsyncSCStream"));
             assert!(debug_str.contains("buffered_count"));
             assert!(debug_str.contains("is_closed"));
@@ -150,7 +151,7 @@ fn test_async_stream_with_audio() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -174,7 +175,7 @@ fn test_async_stream_start_stop_capture() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -206,7 +207,7 @@ fn test_async_stream_update_configuration() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -242,7 +243,7 @@ fn test_async_stream_update_content_filter() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -257,7 +258,7 @@ fn test_async_stream_update_content_filter() {
             std::thread::sleep(std::time::Duration::from_millis(100));
 
             // Update content filter
-            let new_filter = SCContentFilter::with()
+            let new_filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -279,7 +280,7 @@ fn test_async_stream_next_future() {
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -291,7 +292,7 @@ fn test_async_stream_next_future() {
 
             // Get the next future (tests the next() method)
             let next_future = stream.next();
-            let debug_str = format!("{:?}", next_future);
+            let debug_str = format!("{next_future:?}");
             assert!(debug_str.contains("NextSample"));
         }
     }
@@ -317,8 +318,8 @@ fn test_async_stream_output_type() {
     let screen = SCStreamOutputType::Screen;
     let audio = SCStreamOutputType::Audio;
 
-    let debug_screen = format!("{:?}", screen);
-    let debug_audio = format!("{:?}", audio);
+    let debug_screen = format!("{screen:?}");
+    let debug_audio = format!("{audio:?}");
 
     assert!(debug_screen.contains("Screen"));
     assert!(debug_audio.contains("Audio"));
@@ -337,7 +338,7 @@ mod macos_14_tests {
     #[test]
     fn test_async_screenshot_manager_debug() {
         let manager = AsyncSCScreenshotManager;
-        let debug_str = format!("{:?}", manager);
+        let debug_str = format!("{manager:?}");
         assert!(debug_str.contains("AsyncSCScreenshotManager"));
     }
 
@@ -362,7 +363,7 @@ mod macos_14_tests {
     #[test]
     fn test_async_content_sharing_picker_debug() {
         let picker = AsyncSCContentSharingPicker;
-        let debug_str = format!("{:?}", picker);
+        let debug_str = format!("{picker:?}");
         assert!(debug_str.contains("AsyncSCContentSharingPicker"));
     }
 }
@@ -391,11 +392,11 @@ mod macos_15_tests {
     #[test]
     fn test_recording_event_debug() {
         let event = RecordingEvent::Started;
-        let debug_str = format!("{:?}", event);
+        let debug_str = format!("{event:?}");
         assert!(debug_str.contains("Started"));
 
         let event = RecordingEvent::Failed("error".to_string());
-        let debug_str = format!("{:?}", event);
+        let debug_str = format!("{event:?}");
         assert!(debug_str.contains("Failed"));
         assert!(debug_str.contains("error"));
     }
@@ -450,7 +451,7 @@ mod capture_tests {
     fn test_async_stream_capture_frames() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -489,7 +490,7 @@ mod capture_tests {
     fn test_async_stream_buffer_capacity() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -519,7 +520,7 @@ mod capture_tests {
     fn test_async_stream_clear_buffer() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -548,7 +549,7 @@ mod capture_tests {
     fn test_async_stream_is_closed_after_stop() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -576,7 +577,7 @@ mod capture_tests {
     fn test_async_stream_multiple_try_next() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -627,9 +628,9 @@ mod future_polling_tests {
         fn clone(_: *const ()) -> RawWaker {
             RawWaker::new(std::ptr::null(), &VTABLE)
         }
-        fn wake(_: *const ()) {}
-        fn wake_by_ref(_: *const ()) {}
-        fn drop(_: *const ()) {}
+        const fn wake(_: *const ()) {}
+        const fn wake_by_ref(_: *const ()) {}
+        const fn drop(_: *const ()) {}
 
         static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
         let raw = RawWaker::new(std::ptr::null(), &VTABLE);
@@ -640,7 +641,7 @@ mod future_polling_tests {
     fn test_next_sample_future_poll_pending() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -672,7 +673,7 @@ mod future_polling_tests {
     fn test_next_sample_future_poll_with_data() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -713,7 +714,7 @@ mod future_polling_tests {
     fn test_next_sample_after_close() {
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -738,7 +739,7 @@ mod future_polling_tests {
                     // May take multiple polls
                     for _ in 0..5 {
                         let result = Pin::new(&mut future).poll(&mut cx);
-                        if let Poll::Ready(None) = result {
+                        if result == Poll::Ready(None) {
                             break;
                         }
                     }
@@ -764,7 +765,7 @@ mod screenshot_tests {
 
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -773,13 +774,10 @@ mod screenshot_tests {
                     .with_width(640)
                     .with_height(480);
 
-                match SCScreenshotManager::capture_sample_buffer(&filter, &config) {
-                    Ok(sample) => {
-                        assert!(sample.is_valid());
-                    }
-                    Err(_) => {
-                        // May fail without permission
-                    }
+                if let Ok(sample) = SCScreenshotManager::capture_sample_buffer(&filter, &config) {
+                    assert!(sample.is_valid());
+                } else {
+                    // May fail without permission
                 }
             }
         }
@@ -791,7 +789,7 @@ mod screenshot_tests {
 
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build();
@@ -800,14 +798,11 @@ mod screenshot_tests {
                     .with_width(640)
                     .with_height(480);
 
-                match SCScreenshotManager::capture_image(&filter, &config) {
-                    Ok(image) => {
-                        assert!(image.width() > 0);
-                        assert!(image.height() > 0);
-                    }
-                    Err(_) => {
-                        // May fail without permission
-                    }
+                if let Ok(image) = SCScreenshotManager::capture_image(&filter, &config) {
+                    assert!(image.width() > 0);
+                    assert!(image.height() > 0);
+                } else {
+                    // May fail without permission
                 }
             }
         }
@@ -927,7 +922,7 @@ mod content_picker_tests {
     #[test]
     fn test_picker_mode_debug() {
         let mode = SCContentSharingPickerMode::SingleWindow;
-        let debug_str = format!("{:?}", mode);
+        let debug_str = format!("{mode:?}");
         assert!(debug_str.contains("SingleWindow"));
     }
 
@@ -952,21 +947,21 @@ mod content_picker_tests {
     #[test]
     fn test_picked_source_debug() {
         let source = SCPickedSource::Display(1);
-        let debug_str = format!("{:?}", source);
+        let debug_str = format!("{source:?}");
         assert!(debug_str.contains("Display"));
     }
 
     #[test]
     fn test_picker_outcome_debug() {
         let outcome = SCPickerOutcome::Cancelled;
-        let debug_str = format!("{:?}", outcome);
+        let debug_str = format!("{outcome:?}");
         assert!(debug_str.contains("Cancelled"));
     }
 
     #[test]
     fn test_picker_filter_outcome_debug() {
         let outcome = SCPickerFilterOutcome::Cancelled;
-        let debug_str = format!("{:?}", outcome);
+        let debug_str = format!("{outcome:?}");
         assert!(debug_str.contains("Cancelled"));
     }
 
@@ -1022,7 +1017,7 @@ mod tokio_async_tests {
     async fn test_async_stream_next_await() {
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -1060,7 +1055,7 @@ mod tokio_async_tests {
     async fn test_async_stream_multiple_next_await() {
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -1095,7 +1090,7 @@ mod tokio_async_tests {
 
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -1105,14 +1100,11 @@ mod tokio_async_tests {
                 .with_height(240);
 
             let result = AsyncSCScreenshotManager::capture_image(&filter, &config).await;
-            match result {
-                Ok(image) => {
-                    assert!(image.width() > 0);
-                    assert!(image.height() > 0);
-                }
-                Err(_) => {
-                    // Permission error is okay
-                }
+            if let Ok(image) = result {
+                assert!(image.width() > 0);
+                assert!(image.height() > 0);
+            } else {
+                // Permission error is okay
             }
         }
     }
@@ -1124,7 +1116,7 @@ mod tokio_async_tests {
 
         let content = AsyncSCShareableContent::get().await.unwrap();
         if let Some(display) = content.displays().first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -1134,13 +1126,10 @@ mod tokio_async_tests {
                 .with_height(240);
 
             let result = AsyncSCScreenshotManager::capture_sample_buffer(&filter, &config).await;
-            match result {
-                Ok(sample) => {
-                    assert!(sample.is_valid());
-                }
-                Err(_) => {
-                    // Permission error is okay
-                }
+            if let Ok(sample) = result {
+                assert!(sample.is_valid());
+            } else {
+                // Permission error is okay
             }
         }
     }

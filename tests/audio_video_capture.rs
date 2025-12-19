@@ -77,7 +77,7 @@ fn test_screen_capture_with_audio() {
     let display = &displays[0];
     println!("Using display: {}", display.display_id());
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -165,7 +165,7 @@ fn test_combined_video_audio_capture() {
     let display = &displays[0];
     println!("Capturing display: {}", display.display_id());
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();

@@ -1,4 +1,8 @@
-//! IOSurface and pixel buffer tests
+//! `IOSurface` and pixel buffer tests
+
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::items_after_statements)]
+#![allow(clippy::similar_names)]
 
 use screencapturekit::cm::{IOSurface, IOSurfaceLockOptions};
 use screencapturekit::cv::CVPixelBufferLockFlags;
@@ -21,7 +25,7 @@ fn test_iosurface_lock_options_combined() {
 #[test]
 fn test_iosurface_lock_options_debug() {
     let opt = IOSurfaceLockOptions::READ_ONLY;
-    let debug_str = format!("{:?}", opt);
+    let debug_str = format!("{opt:?}");
     assert!(debug_str.contains("IOSurfaceLockOptions"));
 }
 
@@ -128,7 +132,7 @@ fn test_iosurface_lock_guard_debug() {
         .lock(IOSurfaceLockOptions::READ_ONLY)
         .expect("Failed to lock IOSurface");
 
-    let debug_str = format!("{:?}", guard);
+    let debug_str = format!("{guard:?}");
     assert!(debug_str.contains("IOSurfaceLockGuard"));
     assert!(debug_str.contains("options"));
     assert!(debug_str.contains("surface_size"));
@@ -138,7 +142,7 @@ fn test_iosurface_lock_guard_debug() {
 fn test_iosurface_debug() {
     let surface = IOSurface::create(100, 100, 0x42475241, 4).expect("Failed to create IOSurface");
 
-    let debug_str = format!("{:?}", surface);
+    let debug_str = format!("{surface:?}");
     assert!(debug_str.contains("IOSurface"));
     assert!(debug_str.contains("width"));
     assert!(debug_str.contains("height"));
@@ -233,7 +237,7 @@ fn test_pixel_buffer_lock_guard_debug() {
         .lock(CVPixelBufferLockFlags::READ_ONLY)
         .expect("Failed to lock buffer");
 
-    let debug_str = format!("{:?}", guard);
+    let debug_str = format!("{guard:?}");
     assert!(debug_str.contains("CVPixelBufferLockGuard"));
     assert!(debug_str.contains("flags"));
     assert!(debug_str.contains("buffer_size"));
@@ -565,7 +569,7 @@ mod multiplanar_tests {
             size: 1920 * 1080,
         };
 
-        let debug_str = format!("{:?}", props);
+        let debug_str = format!("{props:?}");
         assert!(debug_str.contains("PlaneProperties"));
         assert!(debug_str.contains("width"));
     }

@@ -23,7 +23,7 @@ unsafe fn ffi_string_from_buffer_or_empty<F>(size: usize, f: F) -> String
 where
     F: FnOnce(*mut i8, usize) -> bool,
 {
-    ffi_string_from_buffer(size, f).unwrap_or_default()
+    unsafe { ffi_string_from_buffer(size, f).unwrap_or_default() }
 }
 
 #[test]

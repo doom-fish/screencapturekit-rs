@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Show content info for display (macOS 14.0+)
         #[cfg(feature = "macos_14_0")]
         {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
@@ -106,14 +106,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("\n📊 Content Filter Styles (macOS 14.0+):");
         if let Some(display) = displays.first() {
-            let display_filter = SCContentFilter::with()
+            let display_filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
             println!("  Display filter style: {:?}", display_filter.style());
         }
         if let Some(window) = windows.first() {
-            let window_filter = SCContentFilter::with().with_window(window).build();
+            let window_filter = SCContentFilter::create().with_window(window).build();
             println!("  Window filter style: {:?}", window_filter.style());
         }
         println!("\n  Style values:");

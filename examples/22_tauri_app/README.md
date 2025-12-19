@@ -84,7 +84,7 @@ fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResult, 
     let content = SCShareableContent::get().map_err(|e| e.to_string())?;
     let display = &content.displays()[0];
     
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();

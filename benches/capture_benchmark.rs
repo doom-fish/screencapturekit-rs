@@ -11,6 +11,8 @@
 //! 3. **Data Access** - Measures pixel buffer and `IOSurface` access patterns
 //! 4. **Screenshots** - Measures single-frame capture performance (macOS 14.0+)
 
+#![allow(clippy::cast_possible_truncation)]
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use screencapturekit::cm::CMTime;
 use screencapturekit::cv::CVPixelBufferLockFlags;

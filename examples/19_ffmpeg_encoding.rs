@@ -1,19 +1,23 @@
-//! FFmpeg Real-Time Encoding
+//! `FFmpeg` Real-Time Encoding
 //!
-//! Demonstrates real-time video encoding using FFmpeg.
+//! Demonstrates real-time video encoding using `FFmpeg`.
 //! This example shows:
 //! - Capturing frames at 30 FPS
-//! - Piping raw frames to FFmpeg for H.264/HEVC encoding
-//! - Zero-copy frame access via IOSurface
+//! - Piping raw frames to `FFmpeg` for H.264/HEVC encoding
+//! - Zero-copy frame access via `IOSurface`
 //!
 //! Requirements:
-//! - FFmpeg installed: `brew install ffmpeg`
+//! - `FFmpeg` installed: `brew install ffmpeg`
 //!
 //! Usage:
 //! ```bash
 //! cargo run --example 19_ffmpeg_encoding
 //! # Creates output.mp4 in current directory
 //! ```
+
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::significant_drop_tightening)]
+#![allow(clippy::cast_precision_loss)]
 
 use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
@@ -168,7 +172,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .next()
         .ok_or("No displays found")?;
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
         .build();
@@ -201,7 +205,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Finish encoding
     encoder.finish()?;
     let total_frames = encoder.frame_count.load(Ordering::Relaxed);
-    println!("Finished encoding: {} frames", total_frames);
+    println!("Finished encoding: {total_frames} frames");
 
     // Check output file
     if let Ok(metadata) = std::fs::metadata(output_path) {

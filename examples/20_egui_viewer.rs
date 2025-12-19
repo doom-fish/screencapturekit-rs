@@ -8,6 +8,9 @@
 //!
 //! Run with: `cargo run --example 20_egui_viewer`
 
+#![allow(clippy::significant_drop_tightening)]
+#![allow(clippy::option_if_let_else)]
+
 use eframe::egui;
 use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
@@ -24,7 +27,7 @@ struct SharedFrame {
 }
 
 impl SharedFrame {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             data: Vec::new(),
             width: 0,
@@ -92,7 +95,7 @@ struct ScreenViewerApp {
 }
 
 impl ScreenViewerApp {
-    fn new(shared_frame: Arc<Mutex<SharedFrame>>, stream: SCStream) -> Self {
+    const fn new(shared_frame: Arc<Mutex<SharedFrame>>, stream: SCStream) -> Self {
         Self {
             shared_frame,
             texture: None,
@@ -199,7 +202,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         display.height()
     );
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
         .build();

@@ -8,6 +8,10 @@
 //!
 //! Run with: `cargo run --example 18_wgpu_integration`
 
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::needless_pass_by_ref_mut)]
+
 use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -28,7 +32,7 @@ struct SharedFrame {
 }
 
 impl SharedFrame {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             data: Vec::new(),
             width: 0,
@@ -105,7 +109,7 @@ struct Renderer<'a> {
     sampler: wgpu::Sampler,
 }
 
-impl<'a> Renderer<'a> {
+impl Renderer<'_> {
     async fn new(window: Arc<Window>) -> Self {
         let size = window.inner_size();
 
@@ -256,8 +260,7 @@ impl<'a> Renderer<'a> {
         let needs_new_texture = self
             .texture
             .as_ref()
-            .map(|t| t.width() != width || t.height() != height)
-            .unwrap_or(true);
+            .map_or(true, |t| t.width() != width || t.height() != height);
 
         if needs_new_texture {
             let texture = self.device.create_texture(&wgpu::TextureDescriptor {
@@ -392,7 +395,7 @@ impl ApplicationHandler for App<'_> {
         // Start capture
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().into_iter().next() {
-                let filter = SCContentFilter::with()
+                let filter = SCContentFilter::create()
                     .with_display(&display)
                     .with_excluding_windows(&[])
                     .build();
@@ -443,15 +446,15 @@ impl ApplicationHandler for App<'_> {
                 // Render
                 if let Some(ref mut renderer) = self.renderer {
                     match renderer.render() {
-                        Ok(_) => {}
+                        Ok(()) => {}
                         Err(wgpu::SurfaceError::Lost) => {
                             renderer.resize(winit::dpi::PhysicalSize {
                                 width: renderer.config.width,
                                 height: renderer.config.height,
-                            })
+                            });
                         }
                         Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
-                        Err(e) => eprintln!("Render error: {:?}", e),
+                        Err(e) => eprintln!("Render error: {e:?}"),
                     }
                 }
 

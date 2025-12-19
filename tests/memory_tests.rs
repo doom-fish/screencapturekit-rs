@@ -7,6 +7,8 @@
 //! run the `15_memory_leak_check` example instead:
 //! `cargo run --example 15_memory_leak_check`
 
+#![allow(clippy::items_after_statements)]
+
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -71,7 +73,7 @@ fn test_content_filter_memory() {
         // Create many filters
         let filters: Vec<_> = (0..50)
             .map(|_| {
-                SCContentFilter::with()
+                SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build()
@@ -116,7 +118,7 @@ fn test_stream_lifecycle() {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::with()
+        let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
             .build();
@@ -151,7 +153,7 @@ fn test_handler_registration_cleanup() {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::with()
+        let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
             .build();
@@ -188,7 +190,7 @@ fn test_closure_handler_memory() {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::with()
+        let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
             .build();
@@ -273,7 +275,7 @@ fn test_multiple_streams_memory() {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::with()
+        let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
             .build();
@@ -315,7 +317,7 @@ fn test_window_filter_memory() {
     if let Some(window) = windows.first() {
         // Create many window filters
         let filters: Vec<_> = (0..50)
-            .map(|_| SCContentFilter::with().with_window(window).build())
+            .map(|_| SCContentFilter::create().with_window(window).build())
             .collect();
 
         drop(filters);
@@ -354,7 +356,7 @@ mod macos_14_tests {
         let displays = content.displays();
 
         if let Some(display) = displays.first() {
-            let filter = SCContentFilter::with()
+            let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();

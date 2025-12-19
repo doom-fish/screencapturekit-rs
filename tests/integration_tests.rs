@@ -73,7 +73,7 @@ fn test_video_capture() {
     config.set_captures_audio(false);
 
     // Create filter for the display
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -149,7 +149,7 @@ fn test_audio_capture() {
     config.set_captures_audio(true);
 
     // Create filter for the display
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -234,7 +234,7 @@ fn test_video_and_audio_capture() {
     config.set_captures_audio(true);
 
     // Create filter for the display
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -308,7 +308,7 @@ fn test_pixel_buffer_locking() {
     config.set_height(480);
 
     // Create filter and stream
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -402,7 +402,7 @@ fn test_iosurface_backed_buffer() {
     config.set_height(1080);
 
     // Create filter and stream
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
