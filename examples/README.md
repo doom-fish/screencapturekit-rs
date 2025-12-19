@@ -34,6 +34,7 @@ cargo run --example 01_basic_capture
 | 20 | `egui_viewer` | egui screen viewer integration | - |
 | 21 | `bevy_streaming` | Bevy texture streaming | - |
 | 22 | `tauri_app` | Tauri 2.0 desktop app with WebGL | `macos_14_0` |
+| 23 | `client_server` | Client/server screen sharing | - |
 
 ## Running with Features
 
@@ -81,6 +82,10 @@ cargo run --example 21_bevy_streaming
 
 # Tauri app (separate project, use npm)
 cd examples/22_tauri_app && npm install && npm run tauri dev
+
+# Client/server screen sharing
+cargo run --example 23_client_server_server  # Terminal 1
+cargo run --example 23_client_server_client  # Terminal 2
 
 # All features
 cargo run --example 08_async --all-features
