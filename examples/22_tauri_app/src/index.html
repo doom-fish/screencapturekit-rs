@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screen Capture - screencapturekit-rs</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎬 Screen Capture</h1>
+      <p class="subtitle">Powered by <a href="https://github.com/doom-fish/screencapturekit-rs" target="_blank">screencapturekit-rs</a></p>
+      <p id="status" class="status">Loading...</p>
+    </header>
+
+    <main>
+      <section class="controls">
+        <div class="control-group">
+          <h2>📸 Screenshots</h2>
+          <div class="button-row">
+            <button id="btn-screenshot-display" class="btn primary">
+              Capture Display
+            </button>
+            <button id="btn-refresh" class="btn secondary">
+              Refresh Content
+            </button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h2>🖥️ Displays</h2>
+          <div id="displays-list" class="item-list">
+            <p class="placeholder">Click "Refresh Content" to load displays</p>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h2>🪟 Windows</h2>
+          <div id="windows-list" class="item-list scrollable">
+            <p class="placeholder">Click "Refresh Content" to load windows</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="preview-section">
+        <h2>🖼️ Preview</h2>
+        <div id="preview-container" class="preview-container">
+          <p class="placeholder">Capture a screenshot to see preview</p>
+          <canvas id="preview-canvas" style="display: none;"></canvas>
+        </div>
+        <div id="preview-info" class="preview-info"></div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Example from <a href="https://github.com/doom-fish/screencapturekit-rs" target="_blank">screencapturekit-rs</a> 
+        • macOS 14.0+ required for screenshots
+      </p>
+    </footer>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

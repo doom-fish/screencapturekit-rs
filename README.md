@@ -50,7 +50,7 @@ Capture screen content, windows, and applications with high performance and low 
 
 
 
-https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d
+<https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d>
 
 ## 📦 Installation
 
@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
     
     // Configure capture
-    let filter = SCContentFilter::new()
+    let filter = SCContentFilter::with()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -132,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
     
     // Create filter and config
-    let filter = SCContentFilter::new()
+    let filter = SCContentFilter::with()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -172,7 +172,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Safari window not found")?;
     
     // Capture window with audio
-    let filter = SCContentFilter::new()
+    let filter = SCContentFilter::with()
         .with_window(window)
         .build();
     
@@ -273,13 +273,13 @@ let config = SCStreamConfiguration::new()
     .with_captures_audio(true);
 
 // Content retrieval options
-let content = SCShareableContent::new()
+let content = SCShareableContent::create()
     .with_on_screen_windows_only(true)
     .with_exclude_desktop_windows(true)
     .get()?;
 
 // Content filters
-let filter = SCContentFilter::new()
+let filter = SCContentFilter::with()
     .with_display(&display)
     .with_excluding_windows(&windows)
     .build();
@@ -301,7 +301,7 @@ stream.add_output_handler_with_queue(
 );
 ```
 
-**QoS Levels:**
+**Quality of Service Levels:**
 - `Background` - Maintenance tasks
 - `Utility` - Long-running tasks
 - `Default` - Standard priority
@@ -407,7 +407,7 @@ impl SCStreamOutputTrait for Handler {
 - `MetalDevice`, `MetalCommandQueue`, `MetalCommandBuffer`
 - `MetalTexture`, `MetalBuffer`, `MetalLayer`, `MetalDrawable`
 - `MetalRenderPipelineState`, `MetalRenderPassDescriptor`
-- `CapturedTextures<T>` - Multi-plane texture container (Y + CbCr for YCbCr formats)
+- `CapturedTextures<T>` - Multi-plane texture container (Y + `CbCr` for `YCbCr` formats)
 
 ## 🎛️ Feature Flags
 
@@ -503,14 +503,14 @@ config.set_should_be_opaque(true);
 | `MetalCommandQueue` / `MetalCommandBuffer` | Command submission |
 | `MetalLayer` | `CAMetalLayer` for window rendering |
 | `MetalRenderPipelineState` | Compiled render pipeline |
-| `CapturedTextures<T>` | Multi-plane texture container (Y + CbCr for YCbCr) |
+| `CapturedTextures<T>` | Multi-plane texture container (Y + `CbCr` for `YCbCr`) |
 | `Uniforms` | Shader uniform structure matching `SHADER_SOURCE` |
 
 ### Configuration Types
 
 | Type | Description |
 |------|-------------|
-| `PixelFormat` | BGRA, YCbCr420v, YCbCr420f, l10r (10-bit) |
+| `PixelFormat` | BGRA, `YCbCr420v`, `YCbCr420f`, l10r (10-bit) |
 | `SCPresenterOverlayAlertSetting` | Privacy alert behavior |
 | `SCCaptureDynamicRange` | HDR/SDR modes (macOS 15.0+) |
 | `SCScreenshotConfiguration` | Advanced screenshot config (macOS 26.0+) |
@@ -537,7 +537,7 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 14. **`14_app_capture.rs`** - Application-based filtering
 15. **`15_memory_leak_check.rs`** - Memory leak detection with `leaks`
 16. **`16_full_metal_app/`** - Full Metal GUI application (macOS 14.0+)
-17. **`17_metal_textures.rs`** - Metal texture creation from IOSurface
+17. **`17_metal_textures.rs`** - Metal texture creation from `IOSurface`
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -676,7 +676,7 @@ For development, you may need to add Terminal.app to the allowed list.
 
 ## 🔧 Platform Requirements
 
-- **macOS 12.3+** (Monterey) - Base ScreenCaptureKit support
+- **macOS 12.3+** (Monterey) - Base `ScreenCaptureKit` support
 - **macOS 13.0+** (Ventura) - Audio capture, synchronization clock
 - **macOS 14.0+** (Sonoma) - Content picker, screenshots, content info
 - **macOS 15.0+** (Sequoia) - Recording output, HDR capture, microphone
@@ -727,7 +727,7 @@ Thanks to everyone who has contributed to this project!
 
 Licensed under either of:
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT License ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
 
 at your option.

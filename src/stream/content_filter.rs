@@ -13,7 +13,7 @@
 //! let display = &content.displays()[0];
 //!
 //! // Capture entire display
-//! let filter = SCContentFilter::new()
+//! let filter = SCContentFilter::with()
 //!     .with_display(display)
 //!     .with_excluding_windows(&[])
 //!     .build();
@@ -46,14 +46,14 @@ use crate::{
 /// let display = &content.displays()[0];
 ///
 /// // Capture entire display
-/// let filter = SCContentFilter::new()
+/// let filter = SCContentFilter::with()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[])
 ///     .build();
 ///
 /// // Or capture a specific window
 /// let window = &content.windows()[0];
-/// let filter = SCContentFilter::new()
+/// let filter = SCContentFilter::with()
 ///     .with_window(window)
 ///     .build();
 /// # Ok(())
@@ -77,7 +77,7 @@ impl std::hash::Hash for SCContentFilter {
 
 // Note: We intentionally do NOT implement Default for SCContentFilter.
 // A null filter would cause panics/crashes when used with SCStream.
-// Users should always use SCContentFilter::builder() to create valid filters.
+// Users should always use SCContentFilter::with() to create valid filters.
 
 impl SCContentFilter {
     /// Creates a content filter builder
@@ -91,7 +91,7 @@ impl SCContentFilter {
     /// let content = SCShareableContent::get()?;
     /// let display = &content.displays()[0];
     ///
-    /// let filter = SCContentFilter::new()
+    /// let filter = SCContentFilter::with()
     ///     .with_display(display)
     ///     .with_excluding_windows(&[])
     ///     .build();
@@ -99,42 +99,7 @@ impl SCContentFilter {
     /// # }
     /// ```
     #[must_use]
-    pub fn new() -> SCContentFilterBuilder {
-        SCContentFilterBuilder::new()
-    }
-
-    /// Creates a content filter builder
-    ///
-    /// # Deprecated
-    ///
-    /// Use `SCContentFilter::new()` instead for consistency with other types.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use screencapturekit::prelude::*;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let content = SCShareableContent::get()?;
-    /// let display = &content.displays()[0];
-    ///
-    /// // Old API (deprecated)
-    /// let filter = SCContentFilter::builder()
-    ///     .display(display)
-    ///     .exclude_windows(&[])
-    ///     .build();
-    ///
-    /// // New API (preferred)
-    /// let filter = SCContentFilter::new()
-    ///     .with_display(display)
-    ///     .with_excluding_windows(&[])
-    ///     .build();
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use SCContentFilter::new() instead")]
-    pub fn builder() -> SCContentFilterBuilder {
+    pub fn with() -> SCContentFilterBuilder {
         SCContentFilterBuilder::new()
     }
 
@@ -425,20 +390,20 @@ unsafe impl Sync for SCContentFilter {}
 /// let display = &content.displays()[0];
 ///
 /// // Capture entire display
-/// let filter = SCContentFilter::new()
+/// let filter = SCContentFilter::with()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[])
 ///     .build();
 ///
 /// // Capture with specific windows excluded
 /// let window = &content.windows()[0];
-/// let filter = SCContentFilter::new()
+/// let filter = SCContentFilter::with()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[window])
 ///     .build();
 ///
 /// // Capture specific window
-/// let filter = SCContentFilter::new()
+/// let filter = SCContentFilter::with()
 ///     .with_window(window)
 ///     .build();
 /// # Ok(())

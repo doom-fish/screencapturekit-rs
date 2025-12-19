@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // 4. Create window filter
-    let filter = SCContentFilter::builder().window(window).build();
+    let filter = SCContentFilter::with().window(window).build();
 
     // 5. Configure stream
     let config = SCStreamConfiguration::new()

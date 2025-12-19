@@ -1,0 +1,25 @@
+[package]
+name = "tauri-screencapture"
+version = "0.1.0"
+edition = "2021"
+description = "Tauri app with screencapturekit-rs integration"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "tauri_screencapture_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+
+# Use the local screencapturekit crate with required features
+screencapturekit = { path = "../../..", features = ["macos_14_0"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-shell = "2"
