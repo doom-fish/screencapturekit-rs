@@ -7,8 +7,6 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use screencapturekit::prelude::*;
 use screencapturekit::screenshot_manager::SCScreenshotManager;
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
-use tauri::State;
 
 /// Display information returned to the frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,19 +46,6 @@ pub struct ScreenshotResult {
     pub data: String, // Base64-encoded RGBA pixels
     pub width: usize,
     pub height: usize,
-}
-
-/// Shared state for recording
-pub struct RecordingState {
-    is_recording: Mutex<bool>,
-}
-
-impl Default for RecordingState {
-    fn default() -> Self {
-        Self {
-            is_recording: Mutex::new(false),
-        }
-    }
 }
 
 /// List all available displays
@@ -210,12 +195,6 @@ fn take_screenshot_window(window_id: u32) -> Result<ScreenshotResult, String> {
     })
 }
 
-/// Check if recording is active
-#[tauri::command]
-fn is_recording(state: State<RecordingState>) -> bool {
-    *state.is_recording.lock().unwrap()
-}
-
 /// Get recording status
 #[tauri::command]
 fn get_status() -> Result<String, String> {
@@ -237,14 +216,12 @@ fn get_status() -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .manage(RecordingState::default())
         .invoke_handler(tauri::generate_handler![
             list_displays,
             list_windows,
             list_applications,
             take_screenshot_display,
             take_screenshot_window,
-            is_recording,
             get_status,
         ])
         .run(tauri::generate_context!())
