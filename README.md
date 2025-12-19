@@ -697,7 +697,7 @@ See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for detailed benchmark documentat
 - API overhead measurements
 - Frame throughput at various resolutions
 - First-frame latency
-- Pixel buffer and IOSurface access patterns
+- Pixel buffer and `IOSurface` access patterns
 - Optimization tips for latency, throughput, and memory
 
 ### Typical Performance (Apple Silicon)
