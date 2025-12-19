@@ -32,14 +32,6 @@ pub struct WindowInfo {
     pub height: f64,
 }
 
-/// Application information returned to the frontend
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppInfo {
-    pub bundle_id: String,
-    pub app_name: String,
-    pub pid: i32,
-}
-
 /// Screenshot result with base64-encoded RGBA data for WebGL rendering
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScreenshotResult {
@@ -94,24 +86,6 @@ fn list_windows() -> Result<Vec<WindowInfo>, String> {
         .collect();
 
     Ok(windows)
-}
-
-/// List all running applications
-#[tauri::command]
-fn list_applications() -> Result<Vec<AppInfo>, String> {
-    let content = SCShareableContent::get().map_err(|e| format!("Failed to get content: {}", e))?;
-
-    let apps: Vec<AppInfo> = content
-        .applications()
-        .iter()
-        .map(|a| AppInfo {
-            bundle_id: a.bundle_identifier(),
-            app_name: a.application_name(),
-            pid: a.process_id(),
-        })
-        .collect();
-
-    Ok(apps)
 }
 
 /// Take a screenshot of the primary display - returns RGBA data for WebGL
@@ -195,7 +169,7 @@ fn take_screenshot_window(window_id: u32) -> Result<ScreenshotResult, String> {
     })
 }
 
-/// Get recording status
+/// Get status
 #[tauri::command]
 fn get_status() -> Result<String, String> {
     let content = SCShareableContent::get().map_err(|e| format!("Failed to get content: {}", e))?;
@@ -219,7 +193,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_displays,
             list_windows,
-            list_applications,
             take_screenshot_display,
             take_screenshot_window,
             get_status,
