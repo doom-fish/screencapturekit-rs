@@ -22,7 +22,7 @@
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let content = SCShareableContent::get()?;
 //! let display = &content.displays()[0];
-//! let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+//! let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
 //! let config = SCStreamConfiguration::new()
 //!     .with_width(1920)
 //!     .with_height(1080);
@@ -186,7 +186,7 @@ extern "C" fn screenshot_output_callback(
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let content = SCShareableContent::get()?;
 /// let display = &content.displays()[0];
-/// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+/// let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
 /// let config = SCStreamConfiguration::new()
 ///     .with_width(1920)
 ///     .with_height(1080);
@@ -216,7 +216,7 @@ impl CGImage {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
     /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
     /// let width = image.width();
@@ -293,7 +293,7 @@ impl CGImage {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
     /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
     /// image.save_png("/tmp/screenshot.png")?;
@@ -322,7 +322,7 @@ impl CGImage {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
     /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
     ///
@@ -397,7 +397,7 @@ unsafe impl Sync for CGImage {}
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let content = SCShareableContent::get()?;
 /// let display = &content.displays()[0];
-/// let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+/// let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
 /// let config = SCStreamConfiguration::new()
 ///     .with_width(1920)
 ///     .with_height(1080);
@@ -533,7 +533,7 @@ impl SCScreenshotManager {
     ///     let content = SCShareableContent::get().ok()?;
     ///     let displays = content.displays();
     ///     let display = displays.first()?;
-    ///     let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     ///     let config = SCScreenshotConfiguration::new()
     ///         .with_width(1920)
     ///         .with_height(1080)

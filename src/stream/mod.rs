@@ -14,7 +14,7 @@
 //! ## Workflow
 //!
 //! 1. Query available content with [`SCShareableContent`](crate::shareable_content::SCShareableContent)
-//! 2. Create a content filter with [`SCContentFilter::builder()`](content_filter::SCContentFilter::builder)
+//! 2. Create a content filter with [`SCContentFilter::create()`](content_filter::SCContentFilter::create)
 //! 3. Configure the stream with [`SCStreamConfiguration::new()`](configuration::SCStreamConfiguration::new)
 //! 4. Create and start the stream with [`SCStream::new()`](SCStream::new)
 //!
@@ -25,9 +25,9 @@
 //!
 //! # let content = SCShareableContent::get().unwrap();
 //! # let display = &content.displays()[0];
-//! let filter = SCContentFilter::builder()
-//!     .display(display)
-//!     .exclude_windows(&[])
+//! let filter = SCContentFilter::create()
+//!     .with_display(display)
+//!     .with_excluding_windows(&[])
 //!     .build();
 //! let config = SCStreamConfiguration::new()
 //!     .with_width(1920)

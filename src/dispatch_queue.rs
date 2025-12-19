@@ -21,7 +21,7 @@
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! # let content = SCShareableContent::get()?;
 //! # let display = &content.displays()[0];
-//! # let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+//! # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
 //! # let config = SCStreamConfiguration::default();
 //! // Create a high-priority queue for frame processing
 //! let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
