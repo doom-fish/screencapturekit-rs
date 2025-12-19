@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.screencapturekit-rs.tauri-example",
   "build": {
-    "devUrl": "tauri://localhost",
     "frontendDist": "../src"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Screen Capture - screencapturekit-rs",

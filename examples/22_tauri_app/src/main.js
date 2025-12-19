@@ -33,9 +33,8 @@ const fragmentShaderSource = `
   varying vec2 v_texCoord;
   uniform sampler2D u_texture;
   void main() {
-    vec4 color = texture2D(u_texture, v_texCoord);
-    // BGRA to RGBA swap (blue and red channels)
-    gl_FragColor = vec4(color.b, color.g, color.r, color.a);
+    // Data is RGBA with premultiplied alpha from CGImage rgba_data()
+    gl_FragColor = texture2D(u_texture, v_texCoord);
   }
 `;
 
