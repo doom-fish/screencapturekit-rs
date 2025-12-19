@@ -224,7 +224,11 @@ fn get_status() -> Result<String, String> {
     Ok(format!(
         "Ready - {} displays, {} windows, {} apps available",
         content.displays().len(),
-        content.windows().iter().filter(|w| w.is_on_screen()).count(),
+        content
+            .windows()
+            .iter()
+            .filter(|w| w.is_on_screen())
+            .count(),
         content.applications().len()
     ))
 }
