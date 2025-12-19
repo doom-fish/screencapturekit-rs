@@ -31,6 +31,8 @@ cargo run --example 01_basic_capture
 | 17 | `metal_textures` | Metal texture creation from IOSurface | - |
 | 18 | `wgpu_integration` | Zero-copy wgpu integration | - |
 | 19 | `ffmpeg_encoding` | Real-time H.264 encoding via FFmpeg | - |
+| 20 | `egui_viewer` | egui screen viewer integration | - |
+| 21 | `bevy_streaming` | Bevy texture streaming | - |
 
 ## Running with Features
 
@@ -69,6 +71,12 @@ cargo run --example 18_wgpu_integration
 
 # FFmpeg encoding (requires: brew install ffmpeg)
 cargo run --example 19_ffmpeg_encoding
+
+# egui viewer
+cargo run --example 20_egui_viewer
+
+# Bevy streaming
+cargo run --example 21_bevy_streaming
 
 # All features
 cargo run --example 08_async --all-features
