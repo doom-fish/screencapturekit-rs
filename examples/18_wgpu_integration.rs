@@ -22,6 +22,7 @@ struct SharedFrame {
     data: Vec<u8>,
     width: u32,
     height: u32,
+    bytes_per_row: u32,
     dirty: AtomicBool,
     frame_count: AtomicUsize,
 }
@@ -32,6 +33,7 @@ impl SharedFrame {
             data: Vec::new(),
             width: 0,
             height: 0,
+            bytes_per_row: 0,
             dirty: AtomicBool::new(false),
             frame_count: AtomicUsize::new(0),
         }
@@ -58,13 +60,31 @@ impl SCStreamOutputTrait for FrameHandler {
 
         let width = pixel_buffer.width() as u32;
         let height = pixel_buffer.height() as u32;
-        let data = guard.as_slice();
+        let bytes_per_row = pixel_buffer.bytes_per_row() as u32;
+        let src_data = guard.as_slice();
 
-        // Copy BGRA data (wgpu can use Bgra8Unorm directly)
+        // Remove row padding if present - wgpu expects tightly packed rows
+        let expected_bytes_per_row = width * 4;
+        let data = if bytes_per_row == expected_bytes_per_row {
+            src_data.to_vec()
+        } else {
+            // Strip padding from each row
+            let mut packed = Vec::with_capacity((width * height * 4) as usize);
+            for row in 0..height {
+                let start = (row * bytes_per_row) as usize;
+                let end = start + (width * 4) as usize;
+                if end <= src_data.len() {
+                    packed.extend_from_slice(&src_data[start..end]);
+                }
+            }
+            packed
+        };
+
         if let Ok(mut frame) = self.frame.lock() {
-            frame.data = data.to_vec();
+            frame.data = data;
             frame.width = width;
             frame.height = height;
+            frame.bytes_per_row = width * 4; // Now always tightly packed
             frame.frame_count.fetch_add(1, Ordering::Relaxed);
             frame.dirty.store(true, Ordering::Release);
         }
@@ -250,7 +270,8 @@ impl<'a> Renderer<'a> {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Bgra8Unorm,
+                // Use sRGB format to match screen capture data (already gamma-encoded)
+                format: wgpu::TextureFormat::Bgra8UnormSrgb,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
             });
