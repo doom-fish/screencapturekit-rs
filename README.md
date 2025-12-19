@@ -34,6 +34,7 @@ Capture screen content, windows, and applications with high performance and low 
 - [Architecture](#-architecture)
 - [Troubleshooting](#-troubleshooting)
 - [Platform Requirements](#-platform-requirements)
+- [Performance](#-performance)
 - [Contributing](#-contributing)
 - [License](#-license)
 
@@ -684,6 +685,35 @@ For distribution:
 - Add `NSScreenCaptureUsageDescription` to your `Info.plist`
 - Sign with appropriate entitlements for notarization
 
+## ⚡ Performance
+
+Run benchmarks to measure performance on your hardware:
+
+```bash
+cargo bench
+```
+
+See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for detailed benchmark documentation including:
+- API overhead measurements
+- Frame throughput at various resolutions
+- First-frame latency
+- Pixel buffer and IOSurface access patterns
+- Optimization tips for latency, throughput, and memory
+
+### Typical Performance (Apple Silicon)
+
+| Resolution | Expected FPS | First Frame Latency |
+|------------|--------------|---------------------|
+| 1080p | 30-60 FPS | 30-100ms |
+| 4K | 15-30 FPS | 50-150ms |
+
+## 🔄 Migration
+
+Upgrading from an older version? See [`docs/MIGRATION.md`](docs/MIGRATION.md) for:
+- API changes between versions
+- Code examples for common migrations
+- Deprecated API replacements
+
 ## 🤝 Contributing
 
 Contributions welcome! Please:
@@ -715,6 +745,7 @@ Thanks to everyone who has contributed to this project!
 - [Alex Jiao](https://github.com/uohzxela)
 - [Charles](https://github.com/aizukanne)
 - [bigduu](https://github.com/bigduu)
+- [Andrew N](https://github.com/adnissen)
 
 ## 📄 License
 

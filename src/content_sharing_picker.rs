@@ -380,8 +380,8 @@ impl SCPickerResult {
     ///         let windows = result.windows();
     ///         if let Some(window) = windows.first() {
     ///             // Create custom filter with a picked window
-    ///             let filter = SCContentFilter::builder()
-    ///                 .window(window)
+    ///             let filter = SCContentFilter::create()
+    ///                 .with_window(window)
     ///                 .build();
     ///         }
     ///     }
@@ -417,8 +417,9 @@ impl SCPickerResult {
     ///         let displays = result.displays();
     ///         if let Some(display) = displays.first() {
     ///             // Create custom filter with the picked display
-    ///             let filter = SCContentFilter::builder()
-    ///                 .display(display)
+    ///             let filter = SCContentFilter::create()
+    ///                 .with_display(display)
+    ///                 .with_excluding_windows(&[])
     ///                 .build();
     ///         }
     ///     }
@@ -628,7 +629,7 @@ impl SCContentSharingPicker {
     ///     let content = SCShareableContent::get().ok()?;
     ///     let displays = content.displays();
     ///     let display = displays.first()?;
-    ///     let filter = SCContentFilter::builder().display(display).exclude_windows(&[]).build();
+    ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     ///     let stream_config = SCStreamConfiguration::new();
     ///     let stream = SCStream::new(&filter, &stream_config);
     ///

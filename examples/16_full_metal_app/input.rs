@@ -107,7 +107,10 @@ pub fn start_capture(
             Ok(content) => {
                 let displays = content.displays();
                 if let Some(display) = displays.first() {
-                    SCContentFilter::with().display(display).build()
+                    SCContentFilter::create()
+                        .with_display(display)
+                        .with_excluding_windows(&[])
+                        .build()
                 } else {
                     println!("❌ No displays available for mic-only capture");
                     return;

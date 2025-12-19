@@ -1,5 +1,7 @@
 //! Pixel buffer tests
 
+#![allow(clippy::unreadable_literal)]
+
 #[cfg(test)]
 mod iosurface_plane_tests {
     use screencapturekit::cm::{IOSurface, IOSurfaceLockOptions, PlaneProperties};

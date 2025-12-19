@@ -10,6 +10,7 @@ pub mod pixel_format;
 pub mod stream_properties;
 
 pub use advanced::SCPresenterOverlayAlertSetting;
+pub use audio::{AudioChannelCount, AudioSampleRate};
 pub use internal::SCStreamConfiguration;
 pub use pixel_format::PixelFormat;
 pub use stream_properties::SCCaptureDynamicRange;

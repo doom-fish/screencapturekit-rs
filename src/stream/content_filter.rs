@@ -13,7 +13,7 @@
 //! let display = &content.displays()[0];
 //!
 //! // Capture entire display
-//! let filter = SCContentFilter::with()
+//! let filter = SCContentFilter::create()
 //!     .with_display(display)
 //!     .with_excluding_windows(&[])
 //!     .build();
@@ -46,14 +46,14 @@ use crate::{
 /// let display = &content.displays()[0];
 ///
 /// // Capture entire display
-/// let filter = SCContentFilter::with()
+/// let filter = SCContentFilter::create()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[])
 ///     .build();
 ///
 /// // Or capture a specific window
 /// let window = &content.windows()[0];
-/// let filter = SCContentFilter::with()
+/// let filter = SCContentFilter::create()
 ///     .with_window(window)
 ///     .build();
 /// # Ok(())
@@ -77,7 +77,7 @@ impl std::hash::Hash for SCContentFilter {
 
 // Note: We intentionally do NOT implement Default for SCContentFilter.
 // A null filter would cause panics/crashes when used with SCStream.
-// Users should always use SCContentFilter::with() to create valid filters.
+// Users should always use SCContentFilter::create() to create valid filters.
 
 impl SCContentFilter {
     /// Creates a content filter builder
@@ -91,7 +91,7 @@ impl SCContentFilter {
     /// let content = SCShareableContent::get()?;
     /// let display = &content.displays()[0];
     ///
-    /// let filter = SCContentFilter::with()
+    /// let filter = SCContentFilter::create()
     ///     .with_display(display)
     ///     .with_excluding_windows(&[])
     ///     .build();
@@ -99,7 +99,7 @@ impl SCContentFilter {
     /// # }
     /// ```
     #[must_use]
-    pub fn with() -> SCContentFilterBuilder {
+    pub fn create() -> SCContentFilterBuilder {
         SCContentFilterBuilder::new()
     }
 
@@ -390,20 +390,20 @@ unsafe impl Sync for SCContentFilter {}
 /// let display = &content.displays()[0];
 ///
 /// // Capture entire display
-/// let filter = SCContentFilter::with()
+/// let filter = SCContentFilter::create()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[])
 ///     .build();
 ///
 /// // Capture with specific windows excluded
 /// let window = &content.windows()[0];
-/// let filter = SCContentFilter::with()
+/// let filter = SCContentFilter::create()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[window])
 ///     .build();
 ///
 /// // Capture specific window
-/// let filter = SCContentFilter::with()
+/// let filter = SCContentFilter::create()
 ///     .with_window(window)
 ///     .build();
 /// # Ok(())

@@ -109,7 +109,7 @@ fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResult, 
             .ok_or("No displays available")?
     };
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
         .build();
@@ -146,7 +146,7 @@ fn take_screenshot_window(window_id: u32) -> Result<ScreenshotResult, String> {
         .cloned()
         .ok_or_else(|| format!("Window {} not found", window_id))?;
 
-    let filter = SCContentFilter::with().with_window(&window).build();
+    let filter = SCContentFilter::create().with_window(&window).build();
 
     let frame = window.frame();
     let config = SCStreamConfiguration::new()

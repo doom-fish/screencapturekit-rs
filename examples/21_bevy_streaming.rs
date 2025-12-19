@@ -11,6 +11,10 @@
 //! cargo run --example 21_bevy_streaming
 //! ```
 
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::needless_pass_by_value)]
+
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use screencapturekit::cv::CVPixelBufferLockFlags;
@@ -121,7 +125,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
     println!("Display: {}x{}", display.width(), display.height());
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
         .build();
@@ -165,7 +169,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let texture_handle = images.add(placeholder);
 
     // Spawn camera
-    commands.spawn(Camera2d::default());
+    commands.spawn(Camera2d);
 
     // Spawn sprite with the texture
     commands.spawn((
@@ -213,7 +217,7 @@ fn update_screen_texture(
     );
 
     // Update the texture handle
-    for mut sprite in query.iter_mut() {
+    for mut sprite in &mut query {
         sprite.image = images.add(image.clone());
     }
 

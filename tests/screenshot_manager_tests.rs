@@ -27,7 +27,7 @@ fn test_capture_image() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -51,7 +51,7 @@ fn test_capture_sample_buffer() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -82,7 +82,7 @@ fn test_cgimage_rgba_data() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
@@ -269,7 +269,7 @@ fn test_capture_screenshot_with_configuration() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = &content.displays()[0];
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();

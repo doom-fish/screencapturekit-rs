@@ -148,7 +148,7 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
     let displays = content.displays();
 
     if let Some(display) = displays.first() {
-        let filter = SCContentFilter::with()
+        let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
             .build();

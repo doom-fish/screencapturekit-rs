@@ -1,5 +1,8 @@
 //! Tests for Metal integration and pixel format utilities
 
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::similar_names)]
+
 use screencapturekit::metal::pixel_format;
 use screencapturekit::metal::Uniforms;
 use screencapturekit::metal::{
@@ -222,7 +225,7 @@ mod metal_device_tests {
         let device = MetalDevice::system_default().expect("No Metal device");
         let name = device.name();
         assert!(!name.is_empty(), "Device should have a name");
-        println!("Metal device: {}", name);
+        println!("Metal device: {name}");
     }
 
     #[test]
@@ -235,7 +238,7 @@ mod metal_device_tests {
     #[test]
     fn test_metal_device_debug() {
         let device = MetalDevice::system_default().expect("No Metal device");
-        let debug_str = format!("{:?}", device);
+        let debug_str = format!("{device:?}");
         assert!(debug_str.contains("MetalDevice"));
     }
 
@@ -258,7 +261,7 @@ mod metal_device_tests {
     fn test_metal_command_queue_debug() {
         let device = MetalDevice::system_default().expect("No Metal device");
         let queue = device.create_command_queue().expect("No command queue");
-        let debug_str = format!("{:?}", queue);
+        let debug_str = format!("{queue:?}");
         assert!(debug_str.contains("MetalCommandQueue"));
     }
 
@@ -268,7 +271,7 @@ mod metal_device_tests {
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let library = device.create_library_with_source(SHADER_SOURCE);
-        assert!(library.is_ok(), "Should compile shaders: {:?}", library);
+        assert!(library.is_ok(), "Should compile shaders: {library:?}");
     }
 
     #[test]
@@ -307,7 +310,7 @@ mod metal_device_tests {
             .get_function("vertex_fullscreen")
             .expect("No function");
 
-        let debug_str = format!("{:?}", function);
+        let debug_str = format!("{function:?}");
         assert!(debug_str.contains("MetalFunction"));
     }
 
@@ -421,7 +424,7 @@ mod metal_texture_tests {
             .create_metal_textures(&device)
             .expect("Failed to create textures");
 
-        let debug_str = format!("{:?}", textures);
+        let debug_str = format!("{textures:?}");
         assert!(debug_str.contains("CapturedTextures"));
     }
 
@@ -485,7 +488,7 @@ mod metal_pipeline_tests {
     #[test]
     fn test_render_pipeline_descriptor_creation() {
         let desc = MetalRenderPipelineDescriptor::new();
-        let debug_str = format!("{:?}", desc);
+        let debug_str = format!("{desc:?}");
         assert!(debug_str.contains("MetalRenderPipelineDescriptor"));
     }
 
@@ -507,7 +510,7 @@ mod metal_pipeline_tests {
         desc.set_vertex_function(&vertex_fn);
         desc.set_fragment_function(&fragment_fn);
 
-        let debug_str = format!("{:?}", desc);
+        let debug_str = format!("{desc:?}");
         assert!(debug_str.contains("MetalRenderPipelineDescriptor"));
     }
 
@@ -556,7 +559,7 @@ mod metal_pipeline_tests {
         let pipeline = device
             .create_render_pipeline_state(&desc)
             .expect("No pipeline");
-        let debug_str = format!("{:?}", pipeline);
+        let debug_str = format!("{pipeline:?}");
         assert!(debug_str.contains("MetalRenderPipelineState"));
     }
 }
@@ -571,7 +574,7 @@ mod metal_layer_tests {
     #[test]
     fn test_metal_layer_creation() {
         let layer = MetalLayer::new();
-        let debug_str = format!("{:?}", layer);
+        let debug_str = format!("{layer:?}");
         assert!(debug_str.contains("MetalLayer"));
     }
 
@@ -630,7 +633,7 @@ mod metal_render_pass_tests {
     #[test]
     fn test_render_pass_descriptor_creation() {
         let desc = MetalRenderPassDescriptor::new();
-        let debug_str = format!("{:?}", desc);
+        let debug_str = format!("{desc:?}");
         assert!(debug_str.contains("MetalRenderPassDescriptor"));
     }
 
@@ -777,7 +780,7 @@ mod metal_buffer_tests {
         let buffer = device
             .create_buffer(64, ResourceOptions::CPU_CACHE_MODE_DEFAULT_CACHE)
             .expect("Failed to create buffer");
-        let debug_str = format!("{:?}", buffer);
+        let debug_str = format!("{buffer:?}");
         assert!(debug_str.contains("MetalBuffer"));
     }
 
@@ -817,7 +820,7 @@ mod metal_command_tests {
         let device = MetalDevice::system_default().expect("No Metal device");
         let queue = device.create_command_queue().expect("No command queue");
         let buffer = queue.command_buffer().expect("No command buffer");
-        let debug_str = format!("{:?}", buffer);
+        let debug_str = format!("{buffer:?}");
         assert!(debug_str.contains("MetalCommandBuffer"));
     }
 
@@ -846,7 +849,7 @@ mod metal_command_tests {
         let library = device
             .create_library_with_source(SHADER_SOURCE)
             .expect("Failed to compile shaders");
-        let debug_str = format!("{:?}", library);
+        let debug_str = format!("{library:?}");
         assert!(debug_str.contains("MetalLibrary"));
     }
 
@@ -902,7 +905,7 @@ mod metal_vertex_descriptor_tests {
     #[test]
     fn test_vertex_descriptor_creation() {
         let desc = MetalVertexDescriptor::new();
-        let debug_str = format!("{:?}", desc);
+        let debug_str = format!("{desc:?}");
         assert!(debug_str.contains("MetalVertexDescriptor"));
     }
 
@@ -1189,7 +1192,7 @@ mod metal_render_encoder_tests {
         layer.set_drawable_size(32.0, 32.0);
 
         let drawable = layer.next_drawable().expect("No drawable");
-        let debug_str = format!("{:?}", drawable);
+        let debug_str = format!("{drawable:?}");
         assert!(debug_str.contains("MetalDrawable"));
     }
 
@@ -1216,7 +1219,7 @@ mod metal_render_encoder_tests {
             .render_command_encoder(&render_pass)
             .expect("No encoder");
 
-        let debug_str = format!("{:?}", encoder);
+        let debug_str = format!("{encoder:?}");
         assert!(debug_str.contains("MetalRenderCommandEncoder"));
 
         encoder.end_encoding();
@@ -1274,7 +1277,7 @@ fn test_iosurface_info_debug() {
     let surface = IOSurface::create(50, 50, 0x42475241, 4).expect("Failed to create IOSurface");
     let info = surface.info();
 
-    let debug_str = format!("{:?}", info);
+    let debug_str = format!("{info:?}");
     assert!(debug_str.contains("IOSurfaceInfo"));
     assert!(debug_str.contains("width"));
     assert!(debug_str.contains("height"));
@@ -1303,7 +1306,7 @@ fn test_plane_info_debug() {
         bytes_per_row: 400,
     };
 
-    let debug_str = format!("{:?}", plane);
+    let debug_str = format!("{plane:?}");
     assert!(debug_str.contains("PlaneInfo"));
     assert!(debug_str.contains("index"));
 }
@@ -1349,7 +1352,7 @@ fn test_metal_pixel_format_default() {
 #[test]
 fn test_metal_pixel_format_debug() {
     let format = MTLPixelFormat::BGRA8Unorm;
-    let debug_str = format!("{:?}", format);
+    let debug_str = format!("{format:?}");
     assert!(debug_str.contains("BGRA8Unorm"));
 }
 

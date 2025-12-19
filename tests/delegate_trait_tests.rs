@@ -1,5 +1,7 @@
 //! `SCStreamDelegateTrait` tests
 
+#![allow(clippy::struct_field_names)]
+
 use screencapturekit::error::SCError;
 use screencapturekit::stream::delegate_trait::{
     ErrorHandler, SCStreamDelegateTrait, StreamCallbacks,

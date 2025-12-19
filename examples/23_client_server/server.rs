@@ -3,6 +3,9 @@
 //! Captures the screen and streams frames over TCP.
 //! Run with: `cargo run --example 23_client_server_server`
 
+#![allow(clippy::significant_drop_tightening)]
+#![allow(clippy::option_if_let_else)]
+
 use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
 use std::io::Write;
@@ -17,7 +20,7 @@ struct SharedFrame {
 }
 
 impl SharedFrame {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             data: Vec::new(),
             dirty: AtomicBool::new(false),
@@ -83,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         display.height()
     );
 
-    let filter = SCContentFilter::with()
+    let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
         .build();

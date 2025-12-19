@@ -202,7 +202,7 @@ fn test_block_buffer_debug_format() {
     let data = vec![1u8, 2, 3, 4];
     let buffer = CMBlockBuffer::create(&data).expect("Failed to create buffer");
 
-    let debug_str = format!("{:?}", buffer);
+    let debug_str = format!("{buffer:?}");
     assert!(debug_str.contains("CMBlockBuffer"));
     assert!(debug_str.contains("data_length"));
 }
@@ -212,6 +212,6 @@ fn test_block_buffer_display_format() {
     let data = vec![1u8, 2, 3, 4, 5];
     let buffer = CMBlockBuffer::create(&data).expect("Failed to create buffer");
 
-    let display_str = format!("{}", buffer);
+    let display_str = format!("{buffer}");
     assert!(display_str.contains("5 bytes"));
 }

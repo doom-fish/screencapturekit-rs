@@ -3,6 +3,9 @@
 //! Connects to the server and displays received frames using egui.
 //! Run with: `cargo run --example 23_client_server_client`
 
+#![allow(clippy::significant_drop_tightening)]
+#![allow(clippy::option_if_let_else)]
+
 use eframe::egui;
 use std::io::Read;
 use std::net::TcpStream;
@@ -19,7 +22,7 @@ struct SharedFrame {
 }
 
 impl SharedFrame {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             data: Vec::new(),
             dirty: AtomicBool::new(false),
@@ -34,7 +37,7 @@ struct ViewerApp {
 }
 
 impl ViewerApp {
-    fn new(shared_frame: Arc<Mutex<SharedFrame>>, connected: Arc<AtomicBool>) -> Self {
+    const fn new(shared_frame: Arc<Mutex<SharedFrame>>, connected: Arc<AtomicBool>) -> Self {
         Self {
             shared_frame,
             texture: None,

@@ -278,14 +278,14 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
     let filter = match filter_type {
         FilterType::DisplayExcludeWindows => {
             let exclude = collect_window_refs(&windows, 5);
-            SCContentFilter::with()
+            SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&exclude)
                 .build()
         }
         FilterType::DisplayIncludeWindows => {
             let include = collect_window_refs(&windows, 3);
-            SCContentFilter::with()
+            SCContentFilter::create()
                 .with_display(display)
                 .with_including_windows(&include)
                 .build()
@@ -293,7 +293,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
         FilterType::DisplayExcludeApps => {
             let exclude_apps = collect_app_refs(&apps, 2);
             let except_windows = collect_window_refs(&windows, 1);
-            SCContentFilter::with()
+            SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_applications(&exclude_apps, &except_windows)
                 .build()
@@ -301,7 +301,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
         FilterType::DisplayIncludeApps => {
             let include_apps = collect_app_refs(&apps, 3);
             let except_windows = collect_window_refs(&windows, 1);
-            SCContentFilter::with()
+            SCContentFilter::create()
                 .with_display(display)
                 .with_including_applications(&include_apps, &except_windows)
                 .build()
@@ -311,10 +311,10 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
                 .iter()
                 .find(|w| w.is_on_screen())
                 .unwrap_or(&windows[0]);
-            SCContentFilter::with().with_window(window).build()
+            SCContentFilter::create().with_window(window).build()
         }
         #[cfg(feature = "macos_15_0")]
-        FilterType::FullConfigWithMic => SCContentFilter::with()
+        FilterType::FullConfigWithMic => SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
             .build(),

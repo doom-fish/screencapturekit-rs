@@ -176,10 +176,10 @@ enum SCPresenterOverlayAlertSetting { case system, never, always }
 ### Builder Pattern
 
 ```rust
-// Content filters use .builder() with .build()
-let filter = SCContentFilter::builder()
-    .display(&display)
-    .exclude_windows(&windows)
+// Content filters use .create() with .build()
+let filter = SCContentFilter::create()
+    .with_display(&display)
+    .with_excluding_windows(&windows)
     .build();
 
 // Configuration uses ::new() with .with_*() chainable methods
