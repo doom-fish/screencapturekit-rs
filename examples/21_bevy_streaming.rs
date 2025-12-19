@@ -2,15 +2,18 @@
 //!
 //! Demonstrates real-time screen capture as a Bevy texture.
 //! This example shows:
-//! - Zero-copy Metal texture creation
+//! - Real-time screen capture to Bevy sprite
 //! - Streaming frames to Bevy's render pipeline
-//! - Using IOSurface for GPU-to-GPU transfer
+//! - BGRA to RGBA conversion for Bevy compatibility
 //!
-//! Note: Requires `bevy` crate with render feature.
-//! Add to Cargo.toml: `bevy = "0.14"`
+//! Usage:
+//! ```bash
+//! cargo run --example 21_bevy_streaming
+//! ```
 
+use bevy::prelude::*;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use screencapturekit::cv::CVPixelBufferLockFlags;
-use screencapturekit::metal::MetalDevice;
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -18,12 +21,9 @@ use std::sync::{Arc, Mutex};
 /// Frame data for Bevy texture updates
 struct FrameData {
     /// RGBA pixel data (converted from BGRA)
-    #[allow(dead_code)]
     rgba: Vec<u8>,
     width: u32,
     height: u32,
-    /// Frame number for change detection
-    frame_number: usize,
 }
 
 struct SharedState {
@@ -32,11 +32,11 @@ struct SharedState {
     frame_count: AtomicUsize,
 }
 
-struct BevyStreamHandler {
+struct StreamHandler {
     state: Arc<SharedState>,
 }
 
-impl SCStreamOutputTrait for BevyStreamHandler {
+impl SCStreamOutputTrait for StreamHandler {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, output_type: SCStreamOutputType) {
         if !matches!(output_type, SCStreamOutputType::Screen) {
             return;
@@ -67,7 +67,7 @@ impl SCStreamOutputTrait for BevyStreamHandler {
             }
         }
 
-        let frame_number = self.state.frame_count.fetch_add(1, Ordering::Relaxed);
+        self.state.frame_count.fetch_add(1, Ordering::Relaxed);
 
         // Update shared frame
         if let Ok(mut frame) = self.state.frame.lock() {
@@ -75,44 +75,63 @@ impl SCStreamOutputTrait for BevyStreamHandler {
                 rgba,
                 width,
                 height,
-                frame_number,
             });
             self.state.new_frame.store(true, Ordering::Release);
         }
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🎮 Bevy Texture Streaming\n");
-    println!("This example demonstrates Bevy integration.");
-    println!("To run with Bevy, add to your dependencies:\n");
-    println!("  bevy = \"0.14\"\n");
+/// Resource holding the screen capture state
+#[derive(Resource)]
+struct ScreenCapture {
+    state: Arc<SharedState>,
+    #[allow(dead_code)]
+    stream: SCStream,
+}
 
-    // Check Metal availability
-    let metal_device = MetalDevice::system_default().ok_or("No Metal device")?;
-    println!("Metal device: {}", metal_device.name());
+/// Marker component for the screen sprite
+#[derive(Component)]
+struct ScreenSprite;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Screen Capture Viewer".into(),
+                resolution: (1280., 720.).into(),
+                ..default()
+            }),
+            ..default()
+        }))
+        .add_systems(Startup, setup)
+        .add_systems(Update, update_screen_texture)
+        .run();
+}
+
+fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+    println!("🎮 Setting up Bevy Screen Capture...\n");
 
     // Set up screen capture
-    let content = SCShareableContent::get()?;
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
     let display = content
         .displays()
         .into_iter()
         .next()
-        .ok_or("No displays found")?;
+        .expect("No displays found");
 
-    println!("Display: {}x{}\n", display.width(), display.height());
+    println!("Display: {}x{}", display.width(), display.height());
 
     let filter = SCContentFilter::new()
         .with_display(&display)
         .with_excluding_windows(&[])
         .build();
 
-    // Capture at 60 FPS for smooth streaming
+    // Capture at 30 FPS
     let config = SCStreamConfiguration::new()
-        .with_width(1920)
-        .with_height(1080)
+        .with_width(1280)
+        .with_height(720)
         .with_pixel_format(PixelFormat::BGRA)
-        .with_minimum_frame_interval(&CMTime::new(1, 60));
+        .with_minimum_frame_interval(&CMTime::new(1, 30));
 
     let state = Arc::new(SharedState {
         frame: Mutex::new(None),
@@ -120,7 +139,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         frame_count: AtomicUsize::new(0),
     });
 
-    let handler = BevyStreamHandler {
+    let handler = StreamHandler {
         state: state.clone(),
     };
 
@@ -128,65 +147,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
 
     println!("Starting capture...\n");
-    stream.start_capture()?;
+    stream.start_capture().expect("Failed to start capture");
 
-    // Simulate Bevy update loop
-    for _ in 0..10 {
-        std::thread::sleep(std::time::Duration::from_millis(100));
+    // Create a placeholder texture
+    let placeholder = Image::new_fill(
+        Extent3d {
+            width: 1280,
+            height: 720,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        &[30, 30, 30, 255], // Dark gray
+        TextureFormat::Rgba8UnormSrgb,
+        default(),
+    );
 
-        if state.new_frame.swap(false, Ordering::Acquire) {
-            if let Ok(frame) = state.frame.lock() {
-                if let Some(ref f) = *frame {
-                    println!(
-                        "📹 New frame #{}: {}x{} ready for Bevy",
-                        f.frame_number, f.width, f.height
-                    );
-                }
-            }
-        }
-    }
+    let texture_handle = images.add(placeholder);
 
-    stream.stop_capture()?;
-    let total = state.frame_count.load(Ordering::Relaxed);
-    println!("\n✅ Captured {} frames", total);
+    // Spawn camera
+    commands.spawn(Camera2d::default());
 
-    println!("\n--- Bevy Integration Code ---\n");
-    println!(
-        r#"
-use bevy::prelude::*;
-use bevy::render::render_resource::{{Extent3d, TextureDimension, TextureFormat}};
+    // Spawn sprite with the texture
+    commands.spawn((
+        Sprite {
+            image: texture_handle,
+            custom_size: Some(Vec2::new(1280.0, 720.0)),
+            ..default()
+        },
+        ScreenSprite,
+    ));
 
-#[derive(Resource)]
-struct ScreenCapture {{
-    state: Arc<SharedState>,
-    stream: SCStream,
-}}
+    // Insert screen capture resource
+    commands.insert_resource(ScreenCapture { state, stream });
+}
 
 fn update_screen_texture(
     capture: Res<ScreenCapture>,
     mut images: ResMut<Assets<Image>>,
-    mut query: Query<&mut Handle<Image>, With<ScreenSprite>>,
-) {{
+    mut query: Query<&mut Sprite, With<ScreenSprite>>,
+) {
     // Check for new frame
-    if !capture.state.new_frame.swap(false, Ordering::Acquire) {{
+    if !capture.state.new_frame.swap(false, Ordering::Acquire) {
         return;
-    }}
+    }
 
-    let Ok(frame_guard) = capture.state.frame.lock() else {{
+    let Ok(frame_guard) = capture.state.frame.lock() else {
         return;
-    }};
+    };
 
-    let Some(ref frame) = *frame_guard else {{
+    let Some(ref frame) = *frame_guard else {
         return;
-    }};
+    };
 
     // Create Bevy Image from RGBA data
     let image = Image::new(
-        Extent3d {{
+        Extent3d {
             width: frame.width,
             height: frame.height,
             depth_or_array_layers: 1,
-        }},
+        },
         TextureDimension::D2,
         frame.rgba.clone(),
         TextureFormat::Rgba8UnormSrgb,
@@ -194,16 +213,12 @@ fn update_screen_texture(
     );
 
     // Update the texture handle
-    for mut handle in query.iter_mut() {{
-        *handle = images.add(image.clone());
-    }}
-}}
+    for mut sprite in query.iter_mut() {
+        sprite.image = images.add(image.clone());
+    }
 
-// For zero-copy GPU path (advanced):
-// Use IOSurface -> Metal texture -> wgpu texture -> Bevy Image
-// See example 18_wgpu_integration for the Metal texture creation
-"#
-    );
-
-    Ok(())
+    let count = capture.state.frame_count.load(Ordering::Relaxed);
+    if count % 30 == 0 {
+        println!("📹 Frame {}: {}x{}", count, frame.width, frame.height);
+    }
 }
