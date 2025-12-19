@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Display: {}x{}\n", display.width(), display.height());
 
     // Create filter and config
-    let filter = SCContentFilter::builder()
+    let filter = SCContentFilter::with()
         .display(&display)
         .exclude_windows(&[])
         .build();

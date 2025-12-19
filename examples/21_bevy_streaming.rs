@@ -121,7 +121,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
     println!("Display: {}x{}", display.width(), display.height());
 
-    let filter = SCContentFilter::new()
+    let filter = SCContentFilter::with()
         .with_display(&display)
         .with_excluding_windows(&[])
         .build();

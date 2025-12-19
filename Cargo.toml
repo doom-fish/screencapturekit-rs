@@ -80,3 +80,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 name = "16_full_metal_app"
 path = "examples/16_full_metal_app/main.rs"
 required-features = ["macos_14_0"]
+
+[[example]]
+name = "23_client_server_server"
+path = "examples/23_client_server/server.rs"
+
+[[example]]
+name = "23_client_server_client"
+path = "examples/23_client_server/client.rs"

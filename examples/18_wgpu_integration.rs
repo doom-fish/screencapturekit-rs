@@ -392,7 +392,7 @@ impl ApplicationHandler for App<'_> {
         // Start capture
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().into_iter().next() {
-                let filter = SCContentFilter::new()
+                let filter = SCContentFilter::with()
                     .with_display(&display)
                     .with_excluding_windows(&[])
                     .build();

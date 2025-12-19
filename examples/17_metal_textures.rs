@@ -182,7 +182,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .next()
         .ok_or("No displays found")?;
 
-    let filter = SCContentFilter::builder()
+    let filter = SCContentFilter::with()
         .display(&display)
         .exclude_windows(&[])
         .build();

@@ -57,7 +57,7 @@
 //! use screencapturekit::shareable_content::SCShareableContent;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let content = SCShareableContent::new()
+//! let content = SCShareableContent::create()
 //!     .with_on_screen_windows_only(true)
 //!     .with_exclude_desktop_windows(true)
 //!     .get()?;
@@ -167,7 +167,7 @@ impl SCShareableContent {
     /// use screencapturekit::shareable_content::SCShareableContent;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let content = SCShareableContent::new()
+    /// let content = SCShareableContent::create()
     ///     .with_on_screen_windows_only(true)
     ///     .with_exclude_desktop_windows(true)
     ///     .get()?;
@@ -175,38 +175,7 @@ impl SCShareableContent {
     /// # }
     /// ```
     #[must_use]
-    pub fn new() -> SCShareableContentOptions {
-        SCShareableContentOptions::default()
-    }
-
-    /// Create options builder for customizing shareable content retrieval
-    ///
-    /// # Deprecated
-    ///
-    /// Use `SCShareableContent::new()` instead for consistency with other types.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use screencapturekit::shareable_content::SCShareableContent;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// // Old API (deprecated)
-    /// let content = SCShareableContent::with_options()
-    ///     .on_screen_windows_only(true)
-    ///     .exclude_desktop_windows(true)
-    ///     .get()?;
-    ///
-    /// // New API (preferred)
-    /// let content = SCShareableContent::new()
-    ///     .with_on_screen_windows_only(true)
-    ///     .with_exclude_desktop_windows(true)
-    ///     .get()?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[deprecated(since = "1.5.0", note = "Use SCShareableContent::new() instead")]
-    pub fn with_options() -> SCShareableContentOptions {
+    pub fn create() -> SCShareableContentOptions {
         SCShareableContentOptions::default()
     }
 
