@@ -1,7 +1,7 @@
 //! IOSurface and pixel buffer tests
 
 use screencapturekit::cm::{IOSurface, IOSurfaceLockOptions};
-use screencapturekit::cv::{CVPixelBuffer, CVPixelBufferLockFlags};
+use screencapturekit::cv::CVPixelBufferLockFlags;
 
 #[test]
 fn test_iosurface_lock_options_values() {
@@ -114,7 +114,7 @@ fn test_iosurface_lock_guard_cursor() {
         .lock(IOSurfaceLockOptions::READ_ONLY)
         .expect("Failed to lock IOSurface");
 
-    let mut cursor = unsafe { guard.cursor() };
+    let mut cursor = guard.cursor();
     let mut buf = [0u8; 4];
     let result = cursor.read_exact(&mut buf);
     assert!(result.is_ok());
