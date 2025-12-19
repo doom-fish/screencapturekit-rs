@@ -538,6 +538,12 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 15. **`15_memory_leak_check.rs`** - Memory leak detection with `leaks`
 16. **`16_full_metal_app/`** - Full Metal GUI application (macOS 14.0+)
 17. **`17_metal_textures.rs`** - Metal texture creation from `IOSurface`
+18. **`18_wgpu_integration.rs`** - Zero-copy wgpu integration
+19. **`19_ffmpeg_encoding.rs`** - Real-time H.264 encoding via FFmpeg
+20. **`20_egui_viewer.rs`** - egui screen viewer integration
+21. **`21_bevy_streaming.rs`** - Bevy texture streaming
+22. **`22_tauri_app/`** - Tauri 2.0 desktop app with WebGL (macOS 14.0+)
+23. **`23_client_server/`** - Client/server screen sharing
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -550,6 +556,10 @@ cargo run --example 09_closure_handlers
 cargo run --example 12_stream_updates
 cargo run --example 14_app_capture
 cargo run --example 17_metal_textures
+cargo run --example 18_wgpu_integration
+cargo run --example 19_ffmpeg_encoding  # Requires: brew install ffmpeg
+cargo run --example 20_egui_viewer
+cargo run --example 21_bevy_streaming
 
 # Feature-gated examples
 cargo run --example 05_screenshot --features macos_14_0
@@ -558,6 +568,13 @@ cargo run --example 10_recording_output --features macos_15_0
 cargo run --example 11_content_picker --features macos_14_0
 cargo run --example 13_advanced_config --features macos_15_0
 cargo run --example 16_full_metal_app --features macos_14_0
+
+# Tauri app (separate project)
+cd examples/22_tauri_app && npm install && npm run tauri dev
+
+# Client/server screen sharing
+cargo run --example 23_client_server_server  # Terminal 1
+cargo run --example 23_client_server_client  # Terminal 2
 ```
 
 ## 🧪 Testing
@@ -589,14 +606,15 @@ cargo fmt --check
 
 ```
 screencapturekit/
-├── cm/                     # Core Media (CMSampleBuffer, CMTime, CVPixelBuffer)
-├── cg/                     # Core Graphics (CGRect, CGImage)
+├── cm/                     # Core Media (CMSampleBuffer, CMTime, IOSurface)
+├── cv/                     # Core Video (CVPixelBuffer, CVPixelBufferPool)
+├── cg/                     # Core Graphics (CGRect, CGPoint, CGSize)
+├── metal/                  # Metal GPU integration (textures, shaders)
 ├── stream/                 # Stream management
 │   ├── configuration/      # SCStreamConfiguration
 │   ├── content_filter/     # SCContentFilter
 │   └── sc_stream/          # SCStream
 ├── shareable_content/      # SCShareableContent, SCDisplay, SCWindow
-├── output/                 # Frame buffers and pixel data
 ├── dispatch_queue/         # Custom dispatch queues
 ├── error/                  # Error types
 ├── screenshot_manager/     # SCScreenshotManager (macOS 14.0+)
