@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Screen Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-weight: 300;
+            font-size: 2rem;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+        #video {
+            max-width: 90vw;
+            max-height: 70vh;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            background: #000;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .connected {
+            color: #4ade80;
+        }
+        .connecting {
+            color: #fbbf24;
+        }
+        .error {
+            color: #f87171;
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 32px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖥️ WebRTC Screen Viewer</h1>
+        <video id="video" autoplay playsinline muted></video>
+        <div id="status" class="connecting">Waiting to connect...</div>
+        <button id="connectBtn" onclick="connect()">Connect to Stream</button>
+    </div>
+
+    <script>
+        let pc = null;
+
+        async function connect() {
+            const statusEl = document.getElementById('status');
+            const videoEl = document.getElementById('video');
+            const btnEl = document.getElementById('connectBtn');
+            
+            btnEl.disabled = true;
+            statusEl.textContent = 'Connecting...';
+            statusEl.className = 'connecting';
+
+            try {
+                // Create peer connection
+                pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                // Handle incoming tracks
+                pc.ontrack = (event) => {
+                    console.log('Received track:', event.track.kind);
+                    if (event.track.kind === 'video') {
+                        videoEl.srcObject = event.streams[0];
+                        statusEl.textContent = '🎥 Streaming...';
+                        statusEl.className = 'connected';
+                    }
+                };
+
+                // Handle connection state changes
+                pc.onconnectionstatechange = () => {
+                    console.log('Connection state:', pc.connectionState);
+                    switch (pc.connectionState) {
+                        case 'connected':
+                            statusEl.textContent = '✅ Connected';
+                            statusEl.className = 'connected';
+                            break;
+                        case 'disconnected':
+                        case 'failed':
+                            statusEl.textContent = '❌ Disconnected';
+                            statusEl.className = 'error';
+                            btnEl.disabled = false;
+                            break;
+                    }
+                };
+
+                pc.oniceconnectionstatechange = () => {
+                    console.log('ICE state:', pc.iceConnectionState);
+                };
+
+                // Add transceiver for receiving video
+                pc.addTransceiver('video', { direction: 'recvonly' });
+
+                // Create offer
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                // Wait for ICE gathering to complete
+                await new Promise((resolve) => {
+                    if (pc.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        pc.onicegatheringstatechange = () => {
+                            if (pc.iceGatheringState === 'complete') {
+                                resolve();
+                            }
+                        };
+                    }
+                });
+
+                // Send offer to server
+                const response = await fetch('/offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pc.localDescription)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get answer from server');
+                }
+
+                // Set remote description (server's answer)
+                const answer = await response.json();
+                await pc.setRemoteDescription(answer);
+                
+                console.log('WebRTC connection established');
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                statusEl.textContent = '❌ Error: ' + error.message;
+                statusEl.className = 'error';
+                btnEl.disabled = false;
+            }
+        }
+
+        // Auto-connect on page load
+        // Uncomment the line below to auto-connect:
+        // window.onload = connect;
+    </script>
+</body>
+</html>
