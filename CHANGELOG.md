@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.4.2...v1.5.0) - 2025-12-20
+
+### Added
+
+- add WebRTC screen streaming example
+- *(examples)* add full wgpu screen capture viewer
+- *(examples)* add full egui viewer with eframe
+
+### Fixed
+
+- remove tauri build artifacts from git tracking
+- *(examples)* simplify tauri example shader and config
+- *(tests)* remove unnecessary unsafe block
+- *(lint)* resolve clippy warnings and update API naming
+- *(lint)* resolve clippy doc_markdown warnings
+- *(examples)* correct wgpu row stride and sRGB color
+
+### Other
+
+- update .gitignore for tauri example build artifacts
+- remove RwLock+Sync changes, keep Mutex for handler registry
+- fix README code block rendering on GitHub
+- fix README code block rendering on GitHub
+- fix clippy doc_markdown warning for IOSurface
+- rename SCContentFilter::with() to create() and add audio enums
+- update SCContentFilter API calls and benchmark label
+- fix failing doctests
+- enhance Cargo.toml with lints, badges, and example features
+- update README with examples 18-23 and fix module structure
+- *(examples)* remove unused list_applications from tauri example
+- *(examples)* remove unused RecordingState from tauri example
+- *(examples)* update tauri README to match current code
+- format tauri example code
+- add crates.io badges and egui/bevy examples
+- add Used By section, FUNDING.yml, and integration examples
+- *(deps)* update criterion requirement from 0.5 to 0.8 ([#117](https://github.com/doom-fish/screencapturekit-rs/pull/117))
+
 ## [1.4.2](https://github.com/doom-fish/screencapturekit-rs/compare/v1.4.1...v1.4.2) - 2025-12-15
 
 ### Fixed
