@@ -71,4 +71,13 @@ coverage/
 .project
 .classpath
 .settings/
+
+# Node.js
 node_modules/
+package-lock.json
+yarn.lock
+
+# Tauri example build artifacts
+examples/22_tauri_app/src-tauri/target/
+examples/22_tauri_app/src-tauri/gen/
+examples/22_tauri_app/node_modules/
