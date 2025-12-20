@@ -63,7 +63,7 @@ use crate::error::SCError;
 /// # Ok(())
 /// # }
 /// ```
-pub trait SCStreamDelegateTrait: Send + Sync {
+pub trait SCStreamDelegateTrait: Send {
     /// Called when video effects start (macOS 14.0+)
     ///
     /// Notifies when the stream's overlay video effect (presenter overlay) has started.
@@ -125,14 +125,14 @@ pub trait SCStreamDelegateTrait: Send + Sync {
 /// ```
 pub struct ErrorHandler<F>
 where
-    F: Fn(SCError) + Send + Sync + 'static,
+    F: Fn(SCError) + Send + 'static,
 {
     handler: F,
 }
 
 impl<F> ErrorHandler<F>
 where
-    F: Fn(SCError) + Send + Sync + 'static,
+    F: Fn(SCError) + Send + 'static,
 {
     /// Create a new error handler from a closure
     pub fn new(handler: F) -> Self {
@@ -142,7 +142,7 @@ where
 
 impl<F> SCStreamDelegateTrait for ErrorHandler<F>
 where
-    F: Fn(SCError) + Send + Sync + 'static,
+    F: Fn(SCError) + Send + 'static,
 {
     fn did_stop_with_error(&self, error: SCError) {
         (self.handler)(error);
@@ -185,12 +185,12 @@ where
 /// ```
 #[allow(clippy::struct_field_names)]
 pub struct StreamCallbacks {
-    on_stop: Option<Box<dyn Fn(Option<String>) + Send + Sync + 'static>>,
-    on_error: Option<Box<dyn Fn(SCError) + Send + Sync + 'static>>,
-    on_active: Option<Box<dyn Fn() + Send + Sync + 'static>>,
-    on_inactive: Option<Box<dyn Fn() + Send + Sync + 'static>>,
-    on_video_effect_start: Option<Box<dyn Fn() + Send + Sync + 'static>>,
-    on_video_effect_stop: Option<Box<dyn Fn() + Send + Sync + 'static>>,
+    on_stop: Option<Box<dyn Fn(Option<String>) + Send + 'static>>,
+    on_error: Option<Box<dyn Fn(SCError) + Send + 'static>>,
+    on_active: Option<Box<dyn Fn() + Send + 'static>>,
+    on_inactive: Option<Box<dyn Fn() + Send + 'static>>,
+    on_video_effect_start: Option<Box<dyn Fn() + Send + 'static>>,
+    on_video_effect_stop: Option<Box<dyn Fn() + Send + 'static>>,
 }
 
 impl StreamCallbacks {
@@ -211,7 +211,7 @@ impl StreamCallbacks {
     #[must_use]
     pub fn on_stop<F>(mut self, f: F) -> Self
     where
-        F: Fn(Option<String>) + Send + Sync + 'static,
+        F: Fn(Option<String>) + Send + 'static,
     {
         self.on_stop = Some(Box::new(f));
         self
@@ -221,7 +221,7 @@ impl StreamCallbacks {
     #[must_use]
     pub fn on_error<F>(mut self, f: F) -> Self
     where
-        F: Fn(SCError) + Send + Sync + 'static,
+        F: Fn(SCError) + Send + 'static,
     {
         self.on_error = Some(Box::new(f));
         self
@@ -231,7 +231,7 @@ impl StreamCallbacks {
     #[must_use]
     pub fn on_active<F>(mut self, f: F) -> Self
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn() + Send + 'static,
     {
         self.on_active = Some(Box::new(f));
         self
@@ -241,7 +241,7 @@ impl StreamCallbacks {
     #[must_use]
     pub fn on_inactive<F>(mut self, f: F) -> Self
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn() + Send + 'static,
     {
         self.on_inactive = Some(Box::new(f));
         self
@@ -251,7 +251,7 @@ impl StreamCallbacks {
     #[must_use]
     pub fn on_video_effect_start<F>(mut self, f: F) -> Self
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn() + Send + 'static,
     {
         self.on_video_effect_start = Some(Box::new(f));
         self
@@ -261,7 +261,7 @@ impl StreamCallbacks {
     #[must_use]
     pub fn on_video_effect_stop<F>(mut self, f: F) -> Self
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn() + Send + 'static,
     {
         self.on_video_effect_stop = Some(Box::new(f));
         self

@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::fmt;
-use std::sync::RwLock;
+use std::sync::Mutex;
 
 use crate::error::SCError;
 use crate::stream::delegate_trait::SCStreamDelegateTrait;
@@ -27,23 +27,20 @@ struct HandlerEntry {
 }
 
 // Global registry for output handlers with reference counting
-// Uses RwLock for better performance: read lock in hot path (frame callbacks),
-// write lock only for handler registration/removal
-static HANDLER_REGISTRY: RwLock<Option<HashMap<usize, HandlerEntry>>> = RwLock::new(None);
-static NEXT_HANDLER_ID: RwLock<usize> = RwLock::new(1);
+static HANDLER_REGISTRY: Mutex<Option<HashMap<usize, HandlerEntry>>> = Mutex::new(None);
+static NEXT_HANDLER_ID: Mutex<usize> = Mutex::new(1);
 
 // Global registry for stream delegates (keyed by stream pointer) with reference counting
 struct DelegateEntry {
     delegate: Box<dyn SCStreamDelegateTrait>,
     ref_count: usize,
 }
-// Uses RwLock for better performance in delegate callbacks
-static DELEGATE_REGISTRY: RwLock<Option<HashMap<usize, DelegateEntry>>> = RwLock::new(None);
+static DELEGATE_REGISTRY: Mutex<Option<HashMap<usize, DelegateEntry>>> = Mutex::new(None);
 
 /// Increment a handler's ref count
 #[allow(clippy::significant_drop_tightening)]
 fn increment_handler_ref_count(id: usize) {
-    let mut registry = HANDLER_REGISTRY.write().unwrap();
+    let mut registry = HANDLER_REGISTRY.lock().unwrap();
     let Some(handlers) = registry.as_mut() else {
         return;
     };
@@ -55,7 +52,7 @@ fn increment_handler_ref_count(id: usize) {
 /// Decrement a handler's ref count, returning true if entry was removed (`ref_count` reached 0)
 #[allow(clippy::significant_drop_tightening)]
 fn decrement_handler_ref_count(id: usize) -> bool {
-    let mut registry = HANDLER_REGISTRY.write().unwrap();
+    let mut registry = HANDLER_REGISTRY.lock().unwrap();
     let Some(handlers) = registry.as_mut() else {
         return false;
     };
@@ -75,7 +72,7 @@ fn decrement_handler_ref_count(id: usize) -> bool {
 /// Increment a delegate's ref count
 #[allow(clippy::significant_drop_tightening)]
 fn increment_delegate_ref_count(stream_key: usize) {
-    let Ok(mut registry) = DELEGATE_REGISTRY.write() else {
+    let Ok(mut registry) = DELEGATE_REGISTRY.lock() else {
         return;
     };
     let Some(delegates) = registry.as_mut() else {
@@ -89,7 +86,7 @@ fn increment_delegate_ref_count(stream_key: usize) {
 /// Decrement a delegate's ref count, returning true if entry was removed (`ref_count` reached 0)
 #[allow(clippy::significant_drop_tightening)]
 fn decrement_delegate_ref_count(stream_key: usize) -> bool {
-    let Ok(mut registry) = DELEGATE_REGISTRY.write() else {
+    let Ok(mut registry) = DELEGATE_REGISTRY.lock() else {
         return false;
     };
     let Some(delegates) = registry.as_mut() else {
@@ -131,9 +128,9 @@ extern "C" fn delegate_error_callback(stream: *const c_void, error_code: i32, ms
         SCError::StreamError(message.clone())
     };
 
-    // Look up delegate in registry and call it (read lock - hot path)
+    // Look up delegate in registry and call it
     let stream_key = stream as usize;
-    if let Ok(registry) = DELEGATE_REGISTRY.read() {
+    if let Ok(registry) = DELEGATE_REGISTRY.lock() {
         if let Some(ref delegates) = *registry {
             if let Some(entry) = delegates.get(&stream_key) {
                 entry.delegate.did_stop_with_error(error);
@@ -153,8 +150,8 @@ extern "C" fn sample_handler(
     sample_buffer: *const c_void,
     output_type: i32,
 ) {
-    // RwLock read - allows concurrent frame callbacks without blocking each other
-    let registry = HANDLER_REGISTRY.read().unwrap();
+    // Mutex poisoning is unrecoverable in C callback context; unwrap is appropriate
+    let registry = HANDLER_REGISTRY.lock().unwrap();
     if let Some(handlers) = registry.as_ref() {
         if handlers.is_empty() {
             // No handlers registered - release the buffer that Swift passed us
@@ -353,7 +350,7 @@ impl SCStream {
         // Store delegate in registry keyed by stream pointer
         if !ptr.is_null() {
             let stream_key = ptr as usize;
-            let mut registry = DELEGATE_REGISTRY.write().unwrap();
+            let mut registry = DELEGATE_REGISTRY.lock().unwrap();
             if registry.is_none() {
                 *registry = Some(HashMap::new());
             }
@@ -479,8 +476,8 @@ impl SCStream {
     ) -> Option<usize> {
         // Get next handler ID
         let handler_id = {
-            // Write lock for ID generation (infrequent operation)
-            let mut id_lock = NEXT_HANDLER_ID.write().unwrap();
+            // Mutex poisoning is unrecoverable; unwrap is appropriate
+            let mut id_lock = NEXT_HANDLER_ID.lock().unwrap();
             let id = *id_lock;
             *id_lock += 1;
             id
@@ -488,8 +485,8 @@ impl SCStream {
 
         // Store handler in registry
         {
-            // Write lock for handler registration (infrequent operation)
-            let mut registry = HANDLER_REGISTRY.write().unwrap();
+            // Mutex poisoning is unrecoverable; unwrap is appropriate
+            let mut registry = HANDLER_REGISTRY.lock().unwrap();
             if registry.is_none() {
                 *registry = Some(HashMap::new());
             }
@@ -529,7 +526,7 @@ impl SCStream {
         } else {
             // Remove from registry since Swift rejected it
             HANDLER_REGISTRY
-                .write()
+                .lock()
                 .unwrap()
                 .as_mut()
                 .map(|handlers| handlers.remove(&handler_id));
