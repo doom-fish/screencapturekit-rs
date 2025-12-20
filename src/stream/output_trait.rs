@@ -62,7 +62,7 @@ use super::output_type::SCStreamOutputType;
 /// # Ok(())
 /// # }
 /// ```
-pub trait SCStreamOutputTrait: Send + Sync {
+pub trait SCStreamOutputTrait: Send {
     /// Called when a new sample buffer is available
     ///
     /// # Parameters
@@ -74,11 +74,11 @@ pub trait SCStreamOutputTrait: Send + Sync {
 
 /// Blanket implementation for closures
 ///
-/// Any closure matching `Fn(CMSampleBuffer, SCStreamOutputType) + Send + Sync + 'static`
+/// Any closure matching `Fn(CMSampleBuffer, SCStreamOutputType) + Send + 'static`
 /// can be used directly as an output handler.
 impl<F> SCStreamOutputTrait for F
 where
-    F: Fn(CMSampleBuffer, SCStreamOutputType) + Send + Sync + 'static,
+    F: Fn(CMSampleBuffer, SCStreamOutputType) + Send + 'static,
 {
     fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType) {
         self(sample_buffer, of_type);
