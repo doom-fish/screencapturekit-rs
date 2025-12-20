@@ -525,6 +525,7 @@ The [`examples/`](examples/) directory contains focused API demonstrations:
 21. **`21_bevy_streaming.rs`** - Bevy texture streaming
 22. **`22_tauri_app/`** - Tauri 2.0 desktop app with WebGL (macOS 14.0+)
 23. **`23_client_server/`** - Client/server screen sharing
+24. **`24_webrtc/`** - WebRTC screen streaming to browser
 
 See [`examples/README.md`](examples/README.md) for detailed descriptions.
 
@@ -556,6 +557,9 @@ cd examples/22_tauri_app && npm install && npm run tauri dev
 # Client/server screen sharing
 cargo run --example 23_client_server_server  # Terminal 1
 cargo run --example 23_client_server_client  # Terminal 2
+
+# WebRTC streaming (open http://127.0.0.1:8080 in browser)
+cargo run --example 24_webrtc
 ```
 
 ## 🧪 Testing
