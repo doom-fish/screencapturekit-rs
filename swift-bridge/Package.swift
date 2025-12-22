@@ -37,10 +37,14 @@ func detectSDKMajorVersion() -> Int {
 let sdkMajorVersion = detectSDKMajorVersion()
 
 var swiftSettings: [SwiftSetting] = []
-if sdkMajorVersion >= 15 {
+let env = ProcessInfo.processInfo.environment
+let enableMacOS15 = env["CARGO_FEATURE_MACOS_15_0"] != nil && sdkMajorVersion >= 15
+let enableMacOS26 = env["CARGO_FEATURE_MACOS_26_0"] != nil && sdkMajorVersion >= 26
+
+if enableMacOS15 {
     swiftSettings.append(.define("SCREENCAPTUREKIT_HAS_MACOS15_SDK"))
 }
-if sdkMajorVersion >= 26 {
+if enableMacOS26 {
     swiftSettings.append(.define("SCREENCAPTUREKIT_HAS_MACOS26_SDK"))
 }
 
