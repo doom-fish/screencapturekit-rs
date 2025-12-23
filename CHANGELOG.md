@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.0...v1.5.1) - 2025-12-23
+
+### Other
+
+- *(deps)* update eframe requirement from 0.30 to 0.33 ([#121](https://github.com/doom-fish/screencapturekit-rs/pull/121))
+
 ## [1.5.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.4.2...v1.5.0) - 2025-12-20
 
 ### Added
