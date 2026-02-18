@@ -48,6 +48,8 @@ async = []
 
 # macOS version feature flags
 # Enable features for specific macOS versions
+# NB: when adding new versions, be sure to update build.rs to pass
+#     the correct feature flags over to the Swift bridge build.
 macos_13_0 = []
 macos_14_0 = ["macos_13_0"]
 macos_14_2 = ["macos_14_0"]
