@@ -2,7 +2,11 @@ use std::env;
 use std::process::Command;
 
 fn main() {
-    println!("cargo:rustc-link-lib=framework=ScreenCaptureKit");
+    // Weak-link ScreenCaptureKit so that classes only available in newer macOS versions
+    // (e.g., SCScreenshotConfiguration in macOS 26.0+) don't cause dyld crashes at load
+    // time when running on older macOS versions. Swift's `if #available` runtime checks
+    // handle the actual availability gating.
+    println!("cargo:rustc-link-arg=-Wl,-weak_framework,ScreenCaptureKit");
 
     // Build the Swift bridge
     let swift_dir = "swift-bridge";
