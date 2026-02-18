@@ -1,48 +1,8 @@
 // swift-tools-version:5.9
 import PackageDescription
-import Foundation
 
-// Detect SDK version to enable version-gated APIs
-// The SDK version determines what APIs are available at compile time
-func detectSDKMajorVersion() -> Int {
-    // Try to detect SDK version via xcrun
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-    process.arguments = ["--show-sdk-version"]
-    
-    let pipe = Pipe()
-    process.standardOutput = pipe
-    process.standardError = FileHandle.nullDevice
-    
-    do {
-        try process.run()
-        process.waitUntilExit()
-        
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        if let versionString = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-            // Parse version like "15.0" or "14.5"
-            let components = versionString.split(separator: ".")
-            if let major = components.first, let majorInt = Int(major) {
-                return majorInt
-            }
-        }
-    } catch {
-        // Fall back to checking ProcessInfo
-    }
-    
-    // Fallback: check if we're on macOS at build time
-    return ProcessInfo.processInfo.operatingSystemVersion.majorVersion
-}
-
-let sdkMajorVersion = detectSDKMajorVersion()
-
-var swiftSettings: [SwiftSetting] = []
-if sdkMajorVersion >= 15 {
-    swiftSettings.append(.define("SCREENCAPTUREKIT_HAS_MACOS15_SDK"))
-}
-if sdkMajorVersion >= 26 {
-    swiftSettings.append(.define("SCREENCAPTUREKIT_HAS_MACOS26_SDK"))
-}
+// Swift compiler defines (SCREENCAPTUREKIT_HAS_MACOS15_SDK, SCREENCAPTUREKIT_HAS_MACOS26_SDK)
+// are passed via -Xswiftc flags from build.rs based on Cargo feature flags (macos_15_0, macos_26_0).
 
 let package = Package(
     name: "ScreenCaptureKitBridge",
@@ -61,8 +21,7 @@ let package = Package(
             name: "ScreenCaptureKitBridge",
             dependencies: ["CoreMediaBridge", "CoreVideoBridge", "CoreGraphicsBridge", "IOSurfaceBridge", "DispatchBridge", "MetalBridge"],
             path: "Sources/ScreenCaptureKitBridge",
-            publicHeadersPath: "include",
-            swiftSettings: swiftSettings),
+            publicHeadersPath: "include"),
         // CoreMedia framework bindings (CMSampleBuffer, CMTime, CMFormatDescription)
         .target(
             name: "CoreMediaBridge",

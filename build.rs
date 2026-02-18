@@ -26,16 +26,25 @@ fn main() {
     }
 
     // Build Swift package with build directory in OUT_DIR
+    // Pass Cargo feature flags as Swift compiler defines so the Swift bridge
+    // only compiles version-gated APIs that the crate consumer opted into.
+    let mut swift_args = vec![
+        "build",
+        "-c",
+        "release",
+        "--package-path",
+        swift_dir,
+        "--scratch-path",
+        &swift_build_dir,
+    ];
+    if env::var("CARGO_FEATURE_MACOS_15_0").is_ok() {
+        swift_args.extend(["-Xswiftc", "-DSCREENCAPTUREKIT_HAS_MACOS15_SDK"]);
+    }
+    if env::var("CARGO_FEATURE_MACOS_26_0").is_ok() {
+        swift_args.extend(["-Xswiftc", "-DSCREENCAPTUREKIT_HAS_MACOS26_SDK"]);
+    }
     let output = Command::new("swift")
-        .args([
-            "build",
-            "-c",
-            "release",
-            "--package-path",
-            swift_dir,
-            "--scratch-path",
-            &swift_build_dir,
-        ])
+        .args(&swift_args)
         .output()
         .expect("Failed to build Swift bridge");
 
