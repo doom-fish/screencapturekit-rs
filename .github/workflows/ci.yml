@@ -54,15 +54,30 @@ jobs:
           - os: macos-14
             name: macOS 14 (Sonoma) ARM64
             features: "async,macos_14_4"
+            assert_symbol_absent: ""
+            assert_symbol_present: ""
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
             features: "async,macos_15_2"
+            assert_symbol_absent: ""
+            assert_symbol_present: ""
           - os: macos-15-intel
             name: macOS 15 (Sequoia) Intel
             features: "async,macos_15_2"
+            assert_symbol_absent: ""
+            assert_symbol_present: ""
           - os: macos-26
             name: macOS 26 (Tahoe) ARM64
             features: "async,macos_26_0"
+            assert_symbol_absent: ""
+            assert_symbol_present: "SCScreenshotConfiguration"
+          # Cross-version: build on macOS 26 SDK with only macOS 15 features
+          # to verify no macOS 26 symbols leak into the binary (issue #127)
+          - os: macos-26
+            name: macOS 26 (Tahoe) cross-version (macos_15_2 only)
+            features: "async,macos_15_2"
+            assert_symbol_absent: "SCScreenshotConfiguration"
+            assert_symbol_present: ""
     runs-on: ${{ matrix.os }}
     name: Build - ${{ matrix.name }}
     needs: [lint]
@@ -88,6 +103,12 @@ jobs:
         run: cargo test --verbose
       - name: Run tests with version-specific features
         run: cargo test --verbose --features "${{ matrix.features }}"
+      - name: Verify macOS 26 symbols are absent (cross-version safety)
+        if: matrix.assert_symbol_absent != ''
+        run: ./scripts/check_symbols.sh --assert-absent "${{ matrix.assert_symbol_absent }}"
+      - name: Verify macOS 26 symbols are present
+        if: matrix.assert_symbol_present != ''
+        run: ./scripts/check_symbols.sh --assert-present "${{ matrix.assert_symbol_present }}"
 
   # ==========================================================================
   # Memory Leak Check (per-platform, runs parallel to build)
