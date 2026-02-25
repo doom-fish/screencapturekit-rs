@@ -1,6 +1,21 @@
 use std::env;
 use std::process::Command;
 
+/// Detect the macOS SDK major version via `xcrun --show-sdk-version`.
+/// Returns `None` if detection fails.
+fn detect_sdk_major_version() -> Option<u32> {
+    let output = Command::new("xcrun")
+        .args(["--show-sdk-version"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let version_str = String::from_utf8_lossy(&output.stdout);
+    let major = version_str.trim().split('.').next()?;
+    major.parse().ok()
+}
+
 fn main() {
     println!("cargo:rustc-link-lib=framework=ScreenCaptureKit");
 
@@ -28,6 +43,11 @@ fn main() {
     // Build Swift package with build directory in OUT_DIR
     // Pass Cargo feature flags as Swift compiler defines so the Swift bridge
     // only compiles version-gated APIs that the crate consumer opted into.
+    // We intersect the requested Cargo feature with the actual SDK version:
+    // a define is only passed when the feature is enabled AND the SDK supports it.
+    let sdk_version = detect_sdk_major_version();
+    let sdk_at_least = |min: u32| sdk_version.is_some_and(|v| v >= min);
+
     let mut swift_args = vec![
         "build",
         "-c",
@@ -38,10 +58,26 @@ fn main() {
         &swift_build_dir,
     ];
     if env::var("CARGO_FEATURE_MACOS_15_0").is_ok() {
-        swift_args.extend(["-Xswiftc", "-DSCREENCAPTUREKIT_HAS_MACOS15_SDK"]);
+        if sdk_at_least(15) {
+            swift_args.extend(["-Xswiftc", "-DSCREENCAPTUREKIT_HAS_MACOS15_SDK"]);
+        } else {
+            println!(
+                "cargo:warning=Feature macos_15_0 enabled but SDK version ({}) < 15; \
+                 macOS 15+ APIs will be stubbed out",
+                sdk_version.map_or_else(|| "unknown".to_string(), |v| v.to_string())
+            );
+        }
     }
     if env::var("CARGO_FEATURE_MACOS_26_0").is_ok() {
-        swift_args.extend(["-Xswiftc", "-DSCREENCAPTUREKIT_HAS_MACOS26_SDK"]);
+        if sdk_at_least(26) {
+            swift_args.extend(["-Xswiftc", "-DSCREENCAPTUREKIT_HAS_MACOS26_SDK"]);
+        } else {
+            println!(
+                "cargo:warning=Feature macos_26_0 enabled but SDK version ({}) < 26; \
+                 macOS 26+ APIs will be stubbed out",
+                sdk_version.map_or_else(|| "unknown".to_string(), |v| v.to_string())
+            );
+        }
     }
     let output = Command::new("swift")
         .args(&swift_args)
