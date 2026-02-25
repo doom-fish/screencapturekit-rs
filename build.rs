@@ -101,8 +101,12 @@ fn main() {
     }
 
     // Link the Swift library from OUT_DIR
-    println!("cargo:rustc-link-search=native={swift_build_dir}/release");
+    let swift_lib_dir = format!("{swift_build_dir}/release");
+    println!("cargo:rustc-link-search=native={swift_lib_dir}");
     println!("cargo:rustc-link-lib=static=ScreenCaptureKitBridge");
+
+    // Expose the static library path so integration tests can verify symbols
+    println!("cargo:rustc-env=SWIFT_BRIDGE_LIB_PATH={swift_lib_dir}/libScreenCaptureKitBridge.a");
 
     // Link required frameworks
     println!("cargo:rustc-link-lib=framework=Foundation");
