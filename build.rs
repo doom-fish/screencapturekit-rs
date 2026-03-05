@@ -122,7 +122,10 @@ fn main() {
         );
     }
 
-    // Link the Swift library from OUT_DIR
+    link_swift_bridge(&swift_build_dir);
+}
+
+fn link_swift_bridge(swift_build_dir: &str) {
     println!("cargo:rustc-link-search=native={swift_build_dir}/release");
     println!("cargo:rustc-link-lib=static=ScreenCaptureKitBridge");
 
@@ -143,7 +146,6 @@ fn main() {
                 "{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx"
             );
             println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_lib_path}");
-            // Also add the newer swift path
             let swift_lib_path_new =
                 format!("{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx");
             println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_lib_path_new}");
