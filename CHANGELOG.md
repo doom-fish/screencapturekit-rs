@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.1...v1.5.2) - 2026-03-05
+
+### Fixed
+
+- use pointer::cast for clippy ptr_as_ptr lint
+- use system allocator for Swift-allocated AudioBufferList deallocation ([#129](https://github.com/doom-fish/screencapturekit-rs/pull/129))
+- use system allocator for Swift-allocated AudioBufferList deallocation ([#132](https://github.com/doom-fish/screencapturekit-rs/pull/132))
+- cross-arch swift build and CI symbol check reliability ([#131](https://github.com/doom-fish/screencapturekit-rs/pull/131))
+
+### Other
+
+- add allocator mismatch regression test for AudioBufferList
+- Revert "fix: use system allocator for Swift-allocated AudioBufferList deallocation ([#132](https://github.com/doom-fish/screencapturekit-rs/pull/132))"
+
 ## [1.5.1](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.0...v1.5.1) - 2026-02-25
 
 ### Fixed
