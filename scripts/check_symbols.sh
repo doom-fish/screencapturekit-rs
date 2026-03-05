@@ -25,10 +25,14 @@ if [[ -z "$MODE" || -z "$SYMBOL" ]]; then
     exit 2
 fi
 
-# Find the Swift bridge static library in Cargo's build output
-LIB=$(find target -name "libScreenCaptureKitBridge.a" -path "*/release/*" 2>/dev/null | head -1)
+# Find the Swift bridge static library in Cargo's build output.
+# Multiple build artifacts may exist (default features vs version-specific features),
+# so pick the most recently modified one to match the last `cargo build` invocation.
+LIB=$(find target -name "libScreenCaptureKitBridge.a" -path "*/release/*" 2>/dev/null \
+    | xargs ls -t 2>/dev/null | head -1)
 if [[ -z "$LIB" ]]; then
-    LIB=$(find target -name "libScreenCaptureKitBridge.a" 2>/dev/null | head -1)
+    LIB=$(find target -name "libScreenCaptureKitBridge.a" 2>/dev/null \
+        | xargs ls -t 2>/dev/null | head -1)
 fi
 if [[ -z "$LIB" ]]; then
     echo "ERROR: libScreenCaptureKitBridge.a not found in target/" >&2
