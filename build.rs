@@ -17,6 +17,12 @@ fn detect_sdk_major_version() -> Option<u32> {
 }
 
 fn main() {
+    // docs.rs builds on Linux where Swift toolchain and macOS frameworks are
+    // unavailable. Skip native compilation – rustdoc only needs type info.
+    if env::var("DOCS_RS").is_ok() {
+        return;
+    }
+
     println!("cargo:rustc-link-lib=framework=ScreenCaptureKit");
 
     // Build the Swift bridge
