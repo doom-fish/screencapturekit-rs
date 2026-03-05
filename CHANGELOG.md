@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.3](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.2...v1.5.3) - 2026-03-05
+
+### Fixed
+
+- skip native build on docs.rs to fix badge
+
+### Other
+
+- extract link_swift_bridge to fix clippy too-many-lines
+
 ## [1.5.2](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.1...v1.5.2) - 2026-03-05
 
 ### Fixed
