@@ -191,7 +191,7 @@ impl Drop for AudioBufferList {
                 use std::alloc::{GlobalAlloc, Layout, System};
                 let layout = Layout::array::<AudioBuffer>(self.inner.buffers_len)
                     .expect("AudioBufferList layout overflow");
-                System.dealloc(self.inner.buffers_ptr as *mut u8, layout);
+                System.dealloc(self.inner.buffers_ptr.cast::<u8>(), layout);
             }
         }
         // Release the block buffer that owns the audio data
