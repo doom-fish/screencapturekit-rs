@@ -181,14 +181,17 @@ impl AudioBufferList {
 
 impl Drop for AudioBufferList {
     fn drop(&mut self) {
-        // Free the buffers array allocated in Swift
+        // Free the buffers array allocated in Swift via UnsafeMutablePointer.allocate().
+        // Must use the system allocator (not Rust's global allocator) because Swift
+        // allocates with the system malloc. Using Vec::from_raw_parts here would route
+        // through the global allocator, which crashes when a custom allocator like
+        // mimalloc is active.
         if !self.inner.buffers_ptr.is_null() {
             unsafe {
-                Vec::from_raw_parts(
-                    self.inner.buffers_ptr,
-                    self.inner.buffers_len,
-                    self.inner.buffers_len,
-                );
+                use std::alloc::{GlobalAlloc, Layout, System};
+                let layout = Layout::array::<AudioBuffer>(self.inner.buffers_len)
+                    .expect("AudioBufferList layout overflow");
+                System.dealloc(self.inner.buffers_ptr as *mut u8, layout);
             }
         }
         // Release the block buffer that owns the audio data
