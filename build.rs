@@ -48,10 +48,26 @@ fn main() {
     let sdk_version = detect_sdk_major_version();
     let sdk_at_least = |min: u32| sdk_version.is_some_and(|v| v >= min);
 
+    // Determine Swift triple from Cargo's target arch so cross-compilation
+    // works (e.g. building x86_64 on Apple Silicon). Without --triple,
+    // Swift PM defaults to the host architecture and the linker fails with
+    // "symbol(s) not found" for the target arch.
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    let swift_triple = match target_arch.as_str() {
+        "x86_64" => "x86_64-apple-macosx",
+        "aarch64" => "arm64-apple-macosx",
+        other => panic!(
+            "screencapturekit: unsupported target arch '{other}'. \
+             Expected x86_64 or aarch64."
+        ),
+    };
+
     let mut swift_args = vec![
         "build",
         "-c",
         "release",
+        "--triple",
+        swift_triple,
         "--package-path",
         swift_dir,
         "--scratch-path",

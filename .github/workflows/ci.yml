@@ -78,13 +78,24 @@ jobs:
             features: "async,macos_15_2"
             assert_symbol_absent: "SCScreenshotConfiguration"
             assert_symbol_present: ""
+          # Cross-arch: verify x86_64 cross-compilation on ARM64 runner
+          - os: macos-15
+            name: macOS 15 Cross-compile (x86_64 on ARM64)
+            features: "async,macos_15_2"
+            cross_target: x86_64-apple-darwin
+            assert_symbol_absent: ""
+            assert_symbol_present: ""
     runs-on: ${{ matrix.os }}
     name: Build - ${{ matrix.name }}
     needs: [lint]
+    env:
+      TARGET_FLAG: ${{ matrix.cross_target && format('--target {0}', matrix.cross_target) || '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.cross_target || '' }}
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -96,12 +107,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.os }}-cargo-
       - name: Build (default features)
-        run: cargo build --verbose
+        run: cargo build --verbose $TARGET_FLAG
       - name: Build with version-specific features (${{ matrix.features }})
-        run: cargo build --verbose --features "${{ matrix.features }}"
+        run: cargo build --verbose --features "${{ matrix.features }}" $TARGET_FLAG
       - name: Run tests (default features)
+        if: ${{ !matrix.cross_target }}
         run: cargo test --verbose
       - name: Run tests with version-specific features
+        if: ${{ !matrix.cross_target }}
         run: cargo test --verbose --features "${{ matrix.features }}"
       - name: Verify macOS 26 symbols are absent (cross-version safety)
         if: matrix.assert_symbol_absent != ''
