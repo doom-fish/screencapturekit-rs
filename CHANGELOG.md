@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.4](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.3...v1.5.4) - 2026-03-09
+
+### Fixed
+
+- per-stream callback routing to prevent cross-stream sample leaking ([#135](https://github.com/doom-fish/screencapturekit-rs/pull/135)) ([#136](https://github.com/doom-fish/screencapturekit-rs/pull/136))
+
 ## [1.5.3](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.2...v1.5.3) - 2026-03-05
 
 ### Fixed
