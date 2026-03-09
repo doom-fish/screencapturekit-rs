@@ -285,41 +285,41 @@ public func getContentFilterIncludeMenuBar(_ filter: OpaquePointer) -> Bool {
 // MARK: - Stream: SCStream Delegates and Handlers
 
 private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
-    let errorCallback: @convention(c) (OpaquePointer, Int32, UnsafePointer<CChar>) -> Void
-    let streamPtr: OpaquePointer
-    var activeCallback: (@convention(c) (OpaquePointer) -> Void)?
-    var inactiveCallback: (@convention(c) (OpaquePointer) -> Void)?
+    let contextPtr: UnsafeMutableRawPointer
+    let errorCallback: @convention(c) (UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>) -> Void
+    var activeCallback: (@convention(c) (UnsafeMutableRawPointer) -> Void)?
+    var inactiveCallback: (@convention(c) (UnsafeMutableRawPointer) -> Void)?
 
-    init(streamPtr: OpaquePointer, errorCallback: @escaping @convention(c) (OpaquePointer, Int32, UnsafePointer<CChar>) -> Void) {
-        self.streamPtr = streamPtr
+    init(contextPtr: UnsafeMutableRawPointer, errorCallback: @escaping @convention(c) (UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>) -> Void) {
+        self.contextPtr = contextPtr
         self.errorCallback = errorCallback
     }
 
     func stream(_: SCStream, didStopWithError error: Error) {
         let errorCode = extractStreamErrorCode(error)
         let errorMsg = error.localizedDescription
-        errorMsg.withCString { errorCallback(streamPtr, errorCode, $0) }
+        errorMsg.withCString { errorCallback(contextPtr, errorCode, $0) }
     }
 
     #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
         @available(macOS 15.2, *)
         func streamDidBecomeActive(_: SCStream) {
-            activeCallback?(streamPtr)
+            activeCallback?(contextPtr)
         }
 
         @available(macOS 15.2, *)
         func streamDidBecomeInactive(_: SCStream) {
-            inactiveCallback?(streamPtr)
+            inactiveCallback?(contextPtr)
         }
     #endif
 }
 
 private class StreamOutputHandler: NSObject, SCStreamOutput {
-    let sampleBufferCallback: @convention(c) (OpaquePointer, OpaquePointer, Int32) -> Void
-    let streamPtr: OpaquePointer
+    let contextPtr: UnsafeMutableRawPointer
+    let sampleBufferCallback: @convention(c) (UnsafeMutableRawPointer, OpaquePointer, Int32) -> Void
 
-    init(streamPtr: OpaquePointer, sampleBufferCallback: @escaping @convention(c) (OpaquePointer, OpaquePointer, Int32) -> Void) {
-        self.streamPtr = streamPtr
+    init(contextPtr: UnsafeMutableRawPointer, sampleBufferCallback: @escaping @convention(c) (UnsafeMutableRawPointer, OpaquePointer, Int32) -> Void) {
+        self.contextPtr = contextPtr
         self.sampleBufferCallback = sampleBufferCallback
     }
 
@@ -335,39 +335,62 @@ private class StreamOutputHandler: NSObject, SCStreamOutput {
         }
         // IMPORTANT: passRetained() is used here to retain the CMSampleBuffer for Rust
         // The Rust side will release it when CMSampleBuffer is dropped
-        sampleBufferCallback(streamPtr, OpaquePointer(Unmanaged.passRetained(sampleBuffer as AnyObject).toOpaque()), outputType)
+        sampleBufferCallback(contextPtr, OpaquePointer(Unmanaged.passRetained(sampleBuffer as AnyObject).toOpaque()), outputType)
     }
 }
 
-// Registry to store handlers associated with streams
-private class HandlerRegistry {
-    private var handlers: [String: StreamOutputHandler] = [:]
+// Per-stream storage for its delegate and output handlers
+private class StreamState {
+    let delegate: StreamDelegateWrapper
+    let outputHandler: StreamOutputHandler
+    private var outputTypes: Set<Int32> = []
     private let lock = NSLock()
 
-    private func key(for stream: OpaquePointer, type: Int32) -> String {
-        "\(UInt(bitPattern: stream))_\(type)"
+    init(delegate: StreamDelegateWrapper, outputHandler: StreamOutputHandler) {
+        self.delegate = delegate
+        self.outputHandler = outputHandler
     }
 
-    func store(_ handler: StreamOutputHandler, for stream: OpaquePointer, type: Int32) {
+    func hasOutput(_ type: Int32) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        handlers[key(for: stream, type: type)] = handler
+        return outputTypes.contains(type)
     }
 
-    func get(for stream: OpaquePointer, type: Int32) -> StreamOutputHandler? {
+    func addOutput(_ type: Int32) {
         lock.lock()
         defer { lock.unlock() }
-        return handlers[key(for: stream, type: type)]
+        outputTypes.insert(type)
     }
 
-    func remove(for stream: OpaquePointer, type: Int32) {
+    func removeOutput(_ type: Int32) {
         lock.lock()
         defer { lock.unlock() }
-        handlers.removeValue(forKey: key(for: stream, type: type))
+        outputTypes.remove(type)
     }
 }
 
-private let handlerRegistry = HandlerRegistry()
+// Map from SCStream pointer → StreamState (kept alive while stream exists)
+private var streamStates: [ObjectIdentifier: StreamState] = [:]
+private let streamStatesLock = NSLock()
+
+private func getStreamState(for stream: SCStream) -> StreamState? {
+    streamStatesLock.lock()
+    defer { streamStatesLock.unlock() }
+    return streamStates[ObjectIdentifier(stream)]
+}
+
+private func setStreamState(_ state: StreamState, for stream: SCStream) {
+    streamStatesLock.lock()
+    defer { streamStatesLock.unlock() }
+    streamStates[ObjectIdentifier(stream)] = state
+}
+
+private func removeStreamState(for stream: SCStream) {
+    streamStatesLock.lock()
+    defer { streamStatesLock.unlock() }
+    streamStates.removeValue(forKey: ObjectIdentifier(stream))
+}
 
 // MARK: - Stream: SCStream Control
 
@@ -375,29 +398,36 @@ private let handlerRegistry = HandlerRegistry()
 public func createStream(
     _ filter: OpaquePointer,
     _ config: OpaquePointer,
-    _ errorCallback: @escaping @convention(c) (OpaquePointer, Int32, UnsafePointer<CChar>) -> Void
+    _ context: UnsafeMutableRawPointer,
+    _ errorCallback: @escaping @convention(c) (UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>) -> Void,
+    _ sampleCallback: @escaping @convention(c) (UnsafeMutableRawPointer, OpaquePointer, Int32) -> Void
 ) -> OpaquePointer? {
     let scFilter: SCContentFilter = unretained(filter)
     let scConfig: SCStreamConfiguration = unretained(config)
 
-    let streamPtr = OpaquePointer(bitPattern: 1)!
-    let delegate = StreamDelegateWrapper(streamPtr: streamPtr, errorCallback: errorCallback)
+    let delegate = StreamDelegateWrapper(contextPtr: context, errorCallback: errorCallback)
+    let outputHandler = StreamOutputHandler(contextPtr: context, sampleBufferCallback: sampleCallback)
 
     let stream = SCStream(filter: scFilter, configuration: scConfig, delegate: delegate)
-    let actualStreamPtr = retain(stream)
+    let state = StreamState(delegate: delegate, outputHandler: outputHandler)
+    setStreamState(state, for: stream)
 
+    let actualStreamPtr = retain(stream)
     return actualStreamPtr
 }
 
 @_cdecl("sc_stream_add_stream_output")
 public func addStreamOutput(
     _ stream: OpaquePointer,
-    _ type: Int32,
-    _ sampleBufferCallback: @escaping @convention(c) (OpaquePointer, OpaquePointer, Int32) -> Void
+    _ type: Int32
 ) -> Bool {
     let scStream: SCStream = unretained(stream)
-    let handler = StreamOutputHandler(streamPtr: stream, sampleBufferCallback: sampleBufferCallback)
-    handlerRegistry.store(handler, for: stream, type: type)
+    guard let state = getStreamState(for: scStream) else { return false }
+
+    // If we already registered this output type with SCStream, skip the native call
+    if state.hasOutput(type) {
+        return true
+    }
 
     let outputType: SCStreamOutputType
     if type == 0 {
@@ -417,10 +447,11 @@ public func addStreamOutput(
     }
 
     // Use a dedicated queue instead of .main to avoid runloop dependency
-    let queue = DispatchQueue(label: "com.screencapturekit.output", qos: .userInteractive)
+    let queue = DispatchQueue(label: "com.screencapturekit.output.\(type)", qos: .userInteractive)
 
     do {
-        try scStream.addStreamOutput(handler, type: outputType, sampleHandlerQueue: queue)
+        try scStream.addStreamOutput(state.outputHandler, type: outputType, sampleHandlerQueue: queue)
+        state.addOutput(type)
         return true
     } catch {
         return false
@@ -431,12 +462,15 @@ public func addStreamOutput(
 public func addStreamOutputWithQueue(
     _ stream: OpaquePointer,
     _ type: Int32,
-    _ sampleBufferCallback: @escaping @convention(c) (OpaquePointer, OpaquePointer, Int32) -> Void,
     _ dispatchQueue: OpaquePointer?
 ) -> Bool {
     let scStream: SCStream = unretained(stream)
-    let handler = StreamOutputHandler(streamPtr: stream, sampleBufferCallback: sampleBufferCallback)
-    handlerRegistry.store(handler, for: stream, type: type)
+    guard let state = getStreamState(for: scStream) else { return false }
+
+    // If we already registered this output type with SCStream, skip the native call
+    if state.hasOutput(type) {
+        return true
+    }
 
     let outputType: SCStreamOutputType
     if type == 0 {
@@ -458,11 +492,12 @@ public func addStreamOutputWithQueue(
     let queue: DispatchQueue = if let queuePtr = dispatchQueue {
         unretained(queuePtr)
     } else {
-        DispatchQueue(label: "com.screencapturekit.output", qos: .userInteractive)
+        DispatchQueue(label: "com.screencapturekit.output.\(type)", qos: .userInteractive)
     }
 
     do {
-        try scStream.addStreamOutput(handler, type: outputType, sampleHandlerQueue: queue)
+        try scStream.addStreamOutput(state.outputHandler, type: outputType, sampleHandlerQueue: queue)
+        state.addOutput(type)
         return true
     } catch {
         return false
@@ -475,7 +510,8 @@ public func removeStreamOutput(
     _ type: Int32
 ) -> Bool {
     let scStream: SCStream = unretained(stream)
-    guard let handler = handlerRegistry.get(for: stream, type: type) else { return false }
+    guard let state = getStreamState(for: scStream) else { return false }
+    guard state.hasOutput(type) else { return false }
 
     let outputType: SCStreamOutputType
     if type == 0 {
@@ -495,8 +531,8 @@ public func removeStreamOutput(
     }
 
     do {
-        try scStream.removeStreamOutput(handler, type: outputType)
-        handlerRegistry.remove(for: stream, type: type)
+        try scStream.removeStreamOutput(state.outputHandler, type: outputType)
+        state.removeOutput(type)
         return true
     } catch {
         return false
@@ -631,6 +667,8 @@ public func retainStream(_ stream: OpaquePointer) -> OpaquePointer {
 
 @_cdecl("sc_stream_release")
 public func releaseStream(_ stream: OpaquePointer) {
+    let s: SCStream = unretained(stream)
+    removeStreamState(for: s)
     release(stream)
 }
 
