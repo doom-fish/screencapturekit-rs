@@ -61,7 +61,7 @@ fn test_screen_capture_with_audio() {
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
-            println!("⚠️  Screen recording permission required!");
+            eprintln!("SKIP: Screen recording permission required!");
             println!("   Go to: System Settings → Privacy & Security → Screen Recording");
             println!("   Error: {e:?}");
             return; // Skip test gracefully
@@ -70,7 +70,7 @@ fn test_screen_capture_with_audio() {
 
     let displays = content.displays();
     if displays.is_empty() {
-        println!("⚠️  No displays found - skipping test");
+        eprintln!("SKIP: No displays found - skipping test");
         return;
     }
 
@@ -128,7 +128,7 @@ fn test_screen_capture_with_audio() {
         println!("✓ Video capture working!");
         assert!(video_count > 0, "Video frame count should be > 0");
     } else {
-        println!("⚠️  No video frames received - this may be due to:");
+        eprintln!("SKIP: No video frames received - this may be due to:");
         println!("   - Missing screen recording permissions");
         println!("   - Test running in headless environment");
         println!("   - System restrictions");
@@ -138,7 +138,7 @@ fn test_screen_capture_with_audio() {
     if audio_received.load(Ordering::SeqCst) {
         println!("✓ Audio capture working!");
     } else {
-        println!("⚠️  No audio captured (this is OK if no audio was playing)");
+        eprintln!("SKIP: No audio captured (this is OK if no audio was playing)");
     }
 }
 
@@ -149,7 +149,7 @@ fn test_combined_video_audio_capture() {
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
-            println!("⚠️  Screen recording permission required!");
+            eprintln!("SKIP: Screen recording permission required!");
             println!("   Go to: System Settings → Privacy & Security → Screen Recording");
             println!("   Error: {e:?}");
             return; // Skip test gracefully
@@ -158,7 +158,7 @@ fn test_combined_video_audio_capture() {
 
     let displays = content.displays();
     if displays.is_empty() {
-        println!("⚠️  No displays found - skipping test");
+        eprintln!("SKIP: No displays found - skipping test");
         return;
     }
 
@@ -216,7 +216,7 @@ fn test_combined_video_audio_capture() {
         assert!(v_count > 0, "Video count must be > 0");
         println!("✓ Combined capture test passed!");
     } else {
-        println!("⚠️  No video frames received - this may be due to permissions or environment");
+        eprintln!("SKIP: No video frames received - this may be due to permissions or environment");
         println!("   Skipping assertion to avoid false negatives");
     }
 }

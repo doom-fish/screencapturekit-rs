@@ -50,7 +50,7 @@ fn test_video_capture() {
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
-            println!("⚠️  Screen recording permission required!");
+            eprintln!("SKIP: Screen recording permission required!");
             println!("   Go to: System Settings → Privacy & Security → Screen Recording");
             println!("   Error: {e:?}");
             return; // Skip test gracefully
@@ -60,7 +60,7 @@ fn test_video_capture() {
     let displays = content.displays();
 
     if displays.is_empty() {
-        println!("⚠️  No displays available - skipping test");
+        eprintln!("SKIP: No displays available - skipping test");
         return;
     }
 
@@ -102,7 +102,9 @@ fn test_video_capture() {
     let collected_samples = samples.lock().unwrap();
 
     if collected_samples.is_empty() {
-        println!("⚠️  No video samples captured - this may be due to permissions or environment");
+        eprintln!(
+            "SKIP: No video samples captured - this may be due to permissions or environment"
+        );
         return; // Skip assertion to avoid false negatives
     }
 
@@ -118,7 +120,7 @@ fn test_video_capture() {
             assert!(width > 0, "Invalid video width");
             assert!(height > 0, "Invalid video height");
         } else {
-            println!("⚠️  First sample has no image buffer (may be idle frame)");
+            eprintln!("SKIP: First sample has no image buffer (may be idle frame)");
         }
     }
 }
@@ -129,7 +131,7 @@ fn test_audio_capture() {
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
-            println!("⚠️  Screen recording permission required!");
+            eprintln!("SKIP: Screen recording permission required!");
             println!("   Error: {e:?}");
             return;
         }
@@ -138,7 +140,7 @@ fn test_audio_capture() {
     let displays = content.displays();
 
     if displays.is_empty() {
-        println!("⚠️  No displays available - skipping test");
+        eprintln!("SKIP: No displays available - skipping test");
         return;
     }
 
@@ -178,7 +180,7 @@ fn test_audio_capture() {
     let collected_samples = samples.lock().unwrap();
 
     if collected_samples.is_empty() {
-        println!("⚠️  No audio samples captured (OK if no audio was playing)");
+        eprintln!("SKIP: No audio samples captured (OK if no audio was playing)");
         return;
     }
 
@@ -212,7 +214,7 @@ fn test_video_and_audio_capture() {
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
-            println!("⚠️  Screen recording permission required!");
+            eprintln!("SKIP: Screen recording permission required!");
             println!("   Error: {e:?}");
             return;
         }
@@ -221,7 +223,7 @@ fn test_video_and_audio_capture() {
     let displays = content.displays();
 
     if displays.is_empty() {
-        println!("⚠️  No displays available - skipping test");
+        eprintln!("SKIP: No displays available - skipping test");
         return;
     }
 
@@ -272,12 +274,12 @@ fn test_video_and_audio_capture() {
     println!("Captured {video_count} video samples and {audio_count} audio samples");
 
     if video_count == 0 {
-        println!("⚠️  No video samples captured - may be due to permissions");
+        eprintln!("SKIP: No video samples captured - may be due to permissions");
         return;
     }
 
     if audio_count == 0 {
-        println!("⚠️  No audio samples captured (OK if no audio was playing)");
+        eprintln!("SKIP: No audio samples captured (OK if no audio was playing)");
     }
 }
 
@@ -287,7 +289,7 @@ fn test_pixel_buffer_locking() {
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
-            println!("⚠️  Screen recording permission required!");
+            eprintln!("SKIP: Screen recording permission required!");
             println!("   Error: {e:?}");
             return;
         }
@@ -296,7 +298,7 @@ fn test_pixel_buffer_locking() {
     let displays = content.displays();
 
     if displays.is_empty() {
-        println!("⚠️  No displays available - skipping test");
+        eprintln!("SKIP: No displays available - skipping test");
         return;
     }
 
@@ -334,7 +336,7 @@ fn test_pixel_buffer_locking() {
     let collected_samples = samples.lock().unwrap();
     if let Some(sample) = collected_samples.first() {
         let Some(pixel_buffer) = sample.image_buffer() else {
-            println!("⚠️  First sample has no image buffer (may be idle frame)");
+            eprintln!("SKIP: First sample has no image buffer (may be idle frame)");
             return;
         };
 
@@ -385,7 +387,7 @@ fn test_iosurface_backed_buffer() {
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
-            println!("⚠️  Screen recording permission required!");
+            eprintln!("SKIP: Screen recording permission required!");
             println!("   Error: {e:?}");
             return;
         }
@@ -428,7 +430,7 @@ fn test_iosurface_backed_buffer() {
     let collected_samples = samples.lock().unwrap();
     if let Some(sample) = collected_samples.first() {
         let Some(pixel_buffer) = sample.image_buffer() else {
-            println!("⚠️  First sample has no image buffer (may be idle frame)");
+            eprintln!("SKIP: First sample has no image buffer (may be idle frame)");
             return;
         };
 
