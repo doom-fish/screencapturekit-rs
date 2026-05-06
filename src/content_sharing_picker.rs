@@ -792,6 +792,38 @@ impl SCContentSharingPicker {
     pub fn maximum_stream_count() -> usize {
         unsafe { crate::ffi::sc_content_sharing_picker_get_maximum_stream_count() }
     }
+
+    /// Returns whether the shared content-sharing picker is currently
+    /// marked active.
+    ///
+    /// Apple requires `picker.isActive = true` before its UI can appear.
+    /// The various `show*()` trampolines on this type set it implicitly
+    /// before presenting, but this getter is useful for callers that
+    /// want to:
+    ///
+    /// * avoid double-presenting (skip a second `show()` while the first
+    ///   picker session is still up),
+    /// * render UI affordances based on whether the picker is currently
+    ///   visible to the user.
+    #[must_use]
+    pub fn is_active() -> bool {
+        unsafe { crate::ffi::sc_content_sharing_picker_get_active() }
+    }
+
+    /// Mark the shared content-sharing picker active or inactive.
+    ///
+    /// Setting this to `false` hides the picker UI between sessions
+    /// (the recommended hygiene step after a long-running app finishes
+    /// using the picker — leaving it active leaves the system-level
+    /// Control Center entry in a "ready to share" state).
+    ///
+    /// Setting to `true` is required before `present*()` can surface
+    /// the picker; the `show*()` trampolines do this for you. Set it
+    /// manually only if you want to opt into the picker UI without
+    /// immediately presenting it.
+    pub fn set_active(active: bool) {
+        unsafe { crate::ffi::sc_content_sharing_picker_set_active(active) }
+    }
 }
 
 /// Callback trampoline for boxed closures (picker with result)

@@ -627,6 +627,11 @@ extern "C" {
     /// `sc_content_sharing_picker_configuration_release`.
     pub fn sc_content_sharing_picker_create_default_configuration() -> *const c_void;
 
+    /// Read whether the shared content-sharing picker is currently active.
+    pub fn sc_content_sharing_picker_get_active() -> bool;
+    /// Mark the shared content-sharing picker active or inactive.
+    pub fn sc_content_sharing_picker_set_active(active: bool);
+
     pub fn sc_content_sharing_picker_show(
         config: *const c_void,
         callback: extern "C" fn(i32, *const c_void, *mut c_void),
