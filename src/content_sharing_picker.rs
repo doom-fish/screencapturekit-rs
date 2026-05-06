@@ -114,6 +114,31 @@ impl SCContentSharingPickerConfiguration {
         Self { ptr }
     }
 
+    /// Construct a configuration initialised with the system's default values
+    /// (the equivalent of Apple's `SCContentSharingPicker.shared.defaultConfiguration`).
+    ///
+    /// Use this when you want "system defaults plus my one tweak" — call this
+    /// to get the baseline, then mutate the fields you care about. Compared
+    /// to [`SCContentSharingPickerConfiguration::new()`], which starts from a
+    /// blank-slate `SCContentSharingPickerConfiguration()`, this preserves
+    /// any system-wide picker preferences the OS applies to fresh
+    /// configurations (e.g. allowed picker modes, default exclusion lists).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::content_sharing_picker::*;
+    ///
+    /// // Start from the system defaults, then override only what you need.
+    /// let mut config = SCContentSharingPickerConfiguration::default_from_system();
+    /// config.set_maximum_stream_count(2);
+    /// ```
+    #[must_use]
+    pub fn default_from_system() -> Self {
+        let ptr = unsafe { crate::ffi::sc_content_sharing_picker_create_default_configuration() };
+        Self { ptr }
+    }
+
     /// Set allowed picker modes
     pub fn set_allowed_picker_modes(&mut self, modes: &[SCContentSharingPickerMode]) {
         let mode_values: Vec<i32> = modes.iter().map(|m| *m as i32).collect();

@@ -159,6 +159,21 @@ public func getContentSharingPickerMaximumStreamCount() -> Int {
     return picker.maximumStreamCount ?? 0
 }
 
+/// Return a boxed copy of the system's `defaultConfiguration` for the
+/// shared content-sharing picker. Callers may then mutate the returned
+/// `SCContentSharingPickerConfiguration` (via the existing setter
+/// trampolines) and feed it back to `present(...)` — getting "system
+/// defaults plus my one tweak" without having to reconstruct every
+/// field.
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_create_default_configuration")
+public func createContentSharingPickerDefaultConfiguration() -> OpaquePointer {
+    let picker = SCContentSharingPicker.shared
+    let config = picker.defaultConfiguration
+    let box = Box(config)
+    return retain(box)
+}
+
 // MARK: - Picker Result with content info
 
 /// Result structure returned by picker - contains filter and content metadata
