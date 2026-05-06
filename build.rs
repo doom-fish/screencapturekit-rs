@@ -17,6 +17,14 @@ fn detect_sdk_major_version() -> Option<u32> {
 }
 
 fn main() {
+    // Re-run this build script if the build script itself changes, or if
+    // any environment variable that affects its decisions changes.
+    // (Cargo's default rerun-if-changed already covers crate sources.)
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=DOCS_RS");
+    println!("cargo:rerun-if-env-changed=DEVELOPER_DIR");
+    println!("cargo:rerun-if-env-changed=SDKROOT");
+
     // docs.rs builds on Linux where Swift toolchain and macOS frameworks are
     // unavailable. Skip native compilation – rustdoc only needs type info.
     if env::var("DOCS_RS").is_ok() {
@@ -139,8 +147,8 @@ fn link_swift_bridge(swift_build_dir: &str) {
     println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
 
     // Add rpath for Xcode Swift runtime (needed for Swift Concurrency)
-    if let Ok(output) = Command::new("xcode-select").arg("-p").output() {
-        if output.status.success() {
+    match Command::new("xcode-select").arg("-p").output() {
+        Ok(output) if output.status.success() => {
             let xcode_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             let swift_lib_path = format!(
                 "{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx"
@@ -149,6 +157,27 @@ fn link_swift_bridge(swift_build_dir: &str) {
             let swift_lib_path_new =
                 format!("{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx");
             println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_lib_path_new}");
+        }
+        Ok(output) => {
+            // xcode-select ran but reported failure (e.g. exit code != 0).
+            println!(
+                "cargo:warning=`xcode-select -p` exited non-zero (status={:?}); \
+                 the Swift Concurrency rpath will not be baked in. The resulting \
+                 binary may fail at load time with `dyld: Library not loaded` \
+                 unless Swift's concurrency runtime is on the system search \
+                 path. Install the full Xcode (not just Command Line Tools), \
+                 or set DEVELOPER_DIR to a valid Xcode path.",
+                output.status.code()
+            );
+        }
+        Err(err) => {
+            // xcode-select binary missing or not executable.
+            println!(
+                "cargo:warning=`xcode-select` could not be invoked ({err}); \
+                 the Swift Concurrency rpath will not be baked in. The \
+                 resulting binary may fail at load time with `dyld: Library \
+                 not loaded`. Install Xcode and ensure xcode-select is on PATH."
+            );
         }
     }
 }
