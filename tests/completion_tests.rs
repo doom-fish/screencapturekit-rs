@@ -81,3 +81,50 @@ fn test_async_completion_immediate() {
         _ => panic!("Expected Ready(Ok(42))"),
     }
 }
+
+/// Regression test for H10 from the deep review: a completion callback must
+/// be defended against double-invocation by Swift. Without the `consumed`
+/// `AtomicBool` guard, the second invocation would call `Arc::from_raw` on a
+/// pointer whose Arc reference was already reclaimed → use-after-free /
+/// double-free. With the guard, the second call must be an inert no-op.
+#[test]
+fn test_sync_completion_double_invocation_is_no_op() {
+    let (completion, context) = SyncCompletion::<i32>::new();
+
+    // First invocation — legitimate.
+    unsafe { SyncCompletion::complete_ok(context, 7) };
+
+    // Second invocation — simulates Swift firing the callback twice. Must
+    // not crash, must not double-free. The result of the first call wins.
+    unsafe { SyncCompletion::complete_ok(context, 999) };
+
+    let result = completion.wait();
+    assert_eq!(result, Ok(7), "first invocation's result must win");
+}
+
+#[test]
+fn test_async_completion_double_invocation_is_no_op() {
+    let (future, context) = AsyncCompletion::<i32>::create();
+
+    unsafe { AsyncCompletion::complete_ok(context, 1) };
+    unsafe { AsyncCompletion::complete_ok(context, 2) };
+
+    let waker = std::task::Waker::noop();
+    let mut cx = Context::from_waker(waker);
+    let mut pinned = std::pin::pin!(future);
+
+    match pinned.as_mut().poll(&mut cx) {
+        Poll::Ready(Ok(v)) => assert_eq!(v, 1, "first invocation's result must win"),
+        other => panic!("Expected Ready(Ok(1)), got {other:?}"),
+    }
+}
+
+/// Null context must be a no-op (defensive programming for Swift bugs).
+#[test]
+fn test_sync_completion_null_context_is_no_op() {
+    // Must not crash.
+    unsafe { SyncCompletion::<i32>::complete_ok(std::ptr::null_mut(), 42) };
+    unsafe {
+        SyncCompletion::<i32>::complete_err(std::ptr::null_mut(), "ignored".to_string());
+    }
+}

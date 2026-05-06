@@ -21,6 +21,7 @@
 use std::ffi::{c_void, CStr};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::task::{Context, Poll, Waker};
 
@@ -34,13 +35,28 @@ struct SyncCompletionState<T> {
     result: Option<Result<T, String>>,
 }
 
+/// Backing storage for `SyncCompletion` — held behind an `Arc` so the
+/// callback path can access the `consumed` flag without taking the mutex.
+struct SyncCompletionInner<T> {
+    /// Atomic guard that ensures `Arc::from_raw` is invoked at most once per
+    /// context pointer. Set to `true` on the first completion callback;
+    /// subsequent (erroneous) callbacks see `true` and bail out without
+    /// touching the `Arc`, preventing the double-`from_raw` UAF/double-free.
+    consumed: AtomicBool,
+    state: Mutex<SyncCompletionState<T>>,
+    cvar: Condvar,
+}
+
 /// A synchronous completion handler for async FFI callbacks
 ///
 /// This type provides a way to block until an async callback completes
-/// and retrieve the result. It uses `Arc<(Mutex, Condvar)>` internally
-/// for thread-safe signaling between the callback and the waiting thread.
+/// and retrieve the result. It uses `Arc<...>` internally for thread-safe
+/// signaling between the callback and the waiting thread, with an
+/// `AtomicBool` guard that defends against Swift firing the completion
+/// callback more than once (which would otherwise be use-after-free in
+/// `Arc::from_raw`).
 pub struct SyncCompletion<T> {
-    inner: Arc<(Mutex<SyncCompletionState<T>>, Condvar)>,
+    inner: Arc<SyncCompletionInner<T>>,
 }
 
 /// Raw pointer type for passing to FFI callbacks
@@ -54,13 +70,14 @@ impl<T> SyncCompletion<T> {
     /// - `context_ptr` should be passed to the FFI callback
     #[must_use]
     pub fn new() -> (Self, SyncCompletionPtr) {
-        let inner = Arc::new((
-            Mutex::new(SyncCompletionState {
+        let inner = Arc::new(SyncCompletionInner {
+            consumed: AtomicBool::new(false),
+            state: Mutex::new(SyncCompletionState {
                 completed: false,
                 result: None,
             }),
-            Condvar::new(),
-        ));
+            cvar: Condvar::new(),
+        });
         let raw = Arc::into_raw(Arc::clone(&inner));
         (Self { inner }, raw as SyncCompletionPtr)
     }
@@ -77,10 +94,9 @@ impl<T> SyncCompletion<T> {
     ///
     /// Panics if the internal mutex is poisoned.
     pub fn wait(self) -> Result<T, String> {
-        let (lock, cvar) = &*self.inner;
-        let mut state = lock.lock().unwrap();
+        let mut state = self.inner.state.lock().unwrap();
         while !state.completed {
-            state = cvar.wait(state).unwrap();
+            state = self.inner.cvar.wait(state).unwrap();
         }
         state
             .result
@@ -112,8 +128,11 @@ impl<T> SyncCompletion<T> {
     ///
     /// # Safety
     ///
-    /// The `context` pointer must be a valid pointer obtained from `SyncCompletion::new()`.
-    /// This function consumes the Arc reference, so it must only be called once per context.
+    /// The `context` pointer must be a valid pointer obtained from
+    /// `SyncCompletion::new()`. The intended contract is that the callback
+    /// fires exactly once. If Swift erroneously fires it twice, the
+    /// `consumed` `AtomicBool` ensures the second invocation is a no-op
+    /// rather than triggering a double-`Arc::from_raw` (which would be UB).
     ///
     /// # Panics
     ///
@@ -122,14 +141,26 @@ impl<T> SyncCompletion<T> {
         if context.is_null() {
             return;
         }
-        let inner = Arc::from_raw(context.cast::<(Mutex<SyncCompletionState<T>>, Condvar)>());
-        let (lock, cvar) = &*inner;
+
+        // Atomic guard against double-invocation. We deref the raw pointer
+        // *without* taking ownership of the Arc reference; only the call
+        // that wins the swap proceeds to `Arc::from_raw`.
+        let inner_ref = unsafe { &*context.cast::<SyncCompletionInner<T>>() };
+        if inner_ref.consumed.swap(true, Ordering::AcqRel) {
+            eprintln!(
+                "screencapturekit: SyncCompletion callback fired more than once; \
+                 ignoring duplicate to avoid double-free"
+            );
+            return;
+        }
+
+        let inner = unsafe { Arc::from_raw(context.cast::<SyncCompletionInner<T>>()) };
         {
-            let mut state = lock.lock().unwrap();
+            let mut state = inner.state.lock().unwrap();
             state.completed = true;
             state.result = Some(result);
         }
-        cvar.notify_one();
+        inner.cvar.notify_one();
     }
 }
 
@@ -149,6 +180,14 @@ struct AsyncCompletionState<T> {
     waker: Option<Waker>,
 }
 
+/// Backing storage for `AsyncCompletion` — held behind an `Arc`. The
+/// `consumed` flag protects against Swift double-firing the completion
+/// callback (see `SyncCompletionInner` for the same rationale).
+struct AsyncCompletionInner<T> {
+    consumed: AtomicBool,
+    state: Mutex<AsyncCompletionState<T>>,
+}
+
 /// An async completion handler for FFI callbacks
 ///
 /// This type provides a `Future` that resolves when an async callback completes.
@@ -159,7 +198,7 @@ pub struct AsyncCompletion<T> {
 
 /// Future returned by `AsyncCompletion`
 pub struct AsyncCompletionFuture<T> {
-    inner: Arc<Mutex<AsyncCompletionState<T>>>,
+    inner: Arc<AsyncCompletionInner<T>>,
 }
 
 impl<T> AsyncCompletion<T> {
@@ -170,10 +209,13 @@ impl<T> AsyncCompletion<T> {
     /// - `context_ptr` should be passed to the FFI callback
     #[must_use]
     pub fn create() -> (AsyncCompletionFuture<T>, SyncCompletionPtr) {
-        let inner = Arc::new(Mutex::new(AsyncCompletionState {
-            result: None,
-            waker: None,
-        }));
+        let inner = Arc::new(AsyncCompletionInner {
+            consumed: AtomicBool::new(false),
+            state: Mutex::new(AsyncCompletionState {
+                result: None,
+                waker: None,
+            }),
+        });
         let raw = Arc::into_raw(Arc::clone(&inner));
         (AsyncCompletionFuture { inner }, raw as SyncCompletionPtr)
     }
@@ -202,8 +244,11 @@ impl<T> AsyncCompletion<T> {
     ///
     /// # Safety
     ///
-    /// The `context` pointer must be a valid pointer obtained from `AsyncCompletion::create()`.
-    /// This function consumes the Arc reference, so it must only be called once per context.
+    /// The `context` pointer must be a valid pointer obtained from
+    /// `AsyncCompletion::create()`. The intended contract is that the
+    /// callback fires exactly once. If Swift erroneously fires it twice,
+    /// the `consumed` `AtomicBool` ensures the second invocation is a
+    /// no-op rather than triggering a double-`Arc::from_raw`.
     ///
     /// # Panics
     ///
@@ -212,10 +257,20 @@ impl<T> AsyncCompletion<T> {
         if context.is_null() {
             return;
         }
-        let inner = Arc::from_raw(context.cast::<Mutex<AsyncCompletionState<T>>>());
+
+        let inner_ref = unsafe { &*context.cast::<AsyncCompletionInner<T>>() };
+        if inner_ref.consumed.swap(true, Ordering::AcqRel) {
+            eprintln!(
+                "screencapturekit: AsyncCompletion callback fired more than once; \
+                 ignoring duplicate to avoid double-free"
+            );
+            return;
+        }
+
+        let inner = unsafe { Arc::from_raw(context.cast::<AsyncCompletionInner<T>>()) };
 
         let waker = {
-            let mut state = inner.lock().unwrap();
+            let mut state = inner.state.lock().unwrap();
             state.result = Some(result);
             state.waker.take()
         };
@@ -234,11 +289,21 @@ impl<T> Future for AsyncCompletionFuture<T> {
     type Output = Result<T, String>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut state = self.inner.lock().unwrap();
+        let mut state = self.inner.state.lock().unwrap();
 
         state.result.take().map_or_else(
             || {
-                state.waker = Some(cx.waker().clone());
+                // Avoid the lost-wakeup race: when the executor re-polls
+                // with a different waker (e.g. tokio::select! moves the
+                // future between arms), the previous waker would otherwise
+                // remain stored and any pending callback would wake the
+                // wrong task. `will_wake` skips the clone if the executor
+                // is reusing the same waker.
+                let waker = cx.waker();
+                match state.waker {
+                    Some(ref existing) if existing.will_wake(waker) => {}
+                    _ => state.waker = Some(waker.clone()),
+                }
                 Poll::Pending
             },
             Poll::Ready,
