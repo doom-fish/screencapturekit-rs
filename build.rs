@@ -16,6 +16,126 @@ fn detect_sdk_major_version() -> Option<u32> {
     major.parse().ok()
 }
 
+/// Resolve which `-D<MACRO>` flags to pass to the Swift compiler for each
+/// enabled `macos_*` Cargo feature.
+///
+/// Iterates the `version_features` table; for each enabled feature, emits
+/// the corresponding `-D` flag if the host SDK is recent enough, otherwise
+/// records the feature in `stubbed_features` so the caller can warn (or
+/// fail) about stub mode.
+///
+/// Behaviour for stubbed features:
+/// * If the SDK was detected but is just too old for the feature, the
+///   user has consciously requested stub mode — warn only.
+/// * If SDK detection failed entirely (`xcrun` returned non-parseable
+///   output), the build fails by default to prevent shipping a binary
+///   with silently-stubbed APIs. The user can opt back in via
+///   `SCREENCAPTUREKIT_ALLOW_STUBBED_BUILD=1`.
+fn configure_swift_version_defines(sdk_version: Option<u32>) -> Vec<String> {
+    // Today the Swift bridge only consults the MACOS15 and MACOS26 defines,
+    // but the rest are passed through for symmetry so that future
+    // version-gated Swift APIs don't silently drop their feature gate.
+    //
+    // (cargo_feature, min_sdk_major, swift_define)
+    let version_features: [(&str, u32, &str); 7] = [
+        (
+            "CARGO_FEATURE_MACOS_13_0",
+            13,
+            "SCREENCAPTUREKIT_HAS_MACOS13_SDK",
+        ),
+        (
+            "CARGO_FEATURE_MACOS_14_0",
+            14,
+            "SCREENCAPTUREKIT_HAS_MACOS14_SDK",
+        ),
+        (
+            "CARGO_FEATURE_MACOS_14_2",
+            14,
+            "SCREENCAPTUREKIT_HAS_MACOS14_2_SDK",
+        ),
+        (
+            "CARGO_FEATURE_MACOS_14_4",
+            14,
+            "SCREENCAPTUREKIT_HAS_MACOS14_4_SDK",
+        ),
+        (
+            "CARGO_FEATURE_MACOS_15_0",
+            15,
+            "SCREENCAPTUREKIT_HAS_MACOS15_SDK",
+        ),
+        (
+            "CARGO_FEATURE_MACOS_15_2",
+            15,
+            "SCREENCAPTUREKIT_HAS_MACOS15_2_SDK",
+        ),
+        (
+            "CARGO_FEATURE_MACOS_26_0",
+            26,
+            "SCREENCAPTUREKIT_HAS_MACOS26_SDK",
+        ),
+    ];
+
+    let sdk_at_least = |min: u32| sdk_version.is_some_and(|v| v >= min);
+
+    let mut define_flags: Vec<String> = Vec::new();
+    let mut stubbed_features: Vec<&str> = Vec::new();
+    for (cargo_feature, min_sdk, swift_define) in version_features {
+        if env::var(cargo_feature).is_err() {
+            continue;
+        }
+        if sdk_at_least(min_sdk) {
+            define_flags.push(format!("-D{swift_define}"));
+        } else {
+            // Strip the CARGO_FEATURE_ prefix so the warning names the
+            // Cargo feature the user actually enabled.
+            stubbed_features.push(cargo_feature.trim_start_matches("CARGO_FEATURE_"));
+        }
+    }
+
+    if !stubbed_features.is_empty() {
+        warn_or_fail_for_stub_mode(sdk_version, &stubbed_features);
+    }
+
+    define_flags
+}
+
+/// Issue the user-facing warning (or panic) when one or more requested
+/// Cargo features cannot be satisfied by the detected SDK. See the
+/// docs on [`configure_swift_version_defines`] for the policy.
+fn warn_or_fail_for_stub_mode(sdk_version: Option<u32>, stubbed_features: &[&str]) {
+    let opt_out = env::var("SCREENCAPTUREKIT_ALLOW_STUBBED_BUILD").is_ok();
+    let detection_failed = sdk_version.is_none();
+    let feature_list = stubbed_features.join(", ").to_lowercase();
+
+    assert!(
+        !detection_failed || opt_out,
+        "screencapturekit: SDK version detection failed (`xcrun --show-sdk-version` \
+         returned non-parseable output) but the following version feature(s) were \
+         enabled in Cargo.toml: [{feature_list}]. Building would silently produce a \
+         binary whose macOS-version-gated APIs are stubbed out and fail at runtime. \
+         Resolve this by:\n\
+         \n\
+           1. Installing the full Xcode (not just Command Line Tools) and \
+              ensuring `xcode-select -p` points at it; or\n\
+           2. Setting DEVELOPER_DIR to a valid Xcode path; or\n\
+           3. Removing the unused version feature(s) from your Cargo.toml; or\n\
+           4. Setting SCREENCAPTUREKIT_ALLOW_STUBBED_BUILD=1 to opt into the \
+              stubbed-API build (only useful for `cargo doc`/`cargo check` runs).",
+    );
+
+    let suffix = if detection_failed {
+        " (suppressed via SCREENCAPTUREKIT_ALLOW_STUBBED_BUILD)"
+    } else {
+        ""
+    };
+    let detected = sdk_version.map_or_else(|| "unknown".to_string(), |v| v.to_string());
+    println!(
+        "cargo:warning=Cargo feature(s) [{feature_list}] requested but SDK major \
+         version ({detected}) is too old{suffix}; the corresponding Swift APIs will \
+         be stubbed out.",
+    );
+}
+
 fn main() {
     // Re-run this build script if the build script itself changes, or if
     // any environment variable that affects its decisions changes.
@@ -24,6 +144,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=DOCS_RS");
     println!("cargo:rerun-if-env-changed=DEVELOPER_DIR");
     println!("cargo:rerun-if-env-changed=SDKROOT");
+    println!("cargo:rerun-if-env-changed=SCREENCAPTUREKIT_ALLOW_STUBBED_BUILD");
 
     // docs.rs builds on Linux where Swift toolchain and macOS frameworks are
     // unavailable. Skip native compilation – rustdoc only needs type info.
@@ -54,13 +175,7 @@ fn main() {
         }
     }
 
-    // Build Swift package with build directory in OUT_DIR
-    // Pass Cargo feature flags as Swift compiler defines so the Swift bridge
-    // only compiles version-gated APIs that the crate consumer opted into.
-    // We intersect the requested Cargo feature with the actual SDK version:
-    // a define is only passed when the feature is enabled AND the SDK supports it.
     let sdk_version = detect_sdk_major_version();
-    let sdk_at_least = |min: u32| sdk_version.is_some_and(|v| v >= min);
 
     // Determine Swift triple from Cargo's target arch so cross-compilation
     // works (e.g. building x86_64 on Apple Silicon). Without --triple,
@@ -76,7 +191,7 @@ fn main() {
         ),
     };
 
-    let mut swift_args = vec![
+    let mut swift_args: Vec<&str> = vec![
         "build",
         "-c",
         "release",
@@ -87,28 +202,16 @@ fn main() {
         "--scratch-path",
         &swift_build_dir,
     ];
-    if env::var("CARGO_FEATURE_MACOS_15_0").is_ok() {
-        if sdk_at_least(15) {
-            swift_args.extend(["-Xswiftc", "-DSCREENCAPTUREKIT_HAS_MACOS15_SDK"]);
-        } else {
-            println!(
-                "cargo:warning=Feature macos_15_0 enabled but SDK version ({}) < 15; \
-                 macOS 15+ APIs will be stubbed out",
-                sdk_version.map_or_else(|| "unknown".to_string(), |v| v.to_string())
-            );
-        }
+
+    // Resolve which `-DSCREENCAPTUREKIT_HAS_MACOS<X>_SDK` flags to add
+    // and emit any warnings/failures for stubbed builds. The owned
+    // `define_flags` strings live as long as `swift_args`'s borrows.
+    let define_flags = configure_swift_version_defines(sdk_version);
+    for flag in &define_flags {
+        swift_args.push("-Xswiftc");
+        swift_args.push(flag);
     }
-    if env::var("CARGO_FEATURE_MACOS_26_0").is_ok() {
-        if sdk_at_least(26) {
-            swift_args.extend(["-Xswiftc", "-DSCREENCAPTUREKIT_HAS_MACOS26_SDK"]);
-        } else {
-            println!(
-                "cargo:warning=Feature macos_26_0 enabled but SDK version ({}) < 26; \
-                 macOS 26+ APIs will be stubbed out",
-                sdk_version.map_or_else(|| "unknown".to_string(), |v| v.to_string())
-            );
-        }
-    }
+
     let output = Command::new("swift")
         .args(&swift_args)
         .output()
