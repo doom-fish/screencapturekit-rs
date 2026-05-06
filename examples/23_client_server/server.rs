@@ -12,10 +12,10 @@
 //! For production cross-process streaming, use a real protocol:
 //! - **msgpack/protobuf** with a metadata header (width, height, stride,
 //!   format four-CC, color space, timestamp),
-//! - or wrap the buffers in a proper container (e.g. encode H.264 +
-//!   write to a `pipe:1` AVFoundation output).
+//! - or wrap the buffers in a proper container (e.g. encode `H.264` +
+//!   write to a `pipe:1` `AVFoundation` output).
 //!
-//! This example exists to demonstrate the SCStream → CVPixelBuffer
+//! This example exists to demonstrate the `SCStream` → `CVPixelBuffer`
 //! lock/copy path in a multi-process context, not as an IPC blueprint.
 
 #![allow(clippy::significant_drop_tightening)]

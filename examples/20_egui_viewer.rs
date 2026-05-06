@@ -108,7 +108,9 @@ impl ScreenViewerApp {
 }
 
 impl eframe::App for ScreenViewerApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+
         // Check for new frame
         let should_update = if let Ok(frame) = self.shared_frame.lock() {
             frame.dirty.load(Ordering::Acquire)
@@ -140,7 +142,7 @@ impl eframe::App for ScreenViewerApp {
         }
 
         // Top panel with stats
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+        egui::Panel::top("top_panel").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("🖥️ Screen Capture Viewer");
                 ui.separator();
@@ -152,7 +154,7 @@ impl eframe::App for ScreenViewerApp {
         });
 
         // Central panel with the captured screen
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             if let Some(ref texture) = self.texture {
                 // Calculate size to fit in available space while maintaining aspect ratio
                 let available = ui.available_size();
@@ -177,7 +179,7 @@ impl eframe::App for ScreenViewerApp {
         ctx.request_repaint();
     }
 
-    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+    fn on_exit(&mut self) {
         // Stop capture when app exits
         if let Some(ref mut stream) = self.stream {
             let _ = stream.stop_capture();

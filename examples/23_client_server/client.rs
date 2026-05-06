@@ -47,7 +47,8 @@ impl ViewerApp {
 }
 
 impl eframe::App for ViewerApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
         // Check for new frame
         let should_update = if let Ok(frame) = self.shared_frame.lock() {
             frame.dirty.load(Ordering::Acquire)
@@ -71,7 +72,7 @@ impl eframe::App for ViewerApp {
             }
         }
 
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
+        egui::Panel::top("top").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("📺 Remote Screen Viewer");
                 ui.separator();
@@ -83,7 +84,7 @@ impl eframe::App for ViewerApp {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             if let Some(ref texture) = self.texture {
                 let available = ui.available_size();
                 let tex_size = texture.size_vec2();

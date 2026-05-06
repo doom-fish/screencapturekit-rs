@@ -102,7 +102,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Screen Capture Viewer".into(),
-                resolution: (1280., 720.).into(),
+                resolution: (1280u32, 720u32).into(),
                 ..default()
             }),
             ..default()
@@ -125,12 +125,9 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             std::process::exit(1);
         }
     };
-    let display = match content.displays().into_iter().next() {
-        Some(d) => d,
-        None => {
-            eprintln!("\n⚠️  No displays available — Bevy example cannot run.");
-            std::process::exit(1);
-        }
+    let Some(display) = content.displays().into_iter().next() else {
+        eprintln!("\n⚠️  No displays available — Bevy example cannot run.");
+        std::process::exit(1);
     };
 
     println!("Display: {}x{}", display.width(), display.height());

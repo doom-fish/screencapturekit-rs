@@ -89,8 +89,7 @@ impl RecordingState {
 
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs());
         let path = format!("/tmp/recording_{}.{}", timestamp, config.file_extension());
 
         let rec_config = config.apply_to(

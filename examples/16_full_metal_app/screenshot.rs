@@ -15,8 +15,7 @@ pub fn take_screenshot(
     println!("📸 Taking screenshot...");
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs());
     let path = format!("/tmp/screenshot_{timestamp}.png");
 
     #[cfg(feature = "macos_26_0")]

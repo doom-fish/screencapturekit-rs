@@ -38,7 +38,7 @@ static ALLOC: DetectingAllocator = DetectingAllocator;
 
 /// Demonstrates the bug: `Vec::from_raw_parts` routes deallocation through the
 /// global allocator. When the global allocator differs from the system allocator
-/// (e.g. mimalloc), this causes a crash (EXC_BAD_ACCESS).
+/// (e.g. mimalloc), this causes a crash (`EXC_BAD_ACCESS`).
 #[test]
 fn vec_from_raw_parts_routes_through_global_allocator() {
     let _guard = TEST_LOCK.lock().unwrap();
@@ -52,9 +52,17 @@ fn vec_from_raw_parts_routes_through_global_allocator() {
     TRACKED_DEALLOC_COUNT.store(0, Ordering::SeqCst);
 
     // Vec::from_raw_parts → Vec::drop → global allocator dealloc
-    // This is the BUGGY path from AudioBufferList::drop
+    // This is the BUGGY path from AudioBufferList::drop. The lints below
+    // are exactly the patterns we're testing - silence them deliberately.
+    #[allow(
+        clippy::cast_ptr_alignment,
+        clippy::ptr_as_ptr,
+        clippy::same_item_push,
+        clippy::same_length_and_capacity,
+        clippy::manual_slice_size_calculation
+    )]
     unsafe {
-        drop(Vec::from_raw_parts(ptr as *mut u64, 4, 4));
+        drop(Vec::from_raw_parts(ptr.cast::<u64>(), 4, 4));
     }
 
     TRACKED_PTR.store(std::ptr::null_mut(), Ordering::SeqCst);
