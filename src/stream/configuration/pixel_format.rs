@@ -18,16 +18,33 @@ use crate::utils::four_char_code::FourCharCode;
 /// variant rather than being silently coerced to [`PixelFormat::BGRA`]
 /// (which would mislead callers that branch on the format).
 ///
+/// # Equality and hashing
+///
+/// `PixelFormat` compares and hashes by its underlying [`FourCharCode`]
+/// rather than by enum variant. This means
+/// `PixelFormat::BGRA == PixelFormat::Unknown(FourCharCode::from_bytes(*b"BGRA"))`
+/// — both round-trip to the same wire-level format — and they hash the
+/// same. Without this normalisation, the user-facing `Unknown(known_code)`
+/// footgun (constructing the variant with a code that already maps to a
+/// named variant) would silently produce two `PixelFormat` values that
+/// represent the same underlying format but compared unequal and indexed
+/// `HashMap`s twice.
+///
 /// # Examples
 ///
 /// ```
 /// use screencapturekit::stream::configuration::PixelFormat;
+/// use screencapturekit::FourCharCode;
 ///
 /// let format = PixelFormat::BGRA;
 /// println!("Format: {}", format); // Prints "BGRA"
+///
+/// // Equality normalises through FourCharCode:
+/// let synonym = PixelFormat::Unknown(FourCharCode::from_bytes(*b"BGRA"));
+/// assert_eq!(PixelFormat::BGRA, synonym);
 /// ```
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 #[non_exhaustive]
 pub enum PixelFormat {
     /// Packed little endian ARGB8888 (most common)
@@ -48,6 +65,23 @@ pub enum PixelFormat {
     /// raw four-character code so callers can branch on it explicitly or
     /// log it for diagnostics.
     Unknown(FourCharCode),
+}
+
+// `PixelFormat` is `Eq`/`Hash` via its underlying FourCharCode so that
+// `Unknown(known_code)` and the corresponding named variant compare and
+// hash identically. See the type-level docs for the rationale.
+impl PartialEq for PixelFormat {
+    fn eq(&self, other: &Self) -> bool {
+        FourCharCode::from(*self) == FourCharCode::from(*other)
+    }
+}
+
+impl Eq for PixelFormat {}
+
+impl std::hash::Hash for PixelFormat {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        FourCharCode::from(*self).hash(state);
+    }
 }
 impl Display for PixelFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

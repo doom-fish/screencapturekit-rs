@@ -160,6 +160,55 @@ fn test_pixel_format_in_collections() {
     assert_eq!(formats.len(), 2);
 }
 
+/// Regression test for the `Unknown(known_code)` normalisation.
+///
+/// `PixelFormat::Unknown(FourCharCode::from_bytes(*b"BGRA"))` is a
+/// "well-formed but redundant" value: it carries the same wire-level
+/// format as `PixelFormat::BGRA`. Without normalisation, the two
+/// values would compare unequal and hash differently, producing
+/// `HashMap` / `HashSet` bugs and confusing equality assertions in
+/// downstream code.
+///
+/// This test pins the contract that `PixelFormat::PartialEq` and
+/// `PixelFormat::Hash` normalise through `FourCharCode`. A future
+/// refactor that re-derives `PartialEq`/`Hash` from the enum
+/// discriminant would silently re-introduce the bug; this test
+/// catches it.
+#[test]
+fn test_pixel_format_unknown_normalises_to_named_variant() {
+    use screencapturekit::FourCharCode;
+    use std::collections::HashSet;
+
+    // Equality across variant boundaries.
+    let synonym = PixelFormat::Unknown(FourCharCode::from_bytes(*b"BGRA"));
+    assert_eq!(
+        PixelFormat::BGRA,
+        synonym,
+        "Unknown(BGRA) must compare equal to BGRA"
+    );
+
+    let yuv_synonym = PixelFormat::Unknown(FourCharCode::from_bytes(*b"420v"));
+    assert_eq!(
+        PixelFormat::YCbCr_420v,
+        yuv_synonym,
+        "Unknown(420v) must compare equal to YCbCr_420v"
+    );
+
+    // Hash must agree with Eq.
+    let mut formats = HashSet::new();
+    formats.insert(PixelFormat::BGRA);
+    formats.insert(synonym);
+    assert_eq!(
+        formats.len(),
+        1,
+        "BGRA and Unknown(BGRA) must collide in a HashSet"
+    );
+
+    // Genuinely-unknown codes still compare distinctly.
+    let truly_unknown = PixelFormat::Unknown(FourCharCode::from_bytes(*b"zzzz"));
+    assert_ne!(PixelFormat::BGRA, truly_unknown);
+}
+
 #[test]
 fn test_configuration_set_width() {
     let mut config = SCStreamConfiguration::default();
