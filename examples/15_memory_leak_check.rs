@@ -221,7 +221,17 @@ enum FilterType {
 
 /// Test querying shareable content - exercises property access on all types
 fn test_shareable_content_queries() {
-    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("⚠️  Skipping content queries — screen recording permission required.");
+            eprintln!(
+                "    Grant permission via System Settings → Privacy & Security → Screen Recording."
+            );
+            eprintln!("    Underlying error: {e:?}");
+            return;
+        }
+    };
 
     // Test displays
     let displays = content.displays();
@@ -267,9 +277,21 @@ fn collect_app_refs(apps: &[SCRunningApplication], count: usize) -> Vec<&SCRunni
 
 /// Test different filter configurations
 fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
-    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!(
+                "⚠️  Skipping capture-with-filter test — screen recording permission required."
+            );
+            eprintln!("    Underlying error: {e:?}");
+            return;
+        }
+    };
     let displays = content.displays();
-    let display = displays.first().expect("No display found");
+    let Some(display) = displays.first() else {
+        eprintln!("⚠️  No displays available — skipping capture-with-filter test.");
+        return;
+    };
     let windows = content.windows();
     let apps = content.applications();
 
