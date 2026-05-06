@@ -354,6 +354,14 @@ impl Drop for SCContentFilter {
 }
 
 impl Clone for SCContentFilter {
+    /// Clone the filter by bumping the underlying Objective-C
+    /// reference count.
+    ///
+    /// **Note**: this is **not** a `memcpy`. `Clone::clone` crosses
+    /// the Swift FFI boundary and calls `sc_content_filter_retain`
+    /// (which performs an Objective-C `retain`). For hot-path code
+    /// that needs many references to the same filter, prefer
+    /// `Arc<SCContentFilter>` over per-call `.clone()`.
     fn clone(&self) -> Self {
         unsafe { Self(crate::ffi::sc_content_filter_retain(self.0)) }
     }

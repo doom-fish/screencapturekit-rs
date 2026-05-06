@@ -461,6 +461,40 @@ impl SCStream {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// # Sharing state with handlers
+    ///
+    /// The handler bound is `impl SCStreamOutputTrait + 'static`. The
+    /// `'static` is required because the handler is stored inside
+    /// `SCStream` which can outlive any borrowed reference. Combined
+    /// with the trait's `Send + Sync` bound (callbacks run on
+    /// independent dispatch queues, see
+    /// [`SCStreamOutputTrait`](crate::stream::output_trait::SCStreamOutputTrait)),
+    /// the canonical pattern for sharing state with a handler is to
+    /// wrap it in `Arc<Mutex<T>>` (or `Arc<AtomicXxx>` for primitives):
+    ///
+    /// ```rust,no_run
+    /// use screencapturekit::prelude::*;
+    /// use std::sync::{Arc, Mutex, atomic::{AtomicUsize, Ordering}};
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::default();
+    /// let frame_count = Arc::new(AtomicUsize::new(0));
+    /// let count_handler = frame_count.clone();
+    /// let mut stream = SCStream::new(&filter, &config);
+    /// stream.add_output_handler(
+    ///     move |_sample, _type| {
+    ///         count_handler.fetch_add(1, Ordering::Relaxed);
+    ///     },
+    ///     SCStreamOutputType::Screen,
+    /// );
+    /// // outer scope can still read frame_count any time:
+    /// println!("frames so far: {}", frame_count.load(Ordering::Relaxed));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn add_output_handler(
         &mut self,
         handler: impl SCStreamOutputTrait + 'static,
