@@ -29,9 +29,13 @@ use std::task::{Context, Poll, Waker};
 // Synchronous Completion (blocking)
 // ============================================================================
 
-/// Internal state for tracking synchronous completion
+/// Internal state for tracking synchronous completion.
+///
+/// The result is wrapped in a single `Option` rather than tracking
+/// `(completed: bool, result: Option<Result<…>>)` separately so that the
+/// "completed but no result" state is unrepresentable: `None` means
+/// "not yet completed" and `Some(_)` means "completed with this result".
 struct SyncCompletionState<T> {
-    completed: bool,
     result: Option<Result<T, String>>,
 }
 
@@ -72,10 +76,7 @@ impl<T> SyncCompletion<T> {
     pub fn new() -> (Self, SyncCompletionPtr) {
         let inner = Arc::new(SyncCompletionInner {
             consumed: AtomicBool::new(false),
-            state: Mutex::new(SyncCompletionState {
-                completed: false,
-                result: None,
-            }),
+            state: Mutex::new(SyncCompletionState { result: None }),
             cvar: Condvar::new(),
         });
         let raw = Arc::into_raw(Arc::clone(&inner));
@@ -95,13 +96,19 @@ impl<T> SyncCompletion<T> {
     /// Panics if the internal mutex is poisoned.
     pub fn wait(self) -> Result<T, String> {
         let mut state = self.inner.state.lock().unwrap();
-        while !state.completed {
-            state = self.inner.cvar.wait(state).unwrap();
-        }
+        // Use Condvar::wait_while to handle spurious wakeups in a single
+        // expression. The predicate returns true while we should keep
+        // waiting (i.e. no result yet).
+        state = self
+            .inner
+            .cvar
+            .wait_while(state, |s| s.result.is_none())
+            .unwrap();
+        // SAFETY: the predicate above guarantees `result.is_some()`.
         state
             .result
             .take()
-            .unwrap_or_else(|| Err("Completion signaled without result".to_string()))
+            .expect("completion result missing despite signaled completion")
     }
 
     /// Signal successful completion with a value
@@ -157,7 +164,6 @@ impl<T> SyncCompletion<T> {
         let inner = unsafe { Arc::from_raw(context.cast::<SyncCompletionInner<T>>()) };
         {
             let mut state = inner.state.lock().unwrap();
-            state.completed = true;
             state.result = Some(result);
         }
         inner.cvar.notify_one();
