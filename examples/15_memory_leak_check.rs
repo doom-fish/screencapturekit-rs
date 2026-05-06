@@ -276,6 +276,7 @@ fn collect_app_refs(apps: &[SCRunningApplication], count: usize) -> Vec<&SCRunni
 }
 
 /// Test different filter configurations
+#[allow(clippy::too_many_lines)]
 fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
     let content = match SCShareableContent::get() {
         Ok(c) => c,

@@ -113,9 +113,9 @@ impl Renderer<'_> {
     async fn new(window: Arc<Window>) -> Self {
         let size = window.inner_size();
 
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::METAL,
-            ..Default::default()
+            ..wgpu::InstanceDescriptor::new_without_display_handle()
         });
 
         let surface = instance.create_surface(window).unwrap();
@@ -130,7 +130,7 @@ impl Renderer<'_> {
             .unwrap();
 
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default(), None)
+            .request_device(&wgpu::DeviceDescriptor::default())
             .await
             .unwrap();
 
@@ -185,8 +185,8 @@ impl Renderer<'_> {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&bind_group_layout)],
+            immediate_size: 0,
         });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -219,7 +219,7 @@ impl Renderer<'_> {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -229,7 +229,7 @@ impl Renderer<'_> {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             ..Default::default()
         });
 
@@ -325,8 +325,20 @@ impl Renderer<'_> {
         }
     }
 
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
+    fn render(&mut self) -> Result<(), String> {
+        let output = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(t)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(t) => t,
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+                return Ok(())
+            }
+            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
+                return Err("surface lost/outdated".into())
+            }
+            wgpu::CurrentSurfaceTexture::Validation => {
+                return Err("surface validation error".into())
+            }
+        };
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -342,6 +354,7 @@ impl Renderer<'_> {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -356,6 +369,7 @@ impl Renderer<'_> {
                 depth_stencil_attachment: None,
                 occlusion_query_set: None,
                 timestamp_writes: None,
+                multiview_mask: None,
             });
 
             if let Some(ref bind_group) = self.bind_group {
@@ -445,16 +459,14 @@ impl ApplicationHandler for App<'_> {
 
                 // Render
                 if let Some(ref mut renderer) = self.renderer {
-                    match renderer.render() {
-                        Ok(()) => {}
-                        Err(wgpu::SurfaceError::Lost) => {
+                    if let Err(err) = renderer.render() {
+                        eprintln!("Render error: {err}");
+                        if err.contains("lost") || err.contains("outdated") {
                             renderer.resize(winit::dpi::PhysicalSize {
                                 width: renderer.config.width,
                                 height: renderer.config.height,
                             });
                         }
-                        Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
-                        Err(e) => eprintln!("Render error: {e:?}"),
                     }
                 }
 

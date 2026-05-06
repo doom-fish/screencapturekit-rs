@@ -51,6 +51,19 @@ impl SCStreamOutputTrait for FirstSampleCollector {
     }
 }
 
+/// Trait-object dispatch via Arc — lets multiple tests share the same
+/// `FirstSampleCollector` while still satisfying `add_output_handler`'s
+/// `'static + Send + Sync` bound.
+struct DelegatingHandler {
+    inner: Arc<FirstSampleCollector>,
+}
+
+impl SCStreamOutputTrait for DelegatingHandler {
+    fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType) {
+        self.inner.did_output_sample_buffer(sample_buffer, of_type);
+    }
+}
+
 /// Regression test for M11 (YUV/NV12 capture): if the user configures the
 /// stream for `YCbCr_420v`, `SCStream` must actually deliver biplanar YUV
 /// buffers — not silently fall back to BGRA. Branches on the wrong
@@ -89,20 +102,6 @@ fn test_yuv_420v_pixel_format_capture() {
     });
 
     let mut stream = SCStream::new(&filter, &config);
-    // SAFETY: trait object dispatch via Arc — we want the test to share the
-    // same handler with our local collector reference.
-    struct DelegatingHandler {
-        inner: Arc<FirstSampleCollector>,
-    }
-    impl SCStreamOutputTrait for DelegatingHandler {
-        fn did_output_sample_buffer(
-            &self,
-            sample_buffer: CMSampleBuffer,
-            of_type: SCStreamOutputType,
-        ) {
-            self.inner.did_output_sample_buffer(sample_buffer, of_type);
-        }
-    }
     stream
         .add_output_handler(
             DelegatingHandler {
@@ -162,7 +161,7 @@ fn test_yuv_420v_pixel_format_capture() {
 /// few more, and asserts that callbacks stop at exactly the right
 /// moment. This exercises the `RwLock<Vec<HandlerEntry>>` write path
 /// while a reader (the dispatch callback) may be in flight, which is
-/// the path that would have regressed if the Phase-2 RwLock fix
+/// the path that would have regressed if the Phase-2 `RwLock` fix
 /// introduced a torn-read bug.
 #[test]
 fn test_handler_add_remove_mid_capture() {
@@ -299,18 +298,6 @@ fn test_presenter_overlay_content_rect_absent_when_overlay_disabled() {
     });
 
     let mut stream = SCStream::new(&filter, &config);
-    struct DelegatingHandler {
-        inner: Arc<FirstSampleCollector>,
-    }
-    impl SCStreamOutputTrait for DelegatingHandler {
-        fn did_output_sample_buffer(
-            &self,
-            sample_buffer: CMSampleBuffer,
-            of_type: SCStreamOutputType,
-        ) {
-            self.inner.did_output_sample_buffer(sample_buffer, of_type);
-        }
-    }
     stream
         .add_output_handler(
             DelegatingHandler {
