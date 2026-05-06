@@ -174,6 +174,29 @@ public func createContentSharingPickerDefaultConfiguration() -> OpaquePointer {
     return retain(box)
 }
 
+/// Read whether the shared content-sharing picker is currently marked
+/// active. Apple requires `picker.isActive = true` before its UI can
+/// appear; the `present*()` trampolines in this bridge always set it
+/// implicitly, but consumers may want to query the flag (e.g. to avoid
+/// presenting twice) or explicitly deactivate the picker between
+/// sessions.
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_get_active")
+public func getContentSharingPickerActive() -> Bool {
+    SCContentSharingPicker.shared.isActive
+}
+
+/// Mark the shared content-sharing picker active or inactive. Setting
+/// this to `false` hides the Control Center picker UI between
+/// sessions; setting to `true` is required before `present*()` can
+/// surface the picker (the bridge does this implicitly inside its
+/// `present*()` trampolines).
+@available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_set_active")
+public func setContentSharingPickerActive(_ active: Bool) {
+    SCContentSharingPicker.shared.isActive = active
+}
+
 // MARK: - Picker Result with content info
 
 /// Result structure returned by picker - contains filter and content metadata

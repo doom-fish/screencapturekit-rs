@@ -148,3 +148,38 @@ fn test_async_picker_filter_future_is_future() {
 
     println!("✓ AsyncPickerFilterFuture implements Future");
 }
+
+/// Regression test for SDK-headers gap analysis Pass 2: the bridge
+/// must expose Apple's `SCContentSharingPicker.isActive` getter and
+/// setter. Apple requires `picker.isActive = true` before its UI can
+/// appear. The crate's `show*()` trampolines set it implicitly, but
+/// callers may want to query the flag (to avoid double-presenting) or
+/// explicitly deactivate the picker between sessions.
+///
+/// This test verifies the round-trip works without screen-recording
+/// permission (the `isActive` flag is a process-local state that
+/// doesn't depend on TCC).
+#[test]
+fn test_picker_is_active_get_set_roundtrip() {
+    use screencapturekit::content_sharing_picker::SCContentSharingPicker;
+
+    // Capture the initial state so we can restore it (the picker is a
+    // process-wide singleton; another test or example might depend on
+    // its current state).
+    let original = SCContentSharingPicker::is_active();
+
+    SCContentSharingPicker::set_active(true);
+    assert!(
+        SCContentSharingPicker::is_active(),
+        "is_active() returned false immediately after set_active(true)"
+    );
+
+    SCContentSharingPicker::set_active(false);
+    assert!(
+        !SCContentSharingPicker::is_active(),
+        "is_active() returned true immediately after set_active(false)"
+    );
+
+    // Restore.
+    SCContentSharingPicker::set_active(original);
+}
