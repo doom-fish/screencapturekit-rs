@@ -621,6 +621,12 @@ extern "C" {
     pub fn sc_content_sharing_picker_set_maximum_stream_count(count: usize);
     pub fn sc_content_sharing_picker_get_maximum_stream_count() -> usize;
 
+    /// Returns a fresh `SCContentSharingPickerConfiguration` initialised with
+    /// the system's `defaultConfiguration` baseline. Caller owns the returned
+    /// configuration and must release it via the standard
+    /// `sc_content_sharing_picker_configuration_release`.
+    pub fn sc_content_sharing_picker_create_default_configuration() -> *const c_void;
+
     pub fn sc_content_sharing_picker_show(
         config: *const c_void,
         callback: extern "C" fn(i32, *const c_void, *mut c_void),

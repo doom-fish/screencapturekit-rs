@@ -20,6 +20,36 @@ fn test_picker_configuration_default() {
     println!("✓ Picker default configuration created");
 }
 
+/// Regression test for Gap 2 of the SDK gap analysis: the bridge
+/// must expose the system's `defaultConfiguration` on
+/// `SCContentSharingPicker.shared` so callers can build on Apple's
+/// baseline rather than starting from `SCContentSharingPickerConfiguration()`.
+///
+/// We can't assert anything about the *content* of the default config
+/// without screen-recording permission and a valid picker session, but
+/// we can verify the constructor returns a non-null pointer and that
+/// the value participates in the standard retain/release lifecycle
+/// (Drop must not crash; Clone must produce a distinct heap-owned copy).
+#[test]
+fn test_picker_configuration_default_from_system() {
+    let config = SCContentSharingPickerConfiguration::default_from_system();
+    assert!(
+        !config.as_ptr().is_null(),
+        "default_from_system() returned a null configuration pointer"
+    );
+
+    // The returned config must be independently retain/releasable.
+    let cloned = config.clone();
+    assert!(!cloned.as_ptr().is_null());
+    drop(cloned);
+
+    // And it must be safe to mutate (i.e. it isn't pointing at a shared
+    // singleton that other callers depend on).
+    let mut config = config;
+    config.set_excluded_bundle_ids(&["com.apple.dock"]);
+    drop(config);
+}
+
 #[test]
 fn test_picker_configuration_clone() {
     let config1 = SCContentSharingPickerConfiguration::new();
