@@ -355,7 +355,17 @@ impl Future for NextSample<'_> {
         if state.closed {
             Poll::Ready(None)
         } else {
-            state.waker = Some(cx.waker().clone());
+            // Avoid the lost-wakeup race: when the same future is polled by
+            // a different task (e.g. moved between tokio::select! arms),
+            // the waker changes. Using `will_wake` avoids needlessly cloning
+            // when the executor reuses the same waker, and the explicit
+            // assignment guarantees the latest waker is the one a future
+            // sample arrival will wake.
+            let waker = cx.waker();
+            match state.waker {
+                Some(ref existing) if existing.will_wake(waker) => {}
+                _ => state.waker = Some(waker.clone()),
+            }
             Poll::Pending
         }
     }
@@ -454,16 +464,13 @@ impl AsyncSCStream {
     /// Check if the stream has been closed
     #[must_use]
     pub fn is_closed(&self) -> bool {
-        self.iterator_state.lock().map(|s| s.closed).unwrap_or(true)
+        self.iterator_state.lock().map_or(true, |s| s.closed)
     }
 
     /// Get the number of buffered samples
     #[must_use]
     pub fn buffered_count(&self) -> usize {
-        self.iterator_state
-            .lock()
-            .map(|s| s.buffer.len())
-            .unwrap_or(0)
+        self.iterator_state.lock().map_or(0, |s| s.buffer.len())
     }
 
     /// Clear all buffered samples
@@ -1140,7 +1147,12 @@ impl Future for NextRecordingEvent<'_> {
         if state.finished {
             Poll::Ready(None)
         } else {
-            state.waker = Some(cx.waker().clone());
+            // Avoid the lost-wakeup race — see NextSample::poll above.
+            let waker = cx.waker();
+            match state.waker {
+                Some(ref existing) if existing.will_wake(waker) => {}
+                _ => state.waker = Some(waker.clone()),
+            }
             Poll::Pending
         }
     }
@@ -1247,7 +1259,7 @@ impl AsyncSCRecordingOutput {
     /// Check if the recording has finished
     #[must_use]
     pub fn is_finished(&self) -> bool {
-        self.state.lock().map(|s| s.finished).unwrap_or(true)
+        self.state.lock().map_or(true, |s| s.finished)
     }
 
     /// Get any pending events without waiting
