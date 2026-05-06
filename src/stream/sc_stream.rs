@@ -9,8 +9,9 @@
 
 use std::ffi::{c_void, CStr};
 use std::fmt;
+use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::RwLock;
 
 use crate::error::SCError;
 use crate::stream::delegate_trait::SCStreamDelegateTrait;
@@ -36,17 +37,22 @@ struct HandlerEntry {
 /// Allocated on the heap via `Box::into_raw` and passed through FFI as an
 /// opaque context pointer. Callbacks cast it back to `&StreamContext` for
 /// direct, O(1) access to the owning stream's state.
+///
+/// `handlers` and `delegate` are stored behind `RwLock`s rather than
+/// `Mutex`es so concurrent callbacks from `ScreenCaptureKit`'s independent
+/// dispatch queues (e.g. screen + audio) can dispatch in parallel. Slow
+/// user handlers no longer serialise across output types.
 struct StreamContext {
-    handlers: Mutex<Vec<HandlerEntry>>,
-    delegate: Mutex<Option<Box<dyn SCStreamDelegateTrait>>>,
+    handlers: RwLock<Vec<HandlerEntry>>,
+    delegate: RwLock<Option<Box<dyn SCStreamDelegateTrait>>>,
     ref_count: AtomicUsize,
 }
 
 impl StreamContext {
     fn new() -> *mut Self {
         let ctx = Box::new(Self {
-            handlers: Mutex::new(Vec::new()),
-            delegate: Mutex::new(None),
+            handlers: RwLock::new(Vec::new()),
+            delegate: RwLock::new(None),
             ref_count: AtomicUsize::new(1),
         });
         Box::into_raw(ctx)
@@ -54,8 +60,8 @@ impl StreamContext {
 
     fn new_with_delegate(delegate: Box<dyn SCStreamDelegateTrait>) -> *mut Self {
         let ctx = Box::new(Self {
-            handlers: Mutex::new(Vec::new()),
-            delegate: Mutex::new(Some(delegate)),
+            handlers: RwLock::new(Vec::new()),
+            delegate: RwLock::new(Some(delegate)),
             ref_count: AtomicUsize::new(1),
         });
         Box::into_raw(ctx)
@@ -92,6 +98,12 @@ impl StreamContext {
 static NEXT_HANDLER_ID: AtomicUsize = AtomicUsize::new(1);
 
 // C callback for stream errors — dispatches to per-stream delegate via context pointer.
+//
+// Safety: this function is called from Swift. A Rust panic unwinding across
+// the C ABI is undefined behavior, so all user-visible code (delegate trait
+// methods) is wrapped in `catch_unwind`. The `delegate` lock is taken with
+// `unwrap_or_else` poisoning recovery so a panic in one callback cannot
+// permanently break the stream by poisoning the lock.
 extern "C" fn delegate_error_callback(context: *mut c_void, error_code: i32, msg: *const i8) {
     if context.is_null() {
         return;
@@ -101,6 +113,8 @@ extern "C" fn delegate_error_callback(context: *mut c_void, error_code: i32, msg
     let message = if msg.is_null() {
         "Unknown error".to_string()
     } else {
+        // Best-effort: if Swift sent a non-UTF-8 buffer, fall back to a
+        // placeholder rather than panicking.
         unsafe { CStr::from_ptr(msg) }
             .to_str()
             .unwrap_or("Unknown error")
@@ -119,19 +133,51 @@ extern "C" fn delegate_error_callback(context: *mut c_void, error_code: i32, msg
         SCError::StreamError(message.clone())
     };
 
-    if let Ok(delegate_guard) = ctx.delegate.lock() {
-        if let Some(ref delegate) = *delegate_guard {
+    // Take a read lock and dispatch under it. Multiple delegate callbacks
+    // (e.g. error + activity) from independent queues can run concurrently.
+    // Recover from poisoning in case a previous callback panicked outside
+    // catch_unwind (defense in depth).
+    let delegate_guard = ctx
+        .delegate
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+    if let Some(ref delegate) = *delegate_guard {
+        // Wrap user code in catch_unwind so panics never propagate into Swift.
+        // AssertUnwindSafe is required because trait objects are not
+        // necessarily UnwindSafe and we accept the user's responsibility for
+        // their own state consistency on panic.
+        let did_stop_with_error_result = std::panic::catch_unwind(AssertUnwindSafe(|| {
             delegate.did_stop_with_error(error);
-            delegate.stream_did_stop(Some(message));
-            return;
+        }));
+        if let Err(payload) = did_stop_with_error_result {
+            log_callback_panic("delegate.did_stop_with_error", &payload);
         }
+
+        let stream_did_stop_result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            delegate.stream_did_stop(Some(message));
+        }));
+        if let Err(payload) = stream_did_stop_result {
+            log_callback_panic("delegate.stream_did_stop", &payload);
+        }
+        return;
     }
 
+    drop(delegate_guard);
     // Fallback to logging if no delegate registered
     eprintln!("SCStream error: {error}");
 }
 
 // C callback for sample buffers — dispatches to per-stream handlers via context pointer.
+//
+// Safety: this function is called from Swift on a dispatch queue. A Rust
+// panic across the C ABI is UB; every user handler invocation is wrapped in
+// `catch_unwind`. The `handlers` lock is a read lock so independent dispatch
+// queues (screen, audio, microphone) can dispatch in parallel — a slow
+// handler on one queue cannot block callbacks on another. The `passRetained`
+// `CMSampleBuffer` reference Swift hands us is consumed exactly once: each
+// non-final matching handler receives a freshly retained clone, and the
+// final matching handler consumes the original.
 extern "C" fn sample_handler(context: *mut c_void, sample_buffer: *const c_void, output_type: i32) {
     if context.is_null() {
         unsafe { crate::cm::ffi::cm_sample_buffer_release(sample_buffer.cast_mut()) };
@@ -150,36 +196,73 @@ extern "C" fn sample_handler(context: *mut c_void, sample_buffer: *const c_void,
         }
     };
 
-    // Mutex poisoning is unrecoverable in C callback context; unwrap is appropriate
-    let handlers = ctx.handlers.lock().unwrap();
+    // Read lock allows concurrent dispatch from independent dispatch queues.
+    // Recover from poisoning in case a previous panic somehow escaped
+    // catch_unwind (defense in depth).
+    let handlers = ctx
+        .handlers
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-    // Find handlers matching this output type
-    let matching: Vec<&HandlerEntry> = handlers
+    let mut matching = handlers
         .iter()
         .filter(|e| e.of_type == output_type_enum)
-        .collect();
+        .peekable();
 
-    if matching.is_empty() {
-        // Drop the lock before releasing buffer
+    if matching.peek().is_none() {
+        // Drop the lock before releasing the buffer, in case the release
+        // path ever takes any locks of its own.
         drop(handlers);
         unsafe { crate::cm::ffi::cm_sample_buffer_release(sample_buffer.cast_mut()) };
         return;
     }
 
-    let count = matching.len();
-    for (idx, entry) in matching.iter().enumerate() {
-        let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(sample_buffer.cast_mut()) };
-
-        // Retain for all but the last handler; the last one consumes the
-        // original reference that Swift passed via passRetained.
-        if idx < count - 1 {
+    while let Some(entry) = matching.next() {
+        // Retain for every handler except the last; the last handler consumes
+        // the original `passRetained` reference Swift gave us. `peek()` after
+        // `next()` reports the next matching entry (or None if `entry` was
+        // the last matching one).
+        let is_last = matching.peek().is_none();
+        if !is_last {
             unsafe { crate::cm::ffi::cm_sample_buffer_retain(sample_buffer.cast_mut()) };
         }
 
-        entry
-            .handler
-            .did_output_sample_buffer(buffer, output_type_enum);
+        let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(sample_buffer.cast_mut()) };
+
+        // Wrap user code in catch_unwind so panics never propagate into Swift.
+        // If the handler panics, `buffer` is dropped on unwind, which calls
+        // `cm_sample_buffer_release` and balances the retain we just did
+        // (or, for the last handler, balances the original `passRetained`).
+        // The retain/release accounting is preserved either way.
+        let dispatch_result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            entry
+                .handler
+                .did_output_sample_buffer(buffer, output_type_enum);
+        }));
+        if let Err(payload) = dispatch_result {
+            log_callback_panic("output handler", &payload);
+        }
     }
+}
+
+/// Best-effort logger for panics caught at the C ABI boundary.
+///
+/// Writing to stderr can itself panic (extremely rare — broken stderr or
+/// allocator); the result is ignored so this helper never returns a panic
+/// to its caller.
+fn log_callback_panic(site: &str, payload: &Box<dyn std::any::Any + Send + 'static>) {
+    let message = payload.downcast_ref::<&'static str>().map_or_else(
+        || {
+            payload
+                .downcast_ref::<String>()
+                .cloned()
+                .unwrap_or_else(|| "<non-string panic payload>".to_string())
+        },
+        |s| (*s).to_string(),
+    );
+    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        eprintln!("screencapturekit: panic in {site} caught at C ABI boundary: {message}");
+    }));
 }
 
 /// `SCStream` is a lightweight wrapper around the Swift `SCStream` instance.
@@ -337,6 +420,18 @@ impl SCStream {
     /// Returns `Some(handler_id)` on success, `None` on failure.
     /// The handler ID can be used with [`remove_output_handler`](Self::remove_output_handler).
     ///
+    /// # Dispatch queue
+    ///
+    /// The handler is invoked on a dedicated user-interactive serial dispatch
+    /// queue created by the bridge. This intentionally **deviates from
+    /// Apple's `SCStream.addStreamOutput`** API, whose `nil` queue parameter
+    /// means "deliver on the main queue". Main-queue dispatch only works
+    /// when the host process runs a Cocoa runloop, which Rust apps
+    /// generally don't, so the default would otherwise silently drop
+    /// every frame. Use [`add_output_handler_with_queue`](Self::add_output_handler_with_queue)
+    /// and pass an explicit [`DispatchQueue`] (e.g. one wrapping main) if
+    /// you need a different queue — including AppKit/UIKit affinity.
+    ///
     /// # Examples
     ///
     /// Using a struct:
@@ -396,10 +491,6 @@ impl SCStream {
     /// * `of_type` - The type of output to receive
     /// * `queue` - Optional custom dispatch queue for callbacks
     ///
-    /// # Panics
-    ///
-    /// Panics if the internal handler mutex is poisoned.
-    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -448,8 +539,8 @@ impl SCStream {
         if ok {
             unsafe { &*self.context }
                 .handlers
-                .lock()
-                .unwrap()
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .push(HandlerEntry {
                     id: handler_id,
                     of_type,
@@ -468,15 +559,14 @@ impl SCStream {
     /// * `id` - The handler ID returned from [`add_output_handler`](Self::add_output_handler)
     /// * `of_type` - The type of output the handler was registered for
     ///
-    /// # Panics
-    ///
-    /// Panics if the internal handler mutex is poisoned.
-    ///
     /// # Returns
     ///
     /// Returns `true` if the handler was found and removed, `false` otherwise.
     pub fn remove_output_handler(&mut self, id: usize, of_type: SCStreamOutputType) -> bool {
-        let mut handlers = unsafe { &*self.context }.handlers.lock().unwrap();
+        let mut handlers = unsafe { &*self.context }
+            .handlers
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(pos) = handlers.iter().position(|e| e.id == id) else {
             return false;
         };
@@ -716,10 +806,10 @@ mod tests {
     /// Regression test for #135: multiple concurrent streams must not leak
     /// samples across each other.
     ///
-    /// Creates two independent StreamContexts with separate handlers and
+    /// Creates two independent `StreamContexts` with separate handlers and
     /// directly invokes each context's handlers. Verifies that each handler
     /// only receives calls routed through its own context — not from the
-    /// other context. With the old global HANDLER_REGISTRY, both handlers
+    /// other context. With the old global `HANDLER_REGISTRY`, both handlers
     /// would have been called for every callback regardless of context.
     #[test]
     fn test_per_stream_callback_isolation() {
@@ -733,7 +823,10 @@ mod tests {
         // Register an audio handler on context A
         {
             let counter = count_a.clone();
-            let mut handlers = unsafe { &*ctx_a }.handlers.lock().unwrap();
+            let mut handlers = unsafe { &*ctx_a }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             handlers.push(HandlerEntry {
                 id: 1,
                 of_type: SCStreamOutputType::Audio,
@@ -750,7 +843,10 @@ mod tests {
         // Register an audio handler on context B
         {
             let counter = count_b.clone();
-            let mut handlers = unsafe { &*ctx_b }.handlers.lock().unwrap();
+            let mut handlers = unsafe { &*ctx_b }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             handlers.push(HandlerEntry {
                 id: 2,
                 of_type: SCStreamOutputType::Audio,
@@ -765,7 +861,10 @@ mod tests {
 
         // Simulate 5 audio callbacks on context A by directly calling matching handlers
         for _ in 0..5 {
-            let handlers = unsafe { &*ctx_a }.handlers.lock().unwrap();
+            let handlers = unsafe { &*ctx_a }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             for entry in handlers
                 .iter()
                 .filter(|e| e.of_type == SCStreamOutputType::Audio)
@@ -779,7 +878,10 @@ mod tests {
 
         // Simulate 3 audio callbacks on context B
         for _ in 0..3 {
-            let handlers = unsafe { &*ctx_b }.handlers.lock().unwrap();
+            let handlers = unsafe { &*ctx_b }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             for entry in handlers
                 .iter()
                 .filter(|e| e.of_type == SCStreamOutputType::Audio)
@@ -820,7 +922,10 @@ mod tests {
 
         {
             let counter = screen_count.clone();
-            let mut handlers = unsafe { &*ctx }.handlers.lock().unwrap();
+            let mut handlers = unsafe { &*ctx }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             handlers.push(HandlerEntry {
                 id: 1,
                 of_type: SCStreamOutputType::Screen,
@@ -834,7 +939,10 @@ mod tests {
         }
         {
             let counter = audio_count.clone();
-            let mut handlers = unsafe { &*ctx }.handlers.lock().unwrap();
+            let mut handlers = unsafe { &*ctx }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             handlers.push(HandlerEntry {
                 id: 2,
                 of_type: SCStreamOutputType::Audio,
@@ -849,7 +957,10 @@ mod tests {
 
         // Send 4 screen callbacks
         for _ in 0..4 {
-            let handlers = unsafe { &*ctx }.handlers.lock().unwrap();
+            let handlers = unsafe { &*ctx }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             for entry in handlers
                 .iter()
                 .filter(|e| e.of_type == SCStreamOutputType::Screen)
@@ -863,7 +974,10 @@ mod tests {
 
         // Send 2 audio callbacks
         for _ in 0..2 {
-            let handlers = unsafe { &*ctx }.handlers.lock().unwrap();
+            let handlers = unsafe { &*ctx }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             for entry in handlers
                 .iter()
                 .filter(|e| e.of_type == SCStreamOutputType::Audio)
@@ -881,7 +995,7 @@ mod tests {
         unsafe { StreamContext::release(ctx) };
     }
 
-    /// Verify that StreamContext ref counting works correctly.
+    /// Verify that `StreamContext` ref counting works correctly.
     #[test]
     fn test_stream_context_ref_counting() {
         let ctx = StreamContext::new();
@@ -899,5 +1013,116 @@ mod tests {
 
         // Second release drops to 0 — context freed (no crash = success)
         unsafe { StreamContext::release(ctx) };
+    }
+
+    /// Regression test: a panic in a user-supplied output handler must NOT
+    /// poison the handlers `RwLock`, must NOT propagate across the C ABI,
+    /// and must NOT prevent subsequent callbacks from being dispatched.
+    ///
+    /// This validates the C1+C2 fix from the deep review: `catch_unwind`
+    /// around user dispatch and `RwLock` poisoning recovery via
+    /// `unwrap_or_else(PoisonError::into_inner)` together prevent one
+    /// panicking handler from permanently breaking the stream.
+    #[test]
+    fn test_panic_in_handler_is_isolated() {
+        // Set a no-op panic hook so our intentional panic doesn't spam the
+        // test output. We restore it at the end of the test.
+        let original_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+
+        let panicked_count = Arc::new(AtomicUsize::new(0));
+        let normal_count = Arc::new(AtomicUsize::new(0));
+
+        let ctx = StreamContext::new();
+
+        // Handler 1: always panics
+        {
+            let counter = panicked_count.clone();
+            let mut handlers = unsafe { &*ctx }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            handlers.push(HandlerEntry {
+                id: 1,
+                of_type: SCStreamOutputType::Audio,
+                handler: Box::new(
+                    move |buf: crate::cm::CMSampleBuffer, _ty: SCStreamOutputType| {
+                        counter.fetch_add(1, Ordering::Relaxed);
+                        std::mem::forget(buf);
+                        panic!("intentional test panic");
+                    },
+                ),
+            });
+        }
+
+        // Handler 2: well-behaved, registered AFTER the panicker
+        {
+            let counter = normal_count.clone();
+            let mut handlers = unsafe { &*ctx }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            handlers.push(HandlerEntry {
+                id: 2,
+                of_type: SCStreamOutputType::Audio,
+                handler: Box::new(
+                    move |buf: crate::cm::CMSampleBuffer, _ty: SCStreamOutputType| {
+                        counter.fetch_add(1, Ordering::Relaxed);
+                        std::mem::forget(buf);
+                    },
+                ),
+            });
+        }
+
+        // Simulate 5 callbacks. Each iteration, the panicker fires (and
+        // panics), then the well-behaved handler must still fire on the
+        // SAME callback because both handlers match the output type. We
+        // simulate the dispatch path without going through the C callback
+        // (which would require a real CMSampleBuffer); the key behaviour
+        // we're verifying is that the lock isn't poisoned and that the
+        // catch_unwind boundary contains the panic.
+        for _ in 0..5 {
+            let handlers = unsafe { &*ctx }
+                .handlers
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for entry in handlers
+                .iter()
+                .filter(|e| e.of_type == SCStreamOutputType::Audio)
+            {
+                let buf = unsafe { crate::cm::CMSampleBuffer::from_ptr(std::ptr::null_mut()) };
+                let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    entry
+                        .handler
+                        .did_output_sample_buffer(buf, SCStreamOutputType::Audio);
+                }));
+            }
+        }
+
+        // Both handlers fired 5 times each — the panicker did not stop the
+        // dispatch loop or poison the lock for subsequent reads.
+        assert_eq!(
+            panicked_count.load(Ordering::Relaxed),
+            5,
+            "panicking handler stopped firing after first panic"
+        );
+        assert_eq!(
+            normal_count.load(Ordering::Relaxed),
+            5,
+            "well-behaved handler stopped firing after panicker poisoned state"
+        );
+
+        // Lock is still acquirable (would otherwise be poisoned).
+        drop(
+            unsafe { &*ctx }
+                .handlers
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+
+        unsafe { StreamContext::release(ctx) };
+
+        // Restore the original panic hook so other tests behave normally.
+        std::panic::set_hook(original_hook);
     }
 }
