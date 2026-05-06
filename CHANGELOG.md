@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.4...v2.0.0) - 2026-05-06
+
+### Added
+
+- *(picker)* expose SCContentSharingPicker.isActive getter and setter
+- *(picker)* expose SCContentSharingPicker.defaultConfiguration
+- *(cm)* expose SCStreamFrameInfo.presenterOverlayContentRect attachment
+- *(pixel-format)* [**breaking**] surface unrecognised codes via PixelFormat::Unknown
+- *(error)* [**breaking**] mark SCStreamErrorCode as #[non_exhaustive]
+
+### Fixed
+
+- *(ci)* use release-plz prebuilt action instead of cargo install
+- *(build)* force `--sdk macosx` in xcrun invocation to bypass stale CLT defaults
+- *(pixel-format)* [**breaking**] normalise PartialEq/Hash through FourCharCode
+- *(panic-safety)* wrap user code in remaining extern "C" callbacks
+- *(build)* [**breaking**] propagate every macos_* feature; fail loudly on SDK detection failure
+- *(build)* improve rebuild triggers and xcode-select error visibility
+- *(ffi)* defend FFI string helpers against malformed Swift output
+- *(stream)* [**breaking**] require Send + Sync on output and delegate traits
+- *(completion)* atomic guard against double-invocation; lost-wakeup race in poll
+- *(async)* lost-wakeup race in NextSample/NextRecordingEvent polls; clippy
+- *(swift)* correct C-header drift; document dispatch-queue affinity deviation
+- *(stream)* panic-safety, lock contention, and hot-path allocation in sample dispatch
+
+### Other
+
+- *(deps)* upgrade dev-dependencies to current major versions
+- *(swift-bridge)* re-enable SwiftLint force_unwrapping rule
+- *(examples)* add Tauri entitlements + warn 23_client_server is toy IPC
+- *(examples)* replace permission-sensitive panics with graceful skip messages
+- *(api)* clarify hot-path costs, lifetime conventions, and prelude omissions
+- route permission-skip messages to stderr with SKIP: prefix (M12)
+- cover YUV pixel format and mid-capture handler lifecycle (M11)
+- *(bench)* rewrite frame-throughput bench; add stream-startup bench
+- end-to-end cross-stream isolation regression test for #135
+
 ## [1.5.4](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.3...v1.5.4) - 2026-03-09
 
 ### Fixed
