@@ -495,8 +495,14 @@ pub const SC_STREAM_ERROR_DOMAIN: &str = "com.apple.screencapturekit";
 /// These correspond to the error codes returned by `ScreenCaptureKit` operations.
 ///
 /// Based on Apple's `SCStreamErrorCode` from `SCError.h`.
+///
+/// This enum is `#[non_exhaustive]`. Apple has historically added new codes in
+/// point releases (e.g. `-3818..=-3819` in macOS 13.0, `-3820..=-3821` in
+/// macOS 15.0) and is likely to add more. Downstream `match` statements must
+/// include a wildcard arm.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SCStreamErrorCode {
     /// The user chose not to authorize capture
     UserDeclined = -3801,
