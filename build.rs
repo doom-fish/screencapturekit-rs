@@ -1,11 +1,23 @@
 use std::env;
 use std::process::Command;
 
-/// Detect the macOS SDK major version via `xcrun --show-sdk-version`.
+/// Detect the macOS SDK major version via `xcrun --sdk macosx --show-sdk-version`.
+///
 /// Returns `None` if detection fails.
+///
+/// **Why `--sdk macosx` is required**: bare `xcrun --show-sdk-version` follows
+/// xcrun's notion of the "active developer dir" plus the embedded "default
+/// SDK" preference, which can land on `/Library/Developer/CommandLineTools/
+/// SDKs/MacOSX.sdk` even when `xcode-select -p` correctly points at a full
+/// Xcode install. On machines where Command Line Tools is registered but its
+/// SDK directory is missing or stale, the bare invocation fails with
+/// `xcodebuild: error: SDK "/Library/Developer/CommandLineTools/SDKs/
+/// MacOSX.sdk" cannot be located`. Forcing `--sdk macosx` resolves the SDK
+/// from the active Xcode toolchain instead, which is what every other Apple
+/// build system does (`CMake`, Swift PM, etc.).
 fn detect_sdk_major_version() -> Option<u32> {
     let output = Command::new("xcrun")
-        .args(["--show-sdk-version"])
+        .args(["--sdk", "macosx", "--show-sdk-version"])
         .output()
         .ok()?;
     if !output.status.success() {
