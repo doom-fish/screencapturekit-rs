@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        Tauri example entitlements for the screencapturekit-rs Tauri demo.
+
+        These entitlements are intentionally MINIMAL — they cover the
+        common case where a Tauri app on macOS uses ScreenCaptureKit
+        with the hardened runtime enabled. Most production apps will
+        want to additionally enable app-sandbox and audit each
+        capability for their threat model.
+
+        ScreenCaptureKit itself does NOT require an entitlement for
+        unsandboxed apps; user-grantable TCC permission
+        (NSScreenCaptureUsageDescription in Info.plist) is sufficient.
+        These entries cover the surrounding hardened-runtime relaxations
+        Tauri's WebView2 / WKWebView shell typically needs.
+    -->
+
+    <!-- Required for WKWebView (Tauri uses it) to JIT-compile JS. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Required by some WebView implementations to allocate W^X pages. -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!--
+        Required when loading the app bundle's own helper libraries
+        (e.g. Tauri sidecar processes, the Swift bridge dylib if
+        renamed/moved at install time).
+    -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

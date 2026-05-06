@@ -2,6 +2,21 @@
 //!
 //! Captures the screen and streams frames over TCP.
 //! Run with: `cargo run --example 23_client_server_server`
+//!
+//! ⚠️  **Toy protocol**: this example sends raw RGBA pixel bytes over TCP
+//! with no header, no framing, and no metadata. Width / height / stride
+//! / pixel-format are hard-coded on both ends — change them on the
+//! server and the client reads garbage. Sending YUV/HDR/etc. would
+//! silently break the renderer.
+//!
+//! For production cross-process streaming, use a real protocol:
+//! - **msgpack/protobuf** with a metadata header (width, height, stride,
+//!   format four-CC, color space, timestamp),
+//! - or wrap the buffers in a proper container (e.g. encode H.264 +
+//!   write to a `pipe:1` AVFoundation output).
+//!
+//! This example exists to demonstrate the SCStream → CVPixelBuffer
+//! lock/copy path in a multi-process context, not as an IPC blueprint.
 
 #![allow(clippy::significant_drop_tightening)]
 #![allow(clippy::option_if_let_else)]
