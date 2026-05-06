@@ -62,7 +62,25 @@ use super::output_type::SCStreamOutputType;
 /// # Ok(())
 /// # }
 /// ```
-pub trait SCStreamOutputTrait: Send {
+/// Trait implemented by handlers that receive captured samples from an
+/// [`SCStream`](crate::stream::SCStream).
+///
+/// # Concurrency
+///
+/// Handlers must be `Send + Sync`. `Send` is required because a handler
+/// registered on one thread is invoked on a `ScreenCaptureKit` dispatch
+/// queue, which runs on different OS threads over time. `Sync` is required
+/// because [`SCStream`] internally uses an `RwLock` to allow callbacks for
+/// independent output types (Screen / Audio / Microphone) to dispatch
+/// concurrently — without `Sync`, two threads could not concurrently
+/// invoke `&self` methods through the shared lock guard, even though
+/// `ScreenCaptureKit` serialises callbacks per output type in practice.
+///
+/// In practice, handlers that share state via `Arc<Mutex<…>>`, `Arc<RwLock<…>>`,
+/// or atomic primitives satisfy `Sync` automatically. Handlers that capture
+/// `Cell` / `RefCell` / `Rc` directly will not — wrap shared state in `Mutex`
+/// or `Arc<Mutex<…>>` instead.
+pub trait SCStreamOutputTrait: Send + Sync {
     /// Called when a new sample buffer is available
     ///
     /// # Parameters
@@ -74,11 +92,12 @@ pub trait SCStreamOutputTrait: Send {
 
 /// Blanket implementation for closures
 ///
-/// Any closure matching `Fn(CMSampleBuffer, SCStreamOutputType) + Send + 'static`
-/// can be used directly as an output handler.
+/// Any closure matching `Fn(CMSampleBuffer, SCStreamOutputType) + Send + Sync + 'static`
+/// can be used directly as an output handler. See the trait docs for
+/// the rationale behind the `Sync` bound.
 impl<F> SCStreamOutputTrait for F
 where
-    F: Fn(CMSampleBuffer, SCStreamOutputType) + Send + 'static,
+    F: Fn(CMSampleBuffer, SCStreamOutputType) + Send + Sync + 'static,
 {
     fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType) {
         self(sample_buffer, of_type);
