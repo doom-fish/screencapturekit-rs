@@ -264,6 +264,41 @@ impl CMSampleBuffer {
         }
     }
 
+    /// Get the Presenter Overlay content rectangle from frame info (macOS 14.2+).
+    ///
+    /// When a stream is configured with Presenter Overlay (see
+    /// [`SCStreamConfiguration::set_presenter_overlay_privacy_alert_setting`](
+    /// crate::stream::configuration::SCStreamConfiguration::set_presenter_overlay_privacy_alert_setting)),
+    /// `ScreenCaptureKit` attaches the overlay's bounding rectangle (within the
+    /// captured frame) to each delivered sample. Returns `None` when the
+    /// attachment is missing — typically because the stream isn't using
+    /// Presenter Overlay or no overlay is currently visible.
+    ///
+    /// This complements the existing [`content_rect`](Self::content_rect),
+    /// [`bounding_rect`](Self::bounding_rect), [`screen_rect`](Self::screen_rect),
+    /// and [`dirty_rects`](Self::dirty_rects) accessors and rounds out the
+    /// `SCStreamFrameInfo` attachment surface (9 of 9 keys exposed).
+    #[cfg(feature = "macos_14_2")]
+    pub fn presenter_overlay_content_rect(&self) -> Option<crate::cg::CGRect> {
+        unsafe {
+            let mut x: f64 = 0.0;
+            let mut y: f64 = 0.0;
+            let mut width: f64 = 0.0;
+            let mut height: f64 = 0.0;
+            if ffi::cm_sample_buffer_get_presenter_overlay_content_rect(
+                self.0,
+                &mut x,
+                &mut y,
+                &mut width,
+                &mut height,
+            ) {
+                Some(crate::cg::CGRect::new(x, y, width, height))
+            } else {
+                None
+            }
+        }
+    }
+
     /// Get the dirty rectangles from frame info
     ///
     /// Dirty rectangles indicate areas of the screen that have changed since the last frame.

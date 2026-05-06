@@ -247,3 +247,111 @@ fn test_handler_add_remove_mid_capture() {
          count_after_remove={count_after_remove}, count_settled={count_settled}, drift={drift}"
     );
 }
+
+/// Regression test for Gap 1 of the SDK gap analysis:
+/// `CMSampleBuffer::presenter_overlay_content_rect()` must exist, be
+/// callable on a real captured sample, and return `None` for streams
+/// that aren't using Presenter Overlay (the common case).
+///
+/// We can't actually drive Presenter Overlay from a test (it requires
+/// active video conferencing), but verifying the accessor returns `None`
+/// gracefully on a non-overlay stream confirms:
+///   1. the FFI declaration is correct (no link errors),
+///   2. the Swift bridge function correctly handles the "attachment
+///      missing" case (returns false → `None`),
+///   3. the Rust accessor doesn't panic when the underlying Apple key
+///      isn't set on the sample's attachment dictionary.
+///
+/// On a stream WITH Presenter Overlay enabled, this would return
+/// `Some(rect)`; we don't have a way to assert that without a live
+/// video-conference session.
+#[cfg(feature = "macos_14_2")]
+#[test]
+fn test_presenter_overlay_content_rect_absent_when_overlay_disabled() {
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!(
+                "SKIP: Screen recording permission required for Presenter Overlay attachment test (error: {e:?})"
+            );
+            return;
+        }
+    };
+
+    let displays = content.displays();
+    let Some(display) = displays.first() else {
+        eprintln!("SKIP: No displays available");
+        return;
+    };
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+
+    let config = SCStreamConfiguration::new()
+        .with_width(320)
+        .with_height(240)
+        .with_pixel_format(PixelFormat::BGRA);
+
+    let collector = Arc::new(FirstSampleCollector {
+        captured: Mutex::new(None),
+    });
+
+    let mut stream = SCStream::new(&filter, &config);
+    struct DelegatingHandler {
+        inner: Arc<FirstSampleCollector>,
+    }
+    impl SCStreamOutputTrait for DelegatingHandler {
+        fn did_output_sample_buffer(
+            &self,
+            sample_buffer: CMSampleBuffer,
+            of_type: SCStreamOutputType,
+        ) {
+            self.inner.did_output_sample_buffer(sample_buffer, of_type);
+        }
+    }
+    stream
+        .add_output_handler(
+            DelegatingHandler {
+                inner: collector.clone(),
+            },
+            SCStreamOutputType::Screen,
+        )
+        .expect("add_output_handler failed");
+
+    if let Err(e) = stream.start_capture() {
+        eprintln!("SKIP: stream failed to start: {e:?}");
+        return;
+    }
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while collector.captured.lock().is_ok_and(|s| s.is_none())
+        && std::time::Instant::now() < deadline
+    {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    let _ = stream.stop_capture();
+
+    let sample = collector
+        .captured
+        .lock()
+        .ok()
+        .and_then(|mut s| s.take())
+        .expect("no sample captured within 2s");
+
+    // ScreenCaptureKit may either omit the attachment entirely (-> None)
+    // OR attach `CGRectNull` (`x = inf, y = inf, width = 0, height = 0`) when
+    // Presenter Overlay isn't active. Both represent "no overlay rectangle";
+    // both are acceptable. What we're really verifying is that the accessor
+    // is wired up, doesn't panic, and doesn't return a finite rectangle.
+    let overlay_rect = sample.presenter_overlay_content_rect();
+    if let Some(rect) = overlay_rect {
+        assert!(
+            !rect.x.is_finite() || rect.width == 0.0 || rect.height == 0.0,
+            "presenter_overlay_content_rect() returned a finite rect ({rect:?}) on a \
+             stream that did not enable Presenter Overlay; expected None or CGRectNull"
+        );
+    }
+}

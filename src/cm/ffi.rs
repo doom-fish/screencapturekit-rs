@@ -43,6 +43,14 @@ extern "C" {
         out_width: *mut f64,
         out_height: *mut f64,
     ) -> bool;
+    #[cfg(feature = "macos_14_2")]
+    pub fn cm_sample_buffer_get_presenter_overlay_content_rect(
+        sample_buffer: *mut std::ffi::c_void,
+        out_x: *mut f64,
+        out_y: *mut f64,
+        out_width: *mut f64,
+        out_height: *mut f64,
+    ) -> bool;
     pub fn cm_sample_buffer_get_dirty_rects(
         sample_buffer: *mut std::ffi::c_void,
         out_rects: *mut *mut std::ffi::c_void,
