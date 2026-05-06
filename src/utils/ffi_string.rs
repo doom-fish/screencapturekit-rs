@@ -27,8 +27,11 @@ pub const SMALL_BUFFER_SIZE: usize = 256;
 /// * `None` if the FFI call failed or returned an empty string
 ///
 /// # Safety
-/// The caller must ensure the `ffi_call` closure properly writes a null-terminated
-/// string to the provided buffer and does not write beyond the buffer length.
+/// The caller must ensure the `ffi_call` closure does not write beyond the
+/// provided `buffer_len`. This function defends against the closure writing
+/// a non-NUL-terminated string by scanning the buffer up to its declared
+/// length and treating the absence of a terminator as failure (returns
+/// `None`) rather than reading past the buffer with `CStr::from_ptr`.
 ///
 /// # Example
 /// ```
@@ -55,16 +58,25 @@ where
 {
     let mut buffer = vec![0i8; buffer_size];
     let success = ffi_call(buffer.as_mut_ptr(), buffer.len() as isize);
-    if success {
-        let c_str = CStr::from_ptr(buffer.as_ptr());
-        let s = c_str.to_string_lossy().to_string();
-        if s.is_empty() {
-            None
-        } else {
-            Some(s)
-        }
-    } else {
+    if !success {
+        return None;
+    }
+
+    // Defensive: do NOT use `CStr::from_ptr` here. If the FFI closure
+    // returned `true` but failed to write a NUL terminator, `CStr::from_ptr`
+    // would read past the buffer until it found a zero byte — UB and a
+    // potential information leak. Instead, scan only the buffer we
+    // allocated and treat a missing terminator as failure.
+    //
+    // SAFETY: `i8` and `u8` have identical layout; the cast is purely a
+    // signed/unsigned reinterpretation.
+    let bytes = std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), buffer.len());
+    let nul_pos = bytes.iter().position(|&b| b == 0)?;
+    let s = String::from_utf8_lossy(&bytes[..nul_pos]).into_owned();
+    if s.is_empty() {
         None
+    } else {
+        Some(s)
     }
 }
 
@@ -98,18 +110,33 @@ where
 ///
 /// # Safety
 /// The caller must ensure the returned pointer was allocated by Swift's `strdup`
-/// or equivalent, and that `sc_free_string` properly frees it.
+/// or equivalent, and that `sc_free_string` properly frees it. The pointer is
+/// freed via an RAII guard, so a panic in `to_string_lossy` (extremely rare —
+/// only OOM) does not leak the Swift-allocated buffer.
 pub unsafe fn ffi_string_owned<F>(ffi_call: F) -> Option<String>
 where
     F: FnOnce() -> *mut i8,
 {
+    /// RAII guard: releases the Swift-allocated buffer on drop, including
+    /// during panic unwind. Without this, a panic between `CStr::from_ptr`
+    /// and the explicit `sc_free_string` call (e.g. allocator failure
+    /// inside `to_string_lossy`) would leak the buffer.
+    struct FreeGuard(*mut i8);
+    impl Drop for FreeGuard {
+        fn drop(&mut self) {
+            if !self.0.is_null() {
+                unsafe { crate::ffi::sc_free_string(self.0) };
+            }
+        }
+    }
+
     let ptr = ffi_call();
     if ptr.is_null() {
         return None;
     }
+    let _guard = FreeGuard(ptr);
     let c_str = CStr::from_ptr(ptr);
     let result = c_str.to_string_lossy().to_string();
-    crate::ffi::sc_free_string(ptr);
     if result.is_empty() {
         None
     } else {
