@@ -18,6 +18,17 @@ pub struct AudioInputDevice {
 impl AudioInputDevice {
     /// List all available audio input devices.
     ///
+    /// # Caching
+    ///
+    /// **Not cached.** Each call walks Apple's audio device list via
+    /// `AVAudioSession`/`AudioUnit` and copies the per-device strings
+    /// across the FFI boundary. The cost is small in absolute terms
+    /// (microseconds) but is **non-zero on every call**. Code that
+    /// repeatedly needs the device list (e.g. inside a UI render loop
+    /// or per-frame decision) should cache the result and re-list only
+    /// when the user signals a possible device change (e.g. on a
+    /// settings-pane open or an `AVAudioRouteChangeNotification`).
+    ///
     /// # Example
     ///
     /// ```no_run

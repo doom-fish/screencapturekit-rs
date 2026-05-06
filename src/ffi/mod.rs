@@ -61,8 +61,21 @@ extern "C" {
 
 // MARK: - SCShareableContent
 extern "C" {
-    /// Synchronous blocking call to get shareable content
-    /// Returns content pointer on success, or writes error to `error_buffer`
+    /// Synchronous blocking call to get shareable content.
+    ///
+    /// Returns the content pointer on success, or writes an error message
+    /// (NUL-terminated UTF-8) into `error_buffer`.
+    ///
+    /// # Safety
+    ///
+    /// `error_buffer` must point to at least `error_buffer_size` writable
+    /// bytes. The Swift bridge writes at most `error_buffer_size - 1`
+    /// payload bytes plus a NUL terminator (i.e. it respects the size
+    /// argument and never writes past the buffer). `error_buffer_size`
+    /// is `isize` for ABI compatibility with Apple's pattern, but values
+    /// must be > 0; pass `crate::utils::ffi_string::DEFAULT_BUFFER_SIZE`
+    /// (1024) or `SMALL_BUFFER_SIZE` (256) cast to `isize` for typical
+    /// error messages.
     pub fn sc_shareable_content_get_sync(
         exclude_desktop_windows: bool,
         on_screen_windows_only: bool,

@@ -405,6 +405,28 @@ unsafe impl Sync for AsyncSampleSender {}
 /// # Ok(())
 /// # }
 /// ```
+/// Async wrapper for `SCStream` with integrated frame iteration.
+///
+/// # Back-pressure and frame loss
+///
+/// `AsyncSCStream` buffers samples in a **bounded** internal queue sized
+/// by the `buffer_capacity` argument to [`AsyncSCStream::new`]. When the
+/// queue is full and a new sample arrives from `ScreenCaptureKit`, the
+/// **oldest** queued sample is dropped to make room — the stream is
+/// **lossy by design**.
+///
+/// This is the right policy for real-time UI rendering, screen-share
+/// previews, and live encoding: a slow consumer would rather see the
+/// most recent frame than a stale one. It is the *wrong* policy for
+/// lossless capture (e.g. saving every frame to disk for later
+/// editing) — for that, use the synchronous [`SCStream`](crate::stream::SCStream)
+/// directly, where back-pressure is naturally enforced by Apple's
+/// `queueDepth` setting and your handler's runtime.
+///
+/// To detect when frames are being dropped, watch `buffered_count()`
+/// against `buffer_capacity` over time, or instrument your handler
+/// with a per-frame timestamp delta and compare to your expected
+/// frame interval.
 pub struct AsyncSCStream {
     stream: crate::stream::SCStream,
     iterator_state: Arc<Mutex<AsyncSampleIteratorState>>,

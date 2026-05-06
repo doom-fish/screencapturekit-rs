@@ -759,6 +759,27 @@ pub use utils::four_char_code::FourCharCode;
 /// ```rust
 /// use screencapturekit::prelude::*;
 /// ```
+///
+/// # What's NOT in the prelude
+///
+/// The prelude intentionally only contains the **always-available**
+/// types — anything in a feature-gated module is omitted to avoid
+/// `cargo doc` warnings and conditional re-export complexity. To use
+/// the version-gated APIs, import them explicitly:
+///
+/// | Feature | Module to import explicitly |
+/// |---|---|
+/// | `macos_14_0` | `screencapturekit::screenshot_manager`, `screencapturekit::content_sharing_picker` |
+/// | `macos_15_0` | `screencapturekit::recording_output` |
+/// | `async` | `screencapturekit::async_api` |
+///
+/// Example:
+/// ```rust,no_run
+/// # #[cfg(feature = "macos_14_0")]
+/// use screencapturekit::prelude::*;
+/// # #[cfg(feature = "macos_14_0")]
+/// use screencapturekit::screenshot_manager::SCScreenshotManager;
+/// ```
 pub mod prelude {
     pub use crate::audio_devices::AudioInputDevice;
     pub use crate::cg::{CGPoint, CGRect, CGSize};

@@ -56,6 +56,16 @@ impl Drop for SCStreamConfiguration {
 }
 
 impl Clone for SCStreamConfiguration {
+    /// Clone the configuration by bumping the underlying Objective-C
+    /// reference count.
+    ///
+    /// **Note**: this is **not** a `memcpy`. `Clone::clone` crosses the
+    /// Swift FFI boundary and calls `sc_stream_configuration_retain`
+    /// (which performs an Objective-C `retain`). For most callers the
+    /// cost is irrelevant, but if you're cloning an
+    /// `SCStreamConfiguration` per frame on the hot path, prefer to
+    /// share an `Arc<SCStreamConfiguration>` (or `&SCStreamConfiguration`)
+    /// and clone *that* instead.
     fn clone(&self) -> Self {
         unsafe { Self(crate::ffi::sc_stream_configuration_retain(self.0)) }
     }
