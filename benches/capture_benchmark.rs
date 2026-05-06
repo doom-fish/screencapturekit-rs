@@ -116,7 +116,26 @@ fn bench_stream_creation(c: &mut Criterion) {
 // Frame Capture Benchmarks
 // =============================================================================
 
-/// Benchmark frame capture throughput at various resolutions
+/// Benchmark steady-state frame throughput at various resolutions.
+///
+/// **What this measures:** the per-frame wall time once a stream is up
+/// and running. The stream is created and started **once per
+/// resolution** (outside `iter_custom`), then each `iter_custom` call
+/// blocks until `iters` additional frames have arrived. This excludes
+/// the one-off setup/teardown cost (which is dominated by Swift
+/// async machinery and is measured separately by
+/// `bench_stream_startup`) and isolates the dispatch + delivery path.
+///
+/// **What this measures, in user terms:** is the host able to deliver
+/// the configured framerate at this resolution? At 60fps the
+/// per-frame budget is ~16.6 ms; if the bench shows times much higher
+/// than that, the OS is failing to keep up (or the dispatch path is
+/// adding meaningful overhead).
+///
+/// **What previous versions of this benchmark got wrong:** the bench
+/// recreated the stream every iteration and inserted a 100 ms sleep,
+/// then reported total wall time as throughput. The sleep dominated;
+/// the per-frame cost was <1% of the measurement.
 fn bench_frame_throughput(c: &mut Criterion) {
     cg_init();
 
@@ -132,7 +151,7 @@ fn bench_frame_throughput(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("throughput");
     group.sample_size(10);
-    group.measurement_time(Duration::from_secs(5));
+    group.measurement_time(Duration::from_secs(10));
 
     for (width, height, label) in resolutions {
         // Skip 4K if display is smaller
@@ -156,7 +175,7 @@ fn bench_frame_throughput(c: &mut Criterion) {
                     .with_width(w)
                     .with_height(h)
                     .with_pixel_format(PixelFormat::BGRA)
-                    .with_minimum_frame_interval(&CMTime::new(1, 120)); // Request 120 FPS max
+                    .with_minimum_frame_interval(&CMTime::new(1, 120)); // request 120 FPS max
 
                 let frame_count = Arc::new(AtomicUsize::new(0));
                 let frame_count_clone = Arc::clone(&frame_count);
@@ -167,33 +186,116 @@ fn bench_frame_throughput(c: &mut Criterion) {
                     }
                 };
 
+                // Start the stream ONCE outside iter_custom so setup cost
+                // doesn't pollute the measurement.
+                let mut stream = SCStream::new(&filter, &config);
+                stream.add_output_handler(handler, SCStreamOutputType::Screen);
+                stream.start_capture().expect("Failed to start capture");
+
+                // Warmup: drop the first second of frames so we measure
+                // steady-state, not first-frame latency.
+                let warmup_target = frame_count.load(Ordering::Relaxed) + 30;
+                let warmup_deadline = Instant::now() + Duration::from_secs(2);
+                while frame_count.load(Ordering::Relaxed) < warmup_target
+                    && Instant::now() < warmup_deadline
+                {
+                    std::thread::sleep(Duration::from_micros(500));
+                }
+
                 b.iter_custom(|iters| {
-                    let mut total_duration = Duration::ZERO;
+                    let target = frame_count.load(Ordering::Relaxed) + iters as usize;
+                    let start = Instant::now();
+                    let timeout = Duration::from_secs(30);
 
-                    for _ in 0..iters {
-                        frame_count.store(0, Ordering::Relaxed);
-
-                        let mut stream = SCStream::new(&filter, &config);
-                        stream.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
-
-                        let start = Instant::now();
-                        stream.start_capture().expect("Failed to start capture");
-
-                        // Capture for a fixed duration
-                        std::thread::sleep(Duration::from_millis(100));
-
-                        stream.stop_capture().expect("Failed to stop capture");
-                        total_duration += start.elapsed();
-
-                        let frames = frame_count.load(Ordering::Relaxed);
-                        black_box(frames);
+                    while frame_count.load(Ordering::Relaxed) < target {
+                        if start.elapsed() > timeout {
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_micros(100));
                     }
 
-                    total_duration
+                    let elapsed = start.elapsed();
+                    black_box(frame_count.load(Ordering::Relaxed));
+                    elapsed
                 });
+
+                stream.stop_capture().expect("Failed to stop capture");
             },
         );
     }
+
+    group.finish();
+}
+
+/// Benchmark stream startup cost: `SCStream::new` + `start_capture` +
+/// first-frame arrival.
+///
+/// This is the per-stream one-off cost that `bench_frame_throughput`
+/// deliberately excludes. Useful for monitoring regressions in the
+/// async start path through the Swift bridge.
+fn bench_stream_startup(c: &mut Criterion) {
+    cg_init();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    let display = content.displays().into_iter().next().expect("No display");
+
+    let mut group = c.benchmark_group("startup");
+    group.sample_size(10);
+
+    group.bench_function("create_start_first_frame", |b| {
+        let filter = SCContentFilter::create()
+            .with_display(&display)
+            .with_excluding_windows(&[])
+            .build();
+
+        let config = SCStreamConfiguration::new()
+            .with_width(640)
+            .with_height(480)
+            .with_pixel_format(PixelFormat::BGRA);
+
+        b.iter_custom(|iters| {
+            let mut total = Duration::ZERO;
+            for _ in 0..iters {
+                let first_frame = Arc::new(AtomicU64::new(0));
+                let first_frame_clone = Arc::clone(&first_frame);
+
+                let start = Instant::now();
+                let handler = move |_sample: CMSampleBuffer, output_type: SCStreamOutputType| {
+                    if matches!(output_type, SCStreamOutputType::Screen) {
+                        // Use Relaxed swap pattern instead of SeqCst CAS — much
+                        // cheaper, and we don't care about ordering with other
+                        // memory because `first_frame` is the only signal.
+                        if first_frame_clone.load(Ordering::Relaxed) == 0 {
+                            let _ = first_frame_clone.compare_exchange(
+                                0,
+                                start.elapsed().as_nanos() as u64,
+                                Ordering::Relaxed,
+                                Ordering::Relaxed,
+                            );
+                        }
+                    }
+                };
+
+                let mut stream = SCStream::new(&filter, &config);
+                stream.add_output_handler(handler, SCStreamOutputType::Screen);
+                stream.start_capture().expect("Failed to start capture");
+
+                // Wait for first frame, with a generous timeout.
+                let deadline = Instant::now() + Duration::from_secs(2);
+                while first_frame.load(Ordering::Relaxed) == 0 && Instant::now() < deadline {
+                    std::thread::sleep(Duration::from_micros(100));
+                }
+
+                let nanos = first_frame.load(Ordering::Relaxed);
+                if nanos > 0 {
+                    total += Duration::from_nanos(nanos);
+                }
+
+                stream.stop_capture().expect("Failed to stop capture");
+            }
+            total
+        });
+    });
 
     group.finish();
 }
@@ -570,6 +672,7 @@ criterion_group!(
     bench_stream_creation,
     // Frame capture
     bench_frame_throughput,
+    bench_stream_startup,
     bench_frame_latency,
     // Data access
     bench_pixel_buffer_access,
