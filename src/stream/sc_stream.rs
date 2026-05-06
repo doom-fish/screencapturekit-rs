@@ -88,11 +88,32 @@ impl StreamContext {
         }
         let prev = unsafe { &*ptr }.ref_count.fetch_sub(1, Ordering::Release);
         if prev == 1 {
+            // The Acquire fence is required (NOT redundant — it pairs with
+            // the Release stores from other threads' `fetch_sub` calls
+            // and any other writes to `*ptr` they performed). It guarantees
+            // that the freeing thread sees all happened-before writes from
+            // every other thread that previously held a reference. This is
+            // the canonical Arc-style refcount drop pattern (see
+            // `std::sync::Arc::drop`); removing the fence is unsound on
+            // weakly-ordered architectures (e.g. AArch64).
             std::sync::atomic::fence(Ordering::Acquire);
             drop(unsafe { Box::from_raw(ptr) });
         }
     }
 }
+
+/// Compile-time assertion: `StreamContext` is `Send + Sync`.
+///
+/// `SCStream` carries `unsafe impl Send + Sync` (lines below); that impl is
+/// only sound if the underlying `StreamContext` is itself `Send + Sync`.
+/// Without this static check, a future refactor that adds a `!Send` or
+/// `!Sync` field (or removes the `Send`/`Sync` bound from a trait it holds
+/// in `Box<dyn …>`) would silently invalidate the unsafe impl with no
+/// compiler error. This `const _` forces a compile error in that case.
+const _: fn() = || {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<StreamContext>();
+};
 
 /// Monotonically increasing handler ID generator (process-wide).
 static NEXT_HANDLER_ID: AtomicUsize = AtomicUsize::new(1);
