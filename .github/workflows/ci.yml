@@ -173,6 +173,9 @@ jobs:
     needs: [lint, build, leak-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: release
+    permissions:
+      contents: write
+      pull-requests: write
     concurrency:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
@@ -183,15 +186,13 @@ jobs:
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      - name: Cache release-plz
-        uses: actions/cache@v4
+      - name: Run release-plz
+        uses: release-plz/action@v0.5.128
         with:
-          path: ~/.cargo/bin/release-plz
-          key: ${{ runner.os }}-release-plz
-      - name: Install release-plz
-        run: command -v release-plz || cargo install release-plz
-      - name: Create release PR
-        run: release-plz release-pr --git-token ${{ secrets.RELEASE_PLZ_TOKEN }}
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   release:
     runs-on: macos-latest
@@ -207,14 +208,10 @@ jobs:
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      - name: Cache release-plz
-        uses: actions/cache@v4
+      - name: Run release-plz
+        uses: release-plz/action@v0.5.128
         with:
-          path: ~/.cargo/bin/release-plz
-          key: ${{ runner.os }}-release-plz
-      - name: Install release-plz
-        run: command -v release-plz || cargo install release-plz
-      - name: Release
-        run: release-plz release --git-token ${{ secrets.RELEASE_PLZ_TOKEN }}
+          command: release
         env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
