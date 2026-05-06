@@ -131,7 +131,7 @@ impl SCContentSharingPickerConfiguration {
     ///
     /// // Start from the system defaults, then override only what you need.
     /// let mut config = SCContentSharingPickerConfiguration::default_from_system();
-    /// config.set_maximum_stream_count(2);
+    /// config.set_excluded_bundle_ids(&["com.apple.dock"]);
     /// ```
     #[must_use]
     pub fn default_from_system() -> Self {
