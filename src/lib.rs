@@ -736,6 +736,7 @@ pub mod ffi;
 pub mod metal;
 #[cfg(feature = "macos_15_0")]
 pub mod recording_output;
+#[cfg(feature = "macos_14_0")]
 pub mod screenshot_manager;
 pub mod shareable_content;
 pub mod stream;

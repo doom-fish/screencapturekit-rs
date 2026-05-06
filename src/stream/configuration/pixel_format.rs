@@ -11,6 +11,13 @@ use crate::utils::four_char_code::FourCharCode;
 ///
 /// Specifies the layout and encoding of pixel data in captured frames.
 ///
+/// This enum is `#[non_exhaustive]`. Apple may add new pixel formats in
+/// future macOS releases; downstream code that exhaustively matches on
+/// `PixelFormat` must include a wildcard arm. Pixel formats this crate
+/// does not yet recognise are surfaced via the [`PixelFormat::Unknown`]
+/// variant rather than being silently coerced to [`PixelFormat::BGRA`]
+/// (which would mislead callers that branch on the format).
+///
 /// # Examples
 ///
 /// ```
@@ -21,6 +28,7 @@ use crate::utils::four_char_code::FourCharCode;
 /// ```
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum PixelFormat {
     /// Packed little endian ARGB8888 (most common)
     #[default]
@@ -35,6 +43,11 @@ pub enum PixelFormat {
     xf44,
     /// 64-bit RGBA IEEE half-precision float, 16-bit little-endian (HDR)
     RGhA,
+    /// A pixel format reported by `ScreenCaptureKit` that this crate does not
+    /// model as a named variant. The wrapped [`FourCharCode`] preserves the
+    /// raw four-character code so callers can branch on it explicitly or
+    /// log it for diagnostics.
+    Unknown(FourCharCode),
 }
 impl Display for PixelFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -53,6 +66,7 @@ impl From<PixelFormat> for FourCharCode {
             PixelFormat::YCbCr_420f => Self::from_bytes(*b"420f"),
             PixelFormat::xf44 => Self::from_bytes(*b"xf44"),
             PixelFormat::RGhA => Self::from_bytes(*b"RGhA"),
+            PixelFormat::Unknown(code) => code,
         }
     }
 }
@@ -66,12 +80,16 @@ impl From<u32> for PixelFormat {
 impl From<FourCharCode> for PixelFormat {
     fn from(val: FourCharCode) -> Self {
         match val.display().as_str() {
+            "BGRA" => Self::BGRA,
             "l10r" => Self::l10r,
             "420v" => Self::YCbCr_420v,
             "420f" => Self::YCbCr_420f,
             "xf44" => Self::xf44,
             "RGhA" => Self::RGhA,
-            _ => Self::BGRA, // Default to BGRA for unknown formats (including "BGRA")
+            // Preserve the raw code rather than silently coercing to BGRA.
+            // Callers that branched on the format would otherwise misread
+            // YUV/HDR/etc. samples as BGRA.
+            _ => Self::Unknown(val),
         }
     }
 }
