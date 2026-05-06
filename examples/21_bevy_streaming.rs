@@ -116,12 +116,22 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     println!("🎮 Setting up Bevy Screen Capture...\n");
 
     // Set up screen capture
-    let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = content
-        .displays()
-        .into_iter()
-        .next()
-        .expect("No displays found");
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("\n⚠️  Bevy example needs screen recording permission to run.");
+            eprintln!("    Grant via System Settings → Privacy & Security → Screen Recording.");
+            eprintln!("    Underlying error: {e:?}");
+            std::process::exit(1);
+        }
+    };
+    let display = match content.displays().into_iter().next() {
+        Some(d) => d,
+        None => {
+            eprintln!("\n⚠️  No displays available — Bevy example cannot run.");
+            std::process::exit(1);
+        }
+    };
 
     println!("Display: {}x{}", display.width(), display.height());
 
@@ -151,7 +161,11 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
 
     println!("Starting capture...\n");
-    stream.start_capture().expect("Failed to start capture");
+    if let Err(e) = stream.start_capture() {
+        eprintln!("\n⚠️  Failed to start capture: {e:?}");
+        eprintln!("    This usually means screen recording permission is missing.");
+        std::process::exit(1);
+    }
 
     // Create a placeholder texture
     let placeholder = Image::new_fill(
