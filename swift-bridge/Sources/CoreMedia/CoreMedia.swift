@@ -148,6 +148,30 @@ public func cm_sample_buffer_get_screen_rect(_ sampleBuffer: UnsafeMutableRawPoi
     return true
 }
 
+/// Read the `SCStreamFrameInfo.presenterOverlayContentRect` attachment off the
+/// sample buffer (macOS 14.2+ Presenter Overlay). Returns false (and leaves the
+/// out parameters untouched) if the attachment is missing — typical when the
+/// stream was not configured with a presenter overlay.
+@available(macOS 14.2, *)
+@_cdecl("cm_sample_buffer_get_presenter_overlay_content_rect")
+public func cm_sample_buffer_get_presenter_overlay_content_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+          let firstAttachment = attachments.first,
+          let rectDict = firstAttachment[SCStreamFrameInfo.presenterOverlayContentRect.rawValue as CFString] as? [String: Any],
+          let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
+    else {
+        return false
+    }
+
+    outX.pointee = rect.origin.x
+    outY.pointee = rect.origin.y
+    outWidth.pointee = rect.size.width
+    outHeight.pointee = rect.size.height
+    return true
+}
+
 @_cdecl("cm_sample_buffer_get_dirty_rects")
 public func cm_sample_buffer_get_dirty_rects(_ sampleBuffer: UnsafeMutableRawPointer, _ outRects: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outCount: UnsafeMutablePointer<Int>) -> Bool {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
