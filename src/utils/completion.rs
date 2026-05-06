@@ -136,10 +136,27 @@ impl<T> SyncCompletion<T> {
     /// # Safety
     ///
     /// The `context` pointer must be a valid pointer obtained from
-    /// `SyncCompletion::new()`. The intended contract is that the callback
-    /// fires exactly once. If Swift erroneously fires it twice, the
-    /// `consumed` `AtomicBool` ensures the second invocation is a no-op
-    /// rather than triggering a double-`Arc::from_raw` (which would be UB).
+    /// `SyncCompletion::new()` and not yet freed. The intended FFI
+    /// contract is that the callback fires exactly once per context.
+    ///
+    /// The `consumed` `AtomicBool` provides **defence in depth** against
+    /// Swift firing the callback twice on the same *still-live* context:
+    /// the second invocation atomically observes `consumed == true` and
+    /// returns without touching the `Arc`, preventing the
+    /// double-`Arc::from_raw` that would otherwise corrupt the refcount.
+    ///
+    /// **Limitation**: this guard does **not** protect against the
+    /// pathological case where (a) the legitimate callback completed
+    /// fully, (b) the corresponding `SyncCompletion` was dropped (so the
+    /// inner allocation was freed), and (c) Swift then fires the
+    /// callback a third time with the same now-dangling pointer. The
+    /// initial `&*context.cast::<...>()` deref in that case is
+    /// use-after-free. Defending against that scenario would require
+    /// either a process-wide allocator (so freed pointers are never
+    /// reused) or an indirection through a registry — both beyond the
+    /// scope of this guard. Fortunately Apple's `ScreenCaptureKit`
+    /// callbacks do not exhibit this pattern in practice; this `# Safety`
+    /// note documents the residual contract for future maintainers.
     ///
     /// # Panics
     ///
@@ -251,10 +268,16 @@ impl<T> AsyncCompletion<T> {
     /// # Safety
     ///
     /// The `context` pointer must be a valid pointer obtained from
-    /// `AsyncCompletion::create()`. The intended contract is that the
-    /// callback fires exactly once. If Swift erroneously fires it twice,
-    /// the `consumed` `AtomicBool` ensures the second invocation is a
-    /// no-op rather than triggering a double-`Arc::from_raw`.
+    /// `AsyncCompletion::create()` and not yet freed. The intended FFI
+    /// contract is that the callback fires exactly once per context.
+    ///
+    /// The `consumed` `AtomicBool` provides defence in depth against
+    /// Swift firing the callback twice on the same *still-live*
+    /// allocation. The same residual UAF contract documented on
+    /// `SyncCompletion::complete_with_result` applies here: a third
+    /// callback after both the legitimate fire AND the consumer's drop
+    /// of the `AsyncCompletionFuture` would dereference a freed
+    /// pointer. Apple's APIs do not exhibit that pattern.
     ///
     /// # Panics
     ///

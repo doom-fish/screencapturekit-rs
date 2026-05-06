@@ -460,7 +460,10 @@ extern "C" fn recording_started_callback(ctx: *mut c_void) {
     if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
         if let Some(ref delegates) = *registry {
             if let Some(entry) = delegates.get(&key) {
-                entry.delegate.recording_did_start();
+                crate::utils::panic_safe::catch_user_panic(
+                    "SCRecordingOutputDelegate::recording_did_start",
+                    || entry.delegate.recording_did_start(),
+                );
             }
         }
     }
@@ -489,7 +492,10 @@ extern "C" fn recording_failed_callback(ctx: *mut c_void, error_code: i32, error
     if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
         if let Some(ref delegates) = *registry {
             if let Some(entry) = delegates.get(&key) {
-                entry.delegate.recording_did_fail(full_error);
+                crate::utils::panic_safe::catch_user_panic(
+                    "SCRecordingOutputDelegate::recording_did_fail",
+                    || entry.delegate.recording_did_fail(full_error),
+                );
             }
         }
     }
@@ -500,7 +506,10 @@ extern "C" fn recording_finished_callback(ctx: *mut c_void) {
     if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
         if let Some(ref delegates) = *registry {
             if let Some(entry) = delegates.get(&key) {
-                entry.delegate.recording_did_finish();
+                crate::utils::panic_safe::catch_user_panic(
+                    "SCRecordingOutputDelegate::recording_did_finish",
+                    || entry.delegate.recording_did_finish(),
+                );
             }
         }
     }

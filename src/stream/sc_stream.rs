@@ -9,13 +9,13 @@
 
 use std::ffi::{c_void, CStr};
 use std::fmt;
-use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::RwLock;
 
 use crate::error::SCError;
 use crate::stream::delegate_trait::SCStreamDelegateTrait;
 use crate::utils::completion::UnitCompletion;
+use crate::utils::panic_safe::catch_user_panic;
 use crate::{
     dispatch_queue::DispatchQueue,
     ffi,
@@ -165,22 +165,12 @@ extern "C" fn delegate_error_callback(context: *mut c_void, error_code: i32, msg
 
     if let Some(ref delegate) = *delegate_guard {
         // Wrap user code in catch_unwind so panics never propagate into Swift.
-        // AssertUnwindSafe is required because trait objects are not
-        // necessarily UnwindSafe and we accept the user's responsibility for
-        // their own state consistency on panic.
-        let did_stop_with_error_result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        catch_user_panic("delegate.did_stop_with_error", || {
             delegate.did_stop_with_error(error);
-        }));
-        if let Err(payload) = did_stop_with_error_result {
-            log_callback_panic("delegate.did_stop_with_error", &payload);
-        }
-
-        let stream_did_stop_result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        });
+        catch_user_panic("delegate.stream_did_stop", || {
             delegate.stream_did_stop(Some(message));
-        }));
-        if let Err(payload) = stream_did_stop_result {
-            log_callback_panic("delegate.stream_did_stop", &payload);
-        }
+        });
         return;
     }
 
@@ -255,35 +245,12 @@ extern "C" fn sample_handler(context: *mut c_void, sample_buffer: *const c_void,
         // `cm_sample_buffer_release` and balances the retain we just did
         // (or, for the last handler, balances the original `passRetained`).
         // The retain/release accounting is preserved either way.
-        let dispatch_result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        catch_user_panic("output handler", || {
             entry
                 .handler
                 .did_output_sample_buffer(buffer, output_type_enum);
-        }));
-        if let Err(payload) = dispatch_result {
-            log_callback_panic("output handler", &payload);
-        }
+        });
     }
-}
-
-/// Best-effort logger for panics caught at the C ABI boundary.
-///
-/// Writing to stderr can itself panic (extremely rare — broken stderr or
-/// allocator); the result is ignored so this helper never returns a panic
-/// to its caller.
-fn log_callback_panic(site: &str, payload: &Box<dyn std::any::Any + Send + 'static>) {
-    let message = payload.downcast_ref::<&'static str>().map_or_else(
-        || {
-            payload
-                .downcast_ref::<String>()
-                .cloned()
-                .unwrap_or_else(|| "<non-string panic payload>".to_string())
-        },
-        |s| (*s).to_string(),
-    );
-    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        eprintln!("screencapturekit: panic in {site} caught at C ABI boundary: {message}");
-    }));
 }
 
 /// `SCStream` is a lightweight wrapper around the Swift `SCStream` instance.
@@ -1112,11 +1079,11 @@ mod tests {
                 .filter(|e| e.of_type == SCStreamOutputType::Audio)
             {
                 let buf = unsafe { crate::cm::CMSampleBuffer::from_ptr(std::ptr::null_mut()) };
-                let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                catch_user_panic("test handler", || {
                     entry
                         .handler
                         .did_output_sample_buffer(buf, SCStreamOutputType::Audio);
-                }));
+                });
             }
         }
 

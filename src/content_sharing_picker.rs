@@ -783,7 +783,7 @@ extern "C" fn picker_callback_boxed<F>(
         0 => SCPickerOutcome::Cancelled,
         _ => SCPickerOutcome::Error("Picker failed".to_string()),
     };
-    callback(outcome);
+    crate::utils::panic_safe::catch_user_panic("picker callback", move || callback(outcome));
 }
 
 /// Callback trampoline for boxed closures (picker filter only)
@@ -800,7 +800,9 @@ extern "C" fn picker_filter_callback_boxed<F>(
         0 => SCPickerFilterOutcome::Cancelled,
         _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
     };
-    callback(outcome);
+    crate::utils::panic_safe::catch_user_panic("picker filter callback", move || {
+        callback(outcome);
+    });
 }
 
 // Safety: Configuration wraps an Objective-C object that is thread-safe

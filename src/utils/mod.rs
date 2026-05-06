@@ -8,8 +8,10 @@
 //! - [`ffi_string`] - FFI string retrieval utilities
 //! - [`four_char_code`] - Four-character code handling (used for pixel formats, codecs)
 //! - [`completion`] - Completion utilities for async FFI callbacks
+//! - [`panic_safe`] - Helpers for catching panics at the C ABI boundary
 
 pub mod completion;
 pub mod error;
 pub mod ffi_string;
 pub mod four_char_code;
+pub mod panic_safe;
