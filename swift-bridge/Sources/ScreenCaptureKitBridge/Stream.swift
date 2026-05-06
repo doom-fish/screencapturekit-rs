@@ -446,7 +446,17 @@ public func addStreamOutput(
         outputType = .audio
     }
 
-    // Use a dedicated queue instead of .main to avoid runloop dependency
+    // INTENTIONAL DEVIATION FROM SCStream.addStreamOutput's `nil`→main-queue
+    // contract: this bridge always uses a dedicated queue when the caller
+    // didn't supply one. Apple's API treats `nil` as "deliver on the main
+    // queue", which only works when the host process runs a Cocoa runloop
+    // (RunLoop.main / app `NSRunLoop`). Pure-Rust hosts typically don't, in
+    // which case main-queue dispatch never fires and samples are silently
+    // dropped. A dedicated user-interactive queue gives correct delivery
+    // out of the box; callers who need main-queue affinity (e.g. AppKit/
+    // UIKit access) should pass their own DispatchQueue via
+    // `sc_stream_add_stream_output_with_queue` or hop to the main queue
+    // from inside their handler.
     let queue = DispatchQueue(label: "com.screencapturekit.output.\(type)", qos: .userInteractive)
 
     do {
@@ -489,6 +499,10 @@ public func addStreamOutputWithQueue(
         outputType = .audio
     }
 
+    // See comment in `addStreamOutput` above: when no queue is supplied we
+    // intentionally synthesise a dedicated queue rather than passing `nil`
+    // to Apple's API (which would require a Cocoa runloop). Callers who
+    // pass an explicit DispatchQueue keep full control.
     let queue: DispatchQueue = if let queuePtr = dispatchQueue {
         unretained(queuePtr)
     } else {
