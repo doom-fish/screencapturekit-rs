@@ -696,6 +696,7 @@ Run benchmarks to measure performance on your hardware:
 
 ```bash
 cargo bench
+cargo bench --bench hotspots --features macos_14_0   # targeted hotspot benches
 ```
 
 See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for detailed benchmark documentation including:
@@ -711,6 +712,57 @@ See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for detailed benchmark documentat
 |------------|--------------|---------------------|
 | 1080p | 30-60 FPS | 30-100ms |
 | 4K | 15-30 FPS | 50-150ms |
+
+A full audio + video capture (60 fps + 48 kHz stereo) costs **~1.9% of one core** end-to-end on M-series Mac, with the Rust binding code below the noise floor of a 4 kHz sampling profiler — virtually all of the cost is Apple's own SkyLight + libdispatch + libxpc pipeline.
+
+### Batched APIs (read every attribute in one FFI round-trip)
+
+When iterating many windows / displays / applications, prefer the batched
+APIs over the per-element accessor pattern — they collapse `1 + N + 6N`
+FFI calls to one round-trip per category and are ~2× faster on a typical
+desktop:
+
+```rust
+use screencapturekit::prelude::*;
+use screencapturekit::shareable_content::ContentSnapshot;
+
+let content = SCShareableContent::get()?;
+
+// One batched FFI per category — every display + window + app + attrs.
+let ContentSnapshot { displays, windows, applications } = content
+    .snapshot()
+    .ok_or("snapshot failed")?;
+
+for w in &windows {
+    let app = w.owning_app_index.and_then(|i| applications.get(i));
+    println!("{} - {}", app.map(|a| &*a.application_name).unwrap_or(""),
+             w.title.as_deref().unwrap_or(""));
+}
+```
+
+Same idea on a video sample buffer — read every attachment in one CF→Swift
+bridge cast instead of one cast per attribute:
+
+```rust
+if let Some(info) = sample.frame_info() {
+    println!("status={:?} time={:?} content={:?}",
+             info.frame_status, info.display_time, info.content_rect);
+}
+```
+
+For screenshot decoding, `bgra_data()` returns the source pixel layout
+directly, skipping the per-pixel R↔B swap that `rgba_data()` performs
+inside `CGContext.draw`. Use it when uploading to Metal / wgpu / ffmpeg
+which all accept BGRA natively:
+
+```rust
+let img = SCScreenshotManager::capture_image(&filter, &config)?;
+let pixels = img.bgra_data()?;   // ~5% faster than rgba_data() at 1080p
+```
+
+See [`examples/24_batched_apis_showcase.rs`](examples/24_batched_apis_showcase.rs)
+for a side-by-side comparison that benchmarks all three APIs against the
+legacy per-element pattern on your machine.
 
 ## 🔄 Migration
 

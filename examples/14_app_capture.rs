@@ -6,9 +6,21 @@
 //! - Including/excluding specific apps
 //! - Capturing multiple applications
 //!
-//! Run with: `cargo run --example 14_app_capture`
+//! Run with: `cargo run --example 14_app_capture --features macos_14_0`
+//!
+//! ## Performance note
+//!
+//! The "list app + count its windows" pattern at the top is O(apps × windows)
+//! — with the per-element accessor pattern that's `apps × windows × 2` FFI
+//! calls (`.owning_application()` + `.process_id()` per window). On a
+//! 36-app / 220-window system that's ~16k FFI calls just to print the
+//! header. We use [`SCShareableContent::snapshot`] instead, which fetches
+//! every owning-app index in a single batched FFI round-trip and lets us
+//! count windows per app in pure Rust (`Counter` over snapshot rows).
 
 use screencapturekit::prelude::*;
+use screencapturekit::shareable_content::ContentSnapshot;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -30,50 +42,68 @@ impl SCStreamOutputTrait for FrameCounter {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📱 Application-Based Capture\n");
 
-    // 1. Get available content
+    // 1. Get available content + batched snapshot.
     let content = SCShareableContent::get()?;
-    let displays = content.displays();
-    let apps = content.applications();
-    let windows = content.windows();
+    let ContentSnapshot {
+        displays: display_snaps,
+        applications: app_snaps,
+        windows: window_snaps,
+    } = content
+        .snapshot()
+        .ok_or("Could not collect content snapshot")?;
 
-    let display = displays.first().ok_or("No displays found")?;
+    if display_snaps.is_empty() {
+        return Err("No displays found".into());
+    }
 
-    // 2. List running applications
+    // 2. List running applications + window counts (purely in-memory now).
+    let mut windows_per_app: HashMap<usize, usize> = HashMap::new();
+    for w in &window_snaps {
+        if let Some(idx) = w.owning_app_index {
+            *windows_per_app.entry(idx).or_insert(0) += 1;
+        }
+    }
+
     println!("📋 Running Applications:");
-    for (i, app) in apps.iter().take(10).enumerate() {
-        let window_count = windows
-            .iter()
-            .filter(|w| {
-                w.owning_application()
-                    .is_some_and(|a| a.process_id() == app.process_id())
-            })
-            .count();
-
+    for (i, app) in app_snaps.iter().take(10).enumerate() {
+        let window_count = windows_per_app.get(&i).copied().unwrap_or(0);
         println!(
             "   {}. {} (PID: {}, Windows: {})",
             i + 1,
-            app.application_name(),
-            app.process_id(),
+            app.application_name,
+            app.process_id,
             window_count
         );
     }
 
-    // 3. Find a specific application (example: Finder)
-    let target_app = apps
+    // 3. Find a specific application (example: Finder).
+    let target_idx = app_snaps
         .iter()
-        .find(|a| a.application_name().contains("Finder"))
-        .or_else(|| apps.first());
+        .position(|a| a.application_name.contains("Finder"))
+        .or_else(|| if app_snaps.is_empty() { None } else { Some(0) });
 
-    let Some(app) = target_app else {
+    let Some(target_idx) = target_idx else {
         println!("⚠️  No applications found");
         return Ok(());
     };
+    let app_snap = &app_snaps[target_idx];
 
     println!(
         "\n🎯 Target: {} ({})",
-        app.application_name(),
-        app.bundle_identifier()
+        app_snap.application_name, app_snap.bundle_identifier
     );
+
+    // 4. To actually build a content filter we need the live SCRunningApplication
+    // handle (the snapshot only carries plain data). Re-fetch the live list
+    // and find by PID — this is one FFI per app, but we only do it once.
+    let live_apps = content.applications();
+    let live_displays = content.displays();
+    let display = live_displays.first().ok_or("display vanished")?;
+
+    let live_app = live_apps
+        .iter()
+        .find(|a| a.process_id() == app_snap.process_id)
+        .ok_or("live app vanished between snapshot and lookup")?;
 
     // ========================================
     // Option A: Capture INCLUDING specific apps
@@ -82,10 +112,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let include_filter = SCContentFilter::create()
         .with_display(display)
-        .with_including_applications(&[app], &[])
+        .with_including_applications(&[live_app], &[])
         .build();
 
-    println!("   Filter created: include only {}", app.application_name());
+    println!(
+        "   Filter created: include only {}",
+        app_snap.application_name
+    );
 
     // ========================================
     // Option B: Capture EXCLUDING specific apps
@@ -94,27 +127,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let _exclude_filter = SCContentFilter::create()
         .with_display(display)
-        .with_excluding_applications(&[app], &[])
+        .with_excluding_applications(&[live_app], &[])
         .build();
 
-    println!("   Filter created: exclude {}", app.application_name());
+    println!("   Filter created: exclude {}", app_snap.application_name);
 
     // ========================================
     // Option C: Capture multiple applications
     // ========================================
     println!("\n📦 Option C: Multiple applications");
 
-    // Get first 3 apps with visible windows
-    let multi_apps: Vec<_> = apps
-        .iter()
-        .filter(|a| {
-            windows.iter().any(|w| {
-                w.is_on_screen()
-                    && w.owning_application()
-                        .is_some_and(|oa| oa.process_id() == a.process_id())
-            })
+    // Find apps with visible windows — pure in-memory walk over snapshot rows.
+    let visible_app_indices: Vec<usize> = (0..app_snaps.len())
+        .filter(|i| {
+            window_snaps
+                .iter()
+                .any(|w| w.is_on_screen && w.owning_app_index == Some(*i))
         })
         .take(3)
+        .collect();
+
+    // For the actual filter we still need the live SCRunningApplication
+    // handles — match by PID once.
+    let multi_apps: Vec<&_> = visible_app_indices
+        .iter()
+        .filter_map(|i| {
+            let pid = app_snaps[*i].process_id;
+            live_apps.iter().find(|a| a.process_id() == pid)
+        })
         .collect();
 
     if !multi_apps.is_empty() {
@@ -124,8 +164,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build();
 
         println!("   Filter created for {} apps:", multi_apps.len());
-        for a in &multi_apps {
-            println!("     • {}", a.application_name());
+        for &i in &visible_app_indices {
+            println!("     • {}", app_snaps[i].application_name);
         }
     }
 
@@ -156,7 +196,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "✅ Captured {} frames of {}",
         count.load(Ordering::Relaxed),
-        app.application_name()
+        app_snap.application_name
     );
 
     Ok(())
