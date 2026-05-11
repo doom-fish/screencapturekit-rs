@@ -11,6 +11,14 @@ pub const DEFAULT_BUFFER_SIZE: usize = 1024;
 /// Smaller buffer size for short strings (e.g., device IDs, stream names)
 pub const SMALL_BUFFER_SIZE: usize = 256;
 
+/// Stack-allocate up to this many bytes — anything bigger falls back to a
+/// heap `Vec`. 256 bytes covers every real call site (`SMALL_BUFFER_SIZE`,
+/// audio device IDs, stream names, microphone IDs); the 1 KiB callers are
+/// rare and currently absent from the codebase, so the heap fallback path
+/// is essentially dead code today but kept for forward-compat with
+/// future longer-string APIs.
+const STACK_BUFFER_BYTES: usize = 256;
+
 /// Retrieves a string from an FFI function that writes to a buffer.
 ///
 /// This is a common pattern in Objective-C FFI where a function:
@@ -56,21 +64,38 @@ pub unsafe fn ffi_string_from_buffer<F>(buffer_size: usize, ffi_call: F) -> Opti
 where
     F: FnOnce(*mut i8, isize) -> bool,
 {
+    // Fast path: the typical small-getter case (audio device IDs, stream
+    // names, microphone IDs) fits comfortably in 256 bytes and is called
+    // often enough that the per-call `vec![0i8; 256]` heap allocation
+    // adds up. Use a stack buffer for those and only fall back to a Vec
+    // for unusually-large requests.
+    if buffer_size <= STACK_BUFFER_BYTES {
+        let mut buffer = [0i8; STACK_BUFFER_BYTES];
+        let success = ffi_call(buffer.as_mut_ptr(), buffer_size as isize);
+        if !success {
+            return None;
+        }
+        return parse_buffer(&buffer[..buffer_size]);
+    }
+
     let mut buffer = vec![0i8; buffer_size];
     let success = ffi_call(buffer.as_mut_ptr(), buffer.len() as isize);
     if !success {
         return None;
     }
+    parse_buffer(&buffer)
+}
 
-    // Defensive: do NOT use `CStr::from_ptr` here. If the FFI closure
-    // returned `true` but failed to write a NUL terminator, `CStr::from_ptr`
-    // would read past the buffer until it found a zero byte — UB and a
-    // potential information leak. Instead, scan only the buffer we
-    // allocated and treat a missing terminator as failure.
-    //
+/// Scan for the NUL terminator and decode the string portion.
+/// Defensive: do NOT use `CStr::from_ptr` here. If the FFI closure
+/// returned `true` but failed to write a NUL terminator, `CStr::from_ptr`
+/// would read past the buffer until it found a zero byte — UB and a
+/// potential information leak. Instead, scan only the buffer we
+/// allocated and treat a missing terminator as failure.
+fn parse_buffer(buffer: &[i8]) -> Option<String> {
     // SAFETY: `i8` and `u8` have identical layout; the cast is purely a
     // signed/unsigned reinterpretation.
-    let bytes = std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), buffer.len());
+    let bytes = unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), buffer.len()) };
     let nul_pos = bytes.iter().position(|&b| b == 0)?;
     let s = String::from_utf8_lossy(&bytes[..nul_pos]).into_owned();
     if s.is_empty() {
