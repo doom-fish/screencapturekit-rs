@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0](https://github.com/doom-fish/screencapturekit-rs/compare/v2.0.0...v2.1.0) - 2026-05-11
+
+### Added
+
+- *(screenshot)* add rgba_data_into / bgra_data_into for buffer reuse
+
+### Fixed
+
+- *(test)* make data_into test robust to non-deterministic capture content
+- *(docs)* wrap README batched-API code samples for doctest
+- *(lint)* add backticks + Eq derives to satisfy clippy -D warnings
+- *(examples)* 03_audio_capture only registered Screen handler
+
+### Other
+
+- *(ffi-string)* stack-allocate the buffer for small strings
+- migrate 02_window_capture + 14_app_capture to snapshot(); document batched APIs in README
+- *(examples)* migrate 07_list_content to snapshot() + add 24 showcase
+- *(perf)* add live capture profiling driver + symbolicate scripts
+- *(screenshot)* add native-BGRA fast path skipping channel swap
+- *(bench)* add audio+video throughput + audio_buffer_list micro-bench
+- batched FFI + zero-init removal across hot paths
+
 ## [2.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v1.5.4...v2.0.0) - 2026-05-06
 
 ### Added
