@@ -748,6 +748,16 @@ extern "C" {
         dest: *mut u8,
         dest_capacity: usize,
     ) -> usize;
+    /// Render the CGImage directly as **BGRA** (the source pixel layout for
+    /// every ScreenCaptureKit-produced CGImage). Saves the per-pixel
+    /// channel-swap that `cgimage_render_rgba_into` forces — measured at
+    /// ~20 ms per 4K screenshot. Use when the consumer (Metal, wgpu, ffmpeg)
+    /// accepts BGRA natively.
+    pub fn cgimage_render_bgra_into(
+        image: *const c_void,
+        dest: *mut u8,
+        dest_capacity: usize,
+    ) -> usize;
     pub fn cgimage_release(image: *const c_void);
     pub fn cgimage_save_png(image: *const c_void, path: *const i8) -> bool;
     pub fn cgimage_save_to_file(

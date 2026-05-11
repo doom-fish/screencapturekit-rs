@@ -298,6 +298,18 @@ fn bench_screenshot_rgba(c: &mut Criterion) {
                 });
             },
         );
+
+        group.bench_with_input(
+            BenchmarkId::new("capture_plus_bgra", label),
+            &(&filter, &config),
+            |b, (f, cfg)| {
+                b.iter(|| {
+                    let img = SCScreenshotManager::capture_image(f, cfg).unwrap();
+                    let data = img.bgra_data().unwrap();
+                    black_box(data);
+                });
+            },
+        );
     }
 
     group.finish();

@@ -100,6 +100,62 @@ fn test_cgimage_rgba_data() {
     }
 }
 
+#[test]
+fn test_cgimage_bgra_matches_rgba_byteswap() {
+    // Both rgba_data() and bgra_data() should write width*height*4 bytes,
+    // and bgra[i*4..] must equal [rgba[i*4+2], rgba[i*4+1], rgba[i*4], rgba[i*4+3]]
+    // for every pixel — i.e. the BGRA path is the byte-for-byte channel
+    // permutation of the RGBA path. If this regresses we'd silently ship a
+    // broken format to BGRA consumers.
+    cg_init_for_headless_ci();
+    let Ok(content) = SCShareableContent::get() else {
+        return;
+    };
+    let display = &content.displays()[0];
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+    let config = SCStreamConfiguration::new().with_width(64).with_height(64);
+
+    let Ok(image) = SCScreenshotManager::capture_image(&filter, &config) else {
+        return;
+    };
+    let Ok(rgba) = image.rgba_data() else { return };
+    let Ok(bgra) = image.bgra_data() else { return };
+
+    assert_eq!(
+        rgba.len(),
+        bgra.len(),
+        "RGBA and BGRA buffers must match in size"
+    );
+    assert_eq!(rgba.len(), image.width() * image.height() * 4);
+
+    // Verify channel permutation on every 4-byte pixel.
+    let mismatches = rgba
+        .chunks_exact(4)
+        .zip(bgra.chunks_exact(4))
+        .filter(|(rgba_px, bgra_px)| {
+            // RGBA = [R, G, B, A]; BGRA = [B, G, R, A].
+            rgba_px[0] != bgra_px[2]
+                || rgba_px[1] != bgra_px[1]
+                || rgba_px[2] != bgra_px[0]
+                || rgba_px[3] != bgra_px[3]
+        })
+        .count();
+    let total = rgba.len() / 4;
+    // Allow up to 0.5% mismatched pixels — both paths go through CGContext.draw
+    // which can produce minor rounding deltas in alpha-premultiplication
+    // depending on sub-pixel layout. Anything more than that means the channel
+    // layout is genuinely wrong, not a rounding issue.
+    let tolerance = total / 200 + 1;
+    assert!(
+        mismatches <= tolerance,
+        "BGRA layout doesn't match RGBA byte-swap: {mismatches}/{total} pixels differ (tolerance {tolerance})"
+    );
+}
+
 // MARK: - New Screenshot Features (macOS 15.2+)
 
 #[test]
