@@ -127,3 +127,14 @@ path = "examples/23_client_server/server.rs"
 [[example]]
 name = "23_client_server_client"
 path = "examples/23_client_server/client.rs"
+
+[[example]]
+name = "profile_capture"
+required-features = ["macos_14_0"]
+
+# Release profile keeps debug info so samply / xctrace can symbolicate.
+# Full debug info gives precise inlining/line attribution; we lose 0.5s of
+# build time vs `line-tables-only` but get 3-5× better stack quality.
+[profile.release]
+debug = "full"
+strip = "none"
