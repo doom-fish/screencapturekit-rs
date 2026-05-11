@@ -44,7 +44,7 @@ pub struct ApplicationSnapshot {
 }
 
 /// Plain data describing one window.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WindowSnapshot {
     pub window_id: u32,
     pub window_layer: i32,
@@ -59,7 +59,7 @@ pub struct WindowSnapshot {
 }
 
 /// All shareable content collected in one batched FFI round-trip.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ContentSnapshot {
     pub displays: Vec<DisplaySnapshot>,
     pub applications: Vec<ApplicationSnapshot>,

@@ -219,7 +219,7 @@ impl PixelLayout {
     ///
     /// # Safety
     /// The destination must point to at least `capacity` bytes and `ptr` must
-    /// be a live retained CGImage.
+    /// be a live retained `CGImage`.
     unsafe fn render(self, ptr: *const c_void, dest: *mut u8, capacity: usize) -> usize {
         match self {
             Self::Rgba => crate::ffi::cgimage_render_rgba_into(ptr, dest, capacity),
@@ -273,7 +273,7 @@ impl CGImage {
     /// Returns a vector containing RGBA bytes (4 bytes per pixel).
     /// The data is in row-major order.
     ///
-    /// **Performance note:** every ScreenCaptureKit-produced CGImage is
+    /// **Performance note:** every `ScreenCaptureKit`-produced `CGImage` is
     /// natively in **BGRA**. Forcing RGBA here makes `CGContext.draw` perform
     /// a per-pixel channel swap that costs ~20 ms on a 4K image. If your
     /// consumer accepts BGRA (Metal / wgpu / ffmpeg / most GPU pipelines),
@@ -291,7 +291,7 @@ impl CGImage {
         self.render_pixel_data(PixelLayout::Rgba)
     }
 
-    /// Get raw **BGRA** pixel data — the native ScreenCaptureKit pixel layout.
+    /// Get raw **BGRA** pixel data — the native `ScreenCaptureKit` pixel layout.
     ///
     /// Returns a vector containing BGRA bytes (4 bytes per pixel) in row-major
     /// order. Each pixel is stored as `[B, G, R, A]`.
@@ -322,7 +322,7 @@ impl CGImage {
     ///
     /// # Errors
     /// Returns `SCError::InternalError` if `dest` is too small or the
-    /// CGContext draw fails.
+    /// `CGContext` draw fails.
     ///
     /// # Examples
     ///
@@ -358,7 +358,7 @@ impl CGImage {
     ///
     /// # Errors
     /// Returns `SCError::InternalError` if `dest` is too small or the
-    /// CGContext draw fails.
+    /// `CGContext` draw fails.
     pub fn bgra_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError> {
         self.render_pixel_data_into(dest, PixelLayout::Bgra)
     }

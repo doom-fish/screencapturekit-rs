@@ -29,6 +29,11 @@ impl FrameInfoFields {
 /// Returned by [`CMSampleBuffer::frame_info`]. Each field is `Some` when the
 /// underlying attachment was present (depends on macOS version, output type,
 /// and stream configuration); `None` indicates the attachment was missing.
+//
+// Eq cannot be derived because of the f64-bearing fields (CGRect, f64). The
+// allow keeps clippy happy under -D warnings without forcing us to ship a
+// hand-rolled Eq that would lie about NaN handling.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct FrameInfo {
     /// `SCStreamFrameInfo.status` — frame completeness / idle state.
@@ -378,8 +383,8 @@ impl CMSampleBuffer {
     /// Each per-attribute accessor (`frame_status`, `display_time`,
     /// `scale_factor`, `content_scale`, `content_rect`, `bounding_rect`,
     /// `screen_rect`, `presenter_overlay_content_rect`) re-fetches the
-    /// CMSampleBuffer attachment array and re-bridges the dictionary from
-    /// CoreFoundation to Swift. Calling five of them per frame measured at
+    /// `CMSampleBuffer` attachment array and re-bridges the dictionary from
+    /// `CoreFoundation` to Swift. Calling five of them per frame measured at
     /// ~11 µs on a captured 1080p frame; this batched method does it once for
     /// ~3 µs (~4× faster). Use this in any per-frame consumer that reads more
     /// than one attribute.
