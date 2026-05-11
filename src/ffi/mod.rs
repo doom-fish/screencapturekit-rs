@@ -737,7 +737,7 @@ extern "C" {
         out_length: *mut usize,
     ) -> bool;
     pub fn cgimage_free_data(ptr: *mut u8);
-    /// Render the CGImage's RGBA bytes directly into a caller-owned buffer.
+    /// Render the `CGImage`'s RGBA bytes directly into a caller-owned buffer.
     /// Returns the number of bytes written (= width*height*4) on success, or 0
     /// on failure. Replaces the legacy `cgimage_get_data` + `cgimage_free_data`
     /// pair which made an extra Swift-side malloc + memcpy before handing the
@@ -748,8 +748,8 @@ extern "C" {
         dest: *mut u8,
         dest_capacity: usize,
     ) -> usize;
-    /// Render the CGImage directly as **BGRA** (the source pixel layout for
-    /// every ScreenCaptureKit-produced CGImage). Saves the per-pixel
+    /// Render the `CGImage` directly as **BGRA** (the source pixel layout for
+    /// every `ScreenCaptureKit`-produced `CGImage`). Saves the per-pixel
     /// channel-swap that `cgimage_render_rgba_into` forces — measured at
     /// ~20 ms per 4K screenshot. Use when the consumer (Metal, wgpu, ffmpeg)
     /// accepts BGRA natively.

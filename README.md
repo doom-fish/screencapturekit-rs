@@ -713,7 +713,7 @@ See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for detailed benchmark documentat
 | 1080p | 30-60 FPS | 30-100ms |
 | 4K | 15-30 FPS | 50-150ms |
 
-A full audio + video capture (60 fps + 48 kHz stereo) costs **~1.9% of one core** end-to-end on M-series Mac, with the Rust binding code below the noise floor of a 4 kHz sampling profiler — virtually all of the cost is Apple's own SkyLight + libdispatch + libxpc pipeline.
+A full audio + video capture (60 fps + 48 kHz stereo) costs **~1.9% of one core** end-to-end on M-series Mac, with the Rust binding code below the noise floor of a 4 kHz sampling profiler — virtually all of the cost is Apple's own `SkyLight` + `libdispatch` + `libxpc` pipeline.
 
 ### Batched APIs (read every attribute in one FFI round-trip)
 
