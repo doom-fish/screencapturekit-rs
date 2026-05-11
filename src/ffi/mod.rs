@@ -737,6 +737,17 @@ extern "C" {
         out_length: *mut usize,
     ) -> bool;
     pub fn cgimage_free_data(ptr: *mut u8);
+    /// Render the CGImage's RGBA bytes directly into a caller-owned buffer.
+    /// Returns the number of bytes written (= width*height*4) on success, or 0
+    /// on failure. Replaces the legacy `cgimage_get_data` + `cgimage_free_data`
+    /// pair which made an extra Swift-side malloc + memcpy before handing the
+    /// buffer back; this single-call form lets Rust own the allocation and
+    /// removes one full RGBA-sized memcpy from the screenshot decode path.
+    pub fn cgimage_render_rgba_into(
+        image: *const c_void,
+        dest: *mut u8,
+        dest_capacity: usize,
+    ) -> usize;
     pub fn cgimage_release(image: *const c_void);
     pub fn cgimage_save_png(image: *const c_void, path: *const i8) -> bool;
     pub fn cgimage_save_to_file(

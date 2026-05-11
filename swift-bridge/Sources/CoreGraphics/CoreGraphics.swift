@@ -99,6 +99,55 @@ public func retainCGImage(_ image: OpaquePointer) -> OpaquePointer {
     return OpaquePointer(Unmanaged.passRetained(cgImage).toOpaque())
 }
 
+@_cdecl("cgimage_render_rgba_into")
+public func renderCGImageRGBAInto(
+    _ image: OpaquePointer,
+    _ destBuffer: UnsafeMutableRawPointer,
+    _ destCapacity: Int
+) -> Int {
+    let cgImage = Unmanaged<CGImage>.fromOpaque(UnsafeRawPointer(image)).takeUnretainedValue()
+
+    let width = cgImage.width
+    let height = cgImage.height
+    let bytesPerPixel = 4 // RGBA
+    let bytesPerRow = width * bytesPerPixel
+    let totalBytes = height * bytesPerRow
+
+    // Refuse to render into a buffer the caller didn't size correctly. The
+    // Rust side allocates exactly width*height*4 bytes; if the image's
+    // dimensions changed between the size query and this call (e.g. some
+    // future API mutates a CGImage), we abort rather than overflow.
+    guard totalBytes <= destCapacity else {
+        return 0
+    }
+
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+
+    // CGContext draws straight into the caller-provided buffer — no Swift
+    // malloc, no extra memcpy. Replaces the previous double-allocate path
+    // (CGContext-owned buffer + UnsafeMutableRawPointer.allocate + copyMemory)
+    // and removes the matching Rust-side .to_vec() third copy.
+    guard let context = CGContext(
+        data: destBuffer,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: bytesPerRow,
+        space: colorSpace,
+        bitmapInfo: bitmapInfo
+    ) else {
+        return 0
+    }
+
+    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+    return totalBytes
+}
+
+// Legacy two-call API. Retained for back-compat with downstream consumers
+// that may have linked against it; new code goes through cgimage_render_rgba_into
+// above which avoids a 33 MB-per-4K-frame Swift-side memcpy + malloc.
 @_cdecl("cgimage_get_data")
 public func getCGImageData(_ image: OpaquePointer, _ outPtr: UnsafeMutablePointer<UnsafeRawPointer?>, _ outLength: UnsafeMutablePointer<Int>) -> Bool {
     let cgImage = Unmanaged<CGImage>.fromOpaque(UnsafeRawPointer(image)).takeUnretainedValue()
@@ -109,11 +158,13 @@ public func getCGImageData(_ image: OpaquePointer, _ outPtr: UnsafeMutablePointe
     let bytesPerRow = width * bytesPerPixel
     let totalBytes = height * bytesPerRow
 
+    let buffer = UnsafeMutableRawPointer.allocate(byteCount: totalBytes, alignment: 1)
+
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
 
     guard let context = CGContext(
-        data: nil,
+        data: buffer,
         width: width,
         height: height,
         bitsPerComponent: 8,
@@ -121,17 +172,11 @@ public func getCGImageData(_ image: OpaquePointer, _ outPtr: UnsafeMutablePointe
         space: colorSpace,
         bitmapInfo: bitmapInfo
     ) else {
+        buffer.deallocate()
         return false
     }
 
     context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-
-    guard let data = context.data else {
-        return false
-    }
-
-    let buffer = UnsafeMutableRawPointer.allocate(byteCount: totalBytes, alignment: 1)
-    buffer.copyMemory(from: data, byteCount: totalBytes)
 
     outPtr.pointee = UnsafeRawPointer(buffer)
     outLength.pointee = totalBytes

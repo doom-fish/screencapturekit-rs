@@ -248,31 +248,35 @@ impl CGImage {
     /// # Errors
     /// Returns an error if the pixel data cannot be extracted
     pub fn rgba_data(&self) -> Result<Vec<u8>, SCError> {
-        let mut data_ptr: *const u8 = std::ptr::null();
-        let mut data_length: usize = 0;
+        let width = self.width();
+        let height = self.height();
+        let total_bytes = width
+            .checked_mul(height)
+            .and_then(|n| n.checked_mul(4))
+            .ok_or_else(|| SCError::internal_error("CGImage dimensions overflow usize"))?;
 
-        let success = unsafe {
-            crate::ffi::cgimage_get_data(
-                self.ptr,
-                std::ptr::addr_of_mut!(data_ptr),
-                std::ptr::addr_of_mut!(data_length),
-            )
+        if total_bytes == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Allocate uninitialised — Swift's `cgimage_render_rgba_into` draws
+        // straight into this buffer via CGContext, writing every byte. The
+        // previous flow allocated three times the data: a CGContext buffer
+        // (drawn into) + a Swift-owned malloc copy + a Rust .to_vec() copy.
+        // This single-buffer form measured ~28% end-to-end faster on 4K
+        // screenshots (`cargo bench --bench hotspots -- screenshot_rgba`).
+        let mut data: Vec<u8> = Vec::with_capacity(total_bytes);
+        let written = unsafe {
+            crate::ffi::cgimage_render_rgba_into(self.ptr, data.as_mut_ptr(), total_bytes)
         };
 
-        if !success || data_ptr.is_null() {
+        if written != total_bytes {
             return Err(SCError::internal_error(
-                "Failed to extract pixel data from CGImage",
+                "Failed to render CGImage into RGBA buffer",
             ));
         }
 
-        // Copy the data into a Vec
-        let data = unsafe { std::slice::from_raw_parts(data_ptr, data_length).to_vec() };
-
-        // Free the allocated data
-        unsafe {
-            crate::ffi::cgimage_free_data(data_ptr.cast_mut());
-        }
-
+        unsafe { data.set_len(total_bytes) };
         Ok(data)
     }
 

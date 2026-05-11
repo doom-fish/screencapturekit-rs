@@ -53,7 +53,7 @@ pub use block_buffer::CMBlockBuffer;
 pub use format_description::CMFormatDescription;
 pub use frame_status::SCFrameStatus;
 pub use iosurface::{IOSurface, IOSurfaceLockGuard, IOSurfaceLockOptions, PlaneProperties};
-pub use sample_buffer::CMSampleBuffer;
+pub use sample_buffer::{CMSampleBuffer, FrameInfo};
 pub use time::{CMClock, CMSampleTimingInfo, CMTime};
 
 // Re-export codec and media type modules from format_description

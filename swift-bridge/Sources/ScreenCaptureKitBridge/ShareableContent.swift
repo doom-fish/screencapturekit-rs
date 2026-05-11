@@ -24,6 +24,37 @@ private class ResultHolder<T> {
 
 // MARK: - ShareableContent: Content Discovery
 
+/// Copy a Swift String's UTF-8 bytes into a CChar buffer at `offset`. The
+/// previous per-byte loop (`for (j, c) in cStr.enumerated()`) was a hot
+/// allocation+memcpy that ran twice per window/app in the batch FFI; this
+/// helper does the same work with a single `update(from:count:)` (memcpy).
+///
+/// Returns the number of bytes written **excluding** the NUL terminator, or
+/// 0 if the buffer is too small.
+private func appendUTF8(
+    _ string: String,
+    into buffer: UnsafeMutablePointer<CChar>,
+    capacity: Int,
+    offset: inout UInt32
+) -> UInt32 {
+    let bytes = Array(string.utf8)
+    let len = bytes.count
+    guard Int(offset) + len <= capacity else {
+        return 0
+    }
+    bytes.withUnsafeBufferPointer { src in
+        if let baseAddr = src.baseAddress {
+            buffer
+                .advanced(by: Int(offset))
+                .withMemoryRebound(to: UInt8.self, capacity: len) { dest in
+                    dest.update(from: baseAddr, count: len)
+                }
+        }
+    }
+    offset += UInt32(len)
+    return UInt32(len)
+}
+
 /// Synchronous blocking call to get shareable content
 /// Uses DispatchSemaphore to block until async completes
 /// Returns content pointer on success, or writes error message to errorBuffer
@@ -583,41 +614,29 @@ public func getApplicationsBatch(
     for i in 0 ..< count {
         let app = apps[i]
 
-        // Write bundle ID
-        let bundleId = app.bundleIdentifier
         let bundleIdStart = stringOffset
-        if let cStr = bundleId.cString(using: .utf8) {
-            let len = cStr.count
-            if Int(stringOffset) + len <= stringBufferSize {
-                for (j, c) in cStr.enumerated() {
-                    stringBuffer[Int(stringOffset) + j] = c
-                }
-                stringOffset += UInt32(len)
-            }
-        }
-        let bundleIdLen = stringOffset - bundleIdStart
+        let bundleIdLen = appendUTF8(
+            app.bundleIdentifier,
+            into: stringBuffer,
+            capacity: stringBufferSize,
+            offset: &stringOffset
+        )
 
-        // Write app name
-        let appName = app.applicationName
         let appNameStart = stringOffset
-        if let cStr = appName.cString(using: .utf8) {
-            let len = cStr.count
-            if Int(stringOffset) + len <= stringBufferSize {
-                for (j, c) in cStr.enumerated() {
-                    stringBuffer[Int(stringOffset) + j] = c
-                }
-                stringOffset += UInt32(len)
-            }
-        }
-        let appNameLen = stringOffset - appNameStart
+        let appNameLen = appendUTF8(
+            app.applicationName,
+            into: stringBuffer,
+            capacity: stringBufferSize,
+            offset: &stringOffset
+        )
 
         buffer[i] = FFIApplicationData(
             processId: app.processID,
             _padding: 0,
             bundleIdOffset: bundleIdStart,
-            bundleIdLength: bundleIdLen > 0 ? bundleIdLen - 1 : 0, // exclude null terminator from length
+            bundleIdLength: bundleIdLen,
             appNameOffset: appNameStart,
-            appNameLength: appNameLen > 0 ? appNameLen - 1 : 0
+            appNameLength: appNameLen
         )
     }
 
@@ -658,24 +677,18 @@ public func getWindowsBatch(
     for i in 0 ..< count {
         let w = windows[i]
 
-        // Write title
         let titleStart = stringOffset
-        if let title = w.title, let cStr = title.cString(using: .utf8) {
-            let len = cStr.count
-            if Int(stringOffset) + len <= stringBufferSize {
-                for (j, c) in cStr.enumerated() {
-                    stringBuffer[Int(stringOffset) + j] = c
-                }
-                stringOffset += UInt32(len)
-            }
+        let titleLen: UInt32
+        if let title = w.title, !title.isEmpty {
+            titleLen = appendUTF8(
+                title,
+                into: stringBuffer,
+                capacity: stringBufferSize,
+                offset: &stringOffset
+            )
         } else {
-            // Write empty string
-            if Int(stringOffset) < stringBufferSize {
-                stringBuffer[Int(stringOffset)] = 0
-                stringOffset += 1
-            }
+            titleLen = 0
         }
-        let titleLen = stringOffset - titleStart
 
         // Find owning app index
         var owningAppIndex: Int32 = -1
@@ -695,7 +708,7 @@ public func getWindowsBatch(
             isActive: isActive,
             frame: FFIRect(w.frame),
             titleOffset: titleStart,
-            titleLength: titleLen > 0 ? titleLen - 1 : 0,
+            titleLength: titleLen,
             owningAppIndex: owningAppIndex,
             _padding: 0
         )
