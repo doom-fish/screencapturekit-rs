@@ -214,6 +214,18 @@ impl PixelLayout {
             Self::Bgra => "BGRA",
         }
     }
+
+    /// Dispatch into the matching Swift bridge entry point.
+    ///
+    /// # Safety
+    /// The destination must point to at least `capacity` bytes and `ptr` must
+    /// be a live retained CGImage.
+    unsafe fn render(self, ptr: *const c_void, dest: *mut u8, capacity: usize) -> usize {
+        match self {
+            Self::Rgba => crate::ffi::cgimage_render_rgba_into(ptr, dest, capacity),
+            Self::Bgra => crate::ffi::cgimage_render_bgra_into(ptr, dest, capacity),
+        }
+    }
 }
 
 impl CGImage {
@@ -267,6 +279,12 @@ impl CGImage {
     /// consumer accepts BGRA (Metal / wgpu / ffmpeg / most GPU pipelines),
     /// prefer [`bgra_data`](Self::bgra_data) which skips the conversion.
     ///
+    /// **Allocation note:** this allocates a fresh `Vec<u8>` of
+    /// `width*height*4` bytes per call (~33 MB for 4K). For sustained
+    /// screenshot loops, prefer [`rgba_data_into`](Self::rgba_data_into)
+    /// which writes into a caller-supplied buffer and lets you reuse the
+    /// allocation across calls.
+    ///
     /// # Errors
     /// Returns an error if the pixel data cannot be extracted
     pub fn rgba_data(&self) -> Result<Vec<u8>, SCError> {
@@ -285,20 +303,68 @@ impl CGImage {
     /// ffmpeg (`AV_PIX_FMT_BGRA`), and any direct upload to a `kCVPixelFormatType_32BGRA`
     /// pixel buffer.
     ///
+    /// For sustained capture loops, see [`bgra_data_into`](Self::bgra_data_into)
+    /// which writes into a caller-supplied buffer.
+    ///
     /// # Errors
     /// Returns an error if the pixel data cannot be extracted.
     pub fn bgra_data(&self) -> Result<Vec<u8>, SCError> {
         self.render_pixel_data(PixelLayout::Bgra)
     }
 
-    fn render_pixel_data(&self, layout: PixelLayout) -> Result<Vec<u8>, SCError> {
-        let width = self.width();
-        let height = self.height();
-        let total_bytes = width
-            .checked_mul(height)
-            .and_then(|n| n.checked_mul(4))
-            .ok_or_else(|| SCError::internal_error("CGImage dimensions overflow usize"))?;
+    /// Render the image's RGBA bytes into a caller-supplied buffer.
+    ///
+    /// `dest` must hold at least `width * height * 4` bytes. Returns the
+    /// number of bytes written on success. Use this for sustained screenshot
+    /// loops to amortise the per-call ~33 MB-at-4K allocation across many
+    /// frames — pre-allocate one `Vec<u8>::with_capacity(...)` (or set
+    /// `dest.len() = capacity` once after the first call) and reuse it.
+    ///
+    /// # Errors
+    /// Returns `SCError::InternalError` if `dest` is too small or the
+    /// CGContext draw fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use screencapturekit::screenshot_manager::SCScreenshotManager;
+    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
+    /// # use screencapturekit::shareable_content::SCShareableContent;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+    /// // Pre-allocate once, reuse across many screenshots.
+    /// let mut buffer: Vec<u8> = vec![0; 1920 * 1080 * 4];
+    /// for _ in 0..100 {
+    ///     let img = SCScreenshotManager::capture_image(&filter, &config)?;
+    ///     img.rgba_data_into(&mut buffer)?;
+    ///     // process `buffer`...
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn rgba_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError> {
+        self.render_pixel_data_into(dest, PixelLayout::Rgba)
+    }
 
+    /// Render the image's **BGRA** bytes into a caller-supplied buffer.
+    ///
+    /// Same shape as [`rgba_data_into`](Self::rgba_data_into) but in the
+    /// native source pixel layout — saves the per-pixel R↔B swap
+    /// `rgba_data_into` performs. Combine with a reusable buffer for the
+    /// fastest possible sustained-capture loop.
+    ///
+    /// # Errors
+    /// Returns `SCError::InternalError` if `dest` is too small or the
+    /// CGContext draw fails.
+    pub fn bgra_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError> {
+        self.render_pixel_data_into(dest, PixelLayout::Bgra)
+    }
+
+    fn render_pixel_data(&self, layout: PixelLayout) -> Result<Vec<u8>, SCError> {
+        let total_bytes = self.required_byte_size()?;
         if total_bytes == 0 {
             return Ok(Vec::new());
         }
@@ -311,16 +377,7 @@ impl CGImage {
         // per-pixel channel swap CGContext.draw performs when targeting RGBA
         // (~20 ms saved on a 4K shot).
         let mut data: Vec<u8> = Vec::with_capacity(total_bytes);
-        let written = unsafe {
-            match layout {
-                PixelLayout::Rgba => {
-                    crate::ffi::cgimage_render_rgba_into(self.ptr, data.as_mut_ptr(), total_bytes)
-                }
-                PixelLayout::Bgra => {
-                    crate::ffi::cgimage_render_bgra_into(self.ptr, data.as_mut_ptr(), total_bytes)
-                }
-            }
-        };
+        let written = unsafe { layout.render(self.ptr, data.as_mut_ptr(), total_bytes) };
 
         if written != total_bytes {
             return Err(SCError::internal_error(format!(
@@ -331,6 +388,39 @@ impl CGImage {
 
         unsafe { data.set_len(total_bytes) };
         Ok(data)
+    }
+
+    fn render_pixel_data_into(
+        &self,
+        dest: &mut [u8],
+        layout: PixelLayout,
+    ) -> Result<usize, SCError> {
+        let total_bytes = self.required_byte_size()?;
+        if dest.len() < total_bytes {
+            return Err(SCError::internal_error(format!(
+                "Destination buffer too small: need {total_bytes} bytes, got {}",
+                dest.len()
+            )));
+        }
+        if total_bytes == 0 {
+            return Ok(0);
+        }
+
+        let written = unsafe { layout.render(self.ptr, dest.as_mut_ptr(), total_bytes) };
+        if written != total_bytes {
+            return Err(SCError::internal_error(format!(
+                "Failed to render CGImage into {} buffer",
+                layout.name()
+            )));
+        }
+        Ok(written)
+    }
+
+    fn required_byte_size(&self) -> Result<usize, SCError> {
+        self.width()
+            .checked_mul(self.height())
+            .and_then(|n| n.checked_mul(4))
+            .ok_or_else(|| SCError::internal_error("CGImage dimensions overflow usize"))
     }
 
     /// Save the image to a PNG file
