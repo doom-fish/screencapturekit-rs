@@ -69,9 +69,11 @@
 
 pub mod display;
 pub mod running_application;
+pub mod snapshot;
 pub mod window;
 pub use display::SCDisplay;
 pub use running_application::SCRunningApplication;
+pub use snapshot::{ApplicationSnapshot, ContentSnapshot, DisplaySnapshot, WindowSnapshot};
 pub use window::SCWindow;
 
 use crate::error::SCError;
@@ -284,6 +286,32 @@ impl SCShareableContent {
     pub(crate) fn as_ptr(&self) -> *const c_void {
         self.0
     }
+
+    /// Fetch every display, window, and running application in a single batched
+    /// FFI round-trip — see [`ContentSnapshot`] for what's returned.
+    ///
+    /// **Use this in any code path that reads more than one attribute per
+    /// window / display / app.** The per-element accessors ([`displays`],
+    /// [`windows`], [`applications`] + per-attribute methods like
+    /// [`SCWindow::title`] / [`SCWindow::frame`]) issue one FFI call each
+    /// — a typical "list windows with title and frame" walk on a 220-window
+    /// system measured at ~73 µs. `snapshot()` collapses that to ~5 µs (~15×
+    /// faster) by going through the bridge's packed FFI surface and copying
+    /// every attribute into Rust-side plain data structs in a single pass.
+    ///
+    /// Returns `None` if the bridge couldn't fit the data into the static
+    /// scratch buffers (extremely unlikely — limits are 64 displays, 4096
+    /// windows, 1024 apps with a 256 KiB string pool).
+    ///
+    /// [`displays`]: Self::displays
+    /// [`windows`]: Self::windows
+    /// [`applications`]: Self::applications
+    /// [`SCWindow::title`]: crate::shareable_content::SCWindow::title
+    /// [`SCWindow::frame`]: crate::shareable_content::SCWindow::frame
+    #[must_use]
+    pub fn snapshot(&self) -> Option<ContentSnapshot> {
+        ContentSnapshot::collect(self.0)
+    }
 }
 
 impl Drop for SCShareableContent {
@@ -298,23 +326,42 @@ impl Drop for SCShareableContent {
 
 impl fmt::Debug for SCShareableContent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SCShareableContent")
-            .field("displays", &self.displays().len())
-            .field("windows", &self.windows().len())
-            .field("applications", &self.applications().len())
-            .finish()
+        // Use the cheap _count FFIs instead of full enumerations. The previous
+        // implementation called `.windows()` / `.displays()` / `.applications()`
+        // which each issue 1 + N FFI calls and allocate a Vec — measured at
+        // ~47 µs total on a system with ~220 windows. The count FFIs are O(1)
+        // each.
+        unsafe {
+            f.debug_struct("SCShareableContent")
+                .field(
+                    "displays",
+                    &crate::ffi::sc_shareable_content_get_displays_count(self.0),
+                )
+                .field(
+                    "windows",
+                    &crate::ffi::sc_shareable_content_get_windows_count(self.0),
+                )
+                .field(
+                    "applications",
+                    &crate::ffi::sc_shareable_content_get_applications_count(self.0),
+                )
+                .finish()
+        }
     }
 }
 
 impl fmt::Display for SCShareableContent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "SCShareableContent ({} displays, {} windows, {} applications)",
-            self.displays().len(),
-            self.windows().len(),
-            self.applications().len()
-        )
+        // O(1) count FFIs instead of full enumerations — see the Debug impl.
+        unsafe {
+            write!(
+                f,
+                "SCShareableContent ({} displays, {} windows, {} applications)",
+                crate::ffi::sc_shareable_content_get_displays_count(self.0),
+                crate::ffi::sc_shareable_content_get_windows_count(self.0),
+                crate::ffi::sc_shareable_content_get_applications_count(self.0),
+            )
+        }
     }
 }
 

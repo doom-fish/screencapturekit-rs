@@ -58,6 +58,24 @@ extern "C" {
     ) -> bool;
     pub fn cm_sample_buffer_free_dirty_rects(rects_ptr: *mut std::ffi::c_void);
 
+    /// Single-call frame attachment fetch — populates `out_fields` with bits
+    /// for each successfully-read field. See `FrameInfoFields` for the bit
+    /// layout. Replaces the per-attribute accessors above for the hot path
+    /// (one attachment-array fetch + one CF→Swift bridge cast vs. one per
+    /// field), measured at ~4× faster when reading multiple fields per frame.
+    pub fn cm_sample_buffer_get_frame_info(
+        sample_buffer: *mut std::ffi::c_void,
+        out_fields: *mut u32,
+        out_status: *mut i32,
+        out_display_time: *mut u64,
+        out_scale_factor: *mut f64,
+        out_content_scale: *mut f64,
+        out_content_rect: *mut f64,           // [4]: x, y, w, h
+        out_bounding_rect: *mut f64,          // [4]
+        out_screen_rect: *mut f64,            // [4]
+        out_presenter_overlay_rect: *mut f64, // [4]
+    ) -> bool;
+
     pub fn cm_sample_buffer_get_presentation_timestamp(
         sample_buffer: *mut std::ffi::c_void,
         out_value: *mut i64,

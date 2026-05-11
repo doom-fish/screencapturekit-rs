@@ -135,13 +135,16 @@ where
         return None;
     }
     let _guard = FreeGuard(ptr);
-    let c_str = CStr::from_ptr(ptr);
-    let result = c_str.to_string_lossy().to_string();
-    if result.is_empty() {
-        None
-    } else {
-        Some(result)
+    // `to_string_lossy().to_string()` allocates twice on the valid-UTF-8
+    // path: once for the borrowed Cow, then again for the explicit
+    // `to_string`. `from_utf8_lossy(...).into_owned()` allocates once
+    // and skips the redundant copy. For invalid UTF-8 (extremely rare
+    // for AppKit strings) both paths allocate the replacement-char string.
+    let bytes = CStr::from_ptr(ptr).to_bytes();
+    if bytes.is_empty() {
+        return None;
     }
+    Some(String::from_utf8_lossy(bytes).into_owned())
 }
 
 /// Same as [`ffi_string_owned`] but returns an empty string on failure.

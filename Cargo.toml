@@ -75,6 +75,11 @@ bevy = { version = "0.18", default-features = false, features = ["bevy_asset", "
 name = "capture_benchmark"
 harness = false
 
+[[bench]]
+name = "hotspots"
+harness = false
+required-features = ["macos_14_0"]
+
 [package.metadata.docs.rs]
 # Build documentation with all features enabled
 all-features = true
