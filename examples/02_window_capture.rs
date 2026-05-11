@@ -5,8 +5,14 @@
 //! - Listing available windows
 //! - Filtering windows by title
 //! - Creating window-specific content filter
+//!
+//! Uses the batched [`SCShareableContent::snapshot`] API for the windows
+//! listing — populates every window's title, frame, owning-app, etc. in a
+//! single FFI round-trip instead of paying per-attribute FFI for each of
+//! the ~200 windows on a typical desktop.
 
 use screencapturekit::prelude::*;
+use screencapturekit::shareable_content::ContentSnapshot;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -32,69 +38,95 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_cg();
     println!("🪟 Window Capture\n");
 
-    // 1. Get available content
+    // 1. Get available content + a batched snapshot for fast iteration.
     let content = SCShareableContent::get()?;
-    let windows = content.windows();
+    let ContentSnapshot {
+        applications: app_snaps,
+        windows: window_snaps,
+        ..
+    } = content
+        .snapshot()
+        .ok_or("Could not collect content snapshot")?;
 
-    // 2. List windows (optional - for demonstration)
+    // 2. List windows (optional - for demonstration). Pure in-memory walk.
     println!("Available windows:");
-    for (i, window) in windows.iter().take(10).enumerate() {
-        let app_name = window
-            .owning_application()
-            .map(|app| app.application_name())
-            .unwrap_or_default();
+    for (i, w) in window_snaps.iter().take(10).enumerate() {
+        let app_name = w
+            .owning_app_index
+            .and_then(|idx| app_snaps.get(idx))
+            .map(|a| a.application_name.as_str())
+            .unwrap_or("");
 
         println!(
             "  {}. {} - {} ({}x{})",
             i + 1,
             app_name,
-            window.title().unwrap_or_default(),
-            window.frame().width,
-            window.frame().height
+            w.title.as_deref().unwrap_or(""),
+            w.frame.width,
+            w.frame.height
         );
     }
 
-    // 3. Find a window - prefer Safari, but fallback to any visible window
-    let window = windows
+    // 3. Find a window — prefer Safari, fallback to any visible titled
+    // window. All these checks are pure data access on the snapshot rows.
+    let safari_app_indices: Vec<usize> = app_snaps
+        .iter()
+        .enumerate()
+        .filter(|(_, a)| a.application_name.contains("Safari"))
+        .map(|(i, _)| i)
+        .collect();
+
+    let chosen_window_id = window_snaps
         .iter()
         .find(|w| {
-            w.owning_application()
-                .is_some_and(|app| app.application_name().contains("Safari"))
+            w.owning_app_index
+                .is_some_and(|i| safari_app_indices.contains(&i))
         })
         .or_else(|| {
-            // Fallback: find any on-screen window with a title
-            windows.iter().find(|w| {
-                w.is_on_screen()
-                    && w.frame().width > 100.0
-                    && w.frame().height > 100.0
-                    && w.title().is_some_and(|t| !t.is_empty())
+            window_snaps.iter().find(|w| {
+                w.is_on_screen
+                    && w.frame.width > 100.0
+                    && w.frame.height > 100.0
+                    && w.title.as_deref().map_or(false, |t| !t.is_empty())
             })
         })
-        .or_else(|| {
-            // Last resort: any on-screen window
-            windows.iter().find(|w| w.is_on_screen())
-        })
+        .or_else(|| window_snaps.iter().find(|w| w.is_on_screen))
+        .map(|w| w.window_id)
         .ok_or("No suitable window found")?;
 
-    let app_name = window
-        .owning_application()
-        .map(|app| app.application_name())
-        .unwrap_or_default();
+    // 4. Re-fetch the live SCWindow handle for the chosen ID — needed to
+    // build a content filter (filters require live pointers, not snapshot
+    // data).
+    let live_windows = content.windows();
+    let window = live_windows
+        .iter()
+        .find(|w| w.window_id() == chosen_window_id)
+        .ok_or("chosen window vanished")?;
+
+    let chosen_snap = window_snaps
+        .iter()
+        .find(|w| w.window_id == chosen_window_id)
+        .expect("just selected");
+    let chosen_app_name = chosen_snap
+        .owning_app_index
+        .and_then(|i| app_snaps.get(i))
+        .map(|a| a.application_name.as_str())
+        .unwrap_or("");
     println!(
         "\nCapturing: {} - {}\n",
-        app_name,
-        window.title().unwrap_or_default()
+        chosen_app_name,
+        chosen_snap.title.as_deref().unwrap_or("")
     );
 
-    // 4. Create window filter
+    // 5. Create window filter
     let filter = SCContentFilter::create().with_window(window).build();
 
-    // 5. Configure stream
+    // 6. Configure stream
     let config = SCStreamConfiguration::new()
         .with_width(1920)
         .with_height(1080);
 
-    // 6. Start capture
+    // 7. Start capture
     let count = Arc::new(AtomicUsize::new(0));
     let handler = FrameHandler {
         count: count.clone(),
