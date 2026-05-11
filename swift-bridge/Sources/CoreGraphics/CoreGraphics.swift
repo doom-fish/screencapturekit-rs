@@ -140,6 +140,13 @@ public func renderCGImageRGBAInto(
         return 0
     }
 
+    // .copy unconditionally overwrites destination pixels. CGContext.draw
+    // defaults to .normal which blends source-over-dest when the source has
+    // any non-opaque alpha — that would make the output depend on whatever
+    // was in the (sometimes uninitialised) destination buffer, breaking
+    // determinism across rgba_data() (uninit dest) vs rgba_data_into()
+    // (caller-supplied dest).
+    context.setBlendMode(.copy)
     context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
     return totalBytes
@@ -185,6 +192,8 @@ public func renderCGImageBGRAInto(
         return 0
     }
 
+    // See cgimage_render_rgba_into above — same rationale for .copy.
+    context.setBlendMode(.copy)
     context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
     return totalBytes
