@@ -366,6 +366,268 @@ fn bench_pixel_buffer_paths(c: &mut Criterion) {
     group.finish();
 }
 
+// ============================================================================
+// Audio + video capture profiling
+//
+// These benchmarks measure the ACTUAL per-frame cost of the live capture
+// pipeline with audio enabled — exercises the post-fix Swift bridge
+// (sample_handler dispatch, AudioBufferList allocation, frame_info attachment
+// fetch) end-to-end.
+// ============================================================================
+
+/// Capture stats accumulated by the bench handler.
+struct AvStats {
+    video_frames: AtomicUsize,
+    audio_buffers: AtomicUsize,
+    /// Sum of per-frame video sample-handler latency (host time → handler return).
+    video_handler_ns: std::sync::atomic::AtomicU64,
+    /// Sum of per-frame audio sample-handler latency.
+    audio_handler_ns: std::sync::atomic::AtomicU64,
+    /// Sum of CMSampleBuffer::audio_buffer_list() call cost (audio path only).
+    audio_buffer_list_ns: std::sync::atomic::AtomicU64,
+    /// Sum of CMSampleBuffer::frame_info() call cost (video path only).
+    frame_info_ns: std::sync::atomic::AtomicU64,
+}
+
+impl AvStats {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            video_frames: AtomicUsize::new(0),
+            audio_buffers: AtomicUsize::new(0),
+            video_handler_ns: std::sync::atomic::AtomicU64::new(0),
+            audio_handler_ns: std::sync::atomic::AtomicU64::new(0),
+            audio_buffer_list_ns: std::sync::atomic::AtomicU64::new(0),
+            frame_info_ns: std::sync::atomic::AtomicU64::new(0),
+        })
+    }
+}
+
+/// Drive a stream for `duration`, optionally with audio enabled. Returns the
+/// stats accumulated by the handler. The handler does the typical "extract
+/// per-frame metadata then drop the buffer" workload that real consumers do —
+/// frame_info() for video and audio_buffer_list() for audio.
+fn run_stream(duration: Duration, with_audio: bool) -> Arc<AvStats> {
+    cg_init();
+    let content = SCShareableContent::get().expect("perms?");
+    let display = content.displays().into_iter().next().expect("no display");
+    let filter = SCContentFilter::create()
+        .with_display(&display)
+        .with_excluding_windows(&[])
+        .build();
+
+    let mut config = SCStreamConfiguration::new()
+        .with_width(1920)
+        .with_height(1080)
+        .with_pixel_format(PixelFormat::BGRA);
+    if with_audio {
+        config = config
+            .with_captures_audio(true)
+            .with_sample_rate(48000)
+            .with_channel_count(2);
+    }
+
+    let stats = AvStats::new();
+
+    let video_stats = Arc::clone(&stats);
+    let video_handler = move |buf: CMSampleBuffer, ot: SCStreamOutputType| {
+        if !matches!(ot, SCStreamOutputType::Screen) {
+            return;
+        }
+        let t0 = Instant::now();
+        // Realistic per-frame work: read every attachment in one batch.
+        let info_t0 = Instant::now();
+        let _info = buf.frame_info();
+        let info_elapsed = info_t0.elapsed().as_nanos() as u64;
+        video_stats
+            .frame_info_ns
+            .fetch_add(info_elapsed, Ordering::Relaxed);
+        // Touch the pixel buffer pointer so the optimiser can't elide.
+        let _img = buf.image_buffer();
+        video_stats.video_frames.fetch_add(1, Ordering::Relaxed);
+        video_stats
+            .video_handler_ns
+            .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+    };
+
+    let audio_stats = Arc::clone(&stats);
+    let audio_handler = move |buf: CMSampleBuffer, ot: SCStreamOutputType| {
+        if !matches!(ot, SCStreamOutputType::Audio) {
+            return;
+        }
+        let t0 = Instant::now();
+        // Realistic per-buffer work: get the audio buffer list (the path that
+        // currently allocates a per-frame AudioBufferBridge[] in Swift — see
+        // the deferred fix #5).
+        let abl_t0 = Instant::now();
+        let _abl = buf.audio_buffer_list();
+        let abl_elapsed = abl_t0.elapsed().as_nanos() as u64;
+        audio_stats
+            .audio_buffer_list_ns
+            .fetch_add(abl_elapsed, Ordering::Relaxed);
+        audio_stats.audio_buffers.fetch_add(1, Ordering::Relaxed);
+        audio_stats
+            .audio_handler_ns
+            .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+    };
+
+    let mut stream = SCStream::new(&filter, &config);
+    stream.add_output_handler(video_handler, SCStreamOutputType::Screen);
+    if with_audio {
+        stream.add_output_handler(audio_handler, SCStreamOutputType::Audio);
+    }
+    stream.start_capture().expect("start");
+
+    std::thread::sleep(duration);
+    stream.stop_capture().expect("stop");
+    stats
+}
+
+fn bench_audio_video_throughput(c: &mut Criterion) {
+    let mut group = c.benchmark_group("av_throughput");
+    // Each "iteration" is a 2s capture window — slow but realistic.
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(30));
+
+    for &with_audio in &[false, true] {
+        let label = if with_audio {
+            "video_plus_audio"
+        } else {
+            "video_only"
+        };
+        group.bench_function(label, |b| {
+            b.iter_custom(|iters| {
+                let mut total_dur = Duration::ZERO;
+                let mut total_video: u64 = 0;
+                let mut total_audio: u64 = 0;
+                let mut total_video_handler: u64 = 0;
+                let mut total_audio_handler: u64 = 0;
+                let mut total_frame_info: u64 = 0;
+                let mut total_audio_buffer_list: u64 = 0;
+                for _ in 0..iters {
+                    let window = Duration::from_secs(2);
+                    let t0 = Instant::now();
+                    let stats = run_stream(window, with_audio);
+                    let elapsed = t0.elapsed();
+                    total_dur += elapsed;
+                    let v = stats.video_frames.load(Ordering::Relaxed) as u64;
+                    let a = stats.audio_buffers.load(Ordering::Relaxed) as u64;
+                    total_video += v;
+                    total_audio += a;
+                    total_video_handler += stats.video_handler_ns.load(Ordering::Relaxed);
+                    total_audio_handler += stats.audio_handler_ns.load(Ordering::Relaxed);
+                    total_frame_info += stats.frame_info_ns.load(Ordering::Relaxed);
+                    total_audio_buffer_list +=
+                        stats.audio_buffer_list_ns.load(Ordering::Relaxed);
+                }
+                let avg_video_per_iter = total_video / iters;
+                let avg_audio_per_iter = total_audio / iters;
+                let video_handler_avg_ns = if total_video > 0 {
+                    total_video_handler / total_video
+                } else {
+                    0
+                };
+                let audio_handler_avg_ns = if total_audio > 0 {
+                    total_audio_handler / total_audio
+                } else {
+                    0
+                };
+                let frame_info_avg_ns = if total_video > 0 {
+                    total_frame_info / total_video
+                } else {
+                    0
+                };
+                let audio_buffer_list_avg_ns = if total_audio > 0 {
+                    total_audio_buffer_list / total_audio
+                } else {
+                    0
+                };
+                eprintln!(
+                    "[{label}] iter={iters} video={avg_video_per_iter}f/iter audio={avg_audio_per_iter}b/iter handler_ns: video={video_handler_avg_ns} audio={audio_handler_avg_ns} | frame_info={frame_info_avg_ns}ns audio_buffer_list={audio_buffer_list_avg_ns}ns"
+                );
+                total_dur
+            });
+        });
+    }
+    group.finish();
+}
+
+// Per-call micro-bench of the audio-buffer-list FFI on a captured audio
+// sample. Lets us isolate the deferred fix #5 (Swift-side AudioBufferBridge
+// allocation per call).
+fn capture_single_audio_sample() -> Option<CMSampleBuffer> {
+    cg_init();
+    let content = SCShareableContent::get().ok()?;
+    let display = content.displays().into_iter().next()?;
+    let filter = SCContentFilter::create()
+        .with_display(&display)
+        .with_excluding_windows(&[])
+        .build();
+    let config = SCStreamConfiguration::new()
+        .with_width(640)
+        .with_height(480)
+        .with_pixel_format(PixelFormat::BGRA)
+        .with_captures_audio(true)
+        .with_sample_rate(48000)
+        .with_channel_count(2);
+
+    let sample: Arc<Mutex<Option<CMSampleBuffer>>> = Arc::new(Mutex::new(None));
+    let captured = Arc::new(AtomicUsize::new(0));
+    let s = Arc::clone(&sample);
+    let cnt = Arc::clone(&captured);
+    let handler = move |buf: CMSampleBuffer, ot: SCStreamOutputType| {
+        if matches!(ot, SCStreamOutputType::Audio)
+            && cnt
+                .compare_exchange(0, 1, Ordering::SeqCst, Ordering::Relaxed)
+                .is_ok()
+        {
+            *s.lock().unwrap() = Some(buf);
+        }
+    };
+
+    let mut stream = SCStream::new(&filter, &config);
+    stream.add_output_handler(
+        |_buf: CMSampleBuffer, _ot: SCStreamOutputType| {},
+        SCStreamOutputType::Screen,
+    );
+    stream.add_output_handler(handler, SCStreamOutputType::Audio);
+    stream.start_capture().ok()?;
+
+    let start = Instant::now();
+    while captured.load(Ordering::Relaxed) == 0 && start.elapsed() < Duration::from_secs(5) {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    stream.stop_capture().ok()?;
+    let result = sample.lock().unwrap().take();
+    result
+}
+
+fn bench_audio_buffer_list(c: &mut Criterion) {
+    let Some(sample) = capture_single_audio_sample() else {
+        eprintln!("Skipping audio_buffer_list bench — no audio sample captured (need permissions + audio in the room).");
+        return;
+    };
+
+    let mut group = c.benchmark_group("audio_buffer_list");
+    group.bench_function("get_abl", |b| {
+        b.iter(|| {
+            let abl = sample.audio_buffer_list();
+            black_box(abl);
+        });
+    });
+    group.bench_function("get_abl_then_iterate_buffers", |b| {
+        b.iter(|| {
+            if let Some(abl) = sample.audio_buffer_list() {
+                let mut total = 0usize;
+                for buf in &abl {
+                    total += buf.data().len();
+                }
+                black_box(total);
+            }
+        });
+    });
+    group.finish();
+}
+
 criterion_group! {
     name = benches;
     config = Criterion::default()
@@ -378,5 +640,7 @@ criterion_group! {
         bench_sample_timing,
         bench_screenshot_rgba,
         bench_pixel_buffer_paths,
+        bench_audio_buffer_list,
+        bench_audio_video_throughput,
 }
 criterion_main!(benches);
