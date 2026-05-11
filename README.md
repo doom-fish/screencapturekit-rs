@@ -722,10 +722,11 @@ APIs over the per-element accessor pattern — they collapse `1 + N + 6N`
 FFI calls to one round-trip per category and are ~2× faster on a typical
 desktop:
 
-```rust
+```rust,no_run
 use screencapturekit::prelude::*;
 use screencapturekit::shareable_content::ContentSnapshot;
 
+# fn example() -> Result<(), Box<dyn std::error::Error>> {
 let content = SCShareableContent::get()?;
 
 // One batched FFI per category — every display + window + app + attrs.
@@ -738,16 +739,21 @@ for w in &windows {
     println!("{} - {}", app.map(|a| &*a.application_name).unwrap_or(""),
              w.title.as_deref().unwrap_or(""));
 }
+# Ok(())
+# }
 ```
 
 Same idea on a video sample buffer — read every attachment in one CF→Swift
 bridge cast instead of one cast per attribute:
 
-```rust
+```rust,no_run
+# use screencapturekit::cm::CMSampleBuffer;
+# fn example(sample: &CMSampleBuffer) {
 if let Some(info) = sample.frame_info() {
     println!("status={:?} time={:?} content={:?}",
              info.frame_status, info.display_time, info.content_rect);
 }
+# }
 ```
 
 For screenshot decoding, `bgra_data()` returns the source pixel layout
@@ -755,9 +761,17 @@ directly, skipping the per-pixel R↔B swap that `rgba_data()` performs
 inside `CGContext.draw`. Use it when uploading to Metal / wgpu / ffmpeg
 which all accept BGRA natively:
 
-```rust
-let img = SCScreenshotManager::capture_image(&filter, &config)?;
+```rust,no_run
+# #[cfg(feature = "macos_14_0")]
+# fn example(
+#     filter: &screencapturekit::stream::content_filter::SCContentFilter,
+#     config: &screencapturekit::stream::configuration::SCStreamConfiguration,
+# ) -> Result<(), Box<dyn std::error::Error>> {
+use screencapturekit::screenshot_manager::SCScreenshotManager;
+let img = SCScreenshotManager::capture_image(filter, config)?;
 let pixels = img.bgra_data()?;   // ~5% faster than rgba_data() at 1080p
+# Ok(())
+# }
 ```
 
 See [`examples/24_batched_apis_showcase.rs`](examples/24_batched_apis_showcase.rs)
