@@ -129,6 +129,10 @@ name = "23_client_server_client"
 path = "examples/23_client_server/client.rs"
 
 [[example]]
+name = "24_batched_apis_showcase"
+required-features = ["macos_14_0"]
+
+[[example]]
 name = "profile_capture"
 required-features = ["macos_14_0"]
 
