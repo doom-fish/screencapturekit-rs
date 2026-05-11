@@ -156,6 +156,67 @@ fn test_cgimage_bgra_matches_rgba_byteswap() {
     );
 }
 
+#[test]
+fn test_cgimage_data_into_buffer_apis() {
+    cg_init_for_headless_ci();
+    let Ok(content) = SCShareableContent::get() else {
+        return;
+    };
+    let display = &content.displays()[0];
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+    let config = SCStreamConfiguration::new().with_width(64).with_height(64);
+    let Ok(image) = SCScreenshotManager::capture_image(&filter, &config) else {
+        return;
+    };
+
+    let total_bytes = image.width() * image.height() * 4;
+
+    // 1. The into_buffer variants must produce byte-for-byte the same output
+    // as the allocating variants — same Swift FFI underneath.
+    let rgba_owned = image.rgba_data().expect("rgba_data");
+    let mut rgba_buf = vec![0u8; total_bytes];
+    let written = image.rgba_data_into(&mut rgba_buf).expect("rgba_data_into");
+    assert_eq!(written, total_bytes);
+    assert_eq!(
+        rgba_owned, rgba_buf,
+        "rgba_data and rgba_data_into must agree"
+    );
+
+    let bgra_owned = image.bgra_data().expect("bgra_data");
+    let mut bgra_buf = vec![0u8; total_bytes];
+    let written = image.bgra_data_into(&mut bgra_buf).expect("bgra_data_into");
+    assert_eq!(written, total_bytes);
+    assert_eq!(
+        bgra_owned, bgra_buf,
+        "bgra_data and bgra_data_into must agree"
+    );
+
+    // 2. A too-small buffer must be rejected — no out-of-bounds writes.
+    let mut small = vec![0u8; total_bytes - 1];
+    assert!(
+        image.rgba_data_into(&mut small).is_err(),
+        "rgba_data_into must reject undersized destination"
+    );
+    assert!(
+        image.bgra_data_into(&mut small).is_err(),
+        "bgra_data_into must reject undersized destination"
+    );
+
+    // 3. An over-sized buffer should still work; only the first N bytes are
+    // touched and the rest is left at whatever the caller had.
+    let sentinel = 0xCDu8;
+    let mut large = vec![sentinel; total_bytes + 16];
+    let written = image.bgra_data_into(&mut large).expect("oversize ok");
+    assert_eq!(written, total_bytes);
+    assert!(
+        large[total_bytes..].iter().all(|&b| b == sentinel),
+        "bytes past the rendered region must not be touched"
+    );
+}
+
 // MARK: - New Screenshot Features (macOS 15.2+)
 
 #[test]

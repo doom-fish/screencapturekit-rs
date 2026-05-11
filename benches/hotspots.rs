@@ -310,6 +310,23 @@ fn bench_screenshot_rgba(c: &mut Criterion) {
                 });
             },
         );
+
+        // Reusable buffer path: pre-allocate once, draw into it on every
+        // capture. Demonstrates the saving from amortising the per-call
+        // ~33-MB-at-4K malloc across many captures.
+        let pixel_count = (w as usize) * (h as usize) * 4;
+        group.bench_with_input(
+            BenchmarkId::new("capture_plus_bgra_reused_buffer", label),
+            &(&filter, &config, pixel_count),
+            |b, (f, cfg, n)| {
+                let mut buffer: Vec<u8> = vec![0; *n];
+                b.iter(|| {
+                    let img = SCScreenshotManager::capture_image(f, cfg).unwrap();
+                    img.bgra_data_into(&mut buffer).unwrap();
+                    black_box(&buffer);
+                });
+            },
+        );
     }
 
     group.finish();
