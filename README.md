@@ -796,11 +796,24 @@ Contributions welcome! Please:
 
 ## 🚀 Used By
 
-This crate is used by some amazing projects:
+This crate powers 50+ open-source projects across screen recording, AI agents, meeting transcription, and remote desktop. A few highlights:
 
-- **[AFFiNE](https://github.com/toeverything/AFFiNE)** - Next-gen knowledge base, alternative to Notion and Miro (50k+ ⭐)
-- **[Vibe](https://github.com/thewh1teagle/vibe)** - Transcribe on your own! Local transcription tool (5k+ ⭐)
-- **[Lycoris](https://github.com/solaoi/lycoris)** - Real-time speech recognition & AI-powered note-taking for macOS
+### Featured projects
+
+- **[AFFiNE](https://github.com/toeverything/AFFiNE)** — Next-gen knowledge base, alternative to Notion and Miro (68k+ ⭐)
+- **[voicebox](https://github.com/jamiepine/voicebox)** — Open-source AI voice studio: clone, dictate, create (25k+ ⭐)
+- **[Cap](https://github.com/CapSoftware/Cap)** — Open-source Loom alternative for beautiful screen recordings (19k+ ⭐)
+- **[Observer](https://github.com/Roy3838/Observer)** — Local AI screen observer (1.4k+ ⭐)
+- **[my-translator](https://github.com/phuc-nt/my-translator)** — Real-time speech translation for macOS & Windows (1k+ ⭐)
+- **[open-agent](https://github.com/AFK-surf/open-agent)** — Open-source alternative to Claude Agent SDK / ChatGPT Agents / Manus
+- **[watson.ai](https://github.com/LatentDream/watson.ai)** — Meeting recorder and summarizer
+- **[harana/search](https://github.com/harana/search)** — Search everything, instantly
+- **[agent-native](https://github.com/BuilderIO/agent-native)** — Framework for building agent-native applications (by Builder.io)
+- **[hylarana](https://github.com/mycrl/hylarana)** — Cross-platform screen casting in Rust
+
+### Also used by
+
+[fl_caption](https://github.com/xkeyC/fl_caption), [Lycoris](https://github.com/solaoi/lycoris), [Hindsight](https://github.com/Tomotsugu-dev/Hindsight), [kivio](https://github.com/ZMGID/kivio), [Drift](https://github.com/diiviikk5/Drift), [Phantom](https://github.com/zruss11/Phantom), [ruhear](https://github.com/aizcutei/ruhear), [Tab5-Screen-Streamer](https://github.com/Hiroki-Kawakami/Tab5-Screen-Streamer), [macloop](https://github.com/kemsta/macloop), [beer](https://github.com/alii/beer), [phantom-ear](https://github.com/fomyio/phantom-ear), [Logia](https://github.com/daschinmoy21/Logia), [VibeTube](https://github.com/VibeCreAI/VibeTube), [silly-ai](https://github.com/zz85/silly-ai), [aresampler](https://github.com/adnissen/aresampler), [xos](https://github.com/xlateai/xos), [scriberr-desktop](https://github.com/rishikanthc/scriberr-desktop), [echonote](https://github.com/luismctech/echonote), [zest-wallpaper](https://github.com/lgcenen/zest-wallpaper), [mira](https://github.com/fluffypony/mira), [overlay-ai](https://github.com/VishnuVVR-369/overlay-ai), [open-rec](https://github.com/TommyBez/open-rec), [omnirec](https://github.com/omnirec/omnirec), [oxiremote](https://github.com/nhtera/oxiremote), [LocalWhisper](https://github.com/ly7erg1c/LocalWhisper), [Hush](https://github.com/khawkins98/Hush), [cocuyo](https://github.com/jorgeajimenezl/cocuyo), [openhush](https://github.com/claymore666/openhush), [tucknotes](https://github.com/ajgagnon/tucknotes), [domino](https://github.com/nitinm21/domino), [bridge](https://github.com/maorinka/bridge), [screen-recorder](https://github.com/forfd8960/screen-recorder), [orbit](https://github.com/divesh-balani/orbit), [audio-capture](https://github.com/birdieHyun/audio-capture), [AFFiNE-teto](https://github.com/shrik450/AFFiNE-teto), [loom](https://github.com/rkendel1/loom), and the [gst-screencapturekit](https://github.com/doom-fish/gst-screencapturekit) GStreamer plugin.
 
 *Using screencapturekit-rs? [Let us know](https://github.com/doom-fish/screencapturekit-rs/issues) and we'll add you to the list!*
 
