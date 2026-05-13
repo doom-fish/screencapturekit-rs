@@ -59,22 +59,29 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-screencapturekit = "1"
+screencapturekit = "2"
 ```
 
 For async support:
 
 ```toml
 [dependencies]
-screencapturekit = { version = "1", features = ["async"] }
+screencapturekit = { version = "2", features = ["async"] }
 ```
 
 For latest macOS features:
 
 ```toml
 [dependencies]
-screencapturekit = { version = "1", features = ["macos_26_0"] }
+screencapturekit = { version = "2", features = ["macos_26_0"] }
 ```
+
+> **Upgrading from 1.x?** See [`docs/MIGRATION.md`](docs/MIGRATION.md#migrating-from-1x-to-20)
+> for the full list of 2.0 breaking changes — most notable are the new
+> `Send + Sync` bound on output / delegate traits, the `#[non_exhaustive]`
+> attribute on `PixelFormat` and `SCStreamErrorCode`, and the new
+> `PixelFormat::Unknown(FourCharCode)` variant for codes the binding does
+> not yet name.
 
 ## 🚀 Quick Start
 
@@ -90,6 +97,10 @@ impl SCStreamOutputTrait for Handler {
         println!("📹 Received frame at {:?}", sample.presentation_timestamp());
     }
 }
+
+// Note: as of 2.0, `SCStreamOutputTrait` (and `SCStreamDelegateTrait`)
+// require `Send + Sync` — handlers run on Apple's dispatch queues and may
+// be invoked concurrently from arbitrary threads.
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get available displays
@@ -463,6 +474,8 @@ config.set_should_be_opaque(true);
 | `SCDisplay` | Display information (resolution, ID, frame) |
 | `SCWindow` | Window information (title, bounds, owner, layer) |
 | `SCRunningApplication` | Application information (name, bundle ID, PID) |
+| `ContentSnapshot` | Plain-data batch of all displays, windows, applications (one FFI round-trip) |
+| `AudioInputDevice` | Microphone enumeration via `AVFoundation` (used with `with_microphone_capture_device_id`) |
 
 ### Media Types
 
@@ -491,11 +504,15 @@ config.set_should_be_opaque(true);
 
 | Type | Description |
 |------|-------------|
-| `PixelFormat` | BGRA, `YCbCr420v`, `YCbCr420f`, l10r (10-bit) |
+| `PixelFormat` | BGRA, `YCbCr420v`, `YCbCr420f`, l10r (10-bit), `Unknown(FourCharCode)` for forward-compat |
+| `FourCharCode` | Apple OSType four-char code helper used by `PixelFormat::Unknown` |
 | `SCPresenterOverlayAlertSetting` | Privacy alert behavior |
 | `SCCaptureDynamicRange` | HDR/SDR modes (macOS 15.0+) |
 | `SCScreenshotConfiguration` | Advanced screenshot config (macOS 26.0+) |
 | `SCScreenshotDynamicRange` | SDR/HDR screenshot output (macOS 26.0+) |
+
+> **2.0 note:** `PixelFormat` and `SCStreamErrorCode` are `#[non_exhaustive]`.
+> `match` arms over either of them must include a wildcard `_ => …` arm.
 
 ## 🏃 Examples
 
@@ -744,14 +761,16 @@ for w in &windows {
 ```
 
 Same idea on a video sample buffer — read every attachment in one CF→Swift
-bridge cast instead of one cast per attribute:
+bridge cast instead of one cast per attribute (this includes the new-in-2.0
+`presenter_overlay_content_rect` field for Presenter Overlay layouts):
 
 ```rust,no_run
 # use screencapturekit::cm::CMSampleBuffer;
 # fn example(sample: &CMSampleBuffer) {
 if let Some(info) = sample.frame_info() {
-    println!("status={:?} time={:?} content={:?}",
-             info.frame_status, info.display_time, info.content_rect);
+    println!("status={:?} time={:?} content={:?} overlay={:?}",
+             info.frame_status, info.display_time, info.content_rect,
+             info.presenter_overlay_content_rect);
 }
 # }
 ```
@@ -774,6 +793,28 @@ let pixels = img.bgra_data()?;   // ~5% faster than rgba_data() at 1080p
 # }
 ```
 
+For sustained screenshot loops, the new (2.1+) `*_data_into` variants
+write into a caller-supplied buffer so you only pay the
+`width × height × 4` byte allocation once instead of per frame
+(~33 MB / call at 4K):
+
+```rust,no_run
+# #[cfg(feature = "macos_14_0")]
+# fn example(
+#     filter: &screencapturekit::stream::content_filter::SCContentFilter,
+#     config: &screencapturekit::stream::configuration::SCStreamConfiguration,
+# ) -> Result<(), Box<dyn std::error::Error>> {
+use screencapturekit::screenshot_manager::SCScreenshotManager;
+let mut buffer: Vec<u8> = vec![0; 1920 * 1080 * 4];
+for _ in 0..100 {
+    let img = SCScreenshotManager::capture_image(filter, config)?;
+    img.bgra_data_into(&mut buffer)?;     // reuse the same allocation
+    // ... process `buffer` ...
+}
+# Ok(())
+# }
+```
+
 See [`examples/24_batched_apis_showcase.rs`](examples/24_batched_apis_showcase.rs)
 for a side-by-side comparison that benchmarks all three APIs against the
 legacy per-element pattern on your machine.
@@ -781,9 +822,16 @@ legacy per-element pattern on your machine.
 ## 🔄 Migration
 
 Upgrading from an older version? See [`docs/MIGRATION.md`](docs/MIGRATION.md) for:
-- API changes between versions
+- API changes between versions (including the **1.x → 2.0** upgrade path)
 - Code examples for common migrations
 - Deprecated API replacements
+
+**Highlights of 2.0 breaking changes:**
+- `SCStreamOutputTrait` and `SCStreamDelegateTrait` now require `Send + Sync`
+- `PixelFormat` is `#[non_exhaustive]` and gained a `Unknown(FourCharCode)` variant
+- `SCStreamErrorCode` is `#[non_exhaustive]`
+- `PartialEq` / `Hash` for `PixelFormat` now normalise through `FourCharCode`
+- Every `macos_*` Cargo feature now propagates to the Swift bridge build (build will fail loudly if SDK detection fails)
 
 ## 🤝 Contributing
 
