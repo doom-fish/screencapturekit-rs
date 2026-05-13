@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1](https://github.com/doom-fish/screencapturekit-rs/compare/v2.1.0...v2.1.1) - 2026-05-13
+
+### Other
+
+- *(readme)* restructure for faster onboarding
+- update README and MIGRATION for 2.x
+- expand 'Used By' section with verified projects
+
 ## [2.1.0](https://github.com/doom-fish/screencapturekit-rs/compare/v2.0.0...v2.1.0) - 2026-05-11
 
 ### Added
