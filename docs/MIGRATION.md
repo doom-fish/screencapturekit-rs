@@ -2,6 +2,130 @@
 
 This guide helps you migrate between major versions of `screencapturekit-rs`.
 
+## Migrating from 1.x to 2.0
+
+Version 2.0 hardens the FFI boundary. Most projects can upgrade by
+bumping the dependency and addressing a handful of compile errors —
+no design-level rework is required.
+
+### Cargo.toml
+
+```diff
+ [dependencies]
+-screencapturekit = "1"
++screencapturekit = "2"
+```
+
+### `Send + Sync` bound on output / delegate traits
+
+`SCStreamOutputTrait` and `SCStreamDelegateTrait` (and the `Fn(...)` closure
+overloads) now require `Send + Sync`. Apple's dispatch queues may invoke the
+handler concurrently from arbitrary threads, so any state owned by the
+handler must be thread-safe.
+
+**Before (1.x):**
+```rust,ignore
+struct Handler { count: std::cell::Cell<usize> }   // !Sync — compiles in 1.x
+impl SCStreamOutputTrait for Handler { /* ... */ }
+```
+
+**After (2.0):**
+```rust,ignore
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+struct Handler { count: AtomicUsize }              // Send + Sync
+impl SCStreamOutputTrait for Handler {
+    fn did_output_sample_buffer(&self, _: CMSampleBuffer, _: SCStreamOutputType) {
+        self.count.fetch_add(1, Ordering::Relaxed);
+    }
+}
+```
+
+For closures: replace `Cell` / `Rc` with `Arc<Atomic*>` /
+`Arc<Mutex<...>>` / `Arc<RwLock<...>>`.
+
+### `PixelFormat::Unknown(FourCharCode)`
+
+`PixelFormat` is now `#[non_exhaustive]` and surfaces unrecognised codes
+via a new `Unknown(FourCharCode)` variant instead of mapping them to
+`BGRA`. This means **every `match` over `PixelFormat` must include a
+wildcard arm**:
+
+**Before (1.x):**
+```rust,ignore
+match config.pixel_format() {
+    PixelFormat::BGRA => { /* ... */ }
+    PixelFormat::YCbCr420v => { /* ... */ }
+    PixelFormat::YCbCr420f => { /* ... */ }
+    PixelFormat::L10R => { /* ... */ }
+}
+```
+
+**After (2.0):**
+```rust,ignore
+match config.pixel_format() {
+    PixelFormat::BGRA => { /* ... */ }
+    PixelFormat::YCbCr420v => { /* ... */ }
+    PixelFormat::YCbCr420f => { /* ... */ }
+    PixelFormat::L10R => { /* ... */ }
+    PixelFormat::Unknown(code) => eprintln!("unrecognised pixel format: {code}"),
+    _ => { /* future variants */ }
+}
+```
+
+`PartialEq` / `Hash` are now normalised through `FourCharCode`, so two
+representations of the same OSType (e.g. `PixelFormat::BGRA` vs
+`PixelFormat::Unknown(FourCharCode::from_bytes(*b"BGRA"))`) compare equal.
+
+### `SCStreamErrorCode` is `#[non_exhaustive]`
+
+`match` arms over `SCStreamErrorCode` (typically inside an
+`SCError::StreamError { code, .. }` arm) now require a wildcard:
+
+```rust,ignore
+match err_code {
+    SCStreamErrorCode::UserStopped => { /* graceful */ }
+    SCStreamErrorCode::UserDeclined => { /* permission */ }
+    _ => { /* anything Apple adds in a future macOS */ }
+}
+```
+
+### Build-time SDK enforcement
+
+The build script no longer silently degrades when xcrun / SDK detection
+fails — it bails with a clear error pointing at `xcode-select`. Make sure
+Xcode Command Line Tools are installed and selected:
+
+```bash
+xcode-select --install
+sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+```
+
+Every `macos_*` Cargo feature is also forwarded to the Swift compile, so
+a feature only enabled on the Rust side (which used to silently miss the
+matching Swift symbols) will now produce a coherent linker error.
+
+### New APIs you can opt into
+
+- `SCContentSharingPicker::is_active()` / `set_is_active()` — query and
+  toggle the picker's idle state without recreating it.
+- `SCContentSharingPicker::default_configuration()` — read the system
+  default `SCContentSharingPickerConfiguration` so user-facing pickers
+  match macOS defaults.
+- `CMSampleBuffer::presenter_overlay_content_rect()` (and the matching
+  field on `frame_info()`) — the new Presenter Overlay layout rect.
+
+## Migrating from 2.0 to 2.1
+
+2.1 is fully backwards-compatible with 2.0 — no source changes required.
+New optional APIs:
+
+- `CGImage::rgba_data_into(&mut [u8])` and `bgra_data_into(&mut [u8])` —
+  render into a caller-supplied buffer to amortise the per-call
+  `width*height*4` byte allocation across many screenshots.
+- Native-BGRA fast path in `SCScreenshotManager` skips the channel swap
+  for downstreams that accept BGRA directly (Metal / wgpu / ffmpeg).
+
 ## Migrating from 0.x to 1.0
 
 Version 1.0 introduced a complete API redesign with builder patterns, async support, and new macOS features.
