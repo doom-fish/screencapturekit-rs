@@ -1,5 +1,7 @@
 <div align="center">
   <h1>ScreenCaptureKit-rs</h1>
+  <p><strong>Safe, idiomatic Rust bindings for Apple's <a href="https://developer.apple.com/documentation/screencapturekit">ScreenCaptureKit</a> framework.</strong></p>
+  <p>Capture screens, windows, and applications on macOS 12.3+ with high performance and low overhead.</p>
 </div>
 
 <div align="center"><p>
@@ -11,127 +13,158 @@
     <a href="https://github.com/doom-fish/screencapturekit-rs/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/doom-fish/screencapturekit-rs?style=for-the-badge&logo=starship&color=F5E0DC&logoColor=D9E0EE&labelColor=302D41" /></a>
 </p></div>
 
-> **💼 Looking for a hosted desktop recording API?**  
-> Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) - an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
-
-Safe, idiomatic Rust bindings for Apple's [ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit) framework.
-
-Capture screen content, windows, and applications with high performance and low overhead on macOS 12.3+.
-
-
-
-
-## 📑 Table of Contents
-
-- [Features](#-features)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
-- [Key Concepts](#-key-concepts)
-- [Feature Flags](#-feature-flags)
-- [API Overview](#-api-overview)
-- [Examples](#-examples)
-- [Testing](#-testing)
-- [Architecture](#-architecture)
-- [Troubleshooting](#-troubleshooting)
-- [Platform Requirements](#-platform-requirements)
-- [Performance](#-performance)
-- [Contributing](#-contributing)
-- [License](#-license)
-
-## ✨ Features
-
-- 🎥 **Screen & Window Capture** - Capture displays, windows, or specific applications
-- 🔊 **Audio Capture** - Capture system audio and microphone input
-- ⚡ **Real-time Processing** - High-performance frame callbacks with custom dispatch queues
-- 🏗️ **Builder Pattern API** - Clean, type-safe configuration with `::builder()`
-- 🔄 **Async Support** - Runtime-agnostic async API (works with Tokio, async-std, smol, etc.)
-- 🎨 **IOSurface Access** - Zero-copy GPU texture access for Metal/OpenGL
-- 🛡️ **Memory Safe** - Proper reference counting and leak-free by design
-- 📦 **Zero Dependencies** - No runtime dependencies (only dev dependencies for examples)
-
-
+> **💼 Looking for a hosted desktop recording API?** Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) — an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
 
 <https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d>
 
-## 📦 Installation
+---
 
-Add to your `Cargo.toml`:
+## Highlights
+
+- 🎥 **Screen, window, and app capture** with a clean builder-pattern API
+- 🔊 **System audio** + **microphone** capture (macOS 13.0+ / 15.0+)
+- ⚡ **Real-time, zero-copy** frame delivery via `IOSurface` / Metal
+- 🔄 **Async** support that works with any executor (Tokio, async-std, smol, …)
+- 📸 **Screenshots** + **direct-to-file recording** (macOS 14.0+ / 15.0+)
+- 🖱️ **System content picker** UI (macOS 14.0+)
+- 🛡️ **Memory safe** — proper retain/release, leak-tested
+- 📦 **Zero runtime dependencies**
+
+## Table of Contents
+
+- [Install](#install) · [Quick Start](#quick-start) · [Recipes](#recipes)
+- [Feature Flags](#feature-flags) · [Examples](#examples) · [Documentation](#documentation)
+- [Requirements & Permissions](#requirements--permissions) · [Performance](#performance)
+- [Troubleshooting](#troubleshooting) · [Migration](#migration) · [Contributing](#contributing)
+
+---
+
+## Install
 
 ```toml
 [dependencies]
 screencapturekit = "2"
 ```
 
-For async support:
+Opt-in features (additive):
+
+| Feature | Enables |
+|---|---|
+| `async` | Runtime-agnostic async API (Tokio / async-std / smol / …) |
+| `macos_13_0` | Audio capture, sync clock |
+| `macos_14_0` | Screenshots, content picker, content info |
+| `macos_14_2` | Menu bar capture, child windows, presenter overlay |
+| `macos_14_4` | Current-process shareable content |
+| `macos_15_0` | Recording output, HDR capture, microphone |
+| `macos_15_2` | Screenshot in rect, stream active/inactive delegates |
+| `macos_26_0` | Advanced screenshot config, HDR screenshot output |
+
+`macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-[dependencies]
-screencapturekit = { version = "2", features = ["async"] }
-```
-
-For latest macOS features:
-
-```toml
-[dependencies]
-screencapturekit = { version = "2", features = ["macos_26_0"] }
+screencapturekit = { version = "2", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading from 1.x?** See [`docs/MIGRATION.md`](docs/MIGRATION.md#migrating-from-1x-to-20)
-> for the full list of 2.0 breaking changes — most notable are the new
-> `Send + Sync` bound on output / delegate traits, the `#[non_exhaustive]`
-> attribute on `PixelFormat` and `SCStreamErrorCode`, and the new
-> `PixelFormat::Unknown(FourCharCode)` variant for codes the binding does
-> not yet name.
+> — the headline 2.0 changes are a `Send + Sync` bound on output / delegate
+> traits, `#[non_exhaustive]` on `PixelFormat` and `SCStreamErrorCode`, and a
+> new `PixelFormat::Unknown(FourCharCode)` variant.
 
-## 🚀 Quick Start
+## Quick Start
 
-### Basic Screen Capture
+A minimal screen capture in ~25 lines. Everything else builds on these four steps:
+**(1)** list shareable content, **(2)** build a content filter, **(3)** configure
+the stream, **(4)** add an output handler and start.
 
-```rust
+```rust,no_run
 use screencapturekit::prelude::*;
 
 struct Handler;
-
 impl SCStreamOutputTrait for Handler {
-    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _type: SCStreamOutputType) {
-        println!("📹 Received frame at {:?}", sample.presentation_timestamp());
+    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _: SCStreamOutputType) {
+        println!("📹 frame @ {:?}", sample.presentation_timestamp());
     }
 }
 
-// Note: as of 2.0, `SCStreamOutputTrait` (and `SCStreamDelegateTrait`)
-// require `Send + Sync` — handlers run on Apple's dispatch queues and may
-// be invoked concurrently from arbitrary threads.
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Get available displays
     let content = SCShareableContent::get()?;
     let display = &content.displays()[0];
-    
-    // Configure capture
+
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
-    
+
     let config = SCStreamConfiguration::new()
         .with_width(1920)
         .with_height(1080)
         .with_pixel_format(PixelFormat::BGRA);
-    
-    // Start streaming
+
     let mut stream = SCStream::new(&filter, &config);
     stream.add_output_handler(Handler, SCStreamOutputType::Screen);
     stream.start_capture()?;
-    
-    // Capture runs in background...
+
     std::thread::sleep(std::time::Duration::from_secs(5));
-    
     stream.stop_capture()?;
     Ok(())
 }
 ```
 
-### Async Capture
+> Output / delegate handlers must be `Send + Sync` — Apple's dispatch
+> queues may invoke them concurrently from arbitrary threads.
+
+Permission required — see [Requirements & Permissions](#requirements--permissions).
+Run it: `cargo run --example 01_basic_capture`.
+
+## Recipes
+
+Short snippets for the most common follow-on tasks. Every recipe is a runnable
+example in [`examples/`](examples/) — see the [Examples](#examples) table.
+
+<details>
+<summary><strong>Window capture with audio</strong></summary>
+
+```rust,no_run
+use screencapturekit::prelude::*;
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+let content = SCShareableContent::get()?;
+let window = content.windows().into_iter()
+    .find(|w| w.title().as_deref() == Some("Safari"))
+    .ok_or("Safari window not found")?;
+
+let filter = SCContentFilter::create().with_window(&window).build();
+let config = SCStreamConfiguration::new()
+    .with_captures_audio(true)
+    .with_sample_rate(48_000)
+    .with_channel_count(2);
+
+let mut stream = SCStream::new(&filter, &config);
+// stream.add_output_handler(...) for Screen and/or Audio
+stream.start_capture()?;
+# Ok(()) }
+```
+</details>
+
+<details>
+<summary><strong>Closure-based handler (no trait impl needed)</strong></summary>
+
+```rust,no_run
+# use screencapturekit::prelude::*;
+# fn example(stream: &mut SCStream) {
+stream.add_output_handler(
+    |sample: CMSampleBuffer, _of_type: SCStreamOutputType| {
+        println!("📹 frame @ {:?}", sample.presentation_timestamp());
+    },
+    SCStreamOutputType::Screen,
+);
+# }
+```
+
+Closures must be `Fn + Send + Sync + 'static`.
+</details>
+
+<details>
+<summary><strong>Async capture (any executor)</strong></summary>
 
 ```rust,ignore
 use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
@@ -139,299 +172,158 @@ use screencapturekit::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Get content asynchronously
     let content = AsyncSCShareableContent::get().await?;
     let display = &content.displays()[0];
-    
-    // Create filter and config
+
     let filter = SCContentFilter::create()
-        .with_display(display)
-        .with_excluding_windows(&[])
-        .build();
-    
-    let config = SCStreamConfiguration::new()
-        .with_width(1920)
-        .with_height(1080);
-    
-    // Create async stream with frame buffer
+        .with_display(display).with_excluding_windows(&[]).build();
+    let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+
+    // 30-frame ring buffer; oldest frames are dropped if the consumer can't keep up.
     let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
     stream.start_capture()?;
-    
-    // Capture frames asynchronously
-    for _ in 0..10 {
-        if let Some(frame) = stream.next().await {
-            println!("📹 Got frame!");
-        }
+
+    while let Some(_frame) = stream.next().await {
+        // process frame
+        # break;
     }
-    
+
     stream.stop_capture()?;
     Ok(())
 }
 ```
 
-### Window Capture with Audio
+Requires the `async` feature. Works with Tokio, async-std, smol, or any
+custom executor — the binding does **not** spawn its own runtime.
+</details>
+
+<details>
+<summary><strong>Screenshot (macOS 14.0+)</strong></summary>
 
 ```rust,no_run
-use screencapturekit::prelude::*;
+# #[cfg(feature = "macos_14_0")]
+# fn example(
+#     filter: &screencapturekit::stream::content_filter::SCContentFilter,
+#     config: &screencapturekit::stream::configuration::SCStreamConfiguration,
+# ) -> Result<(), Box<dyn std::error::Error>> {
+use screencapturekit::screenshot_manager::SCScreenshotManager;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let content = SCShareableContent::get()?;
-    
-    // Find a specific window
-    let windows = content.windows();
-    let window = windows
-        .iter()
-        .find(|w| w.title().as_deref() == Some("Safari"))
-        .ok_or("Safari window not found")?;
-    
-    // Capture window with audio
-    let filter = SCContentFilter::create()
-        .with_window(window)
-        .build();
-    
-    let config = SCStreamConfiguration::new()
-        .with_width(1920)
-        .with_height(1080)
-        .with_captures_audio(true)
-        .with_sample_rate(48000)
-        .with_channel_count(2);
-    
-    let mut stream = SCStream::new(&filter, &config);
-    // Add handlers...
-    stream.start_capture()?;
-    
-    Ok(())
-}
+let img = SCScreenshotManager::capture_image(filter, config)?;
+let pixels = img.bgra_data()?;            // native BGRA — skips R↔B swap
+// For sustained loops, reuse a buffer:
+// img.bgra_data_into(&mut buffer)?;
+# Ok(()) }
 ```
+</details>
 
-### Content Picker (macOS 14.0+)
-
-Use the system picker UI to let users choose what to capture:
+<details>
+<summary><strong>System content picker (macOS 14.0+)</strong></summary>
 
 ```rust,ignore
 use screencapturekit::content_sharing_picker::*;
 use screencapturekit::prelude::*;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = SCContentSharingPickerConfiguration::new();
-    
-    // Show picker - callback receives result when user selects or cancels
-    SCContentSharingPicker::show(&config, |outcome| {
-        match outcome {
-            SCPickerOutcome::Picked(result) => {
-                // Get dimensions from the picked content
-                let (width, height) = result.pixel_size();
-                println!("Selected: {}x{} (scale: {})", width, height, result.scale());
-                
-                let stream_config = SCStreamConfiguration::new()
-                    .with_width(width)
-                    .with_height(height);
-                
-                // Get filter for streaming
-                let filter = result.filter();
-                let mut stream = SCStream::new(&filter, &stream_config);
-                // ...
-            }
-            SCPickerOutcome::Cancelled => println!("User cancelled"),
-            SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
-        }
-    });
-    
-    Ok(())
-}
-```
-
-### Async Content Picker (macOS 14.0+)
-
-Use the async version in async contexts to avoid blocking:
-
-```rust,ignore
-use screencapturekit::async_api::AsyncSCContentSharingPicker;
-use screencapturekit::content_sharing_picker::*;
-use screencapturekit::prelude::*;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = SCContentSharingPickerConfiguration::new();
-    
-    // Async picker - doesn't block the executor
-    match AsyncSCContentSharingPicker::show(&config).await {
-        SCPickerOutcome::Picked(result) => {
-            let (width, height) = result.pixel_size();
-            println!("Selected: {}x{}", width, height);
-            
-            let filter = result.filter();
-            // Use filter with stream...
-        }
-        SCPickerOutcome::Cancelled => println!("User cancelled"),
-        SCPickerOutcome::Error(e) => eprintln!("Error: {}", e),
+let config = SCContentSharingPickerConfiguration::new();
+SCContentSharingPicker::show(&config, |outcome| match outcome {
+    SCPickerOutcome::Picked(result) => {
+        let (w, h) = result.pixel_size();
+        let filter = result.filter();
+        // Use `filter` with SCStream as in the Quick Start.
+        let _ = (w, h, filter);
     }
-    
-    Ok(())
-}
+    SCPickerOutcome::Cancelled => println!("user cancelled"),
+    SCPickerOutcome::Error(e)  => eprintln!("picker error: {e}"),
+});
 ```
 
-## 🎯 Key Concepts
+For async contexts, use [`AsyncSCContentSharingPicker::show`].
+</details>
 
-### Builder Pattern
+<details>
+<summary><strong>Direct-to-file recording (macOS 15.0+)</strong></summary>
 
-All types use a consistent `::new()` with `.with_*()` chainable methods pattern:
+See [`examples/10_recording_output.rs`](examples/10_recording_output.rs) — it
+covers `SCRecordingOutput`, `SCRecordingOutputConfiguration`, and the
+delegate callbacks for start / finish / error.
+</details>
 
-```rust,ignore
-// Stream configuration
-let config = SCStreamConfiguration::new()
-    .with_width(1920)
-    .with_height(1080)
-    .with_pixel_format(PixelFormat::BGRA)
-    .with_captures_audio(true);
+<details>
+<summary><strong>Custom dispatch queue / QoS</strong></summary>
 
-// Content retrieval options
-let content = SCShareableContent::create()
-    .with_on_screen_windows_only(true)
-    .with_exclude_desktop_windows(true)
-    .get()?;
-
-// Content filters
-let filter = SCContentFilter::create()
-    .with_display(&display)
-    .with_excluding_windows(&windows)
-    .build();
-```
-
-### Custom Dispatch Queues
-
-Control callback threading with custom dispatch queues:
-
-```rust,ignore
+```rust,no_run
 use screencapturekit::prelude::*;
 use screencapturekit::dispatch_queue::{DispatchQueue, DispatchQoS};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let content = SCShareableContent::get()?;
-    let display = content.displays().into_iter().next().unwrap();
-    let filter = SCContentFilter::create()
-        .with_display(&display)
-        .with_excluding_windows(&[])
-        .build();
-    let config = SCStreamConfiguration::new();
-    
-    let mut stream = SCStream::new(&filter, &config);
-    
-    let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
-    
-    stream.add_output_handler_with_queue(
-        |_sample: CMSampleBuffer, _of_type: SCStreamOutputType| { /* process frame */ },
-        SCStreamOutputType::Screen,
-        Some(&queue)
-    );
-    
-    Ok(())
-}
+# fn example(stream: &mut SCStream) {
+let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
+stream.add_output_handler_with_queue(
+    |_sample, _of_type| { /* runs on `queue` */ },
+    SCStreamOutputType::Screen,
+    Some(&queue),
+);
+# }
 ```
 
-**Quality of Service Levels:**
-- `Background` - Maintenance tasks
-- `Utility` - Long-running tasks
-- `Default` - Standard priority
-- `UserInitiated` - User-initiated tasks
-- `UserInteractive` - UI updates (highest priority)
+`QoS` levels: `Background`, `Utility`, `Default`, `UserInitiated`, `UserInteractive` (Quality of Service).
+</details>
 
-### IOSurface Access
-
-Zero-copy GPU texture access:
+<details>
+<summary><strong>Zero-copy GPU access (IOSurface → Metal / wgpu)</strong></summary>
 
 ```rust,no_run
 use screencapturekit::prelude::*;
-
-struct Handler;
-
-impl SCStreamOutputTrait for Handler {
-    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _of_type: SCStreamOutputType) {
-        if let Some(pixel_buffer) = sample.image_buffer() {
-            if let Some(surface) = pixel_buffer.io_surface() {
-                let width = surface.width();
-                let height = surface.height();
-                
-                // Use with Metal/OpenGL...
-                println!("IOSurface: {}x{}", width, height);
+struct H;
+impl SCStreamOutputTrait for H {
+    fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _: SCStreamOutputType) {
+        if let Some(pb) = sample.image_buffer() {
+            if let Some(surface) = pb.io_surface() {
+                let _ = (surface.width(), surface.height());
+                // Wrap as `MTLTexture` (see examples 17/18) — no copy.
             }
         }
     }
 }
 ```
 
-### Metal Integration
+Built-in Metal helpers live in `screencapturekit::metal` and ship a small
+shader library (`SHADER_SOURCE`) covering BGRA, YCbCr, and UI overlay
+rendering. See [`examples/16_full_metal_app/`](examples/16_full_metal_app/)
+for a complete app and [`examples/18_wgpu_integration.rs`](examples/18_wgpu_integration.rs)
+for the wgpu equivalent.
+</details>
 
-Built-in Metal types for hardware-accelerated rendering without external crates:
+[`AsyncSCContentSharingPicker::show`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/async_api/struct.AsyncSCContentSharingPicker.html
 
-```rust,no_run
-use screencapturekit::prelude::*;
-use screencapturekit::metal::{
-    MetalDevice, MetalRenderPassDescriptor, MetalRenderPipelineDescriptor,
-    MTLLoadAction, MTLStoreAction, MTLPrimitiveType, MTLPixelFormat,
-    Uniforms, SHADER_SOURCE,
-};
+## Examples
 
-// Get the system default Metal device
-let device = MetalDevice::system_default().expect("No Metal device");
-let command_queue = device.create_command_queue().unwrap();
+23 runnable examples cover every API surface. The full table with feature
+requirements lives in [`examples/README.md`](examples/README.md). A few
+favourites to start with:
 
-// Compile built-in shaders (supports BGRA, YCbCr, UI overlays)
-let library = device.create_library_with_source(SHADER_SOURCE).unwrap();
+| Example | What it shows |
+|---|---|
+| [`01_basic_capture`](examples/01_basic_capture.rs) | Minimal screen capture — start here |
+| [`08_async`](examples/08_async.rs) | Async API, picker, runtime-agnostic patterns |
+| [`09_closure_handlers`](examples/09_closure_handlers.rs) | Closures + delegate callbacks |
+| [`10_recording_output`](examples/10_recording_output.rs) | Direct-to-file recording (macOS 15.0+) |
+| [`11_content_picker`](examples/11_content_picker.rs) | System picker UI (macOS 14.0+) |
+| [`16_full_metal_app/`](examples/16_full_metal_app/) | Full Metal viewer app (macOS 14.0+) |
+| [`18_wgpu_integration`](examples/18_wgpu_integration.rs) | Zero-copy wgpu integration |
+| [`19_ffmpeg_encoding`](examples/19_ffmpeg_encoding.rs) | Real-time H.264 via ffmpeg |
+| [`24_batched_apis_showcase`](examples/24_batched_apis_showcase.rs) | Batched FFI vs per-element (perf) |
 
-// Create render pipeline for textured rendering
-let vert_fn = library.get_function("vertex_fullscreen").unwrap();
-let frag_fn = library.get_function("fragment_textured").unwrap();
-let pipeline_desc = MetalRenderPipelineDescriptor::new();
-pipeline_desc.set_vertex_function(&vert_fn);
-pipeline_desc.set_fragment_function(&frag_fn);
-pipeline_desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
-let _pipeline = device.create_render_pipeline_state(&pipeline_desc).unwrap();
+```bash
+cargo run --example 01_basic_capture
+cargo run --example 10_recording_output --features macos_15_0
+cargo run --example 08_async            --features "async,macos_14_0"
 ```
 
-**Built-in Shader Functions:**
-- `vertex_fullscreen` - Aspect-ratio-preserving fullscreen quad
-- `fragment_textured` - BGRA/L10R single-texture rendering
-- `fragment_ycbcr` - YCbCr biplanar (420v/420f) to RGB conversion
-- `vertex_colored` / `fragment_colored` - UI overlay rendering
+## Feature Flags
 
-**Metal Types:**
-- `MetalDevice`, `MetalCommandQueue`, `MetalCommandBuffer`
-- `MetalTexture`, `MetalBuffer`, `MetalLayer`, `MetalDrawable`
-- `MetalRenderPipelineState`, `MetalRenderPassDescriptor`
-- `CapturedTextures<T>` - Multi-plane texture container (Y + `CbCr` for `YCbCr` formats)
-
-## 🎛️ Feature Flags
-
-### Core Features
-
-| Feature | Description |
-|---------|-------------|
-| `async` | Runtime-agnostic async API (works with any executor) |
-
-### macOS Version Features
-
-Feature flags enable APIs for specific macOS versions. They are cumulative (enabling `macos_15_0` enables all earlier versions).
-
-| Feature | macOS | APIs Enabled |
-|---------|-------|--------------|
-| `macos_13_0` | 13.0 Ventura | Audio capture, synchronization clock |
-| `macos_14_0` | 14.0 Sonoma | Content picker, screenshots, content info |
-| `macos_14_2` | 14.2 | Menu bar capture, child windows, presenter overlay |
-| `macos_14_4` | 14.4 | Current process shareable content |
-| `macos_15_0` | 15.0 Sequoia | Recording output, HDR capture, microphone |
-| `macos_15_2` | 15.2 | Screenshot in rect, stream active/inactive delegates |
-| `macos_26_0` | 26.0 | Advanced screenshot config, HDR screenshot output |
-
-### Version-Specific Example
+See the full feature table under [Install](#install). One small example of
+gating version-specific options:
 
 ```rust,ignore
-let mut config = SCStreamConfiguration::new()
-    .with_width(1920)
-    .with_height(1080);
-
-#[cfg(feature = "macos_13_0")]
-config.set_should_be_opaque(true);
+let mut config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 
 #[cfg(feature = "macos_14_2")]
 {
@@ -440,450 +332,165 @@ config.set_should_be_opaque(true);
 }
 ```
 
-## 📚 API Overview
+## Documentation
 
-### Core Types
+| Where | What |
+|---|---|
+| [docs.rs](https://docs.rs/screencapturekit) | Full API reference |
+| [`docs/MIGRATION.md`](docs/MIGRATION.md) | Upgrading between major versions |
+| [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) | Benchmark methodology + results |
+| [`examples/README.md`](examples/README.md) | All 23 examples + feature requirements |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release notes |
 
-| Type | Description |
-|------|-------------|
-| [`SCShareableContent`] | Query available displays, windows, and applications |
-| [`SCContentFilter`] | Define what to capture (display/window/app) |
-| [`SCStreamConfiguration`] | Configure resolution, format, audio, etc. |
-| [`SCStream`] | Main capture stream with output handlers |
-| [`CMSampleBuffer`] | Frame data with timing and metadata |
+## Requirements & Permissions
 
-[`SCShareableContent`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/shareable_content/struct.SCShareableContent.html
-[`SCContentFilter`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/stream/content_filter/struct.SCContentFilter.html
-[`SCStreamConfiguration`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/stream/configuration/struct.SCStreamConfiguration.html
-[`SCStream`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/stream/sc_stream/struct.SCStream.html
-[`CMSampleBuffer`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/cm/struct.CMSampleBuffer.html
+- **macOS 12.3+** (Monterey) — base `ScreenCaptureKit`
+- **macOS 13.0+** — audio capture · **14.0+** — picker / screenshots ·
+  **15.0+** — recording / HDR / mic · **26.0+** — advanced screenshots
+- **Xcode Command Line Tools** at build time (`xcode-select --install`)
 
-### Async API (requires `async` feature)
+Screen capture **always requires user permission**. To grant it:
 
-| Type | Description |
-|------|-------------|
-| `AsyncSCShareableContent` | Async content queries |
-| `AsyncSCStream` | Async stream with frame iteration |
-| `AsyncSCScreenshotManager` | Async screenshot capture (macOS 14.0+) |
-| `AsyncSCContentSharingPicker` | Async content picker UI (macOS 14.0+) |
+1. **System Settings → Privacy & Security → Screen Recording**
+2. Enable your binary (during development this is usually your terminal or IDE)
+3. Restart the app
 
-### Display & Window Types
-
-| Type | Description |
-|------|-------------|
-| `SCDisplay` | Display information (resolution, ID, frame) |
-| `SCWindow` | Window information (title, bounds, owner, layer) |
-| `SCRunningApplication` | Application information (name, bundle ID, PID) |
-| `ContentSnapshot` | Plain-data batch of all displays, windows, applications (one FFI round-trip) |
-| `AudioInputDevice` | Microphone enumeration via `AVFoundation` (used with `with_microphone_capture_device_id`) |
-
-### Media Types
-
-| Type | Description |
-|------|-------------|
-| `CMSampleBuffer` | Sample buffer with timing and attachments |
-| `CMTime` | High-precision timestamps with timescale |
-| `IOSurface` | GPU-backed pixel buffers for zero-copy access |
-| `CGImage` | Core Graphics images for screenshots |
-| `CVPixelBuffer` | Core Video pixel buffer with lock guards |
-
-### Metal Types (`metal` module)
-
-| Type | Description |
-|------|-------------|
-| `MetalDevice` | Metal GPU device wrapper |
-| `MetalTexture` | Metal texture with automatic retain/release |
-| `MetalBuffer` | Vertex/uniform buffer |
-| `MetalCommandQueue` / `MetalCommandBuffer` | Command submission |
-| `MetalLayer` | `CAMetalLayer` for window rendering |
-| `MetalRenderPipelineState` | Compiled render pipeline |
-| `CapturedTextures<T>` | Multi-plane texture container (Y + `CbCr` for `YCbCr`) |
-| `Uniforms` | Shader uniform structure matching `SHADER_SOURCE` |
-
-### Configuration Types
-
-| Type | Description |
-|------|-------------|
-| `PixelFormat` | BGRA, `YCbCr420v`, `YCbCr420f`, l10r (10-bit), `Unknown(FourCharCode)` for forward-compat |
-| `FourCharCode` | Apple OSType four-char code helper used by `PixelFormat::Unknown` |
-| `SCPresenterOverlayAlertSetting` | Privacy alert behavior |
-| `SCCaptureDynamicRange` | HDR/SDR modes (macOS 15.0+) |
-| `SCScreenshotConfiguration` | Advanced screenshot config (macOS 26.0+) |
-| `SCScreenshotDynamicRange` | SDR/HDR screenshot output (macOS 26.0+) |
-
-> **2.0 note:** `PixelFormat` and `SCStreamErrorCode` are `#[non_exhaustive]`.
-> `match` arms over either of them must include a wildcard `_ => …` arm.
-
-## 🏃 Examples
-
-The [`examples/`](examples/) directory contains focused API demonstrations:
-
-### Quick Start (Numbered by Complexity)
-1. **`01_basic_capture.rs`** - Simplest screen capture
-2. **`02_window_capture.rs`** - Capture specific windows
-3. **`03_audio_capture.rs`** - Audio + video capture
-4. **`04_pixel_access.rs`** - Read pixel data with `std::io::Cursor`
-5. **`05_screenshot.rs`** - Single screenshot, HDR capture (macOS 14.0+, 26.0+)
-6. **`06_iosurface.rs`** - Zero-copy GPU buffers
-7. **`07_list_content.rs`** - List available content
-8. **`08_async.rs`** - Async/await API with multiple examples
-9. **`09_closure_handlers.rs`** - Closure-based handlers and delegates
-10. **`10_recording_output.rs`** - Direct video file recording (macOS 15.0+)
-11. **`11_content_picker.rs`** - System UI for content selection (macOS 14.0+)
-12. **`12_stream_updates.rs`** - Dynamic config/filter updates
-13. **`13_advanced_config.rs`** - HDR, presets, microphone (macOS 15.0+)
-14. **`14_app_capture.rs`** - Application-based filtering
-15. **`15_memory_leak_check.rs`** - Memory leak detection with `leaks`
-16. **`16_full_metal_app/`** - Full Metal GUI application (macOS 14.0+)
-17. **`17_metal_textures.rs`** - Metal texture creation from `IOSurface`
-18. **`18_wgpu_integration.rs`** - Zero-copy wgpu integration
-19. **`19_ffmpeg_encoding.rs`** - Real-time H.264 encoding via `FFmpeg`
-20. **`20_egui_viewer.rs`** - egui screen viewer integration
-21. **`21_bevy_streaming.rs`** - Bevy texture streaming
-22. **`22_tauri_app/`** - Tauri 2.0 desktop app with WebGL (macOS 14.0+)
-23. **`23_client_server/`** - Client/server screen sharing
-
-See [`examples/README.md`](examples/README.md) for detailed descriptions.
-
-Run an example:
-
-```bash
-# Basic examples
-cargo run --example 01_basic_capture
-cargo run --example 09_closure_handlers
-cargo run --example 12_stream_updates
-cargo run --example 14_app_capture
-cargo run --example 17_metal_textures
-cargo run --example 18_wgpu_integration
-cargo run --example 19_ffmpeg_encoding  # Requires: brew install ffmpeg
-cargo run --example 20_egui_viewer
-cargo run --example 21_bevy_streaming
-
-# Feature-gated examples
-cargo run --example 05_screenshot --features macos_14_0
-cargo run --example 08_async --features async
-cargo run --example 10_recording_output --features macos_15_0
-cargo run --example 11_content_picker --features macos_14_0
-cargo run --example 13_advanced_config --features macos_15_0
-cargo run --example 16_full_metal_app --features macos_14_0
-
-# Tauri app (separate project)
-cd examples/22_tauri_app && npm install && npm run tauri dev
-
-# Client/server screen sharing
-cargo run --example 23_client_server_server  # Terminal 1
-cargo run --example 23_client_server_client  # Terminal 2
-```
-
-## 🧪 Testing
-
-### Run Tests
-
-```bash
-# All tests
-cargo test
-
-# With features
-cargo test --features async
-cargo test --all-features
-
-# Specific test
-cargo test test_stream_configuration
-```
-
-### Linting
-
-```bash
-cargo clippy --all-features -- -D warnings
-cargo fmt --check
-```
-
-## 🏗️ Architecture
-
-### Module Organization
-
-```text
-screencapturekit/
-├── cm/                     # Core Media (CMSampleBuffer, CMTime, IOSurface)
-├── cv/                     # Core Video (CVPixelBuffer, CVPixelBufferPool)
-├── cg/                     # Core Graphics (CGRect, CGPoint, CGSize)
-├── metal/                  # Metal GPU integration (textures, shaders)
-├── stream/                 # Stream management
-│   ├── configuration/      # SCStreamConfiguration
-│   ├── content_filter/     # SCContentFilter
-│   └── sc_stream/          # SCStream
-├── shareable_content/      # SCShareableContent, SCDisplay, SCWindow
-├── dispatch_queue/         # Custom dispatch queues
-├── error/                  # Error types
-├── screenshot_manager/     # SCScreenshotManager (macOS 14.0+)
-├── content_sharing_picker/ # SCContentSharingPicker (macOS 14.0+)
-├── recording_output/       # SCRecordingOutput (macOS 15.0+)
-├── async_api/              # Async wrappers (feature = "async")
-├── utils/                  # FFI strings, FourCharCode utilities
-└── prelude/                # Convenience re-exports
-```
-
-### Memory Management
-
-- **Reference Counting** - Proper CFRetain/CFRelease for all CoreFoundation types
-- **RAII** - Automatic cleanup in Drop implementations
-- **Thread Safety** - Safe to share across threads (where supported)
-- **Leak Free** - Comprehensive leak tests ensure no memory leaks
-
-## ❓ Troubleshooting
-
-### Permission Denied / No Displays Found
-
-**Problem**: `SCShareableContent::get()` returns an error or empty lists.
-
-**Solution**: Grant screen recording permission:
-1. Open **System Preferences** → **Privacy & Security** → **Screen Recording**
-2. Add your app or Terminal to the list
-3. Restart your application
-
-For development, you may need to add Terminal.app to the allowed list.
-
-### Entitlements for App Store / Notarization
-
-**Problem**: App crashes or permissions fail after notarization.
-
-**Solution**: Add required entitlements to your `entitlements.plist`:
+For distribution, add `NSScreenCaptureUsageDescription` to `Info.plist` and the
+appropriate entitlements:
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>com.apple.security.app-sandbox</key>
-    <true/>
-    <key>com.apple.security.screen-capture</key>
-    <true/>
-</dict>
-</plist>
+<key>com.apple.security.app-sandbox</key>      <true/>
+<key>com.apple.security.screen-capture</key>   <true/>
 ```
 
-### Black Frames / No Video Data
+## Performance
 
-**Problem**: Frames are received but contain no visible content.
+Full capture (60 fps + 48 kHz stereo) costs **~1.9% of one core** end-to-end
+on Apple Silicon — the binding itself is below the noise floor of a 4 kHz
+sampling profiler; nearly all CPU lives in Apple's `SkyLight` /
+`libdispatch` / `libxpc` pipeline.
 
-**Solutions**:
-1. Ensure the captured window/display is visible (not minimized)
-2. Check that `pixel_format` matches your processing expectations
-3. Verify the content filter includes the correct display/window
-4. On Apple Silicon, ensure proper GPU access
+| Resolution | Expected FPS | First-frame latency |
+|---|---|---|
+| 1080p | 30–60 | 30–100 ms |
+| 4K | 15–30 | 50–150 ms |
 
-### Audio Capture Not Working
+**Hot-path tips:**
 
-**Problem**: Audio samples not received or empty.
-
-**Solutions**:
-1. Enable audio capture: `.with_captures_audio(true)`
-2. Add an audio output handler: `stream.add_output_handler(handler, SCStreamOutputType::Audio)`
-3. Verify `sample_rate` and `channel_count` are set correctly
-
-### Build Errors
-
-**Problem**: Compilation fails with Swift bridge errors.
-
-**Solutions**:
-1. Ensure Xcode Command Line Tools are installed: `xcode-select --install`
-2. Clean and rebuild: `cargo clean && cargo build`
-3. Check that you're on macOS (this crate is macOS-only)
-
-## 🔧 Platform Requirements
-
-- **macOS 12.3+** (Monterey) - Base `ScreenCaptureKit` support
-- **macOS 13.0+** (Ventura) - Audio capture, synchronization clock
-- **macOS 14.0+** (Sonoma) - Content picker, screenshots, content info
-- **macOS 15.0+** (Sequoia) - Recording output, HDR capture, microphone
-- **macOS 26.0+** (Tahoe) - Advanced screenshot config, HDR screenshot output
-
-### Screen Recording Permission
-
-Screen recording requires explicit user permission. For development:
-- Terminal/IDE must be in **System Preferences** → **Privacy & Security** → **Screen Recording**
-
-For distribution:
-- Add `NSScreenCaptureUsageDescription` to your `Info.plist`
-- Sign with appropriate entitlements for notarization
-
-## ⚡ Performance
-
-Run benchmarks to measure performance on your hardware:
-
-```bash
-cargo bench
-cargo bench --bench hotspots --features macos_14_0   # targeted hotspot benches
-```
-
-See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for detailed benchmark documentation including:
-- API overhead measurements
-- Frame throughput at various resolutions
-- First-frame latency
-- Pixel buffer and `IOSurface` access patterns
-- Optimization tips for latency, throughput, and memory
-
-### Typical Performance (Apple Silicon)
-
-| Resolution | Expected FPS | First Frame Latency |
-|------------|--------------|---------------------|
-| 1080p | 30-60 FPS | 30-100ms |
-| 4K | 15-30 FPS | 50-150ms |
-
-A full audio + video capture (60 fps + 48 kHz stereo) costs **~1.9% of one core** end-to-end on M-series Mac, with the Rust binding code below the noise floor of a 4 kHz sampling profiler — virtually all of the cost is Apple's own `SkyLight` + `libdispatch` + `libxpc` pipeline.
-
-### Batched APIs (read every attribute in one FFI round-trip)
-
-When iterating many windows / displays / applications, prefer the batched
-APIs over the per-element accessor pattern — they collapse `1 + N + 6N`
-FFI calls to one round-trip per category and are ~2× faster on a typical
-desktop:
+- Prefer `BGRA` to skip the per-pixel R↔B swap when uploading to Metal /
+  wgpu / ffmpeg (`SCScreenshotManager::bgra_data` is ~5% faster than `rgba_data`).
+- Reuse a `Vec<u8>` across screenshots with the `*_data_into` variants
+  (saves a ~33 MB allocation per 4K frame — new in 2.1).
+- When iterating many windows / displays / apps, use the batched
+  [`SCShareableContent::snapshot()`](https://doom-fish.github.io/screencapturekit-rs/screencapturekit/shareable_content/struct.SCShareableContent.html)
+  API — collapses `1 + N + 6N` FFI calls into one round-trip per category
+  (~2× faster on a typical desktop).
+- Read every `SCStreamFrameInfo` attachment in one cast via
+  `CMSampleBuffer::frame_info()`.
 
 ```rust,no_run
 use screencapturekit::prelude::*;
 use screencapturekit::shareable_content::ContentSnapshot;
-
 # fn example() -> Result<(), Box<dyn std::error::Error>> {
 let content = SCShareableContent::get()?;
-
-// One batched FFI per category — every display + window + app + attrs.
-let ContentSnapshot { displays, windows, applications } = content
-    .snapshot()
-    .ok_or("snapshot failed")?;
-
+let ContentSnapshot { displays, windows, applications } =
+    content.snapshot().ok_or("snapshot failed")?;
 for w in &windows {
     let app = w.owning_app_index.and_then(|i| applications.get(i));
     println!("{} - {}", app.map(|a| &*a.application_name).unwrap_or(""),
              w.title.as_deref().unwrap_or(""));
 }
-# Ok(())
-# }
+# let _ = displays;
+# Ok(()) }
 ```
 
-Same idea on a video sample buffer — read every attachment in one CF→Swift
-bridge cast instead of one cast per attribute (this includes the new-in-2.0
-`presenter_overlay_content_rect` field for Presenter Overlay layouts):
+Run benchmarks on your hardware:
 
-```rust,no_run
-# use screencapturekit::cm::CMSampleBuffer;
-# fn example(sample: &CMSampleBuffer) {
-if let Some(info) = sample.frame_info() {
-    println!("status={:?} time={:?} content={:?} overlay={:?}",
-             info.frame_status, info.display_time, info.content_rect,
-             info.presenter_overlay_content_rect);
-}
-# }
+```bash
+cargo bench
+cargo bench --bench hotspots --features macos_14_0
 ```
 
-For screenshot decoding, `bgra_data()` returns the source pixel layout
-directly, skipping the per-pixel R↔B swap that `rgba_data()` performs
-inside `CGContext.draw`. Use it when uploading to Metal / wgpu / ffmpeg
-which all accept BGRA natively:
+See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology, throughput
+numbers at various resolutions, and tuning guidance.
 
-```rust,no_run
-# #[cfg(feature = "macos_14_0")]
-# fn example(
-#     filter: &screencapturekit::stream::content_filter::SCContentFilter,
-#     config: &screencapturekit::stream::configuration::SCStreamConfiguration,
-# ) -> Result<(), Box<dyn std::error::Error>> {
-use screencapturekit::screenshot_manager::SCScreenshotManager;
-let img = SCScreenshotManager::capture_image(filter, config)?;
-let pixels = img.bgra_data()?;   // ~5% faster than rgba_data() at 1080p
-# Ok(())
-# }
-```
+## Troubleshooting
 
-For sustained screenshot loops, the new (2.1+) `*_data_into` variants
-write into a caller-supplied buffer so you only pay the
-`width × height × 4` byte allocation once instead of per frame
-(~33 MB / call at 4K):
+| Symptom | Likely cause / fix |
+|---|---|
+| `SCShareableContent::get()` returns empty / errors | Missing **Screen Recording** permission — grant it in System Settings, then restart |
+| Black / empty frames | Captured window minimized; pixel format mismatch; filter doesn't include the right display/window |
+| No audio samples | Did you set `.with_captures_audio(true)` **and** add a handler for `SCStreamOutputType::Audio`? |
+| Build fails with Swift bridge errors | `xcode-select --install`; then `cargo clean && cargo build` |
+| App crashes after notarization | Add the `screen-capture` entitlement (see [Requirements](#requirements--permissions)) |
+| `match` on `PixelFormat` / `SCStreamErrorCode` no longer compiles | Both are `#[non_exhaustive]` in 2.0 — add a wildcard `_ => …` arm |
 
-```rust,no_run
-# #[cfg(feature = "macos_14_0")]
-# fn example(
-#     filter: &screencapturekit::stream::content_filter::SCContentFilter,
-#     config: &screencapturekit::stream::configuration::SCStreamConfiguration,
-# ) -> Result<(), Box<dyn std::error::Error>> {
-use screencapturekit::screenshot_manager::SCScreenshotManager;
-let mut buffer: Vec<u8> = vec![0; 1920 * 1080 * 4];
-for _ in 0..100 {
-    let img = SCScreenshotManager::capture_image(filter, config)?;
-    img.bgra_data_into(&mut buffer)?;     // reuse the same allocation
-    // ... process `buffer` ...
-}
-# Ok(())
-# }
-```
+## Migration
 
-See [`examples/24_batched_apis_showcase.rs`](examples/24_batched_apis_showcase.rs)
-for a side-by-side comparison that benchmarks all three APIs against the
-legacy per-element pattern on your machine.
+Upgrading? See [`docs/MIGRATION.md`](docs/MIGRATION.md) for the full guide.
+The 2.0 highlights:
 
-## 🔄 Migration
-
-Upgrading from an older version? See [`docs/MIGRATION.md`](docs/MIGRATION.md) for:
-- API changes between versions (including the **1.x → 2.0** upgrade path)
-- Code examples for common migrations
-- Deprecated API replacements
-
-**Highlights of 2.0 breaking changes:**
-- `SCStreamOutputTrait` and `SCStreamDelegateTrait` now require `Send + Sync`
-- `PixelFormat` is `#[non_exhaustive]` and gained a `Unknown(FourCharCode)` variant
+- `SCStreamOutputTrait` / `SCStreamDelegateTrait` (and closure overloads)
+  now require `Send + Sync`
+- `PixelFormat` is `#[non_exhaustive]` and gained `Unknown(FourCharCode)`
+  for forward-compat with future Apple pixel formats
 - `SCStreamErrorCode` is `#[non_exhaustive]`
-- `PartialEq` / `Hash` for `PixelFormat` now normalise through `FourCharCode`
-- Every `macos_*` Cargo feature now propagates to the Swift bridge build (build will fail loudly if SDK detection fails)
+- `PixelFormat`'s `PartialEq` / `Hash` are normalised through `FourCharCode`
+- Every `macos_*` Cargo feature now propagates to the Swift bridge build
+  (the build fails loudly on SDK detection failure rather than silently
+  dropping symbols)
 
-## 🤝 Contributing
+2.1 added the `bgra_data_into` / `rgba_data_into` buffer-reuse APIs and a
+native-BGRA fast path on `SCScreenshotManager` — both are non-breaking.
+
+## Contributing
 
 Contributions welcome! Please:
 
-1. Follow existing code patterns (builder pattern with `::new()` and `.with_*()` methods)
+1. Follow existing patterns — builder pattern with `::new()` and `.with_*()`
 2. Add tests for new functionality
-3. Run `cargo test` and `cargo clippy`
-4. Update documentation
+3. `cargo fmt && cargo clippy --all-features -- -D warnings && cargo test`
+4. Update docs and `CHANGELOG.md`
 
-## 🚀 Used By
+See `CLAUDE.md` / `AGENTS.md` for the project conventions agents follow.
 
-This crate powers 50+ open-source projects across screen recording, AI agents, meeting transcription, and remote desktop. A few highlights:
+## Used By
 
-### Featured projects
+Powering 50+ open-source projects across screen recording, AI agents,
+meeting transcription, and remote desktop. A few highlights:
 
-- **[AFFiNE](https://github.com/toeverything/AFFiNE)** — Next-gen knowledge base, alternative to Notion and Miro (68k+ ⭐)
-- **[voicebox](https://github.com/jamiepine/voicebox)** — Open-source AI voice studio: clone, dictate, create (25k+ ⭐)
-- **[Cap](https://github.com/CapSoftware/Cap)** — Open-source Loom alternative for beautiful screen recordings (19k+ ⭐)
-- **[Observer](https://github.com/Roy3838/Observer)** — Local AI screen observer (1.4k+ ⭐)
-- **[my-translator](https://github.com/phuc-nt/my-translator)** — Real-time speech translation for macOS & Windows (1k+ ⭐)
-- **[open-agent](https://github.com/AFK-surf/open-agent)** — Open-source alternative to Claude Agent SDK / ChatGPT Agents / Manus
-- **[watson.ai](https://github.com/LatentDream/watson.ai)** — Meeting recorder and summarizer
-- **[harana/search](https://github.com/harana/search)** — Search everything, instantly
-- **[agent-native](https://github.com/BuilderIO/agent-native)** — Framework for building agent-native applications (by Builder.io)
-- **[hylarana](https://github.com/mycrl/hylarana)** — Cross-platform screen casting in Rust
+- **[AFFiNE](https://github.com/toeverything/AFFiNE)** — knowledge base, Notion / Miro alternative (68k+ ⭐)
+- **[voicebox](https://github.com/jamiepine/voicebox)** — open-source AI voice studio (25k+ ⭐)
+- **[Cap](https://github.com/CapSoftware/Cap)** — open-source Loom alternative (19k+ ⭐)
+- **[Observer](https://github.com/Roy3838/Observer)** — local AI screen observer (1.4k+ ⭐)
+- **[my-translator](https://github.com/phuc-nt/my-translator)** — real-time speech translation (1k+ ⭐)
+- **[hylarana](https://github.com/mycrl/hylarana)** — cross-platform screen casting in Rust
+- **[gst-screencapturekit](https://github.com/doom-fish/gst-screencapturekit)** — `GStreamer` plugin
+- **[open-agent](https://github.com/AFK-surf/open-agent)**, **[watson.ai](https://github.com/LatentDream/watson.ai)**, **[harana/search](https://github.com/harana/search)**, **[agent-native](https://github.com/BuilderIO/agent-native)** by Builder.io
 
-### Also used by
+<details>
+<summary>And many more…</summary>
 
-[fl_caption](https://github.com/xkeyC/fl_caption), [Lycoris](https://github.com/solaoi/lycoris), [Hindsight](https://github.com/Tomotsugu-dev/Hindsight), [kivio](https://github.com/ZMGID/kivio), [Drift](https://github.com/diiviikk5/Drift), [Phantom](https://github.com/zruss11/Phantom), [ruhear](https://github.com/aizcutei/ruhear), [Tab5-Screen-Streamer](https://github.com/Hiroki-Kawakami/Tab5-Screen-Streamer), [macloop](https://github.com/kemsta/macloop), [beer](https://github.com/alii/beer), [phantom-ear](https://github.com/fomyio/phantom-ear), [Logia](https://github.com/daschinmoy21/Logia), [VibeTube](https://github.com/VibeCreAI/VibeTube), [silly-ai](https://github.com/zz85/silly-ai), [aresampler](https://github.com/adnissen/aresampler), [xos](https://github.com/xlateai/xos), [scriberr-desktop](https://github.com/rishikanthc/scriberr-desktop), [echonote](https://github.com/luismctech/echonote), [zest-wallpaper](https://github.com/lgcenen/zest-wallpaper), [mira](https://github.com/fluffypony/mira), [overlay-ai](https://github.com/VishnuVVR-369/overlay-ai), [open-rec](https://github.com/TommyBez/open-rec), [omnirec](https://github.com/omnirec/omnirec), [oxiremote](https://github.com/nhtera/oxiremote), [LocalWhisper](https://github.com/ly7erg1c/LocalWhisper), [Hush](https://github.com/khawkins98/Hush), [cocuyo](https://github.com/jorgeajimenezl/cocuyo), [openhush](https://github.com/claymore666/openhush), [tucknotes](https://github.com/ajgagnon/tucknotes), [domino](https://github.com/nitinm21/domino), [bridge](https://github.com/maorinka/bridge), [screen-recorder](https://github.com/forfd8960/screen-recorder), [orbit](https://github.com/divesh-balani/orbit), [audio-capture](https://github.com/birdieHyun/audio-capture), [AFFiNE-teto](https://github.com/shrik450/AFFiNE-teto), [loom](https://github.com/rkendel1/loom), and the [gst-screencapturekit](https://github.com/doom-fish/gst-screencapturekit) GStreamer plugin.
+[fl_caption](https://github.com/xkeyC/fl_caption), [Lycoris](https://github.com/solaoi/lycoris), [Hindsight](https://github.com/Tomotsugu-dev/Hindsight), [kivio](https://github.com/ZMGID/kivio), [Drift](https://github.com/diiviikk5/Drift), [Phantom](https://github.com/zruss11/Phantom), [ruhear](https://github.com/aizcutei/ruhear), [Tab5-Screen-Streamer](https://github.com/Hiroki-Kawakami/Tab5-Screen-Streamer), [macloop](https://github.com/kemsta/macloop), [beer](https://github.com/alii/beer), [phantom-ear](https://github.com/fomyio/phantom-ear), [Logia](https://github.com/daschinmoy21/Logia), [VibeTube](https://github.com/VibeCreAI/VibeTube), [silly-ai](https://github.com/zz85/silly-ai), [aresampler](https://github.com/adnissen/aresampler), [xos](https://github.com/xlateai/xos), [scriberr-desktop](https://github.com/rishikanthc/scriberr-desktop), [echonote](https://github.com/luismctech/echonote), [zest-wallpaper](https://github.com/lgcenen/zest-wallpaper), [mira](https://github.com/fluffypony/mira), [overlay-ai](https://github.com/VishnuVVR-369/overlay-ai), [open-rec](https://github.com/TommyBez/open-rec), [omnirec](https://github.com/omnirec/omnirec), [oxiremote](https://github.com/nhtera/oxiremote), [LocalWhisper](https://github.com/ly7erg1c/LocalWhisper), [Hush](https://github.com/khawkins98/Hush), [cocuyo](https://github.com/jorgeajimenezl/cocuyo), [openhush](https://github.com/claymore666/openhush), [tucknotes](https://github.com/ajgagnon/tucknotes), [domino](https://github.com/nitinm21/domino), [bridge](https://github.com/maorinka/bridge), [screen-recorder](https://github.com/forfd8960/screen-recorder), [orbit](https://github.com/divesh-balani/orbit), [audio-capture](https://github.com/birdieHyun/audio-capture), [AFFiNE-teto](https://github.com/shrik450/AFFiNE-teto), [loom](https://github.com/rkendel1/loom).
 
-*Using screencapturekit-rs? [Let us know](https://github.com/doom-fish/screencapturekit-rs/issues) and we'll add you to the list!*
+</details>
 
-## 👥 Contributors
+*Using screencapturekit-rs? [Open an issue](https://github.com/doom-fish/screencapturekit-rs/issues) and we'll add you.*
 
-Thanks to everyone who has contributed to this project!
+## Contributors
 
-- [Per Johansson](https://github.com/doom-fish) - Maintainer
-- [Iason Paraskevopoulos](https://github.com/iasparaskev)
-- [Kris Krolak](https://github.com/kriskrolak)
-- [Tokuhiro Matsuno](https://github.com/tokuhirom)
-- [Pranav Joglekar](https://github.com/pranavj1001)
-- [Alex Jiao](https://github.com/uohzxela)
-- [Charles](https://github.com/aizukanne)
-- [bigduu](https://github.com/bigduu)
-- [Andrew N](https://github.com/adnissen)
+Thanks to everyone who has contributed!
 
-## 📄 License
+[Per Johansson](https://github.com/doom-fish) (maintainer) ·
+[Iason Paraskevopoulos](https://github.com/iasparaskev) ·
+[Kris Krolak](https://github.com/kriskrolak) ·
+[Tokuhiro Matsuno](https://github.com/tokuhirom) ·
+[Pranav Joglekar](https://github.com/pranavj1001) ·
+[Alex Jiao](https://github.com/uohzxela) ·
+[Charles](https://github.com/aizukanne) ·
+[bigduu](https://github.com/bigduu) ·
+[Andrew N](https://github.com/adnissen)
 
-Licensed under either of:
+## License
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT License ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
-
-at your option.
+Licensed under either of [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT) at your option.
