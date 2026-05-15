@@ -3,6 +3,12 @@ import PackageDescription
 
 // Swift compiler defines (SCREENCAPTUREKIT_HAS_MACOS15_SDK, SCREENCAPTUREKIT_HAS_MACOS26_SDK)
 // are passed via -Xswiftc flags from build.rs based on Cargo feature flags (macos_15_0, macos_26_0).
+//
+// Note: CoreGraphicsBridge / CoreVideoBridge / IOSurfaceBridge / DispatchBridge
+// targets that used to live here were extracted into apple-cf-rs's bridge.
+// CoreMediaBridge here keeps only the SCStreamFrameInfo attachment readers
+// and a few generic accessors with frame-info-specific signatures —
+// everything else comes from apple-cf's CoreMediaBridge target.
 
 let package = Package(
     name: "ScreenCaptureKitBridge",
@@ -16,33 +22,21 @@ let package = Package(
             targets: ["ScreenCaptureKitBridge"])
     ],
     targets: [
-        // Main ScreenCaptureKit bindings
+        // Main ScreenCaptureKit bindings.
         .target(
             name: "ScreenCaptureKitBridge",
-            dependencies: ["CoreMediaBridge", "CoreVideoBridge", "CoreGraphicsBridge", "IOSurfaceBridge", "DispatchBridge", "MetalBridge"],
+            dependencies: ["CoreMediaBridge", "MetalBridge"],
             path: "Sources/ScreenCaptureKitBridge",
             publicHeadersPath: "include"),
-        // CoreMedia framework bindings (CMSampleBuffer, CMTime, CMFormatDescription)
+        // CoreMedia bindings — only the SCStreamFrameInfo attachment readers
+        // and SC-specific sample-buffer helpers. Generic CMSampleBuffer /
+        // CMBlockBuffer / CMFormatDescription accessors come from
+        // apple-cf-rs's CoreMediaBridge.
         .target(
             name: "CoreMediaBridge",
             path: "Sources/CoreMedia"),
-        // CoreVideo framework bindings (CVPixelBuffer, CVPixelBufferPool)
-        .target(
-            name: "CoreVideoBridge",
-            path: "Sources/CoreVideo"),
-        // CoreGraphics framework bindings (CGRect, CGSize, CGPoint, CGImage)
-        .target(
-            name: "CoreGraphicsBridge",
-            path: "Sources/CoreGraphics"),
-        // IOSurface framework bindings
-        .target(
-            name: "IOSurfaceBridge",
-            path: "Sources/IOSurface"),
-        // Dispatch framework bindings (DispatchQueue)
-        .target(
-            name: "DispatchBridge",
-            path: "Sources/Dispatch"),
-        // Metal framework bindings (MTLDevice, MTLTexture, etc.)
+        // Metal framework bindings (MTLDevice, MTLTexture, etc.) — apple-cf
+        // doesn't provide a metal module yet so this stays local.
         .target(
             name: "MetalBridge",
             path: "Sources/Metal")

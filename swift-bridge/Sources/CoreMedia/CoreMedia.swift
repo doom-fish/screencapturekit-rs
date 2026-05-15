@@ -21,14 +21,6 @@ public struct AudioBufferListRaw {
 
 // MARK: - CMSampleBuffer Bridge
 
-@_cdecl("cm_sample_buffer_get_image_buffer")
-public func cm_sample_buffer_get_image_buffer(_ sampleBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    guard let imageBuffer = CMSampleBufferGetImageBuffer(buffer) else {
-        return nil
-    }
-    return Unmanaged.passRetained(imageBuffer).toOpaque()
-}
 
 @_cdecl("cm_sample_buffer_get_frame_status")
 public func cm_sample_buffer_get_frame_status(_ sampleBuffer: UnsafeMutableRawPointer) -> Int32 {
@@ -354,31 +346,7 @@ public func cm_sample_buffer_get_presentation_timestamp_epoch(_ sampleBuffer: Un
     return time.epoch
 }
 
-@_cdecl("cm_sample_buffer_get_presentation_timestamp")
-public func cm_sample_buffer_get_presentation_timestamp(_ sampleBuffer: UnsafeMutableRawPointer, _ outValue: UnsafeMutablePointer<Int64>, _ outTimescale: UnsafeMutablePointer<Int32>, _ outFlags: UnsafeMutablePointer<UInt32>, _ outEpoch: UnsafeMutablePointer<Int64>) {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-    outValue.pointee = time.value
-    outTimescale.pointee = time.timescale
-    outFlags.pointee = time.flags.rawValue
-    outEpoch.pointee = time.epoch
-}
 
-@_cdecl("cm_sample_buffer_get_decode_timestamp")
-public func cm_sample_buffer_get_decode_timestamp(
-    _ sampleBuffer: UnsafeMutableRawPointer,
-    _ value: UnsafeMutablePointer<Int64>,
-    _ timescale: UnsafeMutablePointer<Int32>,
-    _ flags: UnsafeMutablePointer<UInt32>,
-    _ epoch: UnsafeMutablePointer<Int64>
-) {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let time = CMSampleBufferGetDecodeTimeStamp(buffer)
-    value.pointee = time.value
-    timescale.pointee = time.timescale
-    flags.pointee = time.flags.rawValue
-    epoch.pointee = time.epoch
-}
 
 @_cdecl("cm_sample_buffer_get_output_presentation_timestamp")
 public func cm_sample_buffer_get_output_presentation_timestamp(
@@ -437,37 +405,10 @@ public func cm_sample_buffer_get_duration_epoch(_ sampleBuffer: UnsafeMutableRaw
     return duration.epoch
 }
 
-@_cdecl("cm_sample_buffer_get_duration")
-public func cm_sample_buffer_get_duration(_ sampleBuffer: UnsafeMutableRawPointer, _ outValue: UnsafeMutablePointer<Int64>, _ outTimescale: UnsafeMutablePointer<Int32>, _ outFlags: UnsafeMutablePointer<UInt32>, _ outEpoch: UnsafeMutablePointer<Int64>) {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let duration = CMSampleBufferGetDuration(buffer)
-    outValue.pointee = duration.value
-    outTimescale.pointee = duration.timescale
-    outFlags.pointee = duration.flags.rawValue
-    outEpoch.pointee = duration.epoch
-}
 
-@_cdecl("cm_sample_buffer_release")
-public func cm_sample_buffer_release(_ sampleBuffer: UnsafeMutableRawPointer) {
-    Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).release()
-}
 
-@_cdecl("cm_sample_buffer_retain")
-public func cm_sample_buffer_retain(_ sampleBuffer: UnsafeMutableRawPointer) {
-    _ = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).retain()
-}
 
-@_cdecl("cm_sample_buffer_is_valid")
-public func cm_sample_buffer_is_valid(_ sampleBuffer: UnsafeMutableRawPointer) -> Bool {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    return CMSampleBufferIsValid(buffer)
-}
 
-@_cdecl("cm_sample_buffer_get_num_samples")
-public func cm_sample_buffer_get_num_samples(_ sampleBuffer: UnsafeMutableRawPointer) -> Int {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    return CMSampleBufferGetNumSamples(buffer)
-}
 
 @_cdecl("cm_sample_buffer_get_sample_size")
 public func cm_sample_buffer_get_sample_size(_ sampleBuffer: UnsafeMutableRawPointer, _ sampleIndex: Int) -> Int {
@@ -594,98 +535,16 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
     outBlockBuffer.pointee = Unmanaged.passRetained(blockBuffer).toOpaque()
 }
 
-@_cdecl("cm_block_buffer_release")
-public func cm_block_buffer_release(_ blockBuffer: UnsafeMutableRawPointer) {
-    _ = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeRetainedValue()
-}
 
-@_cdecl("cm_block_buffer_retain")
-public func cm_block_buffer_retain(_ blockBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
-    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
-    return Unmanaged.passRetained(buffer).toOpaque()
-}
 
-@_cdecl("cm_block_buffer_get_data_length")
-public func cm_block_buffer_get_data_length(_ blockBuffer: UnsafeMutableRawPointer) -> Int {
-    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
-    return CMBlockBufferGetDataLength(buffer)
-}
 
-@_cdecl("cm_block_buffer_is_empty")
-public func cm_block_buffer_is_empty(_ blockBuffer: UnsafeMutableRawPointer) -> Bool {
-    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
-    return CMBlockBufferIsEmpty(buffer)
-}
 
-@_cdecl("cm_block_buffer_is_range_contiguous")
-public func cm_block_buffer_is_range_contiguous(_ blockBuffer: UnsafeMutableRawPointer, _ offset: Int, _ length: Int) -> Bool {
-    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
-    return CMBlockBufferIsRangeContiguous(buffer, atOffset: offset, length: length)
-}
 
-@_cdecl("cm_block_buffer_get_data_pointer")
-public func cm_block_buffer_get_data_pointer(
-    _ blockBuffer: UnsafeMutableRawPointer,
-    _ offset: Int,
-    _ outLengthAtOffset: UnsafeMutablePointer<Int>,
-    _ outTotalLength: UnsafeMutablePointer<Int>,
-    _ outDataPointer: UnsafeMutablePointer<UnsafeMutableRawPointer?>
-) -> Int32 {
-    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
-    var lengthAtOffset: Int = 0
-    var totalLength: Int = 0
-    var dataPointer: UnsafeMutablePointer<CChar>?
-    
-    let status = CMBlockBufferGetDataPointer(
-        buffer,
-        atOffset: offset,
-        lengthAtOffsetOut: &lengthAtOffset,
-        totalLengthOut: &totalLength,
-        dataPointerOut: &dataPointer
-    )
-    
-    outLengthAtOffset.pointee = lengthAtOffset
-    outTotalLength.pointee = totalLength
-    outDataPointer.pointee = dataPointer.map { UnsafeMutableRawPointer($0) }
-    
-    return status
-}
 
-@_cdecl("cm_block_buffer_copy_data_bytes")
-public func cm_block_buffer_copy_data_bytes(
-    _ blockBuffer: UnsafeMutableRawPointer,
-    _ offsetToData: Int,
-    _ dataLength: Int,
-    _ destination: UnsafeMutableRawPointer
-) -> Int32 {
-    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
-    return CMBlockBufferCopyDataBytes(
-        buffer,
-        atOffset: offsetToData,
-        dataLength: dataLength,
-        destination: destination
-    )
-}
 
-@_cdecl("cm_sample_buffer_get_data_buffer")
-public func cm_sample_buffer_get_data_buffer(_ sampleBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    guard let dataBuffer = CMSampleBufferGetDataBuffer(buffer) else {
-        return nil
-    }
-    return Unmanaged.passRetained(dataBuffer).toOpaque()
-}
 
 // MARK: - CMFormatDescription APIs
 
-@_cdecl("cm_sample_buffer_get_format_description")
-public func cm_sample_buffer_get_format_description(_ sampleBuffer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    guard let formatDesc = CMSampleBufferGetFormatDescription(buffer) else {
-        return nil
-    }
-    return Unmanaged.passRetained(formatDesc).toOpaque()
-}
 
 @_cdecl("cm_sample_buffer_get_sample_timing_info")
 public func cm_sample_buffer_get_sample_timing_info(
@@ -784,82 +643,15 @@ public func cm_sample_buffer_copy_pcm_data_into_audio_buffer_list(
     return status
 }
 
-@_cdecl("cm_format_description_get_media_type")
-public func cm_format_description_get_media_type(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    return CMFormatDescriptionGetMediaType(desc)
-}
 
-@_cdecl("cm_format_description_get_media_subtype")
-public func cm_format_description_get_media_subtype(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    return CMFormatDescriptionGetMediaSubType(desc)
-}
 
-@_cdecl("cm_format_description_get_extensions")
-public func cm_format_description_get_extensions(_ formatDescription: UnsafeMutableRawPointer) -> UnsafeRawPointer? {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    guard let extensions = CMFormatDescriptionGetExtensions(desc) else {
-        return nil
-    }
-    return UnsafeRawPointer(Unmanaged.passUnretained(extensions).toOpaque())
-}
 
-@_cdecl("cm_format_description_retain")
-public func cm_format_description_retain(_ formatDescription: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    return Unmanaged.passRetained(desc).toOpaque()
-}
 
-@_cdecl("cm_format_description_release")
-public func cm_format_description_release(_ formatDescription: UnsafeMutableRawPointer) {
-    Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).release()
-}
 
-@_cdecl("cm_format_description_get_audio_sample_rate")
-public func cm_format_description_get_audio_sample_rate(_ formatDescription: UnsafeMutableRawPointer) -> Double {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
-        return 0.0
-    }
-    return asbd.pointee.mSampleRate
-}
 
-@_cdecl("cm_format_description_get_audio_channel_count")
-public func cm_format_description_get_audio_channel_count(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
-        return 0
-    }
-    return asbd.pointee.mChannelsPerFrame
-}
 
-@_cdecl("cm_format_description_get_audio_bits_per_channel")
-public func cm_format_description_get_audio_bits_per_channel(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
-        return 0
-    }
-    return asbd.pointee.mBitsPerChannel
-}
 
-@_cdecl("cm_format_description_get_audio_bytes_per_frame")
-public func cm_format_description_get_audio_bytes_per_frame(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
-        return 0
-    }
-    return asbd.pointee.mBytesPerFrame
-}
 
-@_cdecl("cm_format_description_get_audio_format_flags")
-public func cm_format_description_get_audio_format_flags(_ formatDescription: UnsafeMutableRawPointer) -> UInt32 {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc) else {
-        return 0
-    }
-    return asbd.pointee.mFormatFlags
-}
 
 // MARK: - CMSampleBuffer Creation
 
@@ -912,89 +704,11 @@ public func cm_sample_buffer_create_for_image_buffer(
 
 // MARK: - Hash Functions
 
-@_cdecl("cm_sample_buffer_hash")
-public func cm_sample_buffer_hash(_ sampleBuffer: UnsafeMutableRawPointer) -> Int {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    return buffer.hashValue
-}
 
-@_cdecl("cm_block_buffer_hash")
-public func cm_block_buffer_hash(_ blockBuffer: UnsafeMutableRawPointer) -> Int {
-    let buffer = Unmanaged<CMBlockBuffer>.fromOpaque(blockBuffer).takeUnretainedValue()
-    return buffer.hashValue
-}
 
-@_cdecl("cm_format_description_hash")
-public func cm_format_description_hash(_ formatDescription: UnsafeMutableRawPointer) -> Int {
-    let desc = Unmanaged<CMFormatDescription>.fromOpaque(formatDescription).takeUnretainedValue()
-    return desc.hashValue
-}
 
 // MARK: - CMBlockBuffer Creation (for testing)
 
 /// Create a CMBlockBuffer with the given data for testing purposes
-@_cdecl("cm_block_buffer_create_with_data")
-public func cm_block_buffer_create_with_data(
-    _ data: UnsafeRawPointer,
-    _ dataLength: Int,
-    _ blockBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
-) -> Int32 {
-    var blockBuffer: CMBlockBuffer?
-    
-    // Create a block buffer with memory block
-    let status = CMBlockBufferCreateWithMemoryBlock(
-        allocator: kCFAllocatorDefault,
-        memoryBlock: nil,  // Let CM allocate memory
-        blockLength: dataLength,
-        blockAllocator: kCFAllocatorDefault,
-        customBlockSource: nil,
-        offsetToData: 0,
-        dataLength: dataLength,
-        flags: 0,
-        blockBufferOut: &blockBuffer
-    )
-    
-    guard status == noErr, let buffer = blockBuffer else {
-        blockBufferOut.pointee = nil
-        return status
-    }
-    
-    // Copy data into the block buffer
-    let copyStatus = CMBlockBufferReplaceDataBytes(
-        with: data,
-        blockBuffer: buffer,
-        offsetIntoDestination: 0,
-        dataLength: dataLength
-    )
-    
-    guard copyStatus == noErr else {
-        blockBufferOut.pointee = nil
-        return copyStatus
-    }
-    
-    blockBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
-    return noErr
-}
 
 /// Create an empty CMBlockBuffer for testing
-@_cdecl("cm_block_buffer_create_empty")
-public func cm_block_buffer_create_empty(
-    _ blockBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
-) -> Int32 {
-    var blockBuffer: CMBlockBuffer?
-    
-    let status = CMBlockBufferCreateEmpty(
-        allocator: kCFAllocatorDefault,
-        capacity: 0,
-        flags: 0,
-        blockBufferOut: &blockBuffer
-    )
-    
-    if status == noErr, let buffer = blockBuffer {
-        blockBufferOut.pointee = Unmanaged.passRetained(buffer).toOpaque()
-    } else {
-        blockBufferOut.pointee = nil
-    }
-    
-    return status
-}
