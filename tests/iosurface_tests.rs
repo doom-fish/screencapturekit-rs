@@ -6,6 +6,7 @@
 
 use screencapturekit::cm::{IOSurface, IOSurfaceLockOptions};
 use screencapturekit::cv::CVPixelBufferLockFlags;
+use screencapturekit::metal::IOSurfaceMetalExt;
 
 #[test]
 fn test_iosurface_lock_options_values() {
@@ -349,6 +350,7 @@ fn test_iosurface_hash() {
 mod multiplanar_tests {
     use screencapturekit::cm::IOSurface;
     use screencapturekit::cm::PlaneProperties;
+    use screencapturekit::metal::IOSurfaceMetalExt;
 
     /// Create a YCbCr 4:2:0 biplanar surface (like 420v or 420f)
     fn create_ycbcr_420(width: usize, height: usize, full_range: bool) -> Option<IOSurface> {
