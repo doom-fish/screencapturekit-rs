@@ -30,8 +30,8 @@
 //! ## Example
 //!
 //! ```no_run
+//! use screencapturekit::cm::{CMSampleBuffer, CMSampleBufferExt, IOSurface};
 //! use screencapturekit::metal::{IOSurfaceMetalExt, MetalDevice};
-//! use screencapturekit::cm::{CMSampleBuffer, IOSurface};
 //!
 //! // Get the system default Metal device
 //! let device = MetalDevice::system_default().expect("No Metal device");

@@ -7,6 +7,7 @@ use screencapturekit::{
     },
     CMSampleBuffer,
 };
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 

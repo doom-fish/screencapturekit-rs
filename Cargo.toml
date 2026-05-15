@@ -59,7 +59,7 @@ macos_15_2 = ["macos_15_0"]
 macos_26_0 = ["macos_15_2"]
 
 [dependencies]
-apple-cf = { path = "../dev/apple-cf-rs", default-features = false, features = ["cg", "iosurface", "dispatch", "cv"] }
+apple-cf = { path = "../dev/apple-cf-rs", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
 
 [dev-dependencies]
 png = "0.18"

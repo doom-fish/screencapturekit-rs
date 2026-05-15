@@ -15,6 +15,7 @@ use screencapturekit::metal::{
     IOSurfaceMetalExt, MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor,
     MetalRenderPipelineState, Uniforms, SHADER_SOURCE,
 };
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
