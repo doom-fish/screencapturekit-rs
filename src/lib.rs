@@ -751,7 +751,7 @@ pub use cm::{
     CMSampleTimingInfo, CMTime, IOSurface, SCFrameStatus,
 };
 pub use cv::{CVPixelBuffer, CVPixelBufferPool};
-pub use utils::four_char_code::FourCharCode;
+pub use utils::FourCharCode;
 
 /// Prelude module for convenient imports
 ///
