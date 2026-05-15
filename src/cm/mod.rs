@@ -16,18 +16,18 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! use screencapturekit::cm::{CMSampleBuffer, CMTime, SCFrameStatus};
+//! use screencapturekit::cm::{CMSampleBuffer, CMSampleBufferExt, CMSampleBufferSCExt, CMTime, SCFrameStatus};
 //!
 //! fn process_frame(sample: CMSampleBuffer) {
-//!     // Check frame status
+//!     // Check frame status (SCStream-specific attachment).
 //!     if sample.frame_status() == Some(SCFrameStatus::Complete) {
-//!         // Get timestamp
+//!         // Get timestamp.
 //!         let pts = sample.presentation_timestamp();
 //!         println!("Frame at {:?}", pts);
 //!
-//!         // Access pixel buffer for CPU processing
+//!         // Access pixel buffer for CPU processing.
 //!         if let Some(pixel_buffer) = sample.image_buffer() {
-//!             // Access IOSurface for GPU processing
+//!             // Access IOSurface for GPU processing.
 //!             if let Some(surface) = pixel_buffer.io_surface() {
 //!                 println!("Surface: {}x{}", surface.width(), surface.height());
 //!             }
@@ -53,7 +53,9 @@ pub use block_buffer::CMBlockBuffer;
 pub use format_description::CMFormatDescription;
 pub use frame_status::SCFrameStatus;
 pub use iosurface::{IOSurface, IOSurfaceLockGuard, IOSurfaceLockOptions, PlaneProperties};
-pub use sample_buffer::{CMSampleBuffer, FrameInfo};
+pub use sample_buffer::{
+    CMSampleBuffer, CMSampleBufferDataBufferExt, CMSampleBufferExt, CMSampleBufferSCExt, FrameInfo,
+};
 pub use time::{CMClock, CMSampleTimingInfo, CMTime};
 
 // Re-export codec and media type modules from format_description

@@ -32,6 +32,7 @@ use screencapturekit::{
         SCStream,
     },
 };
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use std::{
     process::Command,
     sync::{
