@@ -30,6 +30,7 @@
 //!   rgba_data() 1080p    : 209µs  (5% slower)
 
 use screencapturekit::cm::CMSampleBuffer;
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::prelude::*;
 use screencapturekit::screenshot_manager::SCScreenshotManager;
 use std::sync::atomic::{AtomicUsize, Ordering};

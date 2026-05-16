@@ -12,9 +12,10 @@
 //! See `16_full_metal_app` for a complete windowed application.
 
 use screencapturekit::metal::{
-    MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor, MetalRenderPipelineState, Uniforms,
-    SHADER_SOURCE,
+    IOSurfaceMetalExt, MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor,
+    MetalRenderPipelineState, Uniforms, SHADER_SOURCE,
 };
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;

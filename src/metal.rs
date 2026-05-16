@@ -30,8 +30,8 @@
 //! ## Example
 //!
 //! ```no_run
-//! use screencapturekit::metal::MetalDevice;
-//! use screencapturekit::cm::{CMSampleBuffer, IOSurface};
+//! use screencapturekit::cm::{CMSampleBuffer, CMSampleBufferExt, IOSurface};
+//! use screencapturekit::metal::{IOSurfaceMetalExt, MetalDevice};
 //!
 //! // Get the system default Metal device
 //! let device = MetalDevice::system_default().expect("No Metal device");
@@ -176,45 +176,6 @@ pub struct PlaneInfo {
     pub bytes_per_row: usize,
 }
 
-impl IOSurface {
-    /// Get detailed information about this `IOSurface` for Metal texture creation
-    #[must_use]
-    pub fn info(&self) -> IOSurfaceInfo {
-        let width = self.width();
-        let height = self.height();
-        let bytes_per_row = self.bytes_per_row();
-        let pix_format: FourCharCode = self.pixel_format().into();
-        let plane_count = self.plane_count();
-
-        let planes = if plane_count > 0 {
-            (0..plane_count)
-                .map(|i| PlaneInfo {
-                    index: i,
-                    width: self.width_of_plane(i),
-                    height: self.height_of_plane(i),
-                    bytes_per_row: self.bytes_per_row_of_plane(i),
-                })
-                .collect()
-        } else {
-            vec![]
-        };
-
-        IOSurfaceInfo {
-            width,
-            height,
-            bytes_per_row,
-            pixel_format: pix_format,
-            plane_count,
-            planes,
-        }
-    }
-
-    /// Check if this `IOSurface` uses a YCbCr biplanar format
-    #[must_use]
-    pub fn is_ycbcr_biplanar(&self) -> bool {
-        pixel_format::is_ycbcr_biplanar(self.pixel_format())
-    }
-}
 
 /// Metal texture descriptor parameters for creating textures from `IOSurface`
 ///
@@ -239,59 +200,6 @@ impl TextureParams {
     }
 }
 
-impl IOSurface {
-    /// Get texture parameters for creating Metal textures from this `IOSurface`
-    ///
-    /// Returns texture parameters for each plane needed to render this surface.
-    /// - Single-plane formats (BGRA, L10R): Returns 1 texture param
-    /// - YCbCr biplanar formats: Returns 2 texture params (Y and `CbCr` planes)
-    #[must_use]
-    pub fn texture_params(&self) -> Vec<TextureParams> {
-        let pix_format: FourCharCode = self.pixel_format().into();
-        let plane_count = self.plane_count();
-
-        if pix_format == pixel_format::BGRA {
-            vec![TextureParams {
-                width: self.width(),
-                height: self.height(),
-                format: MetalPixelFormat::BGRA8Unorm,
-                plane: 0,
-            }]
-        } else if pix_format == pixel_format::L10R {
-            vec![TextureParams {
-                width: self.width(),
-                height: self.height(),
-                format: MetalPixelFormat::BGR10A2Unorm,
-                plane: 0,
-            }]
-        } else if pixel_format::is_ycbcr_biplanar(pix_format) && plane_count >= 2 {
-            vec![
-                // Plane 0: Y (luminance) - R8Unorm
-                TextureParams {
-                    width: self.width_of_plane(0),
-                    height: self.height_of_plane(0),
-                    format: MetalPixelFormat::R8Unorm,
-                    plane: 0,
-                },
-                // Plane 1: CbCr (chrominance) - RG8Unorm
-                TextureParams {
-                    width: self.width_of_plane(1),
-                    height: self.height_of_plane(1),
-                    format: MetalPixelFormat::RG8Unorm,
-                    plane: 1,
-                },
-            ]
-        } else {
-            // Fallback to BGRA
-            vec![TextureParams {
-                width: self.width(),
-                height: self.height(),
-                format: MetalPixelFormat::BGRA8Unorm,
-                plane: 0,
-            }]
-        }
-    }
-}
 
 /// Result of creating Metal textures from an `IOSurface`
 #[derive(Debug)]
@@ -316,80 +224,6 @@ impl<T> CapturedTextures<T> {
     }
 }
 
-impl IOSurface {
-    /// Create Metal textures from this `IOSurface` using a closure
-    ///
-    /// This is a zero-copy operation - the textures share memory with the `IOSurface`.
-    ///
-    /// The closure receives `TextureParams` and the raw `IOSurfaceRef` pointer,
-    /// and should return the created texture.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use screencapturekit::cm::IOSurface;
-    /// use std::ffi::c_void;
-    ///
-    /// fn example(surface: &IOSurface) {
-    ///     let textures = surface.metal_textures(|params, _iosurface_ptr| {
-    ///         // Create Metal texture using params.width, params.height, params.format
-    ///         // Return Some(texture) or None
-    ///         Some(()) // placeholder
-    ///     });
-    ///
-    ///     if let Some(textures) = textures {
-    ///         if textures.is_ycbcr() {
-    ///             // Use YCbCr shader with plane0 (Y) and plane1 (CbCr)
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// # Safety
-    ///
-    /// The closure receives a raw `IOSurfaceRef` pointer. The pointer is valid
-    /// for the duration of the closure call.
-    pub fn metal_textures<T, F>(&self, create_texture: F) -> Option<CapturedTextures<T>>
-    where
-        F: Fn(&TextureParams, *const c_void) -> Option<T>,
-    {
-        let width = self.width();
-        let height = self.height();
-        let pix_format: FourCharCode = self.pixel_format().into();
-
-        if width == 0 || height == 0 {
-            return None;
-        }
-
-        let iosurface_ptr = self.as_ptr();
-        let params = self.texture_params();
-
-        if params.len() == 1 {
-            // Single-plane format
-            let texture = create_texture(&params[0], iosurface_ptr)?;
-            Some(CapturedTextures {
-                plane0: texture,
-                plane1: None,
-                pixel_format: pix_format,
-                width,
-                height,
-            })
-        } else if params.len() >= 2 {
-            // YCbCr biplanar format
-            let y_texture = create_texture(&params[0], iosurface_ptr)?;
-            let uv_texture = create_texture(&params[1], iosurface_ptr)?;
-            Some(CapturedTextures {
-                plane0: y_texture,
-                plane1: Some(uv_texture),
-                pixel_format: pix_format,
-                width,
-                height,
-            })
-        } else {
-            None
-        }
-    }
-}
 
 /// Metal shader source for rendering captured frames
 ///
@@ -544,7 +378,7 @@ impl Uniforms {
     /// # Example
     ///
     /// ```no_run
-    /// use screencapturekit::metal::{MetalDevice, Uniforms};
+    /// use screencapturekit::metal::{IOSurfaceMetalExt, MetalDevice, Uniforms};
     /// use screencapturekit::cm::IOSurface;
     ///
     /// fn example(surface: &IOSurface, device: &MetalDevice) {
@@ -942,6 +776,20 @@ impl MetalDevice {
     #[must_use]
     pub fn as_ptr(&self) -> *mut c_void {
         self.ptr.as_ptr()
+    }
+
+    /// Wrap this device as an [`apple_metal::ManuallyDropDevice`] for
+    /// interop with the lightweight `apple-metal` crate. The returned
+    /// handle references the same `MTLDevice` instance and does not
+    /// release it on drop — keep this [`MetalDevice`] alive while the
+    /// borrowed handle is in use.
+    ///
+    /// Useful when calling helpers like
+    /// [`apple_metal::IOSurfaceMetalExt::create_metal_texture`] from
+    /// code that already holds an SCK [`MetalDevice`].
+    #[must_use]
+    pub fn as_apple_metal(&self) -> apple_metal::ManuallyDropDevice {
+        unsafe { apple_metal::MetalDevice::from_raw_borrowed(self.ptr.as_ptr()) }
     }
 }
 
@@ -1867,28 +1715,159 @@ impl Drop for MetalRenderCommandEncoder {
 /// Result of creating Metal textures from an `IOSurface`
 pub type MetalCapturedTextures = CapturedTextures<MetalTexture>;
 
-impl IOSurface {
-    /// Create Metal textures from this `IOSurface` using the provided device
+
+
+/// Extension trait that adds Metal-related convenience methods to
+/// `apple_cf::iosurface::IOSurface`. Defined as a trait (rather than
+/// inherent impls) because Rust's orphan rules forbid inherent impls
+/// on out-of-crate types.
+///
+/// Bring this trait into scope to call `info()`, `texture_params()`,
+/// `metal_textures(...)`, `create_metal_textures(...)` etc. on
+/// any IOSurface.
+pub trait IOSurfaceMetalExt {
+    /// Detailed information about this surface for Metal texture creation.
+    fn info(&self) -> IOSurfaceInfo;
+    /// Whether this surface uses a YCbCr biplanar format.
+    fn is_ycbcr_biplanar(&self) -> bool;
+    /// Texture params (one per plane) needed to create matching Metal textures.
+    fn texture_params(&self) -> Vec<TextureParams>;
+    /// Generic texture creation via user-supplied closure.
+    fn metal_textures<T, F>(&self, create_texture: F) -> Option<CapturedTextures<T>>
+    where
+        F: Fn(&TextureParams, *const c_void) -> Option<T>;
+    /// Convenience: create concrete `MetalTexture`s using a `MetalDevice`.
+    fn create_metal_textures(&self, device: &MetalDevice) -> Option<MetalCapturedTextures>;
+}
+
+impl IOSurfaceMetalExt for IOSurface {
+
+    /// Get detailed information about this `IOSurface` for Metal texture creation
+    fn info(&self) -> IOSurfaceInfo {
+        let width = self.width();
+        let height = self.height();
+        let bytes_per_row = self.bytes_per_row();
+        let pix_format: FourCharCode = self.pixel_format().into();
+        let plane_count = self.plane_count();
+
+        let planes = if plane_count > 0 {
+            (0..plane_count)
+                .map(|i| PlaneInfo {
+                    index: i,
+                    width: self.width_of_plane(i),
+                    height: self.height_of_plane(i),
+                    bytes_per_row: self.bytes_per_row_of_plane(i),
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+
+        IOSurfaceInfo {
+            width,
+            height,
+            bytes_per_row,
+            pixel_format: pix_format,
+            plane_count,
+            planes,
+        }
+    }
+
+    /// Check if this `IOSurface` uses a YCbCr biplanar format
+    fn is_ycbcr_biplanar(&self) -> bool {
+        pixel_format::is_ycbcr_biplanar(self.pixel_format())
+    }
+
+
+    /// Get texture parameters for creating Metal textures from this `IOSurface`
+    ///
+    /// Returns texture parameters for each plane needed to render this surface.
+    /// - Single-plane formats (BGRA, L10R): Returns 1 texture param
+    /// - YCbCr biplanar formats: Returns 2 texture params (Y and `CbCr` planes)
+    fn texture_params(&self) -> Vec<TextureParams> {
+        let pix_format: FourCharCode = self.pixel_format().into();
+        let plane_count = self.plane_count();
+
+        if pix_format == pixel_format::BGRA {
+            vec![TextureParams {
+                width: self.width(),
+                height: self.height(),
+                format: MetalPixelFormat::BGRA8Unorm,
+                plane: 0,
+            }]
+        } else if pix_format == pixel_format::L10R {
+            vec![TextureParams {
+                width: self.width(),
+                height: self.height(),
+                format: MetalPixelFormat::BGR10A2Unorm,
+                plane: 0,
+            }]
+        } else if pixel_format::is_ycbcr_biplanar(pix_format) && plane_count >= 2 {
+            vec![
+                // Plane 0: Y (luminance) - R8Unorm
+                TextureParams {
+                    width: self.width_of_plane(0),
+                    height: self.height_of_plane(0),
+                    format: MetalPixelFormat::R8Unorm,
+                    plane: 0,
+                },
+                // Plane 1: CbCr (chrominance) - RG8Unorm
+                TextureParams {
+                    width: self.width_of_plane(1),
+                    height: self.height_of_plane(1),
+                    format: MetalPixelFormat::RG8Unorm,
+                    plane: 1,
+                },
+            ]
+        } else {
+            // Fallback to BGRA
+            vec![TextureParams {
+                width: self.width(),
+                height: self.height(),
+                format: MetalPixelFormat::BGRA8Unorm,
+                plane: 0,
+            }]
+        }
+    }
+
+
+    /// Create Metal textures from this `IOSurface` using a closure
     ///
     /// This is a zero-copy operation - the textures share memory with the `IOSurface`.
+    ///
+    /// The closure receives `TextureParams` and the raw `IOSurfaceRef` pointer,
+    /// and should return the created texture.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use screencapturekit::metal::MetalDevice;
     /// use screencapturekit::cm::IOSurface;
+    /// use screencapturekit::metal::IOSurfaceMetalExt;
+    /// use std::ffi::c_void;
     ///
     /// fn example(surface: &IOSurface) {
-    ///     let device = MetalDevice::system_default().expect("No Metal device");
-    ///     if let Some(textures) = surface.create_metal_textures(&device) {
+    ///     let textures = surface.metal_textures(|params, _iosurface_ptr| {
+    ///         // Create Metal texture using params.width, params.height, params.format
+    ///         // Return Some(texture) or None
+    ///         Some(()) // placeholder
+    ///     });
+    ///
+    ///     if let Some(textures) = textures {
     ///         if textures.is_ycbcr() {
     ///             // Use YCbCr shader with plane0 (Y) and plane1 (CbCr)
     ///         }
     ///     }
     /// }
     /// ```
-    #[must_use]
-    pub fn create_metal_textures(&self, device: &MetalDevice) -> Option<MetalCapturedTextures> {
+    ///
+    /// # Safety
+    ///
+    /// The closure receives a raw `IOSurfaceRef` pointer. The pointer is valid
+    /// for the duration of the closure call.
+    fn metal_textures<T, F>(&self, create_texture: F) -> Option<CapturedTextures<T>>
+    where
+        F: Fn(&TextureParams, *const c_void) -> Option<T>,
+    {
         let width = self.width();
         let height = self.height();
         let pix_format: FourCharCode = self.pixel_format().into();
@@ -1897,11 +1876,12 @@ impl IOSurface {
             return None;
         }
 
+        let iosurface_ptr = self.as_ptr();
         let params = self.texture_params();
 
         if params.len() == 1 {
             // Single-plane format
-            let texture = self.create_texture_for_plane(device, &params[0])?;
+            let texture = create_texture(&params[0], iosurface_ptr)?;
             Some(CapturedTextures {
                 plane0: texture,
                 plane1: None,
@@ -1911,8 +1891,8 @@ impl IOSurface {
             })
         } else if params.len() >= 2 {
             // YCbCr biplanar format
-            let y_texture = self.create_texture_for_plane(device, &params[0])?;
-            let uv_texture = self.create_texture_for_plane(device, &params[1])?;
+            let y_texture = create_texture(&params[0], iosurface_ptr)?;
+            let uv_texture = create_texture(&params[1], iosurface_ptr)?;
             Some(CapturedTextures {
                 plane0: y_texture,
                 plane1: Some(uv_texture),
@@ -1925,23 +1905,86 @@ impl IOSurface {
         }
     }
 
-    fn create_texture_for_plane(
-        &self,
-        device: &MetalDevice,
-        params: &TextureParams,
-    ) -> Option<MetalTexture> {
-        let ptr = unsafe {
-            metal_create_texture_from_iosurface(
-                device.as_ptr(),
-                self.as_ptr(),
-                params.plane,
-                params.width,
-                params.height,
-                params.format.raw(),
-            )
-        };
-        NonNull::new(ptr).map(|ptr| MetalTexture { ptr })
+
+    /// Create Metal textures from this `IOSurface` using the provided device
+    ///
+    /// This is a zero-copy operation - the textures share memory with the `IOSurface`.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use screencapturekit::metal::{IOSurfaceMetalExt, MetalDevice};
+    /// use screencapturekit::cm::IOSurface;
+    ///
+    /// fn example(surface: &IOSurface) {
+    ///     let device = MetalDevice::system_default().expect("No Metal device");
+    ///     if let Some(textures) = surface.create_metal_textures(&device) {
+    ///         if textures.is_ycbcr() {
+    ///             // Use YCbCr shader with plane0 (Y) and plane1 (CbCr)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn create_metal_textures(&self, device: &MetalDevice) -> Option<MetalCapturedTextures> {
+        let width = self.width();
+        let height = self.height();
+        let pix_format: FourCharCode = self.pixel_format().into();
+
+        if width == 0 || height == 0 {
+            return None;
+        }
+
+        let params = self.texture_params();
+
+        if params.len() == 1 {
+            // Single-plane format
+            let texture = create_texture_for_plane(self, device, &params[0])?;
+            Some(CapturedTextures {
+                plane0: texture,
+                plane1: None,
+                pixel_format: pix_format,
+                width,
+                height,
+            })
+        } else if params.len() >= 2 {
+            // YCbCr biplanar format
+            let y_texture = create_texture_for_plane(self, device, &params[0])?;
+            let uv_texture = create_texture_for_plane(self, device, &params[1])?;
+            Some(CapturedTextures {
+                plane0: y_texture,
+                plane1: Some(uv_texture),
+                pixel_format: pix_format,
+                width,
+                height,
+            })
+        } else {
+            None
+        }
     }
+
+
+}
+
+/// Private helper used by `create_metal_textures` to build a `MetalTexture`
+/// for one plane of the surface. Was previously an inherent method on
+/// `IOSurface`; lives here as a free function now that `IOSurface` is
+/// defined in `apple-cf`.
+fn create_texture_for_plane(
+    surface: &IOSurface,
+    device: &MetalDevice,
+    params: &TextureParams,
+) -> Option<MetalTexture> {
+    let ptr = unsafe {
+        metal_create_texture_from_iosurface(
+            device.as_ptr(),
+            surface.as_ptr(),
+            params.plane,
+            params.width,
+            params.height,
+            params.format.raw(),
+        )
+    };
+    NonNull::new(ptr).map(|ptr| MetalTexture { ptr })
 }
 
 // MARK: - Autorelease Pool

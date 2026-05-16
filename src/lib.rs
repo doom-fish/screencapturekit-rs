@@ -734,6 +734,15 @@ pub mod dispatch_queue;
 pub mod error;
 pub mod ffi;
 pub mod metal;
+
+/// Re-export of the lightweight [`apple-metal`](https://crates.io/crates/apple-metal)
+/// crate so downstream code can use either ScreenCaptureKit's full
+/// Metal renderer ([`crate::metal`]) or the minimal device/texture
+/// surface from `apple-metal` without an extra `Cargo.toml` line.
+///
+/// `screencapturekit::metal::MetalDevice::as_apple_metal()` bridges
+/// between the two.
+pub use apple_metal;
 #[cfg(feature = "macos_15_0")]
 pub mod recording_output;
 #[cfg(feature = "macos_14_0")]
@@ -751,7 +760,7 @@ pub use cm::{
     CMSampleTimingInfo, CMTime, IOSurface, SCFrameStatus,
 };
 pub use cv::{CVPixelBuffer, CVPixelBufferPool};
-pub use utils::four_char_code::FourCharCode;
+pub use utils::FourCharCode;
 
 /// Prelude module for convenient imports
 ///
@@ -783,7 +792,7 @@ pub use utils::four_char_code::FourCharCode;
 pub mod prelude {
     pub use crate::audio_devices::AudioInputDevice;
     pub use crate::cg::{CGPoint, CGRect, CGSize};
-    pub use crate::cm::{CMSampleBuffer, CMTime};
+    pub use crate::cm::{CMSampleBuffer, CMSampleBufferExt, CMSampleBufferSCExt, CMTime};
     pub use crate::dispatch_queue::{DispatchQoS, DispatchQueue};
     pub use crate::error::{SCError, SCResult};
     pub use crate::shareable_content::{
