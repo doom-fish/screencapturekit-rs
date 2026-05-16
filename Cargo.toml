@@ -59,7 +59,8 @@ macos_15_2 = ["macos_15_0"]
 macos_26_0 = ["macos_15_2"]
 
 [dependencies]
-apple-cf = { path = "../dev/apple-cf-rs", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
+apple-cf = { path = "../apple-cf-rs", version = "0.1.1", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
+apple-metal = { path = "../apple-metal-rs", version = "0.1.0", default-features = false, features = ["iosurface"] }
 
 [dev-dependencies]
 png = "0.18"
