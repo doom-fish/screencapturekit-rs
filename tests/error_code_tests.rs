@@ -6,7 +6,10 @@ use screencapturekit::error::{SCError, SCStreamErrorCode, SC_STREAM_ERROR_DOMAIN
 
 #[test]
 fn test_error_domain_constant() {
-    assert_eq!(SC_STREAM_ERROR_DOMAIN, "com.apple.screencapturekit");
+    assert_eq!(
+        SC_STREAM_ERROR_DOMAIN,
+        "com.apple.ScreenCaptureKit.SCStreamErrorDomain"
+    );
 }
 
 // MARK: - Error Code Values

@@ -487,8 +487,8 @@ impl SCError {
     }
 }
 
-/// Error domain for `ScreenCaptureKit` errors
-pub const SC_STREAM_ERROR_DOMAIN: &str = "com.apple.screencapturekit";
+/// Error domain for `ScreenCaptureKit` stream errors
+pub const SC_STREAM_ERROR_DOMAIN: &str = "com.apple.ScreenCaptureKit.SCStreamErrorDomain";
 
 /// Error codes from Apple's `SCStreamError.Code`
 ///

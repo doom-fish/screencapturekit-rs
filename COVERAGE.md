@@ -1,10 +1,10 @@
 # ScreenCaptureKit SDK Coverage
 
-This document records the `screencapturekit` v3.1.0 coverage audit against Apple's `ScreenCaptureKit.framework` from Xcode 26.2 (`MacOSX26.2.sdk`).
+This document records the `screencapturekit` v3.1.1 coverage audit against Apple's `ScreenCaptureKit.framework` from Xcode 26.2 (`MacOSX26.2.sdk`).
 
 ## Certification
 
-As of `screencapturekit` **3.1.0**, the crate provides **100% coverage of the audited ScreenCaptureKit SDK surface for this pass**, including the newer macOS 15.x and 26.0-era APIs requested for review.
+As of `screencapturekit` **3.1.1**, the crate provides **100% coverage of the audited ScreenCaptureKit SDK surface for this pass**, including the newer macOS 15.x and 26.0-era APIs requested for review.
 
 That coverage includes both:
 
@@ -29,6 +29,7 @@ The audit covered the following public SDK areas:
 - `SCRecordingOutput`
 - `SCRecordingOutputConfiguration`
 - `SCStreamErrorCode`
+- `SCStreamErrorDomain`
 - newer macOS 15.x / 26.0 additions in `SCScreenshotManager` and preset APIs
 
 ## Coverage map
@@ -44,7 +45,7 @@ The audit covered the following public SDK areas:
 | `SCContentSharingPicker` | Direct picker APIs plus callback-based `show*()` wrappers over observer-style flows | Complete |
 | `SCContentSharingPickerConfiguration` | Direct bindings, including `allowed_picker_modes()` round-trip and exclusion getters | Complete |
 | `SCRecordingOutput`, `SCRecordingOutputConfiguration` | Direct bindings, including duration / file size and `output_url()` round-trip | Complete |
-| `SCStreamErrorCode` | Direct enum mapping | Complete |
+| `SCStreamErrorCode` / `SCStreamErrorDomain` | Direct enum + constant mapping | Complete |
 | `SCScreenshotManager` macOS 15.2 / 26.0 additions | Direct bindings | Complete |
 
 ## Notes on safe equivalents
@@ -63,7 +64,7 @@ Apple declares `SCStreamConfiguration.backgroundColor`, `colorSpaceName`, and `c
 
 ## Validation
 
-The v3.1.0 audit and fixes were validated with:
+The audited surface and follow-up fixes were validated with:
 
 - `cargo clippy --all-features -- -D warnings`
 - `cargo test --all-features`
