@@ -3,6 +3,7 @@
 #![cfg(feature = "macos_14_0")]
 
 use screencapturekit::shareable_content::{SCShareableContent, SCShareableContentInfo};
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::stream::content_filter::SCContentFilter;
 
 // Initialize CoreGraphics to prevent CGS_REQUIRE_INIT crashes in CI

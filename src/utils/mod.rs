@@ -1,17 +1,11 @@
-//! Utility modules
+//! Shared utilities. The framework-agnostic helpers (`FourCharCode`,
+//! `ffi_string_*`, completion handlers, panic-safe wrappers) now live in
+//! `apple_cf::utils` and are re-exported here for backward compatibility.
 //!
-//! This module contains helper types and functions used throughout the library.
-//!
-//! ## Modules
-//!
-//! - [`error`] - Error types and result aliases
-//! - [`ffi_string`] - FFI string retrieval utilities
-//! - [`four_char_code`] - Four-character code handling (used for pixel formats, codecs)
-//! - [`completion`] - Completion utilities for async FFI callbacks
-//! - [`panic_safe`] - Helpers for catching panics at the C ABI boundary
+//! `error.rs` is intentionally NOT migrated — it carries SCStream-specific
+//! error variants that don't belong in the framework-agnostic foundation.
 
-pub mod completion;
 pub mod error;
-pub mod ffi_string;
-pub mod four_char_code;
-pub mod panic_safe;
+
+pub use apple_cf::utils::{completion, ffi_string, four_char_code, panic_safe};
+pub use apple_cf::utils::FourCharCode;

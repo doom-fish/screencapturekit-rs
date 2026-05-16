@@ -4,6 +4,7 @@
 
 use screencapturekit::cm::{CMSampleTimingInfo, CMTime};
 
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 #[test]
 fn test_cmtime_creation() {
     let time = CMTime::new(1, 30);

@@ -13,6 +13,7 @@
 
 use eframe::egui;
 use screencapturekit::cv::CVPixelBufferLockFlags;
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

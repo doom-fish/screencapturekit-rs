@@ -4,6 +4,7 @@
 #![allow(clippy::similar_names)]
 
 use screencapturekit::metal::pixel_format;
+use screencapturekit::metal::IOSurfaceMetalExt;
 use screencapturekit::metal::Uniforms;
 use screencapturekit::metal::{
     MTLBlendFactor, MTLBlendOperation, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
@@ -212,6 +213,7 @@ fn test_shader_source_exists() {
 // ============================================================================
 
 mod metal_device_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::MetalDevice;
 
     #[test]
@@ -339,7 +341,7 @@ mod metal_device_tests {
 
 mod metal_texture_tests {
     use screencapturekit::cm::IOSurface;
-    use screencapturekit::metal::MetalDevice;
+    use screencapturekit::metal::{IOSurfaceMetalExt, MetalDevice};
 
     // Note: IOSurface textures require 16-byte aligned bytesPerRow
     // For BGRA (4 bytes per pixel), width must be multiple of 4
@@ -481,6 +483,7 @@ mod metal_texture_tests {
 // ============================================================================
 
 mod metal_pipeline_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{
         MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor, SHADER_SOURCE,
     };
@@ -569,6 +572,7 @@ mod metal_pipeline_tests {
 // ============================================================================
 
 mod metal_layer_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{MTLPixelFormat, MetalDevice, MetalLayer};
 
     #[test]
@@ -625,6 +629,7 @@ mod metal_layer_tests {
 // ============================================================================
 
 mod metal_render_pass_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::cm::IOSurface;
     use screencapturekit::metal::{
         MTLLoadAction, MTLStoreAction, MetalDevice, MetalRenderPassDescriptor,
@@ -689,6 +694,7 @@ mod metal_render_pass_tests {
 
 mod metal_textures_closure_tests {
     use screencapturekit::cm::IOSurface;
+    use screencapturekit::metal::IOSurfaceMetalExt;
 
     #[test]
     fn test_metal_textures_with_closure() {
@@ -736,6 +742,7 @@ mod metal_textures_closure_tests {
 // ============================================================================
 
 mod metal_buffer_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{MetalDevice, ResourceOptions};
 
     #[test]
@@ -813,6 +820,7 @@ mod metal_buffer_tests {
 // ============================================================================
 
 mod metal_command_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{MTLPixelFormat, MetalDevice, SHADER_SOURCE};
 
     #[test]
@@ -900,6 +908,7 @@ mod metal_command_tests {
 // ============================================================================
 
 mod metal_vertex_descriptor_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{MTLVertexFormat, MTLVertexStepFunction, MetalVertexDescriptor};
 
     #[test]
@@ -958,6 +967,7 @@ mod metal_vertex_descriptor_tests {
 // ============================================================================
 
 mod metal_render_encoder_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{
         MTLLoadAction, MTLPixelFormat, MTLPrimitiveType, MTLStoreAction, MetalDevice, MetalLayer,
         MetalRenderPassDescriptor, MetalRenderPipelineDescriptor, ResourceOptions, Uniforms,
@@ -1387,6 +1397,7 @@ fn test_mtl_primitive_type_copy() {
 
 // YCbCr surface and Metal texture tests
 mod ycbcr_tests {
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::cm::{IOSurface, PlaneProperties};
     use screencapturekit::metal::MetalDevice;
 

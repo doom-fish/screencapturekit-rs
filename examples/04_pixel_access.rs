@@ -8,6 +8,7 @@
 //! - Direct slice access
 
 use screencapturekit::cv::{CVPixelBufferLockFlags, PixelBufferCursorExt};
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::prelude::*;
 use std::io::{Read, Seek, SeekFrom};
 use std::sync::atomic::{AtomicUsize, Ordering};
