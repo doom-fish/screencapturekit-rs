@@ -79,6 +79,20 @@ public typealias RecordingFinishedCallback = @convention(c) (UnsafeMutableRawPoi
     }
 
     @available(macOS 15.0, *)
+    @_cdecl("sc_recording_output_configuration_get_output_url")
+    public func getRecordingOutputURL(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+        let box: Box<SCRecordingOutputConfiguration> = unretained(config)
+        let path = box.value.outputURL.path
+        return path.withCString { cString in
+            guard strlen(cString) + 1 <= bufferSize else {
+                return false
+            }
+            strlcpy(buffer, cString, bufferSize)
+            return true
+        }
+    }
+
+    @available(macOS 15.0, *)
     @_cdecl("sc_recording_output_configuration_set_video_codec")
     public func setRecordingOutputVideoCodec(_ config: OpaquePointer, _ codec: Int32) {
         let box: Box<SCRecordingOutputConfiguration> = unretained(config)
@@ -258,6 +272,9 @@ public typealias RecordingFinishedCallback = @convention(c) (UnsafeMutableRawPoi
 
     @_cdecl("sc_recording_output_configuration_set_output_url")
     public func setRecordingOutputURL(_: OpaquePointer?, _: UnsafePointer<CChar>) {}
+
+    @_cdecl("sc_recording_output_configuration_get_output_url")
+    public func getRecordingOutputURL(_: OpaquePointer?, _: UnsafeMutablePointer<CChar>, _: Int) -> Bool { false }
 
     @_cdecl("sc_recording_output_configuration_set_video_codec")
     public func setRecordingOutputVideoCodec(_: OpaquePointer?, _: Int32) {}

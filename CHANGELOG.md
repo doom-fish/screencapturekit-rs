@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0](https://github.com/doom-fish/screencapturekit-rs/compare/v3.0.1...v3.1.0) - 2026-05-16
+
+### Added
+
+- *(coverage)* add `COVERAGE.md` and certify the audited `ScreenCaptureKit` surface
+- *(picker)* add `SCContentSharingPickerConfiguration::allowed_picker_modes()`
+- *(recording)* add `SCRecordingOutputConfiguration::output_url()`
+- *(config)* add `SCStreamConfiguration::color_space_name()` and RGBA background-color accessors
+
+### Fixed
+
+- *(preset)* map `CaptureHDRRecordingPreservedSDRHDR10` to Apple's macOS 26 HDR-recording preset
+- *(config)* retain assigned `CGColorRef` / `CFStringRef` values for `backgroundColor`, `colorSpaceName`, and `colorMatrix`
+- *(config)* round-trip `SCStreamConfiguration` color and preset properties in tests
+- *(deps)* align local `apple-cf` / `apple-metal` version bounds with 0.6
+- *(examples)* import `IOSurfaceMetalExt` where `apple-metal` 0.6 requires the trait in scope
+
 ## [2.1.0](https://github.com/doom-fish/screencapturekit-rs/compare/v2.0.0...v2.1.0) - 2026-05-11
 
 ### Added

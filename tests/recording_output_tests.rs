@@ -114,11 +114,16 @@ fn test_recording_configuration() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
     use std::path::PathBuf;
 
-    let path = PathBuf::from("/tmp/test_recording.mp4");
+    let path = PathBuf::from("test_recording.mp4");
     let config = SCRecordingOutputConfiguration::new()
         .with_output_url(&path)
         .with_video_codec(SCRecordingOutputCodec::H264);
-    // Just verify it doesn't crash
+
+    let output_url = config.output_url().expect("output_url should round-trip");
+    assert!(
+        output_url.ends_with(&path),
+        "expected output URL {output_url:?} to end with {path:?}"
+    );
     assert!(!config.as_ptr().is_null());
 }
 

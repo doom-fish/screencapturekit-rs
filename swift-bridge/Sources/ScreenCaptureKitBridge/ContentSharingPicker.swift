@@ -38,6 +38,13 @@ public func setContentSharingPickerAllowedModes(
 }
 
 @available(macOS 14.0, *)
+@_cdecl("sc_content_sharing_picker_configuration_get_allowed_picker_modes_mask")
+public func getContentSharingPickerAllowedModesMask(_ config: OpaquePointer) -> UInt64 {
+    let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    return UInt64(box.value.allowedPickerModes.rawValue)
+}
+
+@available(macOS 14.0, *)
 @_cdecl("sc_content_sharing_picker_configuration_set_allows_changing_selected_content")
 public func setContentSharingPickerAllowsChangingSelectedContent(_ config: OpaquePointer, _ allows: Bool) {
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)

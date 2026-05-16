@@ -99,9 +99,14 @@ fn test_builder_with_destination_rect() {
 
 #[test]
 fn test_builder_with_background_color() {
-    let _config = SCStreamConfiguration::new().with_background_color(1.0, 0.0, 0.0);
-    // Red
-    // No getter for background color, just verify it doesn't crash
+    let config = SCStreamConfiguration::new().with_background_color(1.0, 0.0, 0.0);
+    assert_eq!(config.background_color(), Some((1.0, 0.0, 0.0, 1.0)));
+}
+
+#[test]
+fn test_builder_with_background_color_rgba() {
+    let config = SCStreamConfiguration::new().with_background_color_rgba(0.25, 0.5, 0.75, 0.125);
+    assert_eq!(config.background_color(), Some((0.25, 0.5, 0.75, 0.125)));
 }
 
 #[test]
@@ -382,14 +387,17 @@ fn test_excludes_current_process_audio() {
 
 #[test]
 fn test_color_space_name() {
-    let _config = SCStreamConfiguration::new().with_color_space_name("kCGColorSpaceSRGB");
-    // No getter, just verify no crash
+    let config = SCStreamConfiguration::new().with_color_space_name("kCGColorSpaceSRGB");
+    assert_eq!(
+        config.color_space_name(),
+        Some("kCGColorSpaceSRGB".to_string())
+    );
 }
 
 #[test]
 fn test_color_matrix() {
-    let _config = SCStreamConfiguration::new().with_color_matrix("kCGColorMatrix709");
-    // No getter, just verify no crash
+    let config = SCStreamConfiguration::new().with_color_matrix("kCGColorMatrix709");
+    assert_eq!(config.color_matrix(), Some("kCGColorMatrix709".to_string()));
 }
 
 // MARK: - Complete Configuration Test

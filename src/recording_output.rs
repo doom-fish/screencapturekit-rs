@@ -54,11 +54,12 @@
 
 use std::collections::HashMap;
 use std::ffi::c_void;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use crate::cm::CMTime;
+use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 
 /// Global registry for recording delegates - maps unique ID to delegate entry
 static RECORDING_DELEGATE_REGISTRY: Mutex<Option<HashMap<usize, RecordingDelegateEntry>>> =
@@ -107,7 +108,7 @@ impl SCRecordingOutputConfiguration {
         Self { ptr }
     }
 
-    /// Set the output file URL
+    /// Set the output file URL.
     #[must_use]
     pub fn with_output_url(self, path: &Path) -> Self {
         if let Some(path_str) = path.to_str() {
@@ -121,6 +122,16 @@ impl SCRecordingOutputConfiguration {
             }
         }
         self
+    }
+
+    /// Get the configured output file URL.
+    pub fn output_url(&self) -> Option<PathBuf> {
+        unsafe {
+            ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
+                crate::ffi::sc_recording_output_configuration_get_output_url(self.ptr, buf, len)
+            })
+            .map(PathBuf::from)
+        }
     }
 
     /// Set the video codec

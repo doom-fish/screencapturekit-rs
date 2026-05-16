@@ -1,6 +1,6 @@
 [package]
 name = "screencapturekit"
-version = "3.0.1"
+version = "3.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/screencapturekit-rs"
@@ -10,7 +10,7 @@ description = "Safe Rust bindings for Apple's ScreenCaptureKit framework - scree
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["screencapturekit", "screen-capture", "macos", "video", "audio"]
 categories = ["multimedia", "os::macos-apis", "api-bindings"]
-rust-version = "1.70"
+rust-version = "1.76"
 readme = "README.md"
 build = "build.rs"
 include = [
@@ -22,6 +22,7 @@ include = [
     "README.md",
     "LICENSE-*",
     "CHANGELOG.md",
+    "COVERAGE.md",
 ]
 
 [lints.rust]
@@ -59,8 +60,8 @@ macos_15_2 = ["macos_15_0"]
 macos_26_0 = ["macos_15_2"]
 
 [dependencies]
-apple-cf = { path = "../apple-cf-rs", version = ">=0.2, <0.6", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
-apple-metal = { path = "../apple-metal-rs", version = ">=0.1.1, <0.6", default-features = false, features = ["iosurface"] }
+apple-cf = { path = "../apple-cf-rs", version = ">=0.6, <0.7", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
+apple-metal = { path = "../apple-metal-rs", version = ">=0.6, <0.7", default-features = false, features = ["iosurface"] }
 
 [dev-dependencies]
 png = "0.18"

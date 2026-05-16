@@ -736,7 +736,7 @@ pub mod ffi;
 pub mod metal;
 
 /// Re-export of the lightweight [`apple-metal`](https://crates.io/crates/apple-metal)
-/// crate so downstream code can use either ScreenCaptureKit's full
+/// crate so downstream code can use either `ScreenCaptureKit`'s full
 /// Metal renderer ([`crate::metal`]) or the minimal device/texture
 /// surface from `apple-metal` without an extra `Cargo.toml` line.
 ///
