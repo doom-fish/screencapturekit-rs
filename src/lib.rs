@@ -734,6 +734,15 @@ pub mod dispatch_queue;
 pub mod error;
 pub mod ffi;
 pub mod metal;
+
+/// Re-export of the lightweight [`apple-metal`](https://crates.io/crates/apple-metal)
+/// crate so downstream code can use either ScreenCaptureKit's full
+/// Metal renderer ([`crate::metal`]) or the minimal device/texture
+/// surface from `apple-metal` without an extra `Cargo.toml` line.
+///
+/// `screencapturekit::metal::MetalDevice::as_apple_metal()` bridges
+/// between the two.
+pub use apple_metal;
 #[cfg(feature = "macos_15_0")]
 pub mod recording_output;
 #[cfg(feature = "macos_14_0")]

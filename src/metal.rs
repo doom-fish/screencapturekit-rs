@@ -777,6 +777,20 @@ impl MetalDevice {
     pub fn as_ptr(&self) -> *mut c_void {
         self.ptr.as_ptr()
     }
+
+    /// Wrap this device as an [`apple_metal::ManuallyDropDevice`] for
+    /// interop with the lightweight `apple-metal` crate. The returned
+    /// handle references the same `MTLDevice` instance and does not
+    /// release it on drop — keep this [`MetalDevice`] alive while the
+    /// borrowed handle is in use.
+    ///
+    /// Useful when calling helpers like
+    /// [`apple_metal::IOSurfaceMetalExt::create_metal_texture`] from
+    /// code that already holds an SCK [`MetalDevice`].
+    #[must_use]
+    pub fn as_apple_metal(&self) -> apple_metal::ManuallyDropDevice {
+        unsafe { apple_metal::MetalDevice::from_raw_borrowed(self.ptr.as_ptr()) }
+    }
 }
 
 impl Drop for MetalDevice {
