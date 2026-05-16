@@ -1,11 +1,11 @@
-//! `CMSampleBuffer` — re-exported from [`apple_cf::cm::CMSampleBuffer`] +
-//! ScreenCaptureKit-specific extension traits for the SCStreamFrameInfo
+//! `CMSampleBuffer` — re-exported from [`apple_cf::cm::CMSampleBuffer`] plus
+//! `ScreenCaptureKit`-specific extension traits for the `SCStreamFrameInfo`
 //! attachment readers and the few sample-buffer accessors that aren't
-//! framework-agnostic enough to live in apple-cf yet.
+//! framework-agnostic enough to live in `apple-cf` yet.
 //!
 //! Bring [`CMSampleBufferSCExt`] into scope to call `frame_status()`,
 //! `display_time()`, `frame_info()`, etc. on any `CMSampleBuffer` carrying
-//! ScreenCaptureKit attachments.
+//! `ScreenCaptureKit` attachments.
 //!
 //! Bring [`CMSampleBufferExt`] into scope for the
 //! `image_buffer()`/`audio_buffer_list()`/`make_data_ready()` accessors
@@ -78,10 +78,11 @@ pub struct FrameInfo {
 // ------------------------------------------------------------------
 
 /// Extension trait that exposes `SCStreamFrameInfo` attachment accessors on
-/// any [`CMSampleBuffer`] produced by ScreenCaptureKit. These are
-/// SC-specific by design — they read attachment keys defined on
+/// any [`CMSampleBuffer`] produced by `ScreenCaptureKit`.
+///
+/// These are SC-specific by design: they read attachment keys defined on
 /// `SCStreamFrameInfo` and are meaningless on sample buffers from other
-/// sources (videotoolbox, AVFoundation capture, etc.).
+/// sources (videotoolbox, `AVFoundation` capture, etc.).
 pub trait CMSampleBufferSCExt {
     /// `SCStreamFrameInfo.status` attachment.
     fn frame_status(&self) -> Option<SCFrameStatus>;
@@ -157,13 +158,8 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             let mut y = 0.0;
             let mut w = 0.0;
             let mut h = 0.0;
-            if ffi::cm_sample_buffer_get_content_rect(
-                self.as_ptr(),
-                &mut x,
-                &mut y,
-                &mut w,
-                &mut h,
-            ) {
+            if ffi::cm_sample_buffer_get_content_rect(self.as_ptr(), &mut x, &mut y, &mut w, &mut h)
+            {
                 Some(crate::cg::CGRect::new(x, y, w, h))
             } else {
                 None
@@ -310,11 +306,16 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
 // CMSampleBufferExt — generic accessors not yet in apple-cf.
 // ------------------------------------------------------------------
 
-/// Extension trait carrying generic CMSampleBuffer accessors that aren't
+/// Extension trait carrying generic `CMSampleBuffer` accessors that aren't
 /// available on [`apple_cf::cm::CMSampleBuffer`] yet (planned for an
-/// apple-cf v0.2 release).
+/// `apple-cf` v0.2 release).
 pub trait CMSampleBufferExt {
-    /// Construct a sample buffer wrapping a CVPixelBuffer.
+    /// Construct a sample buffer wrapping a `CVPixelBuffer`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the underlying `OSStatus` if `CoreMedia` fails to create the
+    /// sample buffer.
     fn create_for_image_buffer(
         image_buffer: &CVPixelBuffer,
         presentation_time: CMTime,
@@ -336,7 +337,7 @@ pub trait CMSampleBufferExt {
     ///
     /// # Errors
     ///
-    /// Returns the underlying `OSStatus` if CoreMedia rejects the new value.
+    /// Returns the underlying `OSStatus` if `CoreMedia` rejects the new value.
     fn set_output_presentation_timestamp(&self, time: CMTime) -> Result<(), i32>;
 
     /// Size of one sample at `index` in bytes.
@@ -353,7 +354,7 @@ pub trait CMSampleBufferExt {
     ///
     /// # Errors
     ///
-    /// Returns the underlying `OSStatus` if CoreMedia reports failure.
+    /// Returns the underlying `OSStatus` if `CoreMedia` reports failure.
     fn make_data_ready(&self) -> Result<(), i32>;
 
     /// Read the timing info for the sample at `index`.
@@ -381,7 +382,7 @@ impl CMSampleBufferExt for CMSampleBuffer {
                 &mut sample_buffer_ptr,
             );
             if status == 0 && !sample_buffer_ptr.is_null() {
-                CMSampleBuffer::from_raw(sample_buffer_ptr).ok_or(status)
+                Self::from_raw(sample_buffer_ptr).ok_or(status)
             } else {
                 Err(status)
             }

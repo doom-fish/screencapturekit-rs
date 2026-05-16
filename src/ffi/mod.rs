@@ -354,13 +354,26 @@ extern "C" {
         r: f32,
         g: f32,
         b: f32,
+        a: f32,
+    );
+    pub fn sc_stream_configuration_get_background_color(
+        config: *const c_void,
+        r: *mut f32,
+        g: *mut f32,
+        b: *mut f32,
+        a: *mut f32,
     );
     pub fn sc_stream_configuration_set_color_space_name(config: *const c_void, name: *const i8);
+    pub fn sc_stream_configuration_get_color_space_name(
+        config: *const c_void,
+        buffer: *mut i8,
+        buffer_size: isize,
+    ) -> bool;
     pub fn sc_stream_configuration_set_color_matrix(config: *const c_void, matrix: *const i8);
     pub fn sc_stream_configuration_get_color_matrix(
         config: *const c_void,
         buffer: *mut i8,
-        buffer_size: usize,
+        buffer_size: isize,
     ) -> bool;
 
     // macOS 14.0+ - capture resolution type
@@ -594,6 +607,9 @@ extern "C" {
         modes: *const i32,
         count: usize,
     );
+    pub fn sc_content_sharing_picker_configuration_get_allowed_picker_modes_mask(
+        config: *const c_void,
+    ) -> u64;
     pub fn sc_content_sharing_picker_configuration_set_allows_changing_selected_content(
         config: *const c_void,
         allows: bool,
@@ -699,6 +715,11 @@ extern "C" {
 extern "C" {
     pub fn sc_recording_output_configuration_create() -> *const c_void;
     pub fn sc_recording_output_configuration_set_output_url(config: *const c_void, path: *const i8);
+    pub fn sc_recording_output_configuration_get_output_url(
+        config: *const c_void,
+        buffer: *mut i8,
+        buffer_size: isize,
+    ) -> bool;
     pub fn sc_recording_output_configuration_set_video_codec(config: *const c_void, codec: i32);
     pub fn sc_recording_output_configuration_retain(config: *const c_void) -> *const c_void;
     pub fn sc_recording_output_configuration_release(config: *const c_void);

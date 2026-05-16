@@ -151,6 +151,28 @@ impl SCContentSharingPickerConfiguration {
         }
     }
 
+    /// Get the currently allowed picker modes.
+    pub fn allowed_picker_modes(&self) -> Vec<SCContentSharingPickerMode> {
+        let mask = unsafe {
+            crate::ffi::sc_content_sharing_picker_configuration_get_allowed_picker_modes_mask(
+                self.ptr,
+            )
+        };
+        let mut modes = Vec::new();
+        for (raw_value, mode) in [
+            (1_u64, SCContentSharingPickerMode::SingleWindow),
+            (2_u64, SCContentSharingPickerMode::MultipleWindows),
+            (16_u64, SCContentSharingPickerMode::SingleDisplay),
+            (4_u64, SCContentSharingPickerMode::SingleApplication),
+            (8_u64, SCContentSharingPickerMode::MultipleApplications),
+        ] {
+            if mask & raw_value != 0 {
+                modes.push(mode);
+            }
+        }
+        modes
+    }
+
     /// Set whether the user can change the selected content while sharing
     ///
     /// When `true`, the user can modify their selection during an active session.

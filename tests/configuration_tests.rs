@@ -463,7 +463,6 @@ fn test_all_presets() {
         SCStreamConfigurationPreset::CaptureHDRStreamCanonicalDisplay,
         SCStreamConfigurationPreset::CaptureHDRScreenshotLocalDisplay,
         SCStreamConfigurationPreset::CaptureHDRScreenshotCanonicalDisplay,
-        SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10,
     ];
 
     for preset in presets {
@@ -474,18 +473,37 @@ fn test_all_presets() {
 }
 
 #[test]
-#[cfg(feature = "macos_15_0")]
+#[cfg(feature = "macos_26_0")]
 fn test_hdr_recording_preset() {
-    use screencapturekit::stream::configuration::SCStreamConfigurationPreset;
+    use screencapturekit::stream::configuration::{
+        PixelFormat, SCCaptureDynamicRange, SCStreamConfigurationPreset,
+    };
+    use screencapturekit::FourCharCode;
 
-    // Test the HDR recording preset specifically
     let config = SCStreamConfiguration::from_preset(
         SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10,
     );
 
-    // Verify configuration was created
-    assert!(config.width() > 0 || config.width() == 0); // Some default value
-    println!("HDR Recording Preset: width={}", config.width());
+    assert_eq!(
+        config.capture_dynamic_range(),
+        SCCaptureDynamicRange::HDRCanonicalDisplay,
+        "HDR10 recording preset must request canonical-display HDR capture"
+    );
+    assert_eq!(
+        config.pixel_format(),
+        PixelFormat::Unknown(FourCharCode::from_bytes(*b"x420")),
+        "HDR10 recording preset must use the SDK's x420 recording pixel format"
+    );
+    assert_eq!(
+        config.color_matrix(),
+        Some("ITU_R_2020".to_string()),
+        "HDR10 recording preset must use the SDK's ITU_R_2020 color matrix"
+    );
+    assert_eq!(
+        config.color_space_name(),
+        Some("kCGColorSpaceITUR_2100_PQ".to_string()),
+        "HDR10 recording preset must use the SDK's PQ color space"
+    );
 }
 
 #[test]

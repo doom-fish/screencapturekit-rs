@@ -89,12 +89,14 @@ fn test_picker_configuration_modes() {
     use screencapturekit::content_sharing_picker::SCContentSharingPickerMode;
 
     let mut config = SCContentSharingPickerConfiguration::new();
-    config.set_allowed_picker_modes(&[
+    let modes = [
         SCContentSharingPickerMode::SingleWindow,
         SCContentSharingPickerMode::SingleDisplay,
-    ]);
+    ];
+    config.set_allowed_picker_modes(&modes);
+    assert_eq!(config.allowed_picker_modes(), modes);
     assert!(!config.as_ptr().is_null());
-    println!("✓ Picker modes set successfully");
+    println!("✓ Picker modes round-trip successfully");
 }
 
 #[test]

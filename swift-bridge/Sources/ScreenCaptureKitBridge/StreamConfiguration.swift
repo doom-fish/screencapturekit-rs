@@ -5,21 +5,85 @@ import CoreMedia
 import Foundation
 import ScreenCaptureKit
 
+private struct StreamConfigurationAssignedValues {
+    var backgroundColor: CGColor?
+    var colorSpaceName: NSString?
+    var colorMatrix: NSString?
+}
+
+private struct StreamConfigurationStorageEntry {
+    var refCount: Int
+    var values = StreamConfigurationAssignedValues()
+}
+
+private var streamConfigurationStorage: [ObjectIdentifier: StreamConfigurationStorageEntry] = [:]
+private let streamConfigurationStorageLock = NSLock()
+
+private func retainStreamConfigurationState(for config: SCStreamConfiguration) {
+    streamConfigurationStorageLock.lock()
+    defer { streamConfigurationStorageLock.unlock() }
+
+    let key = ObjectIdentifier(config)
+    var entry = streamConfigurationStorage[key] ?? StreamConfigurationStorageEntry(refCount: 0)
+    entry.refCount += 1
+    streamConfigurationStorage[key] = entry
+}
+
+private func releaseStreamConfigurationState(for config: SCStreamConfiguration) {
+    streamConfigurationStorageLock.lock()
+    defer { streamConfigurationStorageLock.unlock() }
+
+    let key = ObjectIdentifier(config)
+    guard var entry = streamConfigurationStorage[key] else {
+        return
+    }
+    entry.refCount -= 1
+    if entry.refCount <= 0 {
+        streamConfigurationStorage.removeValue(forKey: key)
+    } else {
+        streamConfigurationStorage[key] = entry
+    }
+}
+
+private func updateStreamConfigurationState(
+    for config: SCStreamConfiguration,
+    _ update: (inout StreamConfigurationAssignedValues) -> Void
+) {
+    streamConfigurationStorageLock.lock()
+    defer { streamConfigurationStorageLock.unlock() }
+
+    let key = ObjectIdentifier(config)
+    var entry = streamConfigurationStorage[key] ?? StreamConfigurationStorageEntry(refCount: 1)
+    update(&entry.values)
+    streamConfigurationStorage[key] = entry
+}
+
+private func streamConfigurationState(for config: SCStreamConfiguration) -> StreamConfigurationAssignedValues? {
+    streamConfigurationStorageLock.lock()
+    defer { streamConfigurationStorageLock.unlock() }
+    return streamConfigurationStorage[ObjectIdentifier(config)]?.values
+}
+
 // MARK: - Configuration: SCStreamConfiguration
 
 @_cdecl("sc_stream_configuration_create")
 public func createStreamConfiguration() -> OpaquePointer {
-    retain(SCStreamConfiguration())
+    let config = SCStreamConfiguration()
+    retainStreamConfigurationState(for: config)
+    return retain(config)
 }
 
 @_cdecl("sc_stream_configuration_retain")
 public func retainStreamConfiguration(_ config: OpaquePointer) -> OpaquePointer {
     let c: SCStreamConfiguration = unretained(config)
+    retainStreamConfigurationState(for: c)
     return retain(c)
 }
 
 @_cdecl("sc_stream_configuration_release")
 public func releaseStreamConfiguration(_ config: OpaquePointer) {
+    let c: SCStreamConfiguration = unretained(config)
+    releaseStreamConfigurationState(for: c)
     release(config)
 }
 
@@ -148,17 +212,80 @@ public func getStreamConfigurationPixelFormat(_ config: OpaquePointer) -> UInt32
 }
 
 @_cdecl("sc_stream_configuration_set_background_color")
-public func setStreamConfigurationBackgroundColor(_ config: OpaquePointer, _ r: Float, _ g: Float, _ b: Float) {
+public func setStreamConfigurationBackgroundColor(_ config: OpaquePointer, _ r: Float, _ g: Float, _ b: Float, _ a: Float) {
     let scConfig: SCStreamConfiguration = unretained(config)
-    let color = CGColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: 1.0)
+    let color = CGColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: CGFloat(a))
+    updateStreamConfigurationState(for: scConfig) { $0.backgroundColor = color }
     scConfig.backgroundColor = color
+}
+
+@_cdecl("sc_stream_configuration_get_background_color")
+public func getStreamConfigurationBackgroundColor(
+    _ config: OpaquePointer,
+    _ r: UnsafeMutablePointer<Float>,
+    _ g: UnsafeMutablePointer<Float>,
+    _ b: UnsafeMutablePointer<Float>,
+    _ a: UnsafeMutablePointer<Float>
+) {
+    let scConfig: SCStreamConfiguration = unretained(config)
+    guard let color = streamConfigurationState(for: scConfig)?.backgroundColor else {
+        r.pointee = 0.0
+        g.pointee = 0.0
+        b.pointee = 0.0
+        a.pointee = 0.0
+        return
+    }
+
+    let targetSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+    let converted = color.converted(to: targetSpace, intent: .defaultIntent, options: nil) ?? color
+    let components = converted.components ?? [0.0, 0.0, 0.0, 0.0]
+
+    switch components.count {
+    case 4:
+        r.pointee = Float(components[0])
+        g.pointee = Float(components[1])
+        b.pointee = Float(components[2])
+        a.pointee = Float(components[3])
+    case 2:
+        r.pointee = Float(components[0])
+        g.pointee = Float(components[0])
+        b.pointee = Float(components[0])
+        a.pointee = Float(components[1])
+    case 1:
+        r.pointee = Float(components[0])
+        g.pointee = Float(components[0])
+        b.pointee = Float(components[0])
+        a.pointee = 1.0
+    default:
+        r.pointee = 0.0
+        g.pointee = 0.0
+        b.pointee = 0.0
+        a.pointee = 0.0
+    }
 }
 
 @_cdecl("sc_stream_configuration_set_color_space_name")
 public func setStreamConfigurationColorSpaceName(_ config: OpaquePointer, _ name: UnsafePointer<CChar>) {
     let scConfig: SCStreamConfiguration = unretained(config)
-    let colorSpaceName = String(cString: name)
-    scConfig.colorSpaceName = colorSpaceName as CFString
+    let colorSpaceName = NSString(string: String(cString: name))
+    updateStreamConfigurationState(for: scConfig) { $0.colorSpaceName = colorSpaceName }
+    scConfig.colorSpaceName = colorSpaceName
+}
+
+@_cdecl("sc_stream_configuration_get_color_space_name")
+public func getStreamConfigurationColorSpaceName(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
+    let scConfig: SCStreamConfiguration = unretained(config)
+    let colorSpaceName = (streamConfigurationState(for: scConfig)?.colorSpaceName as String?) ?? (scConfig.colorSpaceName as String)
+    guard bufferSize > 0 else {
+        return false
+    }
+    return colorSpaceName.withCString { cString in
+        guard strlen(cString) + 1 <= bufferSize else {
+            return false
+        }
+        strlcpy(buffer, cString, bufferSize)
+        return true
+    }
 }
 
 @_cdecl("sc_stream_configuration_set_should_be_opaque")
@@ -291,15 +418,19 @@ public func getStreamConfigurationCaptureResolutionType(_ config: OpaquePointer)
 @_cdecl("sc_stream_configuration_set_color_matrix")
 public func setStreamConfigurationColorMatrix(_ config: OpaquePointer, _ matrix: UnsafePointer<CChar>) {
     let scConfig: SCStreamConfiguration = unretained(config)
-    let matrixStr = String(cString: matrix)
-    scConfig.colorMatrix = matrixStr as CFString
+    let matrixString = NSString(string: String(cString: matrix))
+    updateStreamConfigurationState(for: scConfig) { $0.colorMatrix = matrixString }
+    scConfig.colorMatrix = matrixString
 }
 
 @_cdecl("sc_stream_configuration_get_color_matrix")
 public func getStreamConfigurationColorMatrix(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
     let scConfig: SCStreamConfiguration = unretained(config)
-    let matrix = scConfig.colorMatrix as String
+    let matrix = (streamConfigurationState(for: scConfig)?.colorMatrix as String?) ?? (scConfig.colorMatrix as String)
     return matrix.withCString { src in
+        guard strlen(src) + 1 <= bufferSize else {
+            return false
+        }
         strlcpy(buffer, src, bufferSize)
         return true
     }
@@ -629,6 +760,14 @@ public func getStreamConfigurationIgnoreGlobalClipSingleWindow(_ config: OpaqueP
     @_cdecl("sc_stream_configuration_create_with_preset")
     public func createStreamConfigurationWithPreset(_ preset: Int32) -> OpaquePointer? {
         if #available(macOS 15.0, *) {
+            #if SCREENCAPTUREKIT_HAS_MACOS26_SDK
+                if #available(macOS 26.0, *), preset == 4 {
+                    let config = SCStreamConfiguration(preset: .captureHDRRecordingPreservedSDRHDR10)
+                    retainStreamConfigurationState(for: config)
+                    return retain(config)
+                }
+            #endif
+
             let scPreset: SCStreamConfiguration.Preset = switch preset {
             case 0:
                 .captureHDRStreamLocalDisplay
@@ -641,9 +780,13 @@ public func getStreamConfigurationIgnoreGlobalClipSingleWindow(_ config: OpaqueP
             default:
                 .captureHDRStreamLocalDisplay
             }
-            return retain(SCStreamConfiguration(preset: scPreset))
+            let config = SCStreamConfiguration(preset: scPreset)
+            retainStreamConfigurationState(for: config)
+            return retain(config)
         }
-        return retain(SCStreamConfiguration())
+        let config = SCStreamConfiguration()
+        retainStreamConfigurationState(for: config)
+        return retain(config)
     }
 #else
     @_cdecl("sc_stream_configuration_create_with_preset")

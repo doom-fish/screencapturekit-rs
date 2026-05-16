@@ -2,7 +2,22 @@
 //!
 //! Methods for configuring color space, pixel format, and background color.
 
-use crate::utils::four_char_code::FourCharCode;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+
+use crate::utils::{
+    ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE},
+    four_char_code::FourCharCode,
+};
+
+const DEFAULT_ALPHA: f32 = 1.0;
+type BackgroundColor = (f32, f32, f32, f32);
+
+static BACKGROUND_COLOR_CACHE: OnceLock<Mutex<HashMap<usize, BackgroundColor>>> = OnceLock::new();
+
+fn background_color_cache() -> &'static Mutex<HashMap<usize, BackgroundColor>> {
+    BACKGROUND_COLOR_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 use super::{internal::SCStreamConfiguration, pixel_format::PixelFormat};
 
@@ -43,30 +58,51 @@ impl SCStreamConfiguration {
         }
     }
 
-    /// Set the background color for captured content
+    /// Set the background color for captured content with an explicit alpha value.
     ///
     /// Available on macOS 13.0+
-    ///
-    /// # Parameters
-    ///
-    /// - `r`: Red component (0.0 - 1.0)
-    /// - `g`: Green component (0.0 - 1.0)
-    /// - `b`: Blue component (0.0 - 1.0)
-    pub fn set_background_color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+    pub fn set_background_color_rgba(&mut self, r: f32, g: f32, b: f32, a: f32) -> &mut Self {
         unsafe {
-            crate::ffi::sc_stream_configuration_set_background_color(self.as_ptr(), r, g, b);
+            crate::ffi::sc_stream_configuration_set_background_color(self.as_ptr(), r, g, b, a);
+        }
+        if let Ok(mut cache) = background_color_cache().lock() {
+            cache.insert(self.as_ptr() as usize, (r, g, b, a));
         }
         self
     }
 
-    /// Set the background color (builder pattern)
+    /// Set the background color for captured content.
+    ///
+    /// This convenience overload uses an opaque alpha channel (`1.0`).
+    pub fn set_background_color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.set_background_color_rgba(r, g, b, DEFAULT_ALPHA)
+    }
+
+    /// Set the background color with an explicit alpha value (builder pattern).
+    #[must_use]
+    pub fn with_background_color_rgba(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
+        self.set_background_color_rgba(r, g, b, a);
+        self
+    }
+
+    /// Set the background color (builder pattern).
+    ///
+    /// This convenience overload uses an opaque alpha channel (`1.0`).
     #[must_use]
     pub fn with_background_color(mut self, r: f32, g: f32, b: f32) -> Self {
         self.set_background_color(r, g, b);
         self
     }
 
-    /// Set the color space name for captured content
+    /// Get the current background color, if it was set through this wrapper.
+    pub fn background_color(&self) -> Option<BackgroundColor> {
+        background_color_cache()
+            .lock()
+            .ok()
+            .and_then(|cache| cache.get(&(self.as_ptr() as usize)).copied())
+    }
+
+    /// Set the color space name for captured content.
     ///
     /// Available on macOS 13.0+
     pub fn set_color_space_name(&mut self, name: &str) -> &mut Self {
@@ -81,11 +117,20 @@ impl SCStreamConfiguration {
         self
     }
 
-    /// Set the color space name (builder pattern)
+    /// Set the color space name (builder pattern).
     #[must_use]
     pub fn with_color_space_name(mut self, name: &str) -> Self {
         self.set_color_space_name(name);
         self
+    }
+
+    /// Get the color space name for captured content.
+    pub fn color_space_name(&self) -> Option<String> {
+        unsafe {
+            ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
+                crate::ffi::sc_stream_configuration_get_color_space_name(self.as_ptr(), buf, len)
+            })
+        }
     }
 
     /// Set the color matrix for captured content
@@ -103,23 +148,14 @@ impl SCStreamConfiguration {
         self
     }
 
-    /// Get the color matrix for captured content
+    /// Get the color matrix for captured content.
     ///
-    /// Returns the color matrix as a string, or None if not set.
+    /// Returns the color matrix as a string, or `None` if not set.
     pub fn color_matrix(&self) -> Option<String> {
-        let mut buffer = [0i8; 256];
-        let success = unsafe {
-            crate::ffi::sc_stream_configuration_get_color_matrix(
-                self.as_ptr(),
-                buffer.as_mut_ptr(),
-                buffer.len(),
-            )
-        };
-        if success {
-            let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
-            c_str.to_str().ok().map(ToString::to_string)
-        } else {
-            None
+        unsafe {
+            ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
+                crate::ffi::sc_stream_configuration_get_color_matrix(self.as_ptr(), buf, len)
+            })
         }
     }
 

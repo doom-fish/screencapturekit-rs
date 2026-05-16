@@ -176,7 +176,6 @@ pub struct PlaneInfo {
     pub bytes_per_row: usize,
 }
 
-
 /// Metal texture descriptor parameters for creating textures from `IOSurface`
 ///
 /// This provides the information needed to configure a Metal `MTLTextureDescriptor`.
@@ -200,7 +199,6 @@ impl TextureParams {
     }
 }
 
-
 /// Result of creating Metal textures from an `IOSurface`
 #[derive(Debug)]
 pub struct CapturedTextures<T> {
@@ -223,7 +221,6 @@ impl<T> CapturedTextures<T> {
         pixel_format::is_ycbcr_biplanar(self.pixel_format)
     }
 }
-
 
 /// Metal shader source for rendering captured frames
 ///
@@ -1715,16 +1712,15 @@ impl Drop for MetalRenderCommandEncoder {
 /// Result of creating Metal textures from an `IOSurface`
 pub type MetalCapturedTextures = CapturedTextures<MetalTexture>;
 
-
-
 /// Extension trait that adds Metal-related convenience methods to
-/// `apple_cf::iosurface::IOSurface`. Defined as a trait (rather than
-/// inherent impls) because Rust's orphan rules forbid inherent impls
-/// on out-of-crate types.
+/// `apple_cf::iosurface::IOSurface`.
+///
+/// It's a trait (rather than inherent impls) because Rust's orphan rules
+/// forbid inherent impls on out-of-crate types.
 ///
 /// Bring this trait into scope to call `info()`, `texture_params()`,
-/// `metal_textures(...)`, `create_metal_textures(...)` etc. on
-/// any IOSurface.
+/// `metal_textures(...)`, `create_metal_textures(...)`, etc. on any
+/// `IOSurface`.
 pub trait IOSurfaceMetalExt {
     /// Detailed information about this surface for Metal texture creation.
     fn info(&self) -> IOSurfaceInfo;
@@ -1741,7 +1737,6 @@ pub trait IOSurfaceMetalExt {
 }
 
 impl IOSurfaceMetalExt for IOSurface {
-
     /// Get detailed information about this `IOSurface` for Metal texture creation
     fn info(&self) -> IOSurfaceInfo {
         let width = self.width();
@@ -1777,7 +1772,6 @@ impl IOSurfaceMetalExt for IOSurface {
     fn is_ycbcr_biplanar(&self) -> bool {
         pixel_format::is_ycbcr_biplanar(self.pixel_format())
     }
-
 
     /// Get texture parameters for creating Metal textures from this `IOSurface`
     ///
@@ -1829,7 +1823,6 @@ impl IOSurfaceMetalExt for IOSurface {
             }]
         }
     }
-
 
     /// Create Metal textures from this `IOSurface` using a closure
     ///
@@ -1905,7 +1898,6 @@ impl IOSurfaceMetalExt for IOSurface {
         }
     }
 
-
     /// Create Metal textures from this `IOSurface` using the provided device
     ///
     /// This is a zero-copy operation - the textures share memory with the `IOSurface`.
@@ -1961,8 +1953,6 @@ impl IOSurfaceMetalExt for IOSurface {
             None
         }
     }
-
-
 }
 
 /// Private helper used by `create_metal_textures` to build a `MetalTexture`
