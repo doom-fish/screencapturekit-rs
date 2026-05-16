@@ -1,10 +1,10 @@
 # screencapturekit-rs coverage audit (vs MacOSX26.2.sdk)
 
 SDK_PUBLIC_SYMBOLS: 42
-VERIFIED: 40
-GAPS: 1
+VERIFIED: 41
+GAPS: 0
 EXEMPT: 1
-COVERAGE_PCT: 97.6%
+COVERAGE_PCT: 100.0%
 
 Scope: top-level public ScreenCaptureKit declarations from the SDK headers (`@interface`, `@protocol`, `typedef NS_ENUM/NS_OPTIONS/NS_ERROR_ENUM`, `NS_TYPED_ENUM`, and exported constants), excluding non-macOS declarations and listing Apple-deprecated symbols as exempt. Crate coverage was checked against the public Rust API with feature-gated modules enabled via `--all-features`, plus the Swift bridge thunks under `swift-bridge/Sources/ScreenCaptureKitBridge`.
 
@@ -16,6 +16,7 @@ Scope: top-level public ScreenCaptureKit declarations from the SDK headers (`@in
 | SCContentSharingPickerConfiguration | class | SCContentSharingPicker.h | `content_sharing_picker::SCContentSharingPickerConfiguration` |
 | SCContentSharingPicker | class | SCContentSharingPicker.h | `content_sharing_picker::SCContentSharingPicker` |
 | SCStreamErrorCode | NS_ERROR_ENUM | SCError.h | `error::SCStreamErrorCode` |
+| SCStreamErrorDomain | extern NSString *const | SCError.h | `error::SC_STREAM_ERROR_DOMAIN` |
 | SCRecordingOutputConfiguration | class | SCRecordingOutput.h | `recording_output::SCRecordingOutputConfiguration` |
 | SCRecordingOutputDelegate | protocol | SCRecordingOutput.h | `recording_output::SCRecordingOutputDelegate` |
 | SCRecordingOutput | class | SCRecordingOutput.h | `recording_output::SCRecordingOutput` |
@@ -55,7 +56,6 @@ Scope: top-level public ScreenCaptureKit declarations from the SDK headers (`@in
 ## 🔴 GAPS
 | Symbol | Kind | Header | Notes |
 | --- | --- | --- | --- |
-| SCStreamErrorDomain | extern NSString *const | SCError.h | `error::SC_STREAM_ERROR_DOMAIN` exists, but the crate constant is `"com.apple.screencapturekit"` while `swift -e "import ScreenCaptureKit; print(SCStreamErrorDomain)"` resolves to `"com.apple.ScreenCaptureKit.SCStreamErrorDomain"`. |
 
 ## ⏭️ EXEMPT
 | Symbol | Kind | Header | Reason | SDK attribute |
