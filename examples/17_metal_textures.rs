@@ -11,7 +11,7 @@
 //! Note: This example demonstrates the API without creating a window.
 //! See `16_full_metal_app` for a complete windowed application.
 
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cm::CMSampleBufferExt;
 use screencapturekit::metal::{
     IOSurfaceMetalExt, MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor,
     MetalRenderPipelineState, Uniforms, SHADER_SOURCE,

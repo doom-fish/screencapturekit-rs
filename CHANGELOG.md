@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.4] - 2026-05-17
+
+### Fixed
+
+- *(async)* wrap all `extern "C"` completion callbacks in `catch_user_panic` to prevent panic UB across the FFI boundary
+- *(unsafe)* add `SAFETY:` comments to `unsafe impl Send/Sync` blocks and all unsafe blocks inside FFI callbacks
+- *(unsafe)* add `SAFETY:` comments to FFI-call unsafe blocks in async API impl methods
+- *(docs)* correct install version in `README.md` and `src/lib.rs` (was 1/2, now 3)
+
 ## [3.1.3](https://github.com/doom-fish/screencapturekit-rs/compare/v3.1.2...v3.1.3) - 2026-05-17
 
 ### Other

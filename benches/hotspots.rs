@@ -9,6 +9,7 @@
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use screencapturekit::cm::CMSampleBuffer;
+use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::configuration::SCStreamConfiguration;
@@ -228,8 +229,7 @@ fn bench_frame_attachments(c: &mut Criterion) {
 }
 
 // ============================================================================
-// Hotspot #11: sample_timing_info_array makes N FFI calls (1 per sample).
-// For a screen frame numSamples is 1, but for audio it's the frame count.
+// Hotspot #11: sample_timing_info performs a CoreMedia timing lookup.
 // ============================================================================
 
 fn bench_sample_timing(c: &mut Criterion) {
@@ -239,9 +239,6 @@ fn bench_sample_timing(c: &mut Criterion) {
     let mut group = c.benchmark_group("sample_timing");
     group.bench_function("single_info", |b| {
         b.iter(|| black_box(sample.sample_timing_info(0).ok()));
-    });
-    group.bench_function("info_array", |b| {
-        b.iter(|| black_box(sample.sample_timing_info_array().ok()));
     });
     group.finish();
 }
@@ -351,7 +348,6 @@ fn bench_pixel_buffer_paths(c: &mut Criterion) {
     };
 
     let mut group = c.benchmark_group("pixel_buffer_paths");
-    use screencapturekit::cv::CVPixelBufferLockFlags;
 
     // Zero-copy path: lock + as_slice.
     group.bench_function("lock_as_slice_zero_copy", |b| {
@@ -412,9 +408,9 @@ struct AvStats {
     video_handler_ns: std::sync::atomic::AtomicU64,
     /// Sum of per-frame audio sample-handler latency.
     audio_handler_ns: std::sync::atomic::AtomicU64,
-    /// Sum of CMSampleBuffer::audio_buffer_list() call cost (audio path only).
+    /// Sum of `CMSampleBuffer::audio_buffer_list()` call cost (audio path only).
     audio_buffer_list_ns: std::sync::atomic::AtomicU64,
-    /// Sum of CMSampleBuffer::frame_info() call cost (video path only).
+    /// Sum of `CMSampleBuffer::frame_info()` call cost (video path only).
     frame_info_ns: std::sync::atomic::AtomicU64,
 }
 
@@ -434,7 +430,7 @@ impl AvStats {
 /// Drive a stream for `duration`, optionally with audio enabled. Returns the
 /// stats accumulated by the handler. The handler does the typical "extract
 /// per-frame metadata then drop the buffer" workload that real consumers do —
-/// frame_info() for video and audio_buffer_list() for audio.
+/// `frame_info()` for video and `audio_buffer_list()` for audio.
 fn run_stream(duration: Duration, with_audio: bool) -> Arc<AvStats> {
     cg_init();
     let content = SCShareableContent::get().expect("perms?");
@@ -550,26 +546,10 @@ fn bench_audio_video_throughput(c: &mut Criterion) {
                 }
                 let avg_video_per_iter = total_video / iters;
                 let avg_audio_per_iter = total_audio / iters;
-                let video_handler_avg_ns = if total_video > 0 {
-                    total_video_handler / total_video
-                } else {
-                    0
-                };
-                let audio_handler_avg_ns = if total_audio > 0 {
-                    total_audio_handler / total_audio
-                } else {
-                    0
-                };
-                let frame_info_avg_ns = if total_video > 0 {
-                    total_frame_info / total_video
-                } else {
-                    0
-                };
-                let audio_buffer_list_avg_ns = if total_audio > 0 {
-                    total_audio_buffer_list / total_audio
-                } else {
-                    0
-                };
+                let video_handler_avg_ns = total_video_handler.checked_div(total_video).unwrap_or(0);
+                let audio_handler_avg_ns = total_audio_handler.checked_div(total_audio).unwrap_or(0);
+                let frame_info_avg_ns = total_frame_info.checked_div(total_video).unwrap_or(0);
+                let audio_buffer_list_avg_ns = total_audio_buffer_list.checked_div(total_audio).unwrap_or(0);
                 eprintln!(
                     "[{label}] iter={iters} video={avg_video_per_iter}f/iter audio={avg_audio_per_iter}b/iter handler_ns: video={video_handler_avg_ns} audio={audio_handler_avg_ns} | frame_info={frame_info_avg_ns}ns audio_buffer_list={audio_buffer_list_avg_ns}ns"
                 );

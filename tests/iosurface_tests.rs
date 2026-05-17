@@ -6,7 +6,6 @@
 
 use screencapturekit::cm::{IOSurface, IOSurfaceLockOptions};
 use screencapturekit::cv::CVPixelBufferLockFlags;
-use screencapturekit::metal::IOSurfaceMetalExt;
 
 #[test]
 fn test_iosurface_lock_options_values() {

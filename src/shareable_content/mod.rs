@@ -93,20 +93,27 @@ extern "C" fn shareable_content_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    if !error_ptr.is_null() {
-        let error = unsafe { error_from_cstr(error_ptr) };
-        unsafe { SyncCompletion::<SCShareableContent>::complete_err(user_data, error) };
-    } else if !content_ptr.is_null() {
-        let content = unsafe { SCShareableContent::from_ptr(content_ptr) };
-        unsafe { SyncCompletion::complete_ok(user_data, content) };
-    } else {
-        unsafe {
-            SyncCompletion::<SCShareableContent>::complete_err(
-                user_data,
-                "Unknown error".to_string(),
-            );
-        };
-    }
+    crate::utils::panic_safe::catch_user_panic("shareable_content_callback", move || {
+        if !error_ptr.is_null() {
+            // SAFETY: `error` is non-null (checked above) and points to a valid null-terminated C string provided by the Swift completion handler.
+            let error = unsafe { error_from_cstr(error_ptr) };
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { SyncCompletion::<SCShareableContent>::complete_err(user_data, error) };
+        } else if !content_ptr.is_null() {
+            // SAFETY: `content` is non-null (checked above) and is a valid `SCShareableContent` pointer retained for us by the Swift completion handler.
+            let content = unsafe { SCShareableContent::from_ptr(content_ptr) };
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { SyncCompletion::complete_ok(user_data, content) };
+        } else {
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                SyncCompletion::<SCShareableContent>::complete_err(
+                    user_data,
+                    "Unknown error".to_string(),
+                );
+            };
+        }
+    });
 }
 
 impl PartialEq for SCShareableContent {

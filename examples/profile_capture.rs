@@ -1,19 +1,24 @@
 //! CPU profiling driver: runs a 30-second audio+video capture with the
-//! realistic per-frame workload (frame_info on every frame, audio_buffer_list
-//! on every audio buffer) so a sampling profiler (samply, xctrace) sees a
+//! realistic per-frame workload (`frame_info` on every frame, `audio_buffer_list`
+//! on every audio buffer) so a sampling profiler (`samply`, `xctrace`) sees a
 //! representative slice of the dispatch path.
 //!
 //! Build with `--release` (debug profiling is meaningless here) and the
 //! release profile retains debug info for symbolication:
 //!
-//!   cargo build --release --example profile_capture --features macos_14_0
-//!   samply record --rate 4000 -- ./target/release/examples/profile_capture
+//! ```bash
+//! cargo build --release --example profile_capture --features macos_14_0
+//! samply record --rate 4000 -- ./target/release/examples/profile_capture
+//! ```
 //!
-//! Or with xctrace's Time Profiler:
-//!   xctrace record --template "Time Profiler" --output /tmp/cap.trace \
-//!       --launch -- ./target/release/examples/profile_capture
+//! Or with `xctrace`'s Time Profiler:
 //!
-//! To generate a flame graph after samply, open the printed URL in your
+//! ```bash
+//! xctrace record --template "Time Profiler" --output ./cap.trace \
+//!     --launch -- ./target/release/examples/profile_capture
+//! ```
+//!
+//! To generate a flame graph after `samply`, open the printed URL in your
 //! browser (Firefox profiler) and use the inverted-call-tree view to find
 //! per-callback hot self-time.
 
@@ -25,19 +30,31 @@ use std::time::{Duration, Instant};
 
 const CAPTURE_SECONDS: u64 = 30;
 
+extern "C" {
+    fn sc_initialize_core_graphics();
+}
+
 struct Counters {
     video: AtomicUsize,
     audio: AtomicUsize,
+}
+
+fn init_core_graphics() {
+    // SAFETY: This initializes the process-global Core Graphics state once
+    // before capture starts; the Swift bridge exposes it specifically for this
+    // setup step.
+    unsafe { sc_initialize_core_graphics() };
+}
+
+fn rate_per_second(count: usize, elapsed: Duration) -> f64 {
+    u32::try_from(count).map_or_else(|_| f64::from(u32::MAX), f64::from) / elapsed.as_secs_f64()
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔎 profile_capture — driving a {CAPTURE_SECONDS}s capture window for sampling");
 
     // Force CG init so the profile doesn't capture the first-call setup cost.
-    extern "C" {
-        fn sc_initialize_core_graphics();
-    }
-    unsafe { sc_initialize_core_graphics() };
+    init_core_graphics();
 
     let content = SCShareableContent::get()?;
     let display = content.displays().into_iter().next().ok_or("no display")?;
@@ -93,8 +110,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let a = counters.audio.load(Ordering::Relaxed);
     println!(
         "✅ Done in {elapsed:?} — {v} video frames ({:.1} fps) + {a} audio buffers ({:.1} bps)",
-        v as f64 / elapsed.as_secs_f64(),
-        a as f64 / elapsed.as_secs_f64(),
+        rate_per_second(v, elapsed),
+        rate_per_second(a, elapsed),
     );
 
     Ok(())

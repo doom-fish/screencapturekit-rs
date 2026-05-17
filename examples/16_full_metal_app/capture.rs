@@ -5,8 +5,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+use screencapturekit::cm::CMSampleBufferExt;
 use screencapturekit::cm::IOSurface;
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::metal::{pixel_format, IOSurfaceInfo, IOSurfaceMetalExt};
 use screencapturekit::prelude::*;
 

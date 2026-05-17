@@ -119,14 +119,22 @@ extern "C" fn image_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    if !error_ptr.is_null() {
-        let error = unsafe { error_from_cstr(error_ptr) };
-        unsafe { SyncCompletion::<CGImage>::complete_err(user_data, error) };
-    } else if !image_ptr.is_null() {
-        unsafe { SyncCompletion::complete_ok(user_data, CGImage::from_ptr(image_ptr)) };
-    } else {
-        unsafe { SyncCompletion::<CGImage>::complete_err(user_data, "Unknown error".to_string()) };
-    }
+    crate::utils::panic_safe::catch_user_panic("image_callback", move || {
+        if !error_ptr.is_null() {
+            // SAFETY: `error` is non-null (checked above) and points to a valid null-terminated C string provided by the Swift completion handler.
+            let error = unsafe { error_from_cstr(error_ptr) };
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { SyncCompletion::<CGImage>::complete_err(user_data, error) };
+        } else if !image_ptr.is_null() {
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { SyncCompletion::complete_ok(user_data, CGImage::from_ptr(image_ptr)) };
+        } else {
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                SyncCompletion::<CGImage>::complete_err(user_data, "Unknown error".to_string());
+            };
+        }
+    });
 }
 
 extern "C" fn buffer_callback(
@@ -134,20 +142,27 @@ extern "C" fn buffer_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    if !error_ptr.is_null() {
-        let error = unsafe { error_from_cstr(error_ptr) };
-        unsafe { SyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(user_data, error) };
-    } else if !buffer_ptr.is_null() {
-        let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(buffer_ptr.cast_mut()) };
-        unsafe { SyncCompletion::complete_ok(user_data, buffer) };
-    } else {
-        unsafe {
-            SyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(
-                user_data,
-                "Unknown error".to_string(),
-            );
-        };
-    }
+    crate::utils::panic_safe::catch_user_panic("buffer_callback", move || {
+        if !error_ptr.is_null() {
+            // SAFETY: `error` is non-null (checked above) and points to a valid null-terminated C string provided by the Swift completion handler.
+            let error = unsafe { error_from_cstr(error_ptr) };
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { SyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(user_data, error) };
+        } else if !buffer_ptr.is_null() {
+            // SAFETY: `buffer_ptr` is non-null (checked above), is a valid `CMSampleBuffer` pointer, and `cast_mut()` is sound because the underlying object is uniquely owned at this point.
+            let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(buffer_ptr.cast_mut()) };
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { SyncCompletion::complete_ok(user_data, buffer) };
+        } else {
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                SyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(
+                    user_data,
+                    "Unknown error".to_string(),
+                );
+            };
+        }
+    });
 }
 
 #[cfg(feature = "macos_26_0")]
@@ -156,21 +171,27 @@ extern "C" fn screenshot_output_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    if !error_ptr.is_null() {
-        let error = unsafe { error_from_cstr(error_ptr) };
-        unsafe { SyncCompletion::<SCScreenshotOutput>::complete_err(user_data, error) };
-    } else if !output_ptr.is_null() {
-        unsafe {
-            SyncCompletion::complete_ok(user_data, SCScreenshotOutput::from_ptr(output_ptr));
-        };
-    } else {
-        unsafe {
-            SyncCompletion::<SCScreenshotOutput>::complete_err(
-                user_data,
-                "Unknown error".to_string(),
-            );
-        };
-    }
+    crate::utils::panic_safe::catch_user_panic("screenshot_output_callback", move || {
+        if !error_ptr.is_null() {
+            // SAFETY: `error` is non-null (checked above) and points to a valid null-terminated C string provided by the Swift completion handler.
+            let error = unsafe { error_from_cstr(error_ptr) };
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { SyncCompletion::<SCScreenshotOutput>::complete_err(user_data, error) };
+        } else if !output_ptr.is_null() {
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                SyncCompletion::complete_ok(user_data, SCScreenshotOutput::from_ptr(output_ptr));
+            };
+        } else {
+            // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                SyncCompletion::<SCScreenshotOutput>::complete_err(
+                    user_data,
+                    "Unknown error".to_string(),
+                );
+            };
+        }
+    });
 }
 
 /// `CGImage` wrapper for screenshots

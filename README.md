@@ -43,7 +43,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "2"
+screencapturekit = "3"
 ```
 
 Opt-in features (additive):
@@ -62,7 +62,7 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "2", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "3", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading from 1.x?** See [`docs/MIGRATION.md`](docs/MIGRATION.md#migrating-from-1x-to-20)

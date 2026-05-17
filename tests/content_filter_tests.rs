@@ -1,7 +1,6 @@
 //! `SCContentFilter` tests
 
 use screencapturekit::cg::CGRect;
-use screencapturekit::cm::CMSampleBufferSCExt;
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::content_filter::SCContentFilter;
 

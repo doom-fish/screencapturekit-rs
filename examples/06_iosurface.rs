@@ -6,8 +6,8 @@
 //! - Accessing `IOSurface` properties
 //! - Locking and reading `IOSurface` data
 
-use screencapturekit::cm::IOSurfaceLockOptions;
 use screencapturekit::cm::CMSampleBufferExt;
+use screencapturekit::cm::IOSurfaceLockOptions;
 use screencapturekit::cv::PixelBufferCursorExt;
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};

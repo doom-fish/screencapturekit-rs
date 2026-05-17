@@ -2,7 +2,6 @@
 
 #![cfg(feature = "macos_14_0")]
 
-use screencapturekit::cm::CMSampleBufferSCExt;
 use screencapturekit::shareable_content::{SCShareableContent, SCShareableContentInfo};
 use screencapturekit::stream::content_filter::SCContentFilter;
 

@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     showcase_snapshot()?;
     println!();
-    showcase_frame_info()?;
+    showcase_frame_info();
     println!();
     showcase_bgra_data()?;
 
@@ -97,11 +97,11 @@ fn showcase_snapshot() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn showcase_frame_info() -> Result<(), Box<dyn std::error::Error>> {
+fn showcase_frame_info() {
     println!("== frame_info vs per-attribute ==");
     let Some(sample) = capture_one_video_frame() else {
         println!("  (skipping — could not capture a frame; permissions?)");
-        return Ok(());
+        return;
     };
 
     // Warmup
@@ -129,7 +129,6 @@ fn showcase_frame_info() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("  → close to noise floor on this machine");
     }
-    Ok(())
 }
 
 fn showcase_bgra_data() -> Result<(), Box<dyn std::error::Error>> {

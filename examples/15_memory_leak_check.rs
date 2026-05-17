@@ -20,7 +20,6 @@
 //! This uses the macOS `leaks` command which requires running as a standalone process.
 //! Some Apple framework leaks in `ScreenCaptureKit` itself are expected and ignored.
 
-use screencapturekit::cm::CMSampleBufferSCExt;
 use screencapturekit::{
     cg::CGRect,
     cm::CMSampleBuffer,

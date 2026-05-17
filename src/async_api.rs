@@ -87,20 +87,27 @@ extern "C" fn shareable_content_callback(
     error: *const i8,
     user_data: *mut c_void,
 ) {
-    if !error.is_null() {
-        let error_msg = unsafe { error_from_cstr(error) };
-        unsafe { AsyncCompletion::<SCShareableContent>::complete_err(user_data, error_msg) };
-    } else if !content.is_null() {
-        let sc = unsafe { SCShareableContent::from_ptr(content) };
-        unsafe { AsyncCompletion::complete_ok(user_data, sc) };
-    } else {
-        unsafe {
-            AsyncCompletion::<SCShareableContent>::complete_err(
-                user_data,
-                "Unknown error".to_string(),
-            );
-        };
-    }
+    crate::utils::panic_safe::catch_user_panic("shareable_content_callback", move || {
+        if !error.is_null() {
+            // SAFETY: `error` is non-null (checked above) and points to a valid null-terminated C string provided by the Swift completion handler.
+            let error_msg = unsafe { error_from_cstr(error) };
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { AsyncCompletion::<SCShareableContent>::complete_err(user_data, error_msg) };
+        } else if !content.is_null() {
+            // SAFETY: `content` is non-null (checked above) and is a valid `SCShareableContent` pointer retained for us by the Swift completion handler.
+            let sc = unsafe { SCShareableContent::from_ptr(content) };
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { AsyncCompletion::complete_ok(user_data, sc) };
+        } else {
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                AsyncCompletion::<SCShareableContent>::complete_err(
+                    user_data,
+                    "Unknown error".to_string(),
+                );
+            };
+        }
+    });
 }
 
 /// Future for async shareable content retrieval
@@ -179,6 +186,7 @@ impl AsyncSCShareableContentOptions {
     pub fn get(self) -> AsyncShareableContentFuture {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `context` is a valid one-shot completion pointer created by `AsyncCompletion::create()`; the Swift layer invokes the callback exactly once, after which the pointer is consumed.
         unsafe {
             crate::ffi::sc_shareable_content_get_with_options(
                 self.exclude_desktop_windows,
@@ -205,6 +213,7 @@ impl AsyncSCShareableContentOptions {
     ) -> AsyncShareableContentFuture {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `context` is a valid one-shot completion pointer created by `AsyncCompletion::create()`; the Swift layer invokes the callback exactly once, after which the pointer is consumed.
         unsafe {
             crate::ffi::sc_shareable_content_get_below_window(
                 self.exclude_desktop_windows,
@@ -231,6 +240,7 @@ impl AsyncSCShareableContentOptions {
     ) -> AsyncShareableContentFuture {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `context` is a valid one-shot completion pointer created by `AsyncCompletion::create()`; the Swift layer invokes the callback exactly once, after which the pointer is consumed.
         unsafe {
             crate::ffi::sc_shareable_content_get_above_window(
                 self.exclude_desktop_windows,
@@ -267,6 +277,7 @@ impl AsyncSCShareableContent {
     pub fn current_process() -> AsyncShareableContentFuture {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `context` is a valid one-shot completion pointer created by `AsyncCompletion::create()`; the Swift layer invokes the callback exactly once, after which the pointer is consumed.
         unsafe {
             crate::ffi::sc_shareable_content_get_current_process_displays(
                 shareable_content_callback,
@@ -371,6 +382,11 @@ impl Future for NextSample<'_> {
     }
 }
 
+// SAFETY: `AsyncSampleSender` holds `Arc<Mutex<AsyncSampleIteratorState>>`.
+// `AsyncSampleIteratorState` contains `VecDeque<CMSampleBuffer>` and `Option<Waker>`;
+// `CMSampleBuffer` has its own `unsafe impl Send` (it is an Apple-owned handle
+// safe to transfer across threads) and `Waker` is `Send + Sync`, so the whole
+// `Arc<Mutex<...>>` is safe to send and share across threads.
 unsafe impl Send for AsyncSampleSender {}
 unsafe impl Sync for AsyncSampleSender {}
 
@@ -597,22 +613,30 @@ extern "C" fn screenshot_image_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    if !error_ptr.is_null() {
-        let error = unsafe { error_from_cstr(error_ptr) };
-        unsafe {
-            AsyncCompletion::<crate::screenshot_manager::CGImage>::complete_err(user_data, error);
+    crate::utils::panic_safe::catch_user_panic("screenshot_image_callback", move || {
+        if !error_ptr.is_null() {
+            // SAFETY: `error` is non-null (checked above) and points to a valid null-terminated C string provided by the Swift completion handler.
+            let error = unsafe { error_from_cstr(error_ptr) };
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                AsyncCompletion::<crate::screenshot_manager::CGImage>::complete_err(
+                    user_data, error,
+                );
+            }
+        } else if !image_ptr.is_null() {
+            let image = crate::screenshot_manager::CGImage::from_ptr(image_ptr);
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { AsyncCompletion::complete_ok(user_data, image) };
+        } else {
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                AsyncCompletion::<crate::screenshot_manager::CGImage>::complete_err(
+                    user_data,
+                    "Unknown error".to_string(),
+                );
+            };
         }
-    } else if !image_ptr.is_null() {
-        let image = crate::screenshot_manager::CGImage::from_ptr(image_ptr);
-        unsafe { AsyncCompletion::complete_ok(user_data, image) };
-    } else {
-        unsafe {
-            AsyncCompletion::<crate::screenshot_manager::CGImage>::complete_err(
-                user_data,
-                "Unknown error".to_string(),
-            );
-        };
-    }
+    });
 }
 
 /// Callback for async `CMSampleBuffer` capture
@@ -622,20 +646,27 @@ extern "C" fn screenshot_buffer_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    if !error_ptr.is_null() {
-        let error = unsafe { error_from_cstr(error_ptr) };
-        unsafe { AsyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(user_data, error) };
-    } else if !buffer_ptr.is_null() {
-        let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(buffer_ptr.cast_mut()) };
-        unsafe { AsyncCompletion::complete_ok(user_data, buffer) };
-    } else {
-        unsafe {
-            AsyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(
-                user_data,
-                "Unknown error".to_string(),
-            );
-        };
-    }
+    crate::utils::panic_safe::catch_user_panic("screenshot_buffer_callback", move || {
+        if !error_ptr.is_null() {
+            // SAFETY: `error` is non-null (checked above) and points to a valid null-terminated C string provided by the Swift completion handler.
+            let error = unsafe { error_from_cstr(error_ptr) };
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { AsyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(user_data, error) };
+        } else if !buffer_ptr.is_null() {
+            // SAFETY: `buffer_ptr` is non-null (checked above), is a valid `CMSampleBuffer` pointer, and `cast_mut()` is sound because the underlying object is uniquely owned at this point.
+            let buffer = unsafe { crate::cm::CMSampleBuffer::from_ptr(buffer_ptr.cast_mut()) };
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe { AsyncCompletion::complete_ok(user_data, buffer) };
+        } else {
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                AsyncCompletion::<crate::cm::CMSampleBuffer>::complete_err(
+                    user_data,
+                    "Unknown error".to_string(),
+                );
+            };
+        }
+    });
 }
 
 /// Future for async screenshot capture
@@ -677,6 +708,7 @@ impl AsyncSCScreenshotManager {
     ) -> AsyncScreenshotFuture<crate::screenshot_manager::CGImage> {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `content_filter.as_ptr()` and `configuration.as_ptr()` return valid non-null pointers for the duration of this call (borrowed via `&`). `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_image(
                 content_filter.as_ptr(),
@@ -701,6 +733,7 @@ impl AsyncSCScreenshotManager {
     ) -> AsyncScreenshotFuture<crate::cm::CMSampleBuffer> {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `content_filter.as_ptr()` and `configuration.as_ptr()` return valid non-null pointers for the duration of this call (borrowed via `&`). `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_sample_buffer(
                 content_filter.as_ptr(),
@@ -732,6 +765,7 @@ impl AsyncSCScreenshotManager {
     ) -> AsyncScreenshotFuture<crate::screenshot_manager::CGImage> {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: The rectangle coordinates are plain values passed by copy. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_image_in_rect(
                 rect.x,
@@ -764,6 +798,7 @@ impl AsyncSCScreenshotManager {
     ) -> AsyncScreenshotFuture<crate::screenshot_manager::SCScreenshotOutput> {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `content_filter.as_ptr()` and `configuration.as_ptr()` return valid non-null pointers for the duration of this call (borrowed via `&`). `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_screenshot(
                 content_filter.as_ptr(),
@@ -791,6 +826,7 @@ impl AsyncSCScreenshotManager {
     ) -> AsyncScreenshotFuture<crate::screenshot_manager::SCScreenshotOutput> {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `configuration.as_ptr()` returns a valid non-null pointer for the duration of this call (borrowed via `&`). The rectangle coordinates are plain values passed by copy. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_screenshot_in_rect(
                 rect.x,
@@ -814,24 +850,30 @@ extern "C" fn screenshot_output_callback(
     error_ptr: *const i8,
     user_data: *mut c_void,
 ) {
-    if !error_ptr.is_null() {
-        let error = unsafe { error_from_cstr(error_ptr) };
-        unsafe {
-            AsyncCompletion::<crate::screenshot_manager::SCScreenshotOutput>::complete_err(
-                user_data, error,
-            );
+    crate::utils::panic_safe::catch_user_panic("screenshot_output_callback", move || {
+        if !error_ptr.is_null() {
+            // SAFETY: `error` is non-null (checked above) and points to a valid null-terminated C string provided by the Swift completion handler.
+            let error = unsafe { error_from_cstr(error_ptr) };
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                AsyncCompletion::<crate::screenshot_manager::SCScreenshotOutput>::complete_err(
+                    user_data, error,
+                );
+            }
+        } else if !output_ptr.is_null() {
+            let output = crate::screenshot_manager::SCScreenshotOutput::from_ptr(output_ptr);
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`.
+            unsafe { AsyncCompletion::complete_ok(user_data, output) };
+        } else {
+            // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
+            unsafe {
+                AsyncCompletion::<crate::screenshot_manager::SCScreenshotOutput>::complete_err(
+                    user_data,
+                    "Unknown error".to_string(),
+                );
+            };
         }
-    } else if !output_ptr.is_null() {
-        let output = crate::screenshot_manager::SCScreenshotOutput::from_ptr(output_ptr);
-        unsafe { AsyncCompletion::complete_ok(user_data, output) };
-    } else {
-        unsafe {
-            AsyncCompletion::<crate::screenshot_manager::SCScreenshotOutput>::complete_err(
-                user_data,
-                "Unknown error".to_string(),
-            );
-        };
-    }
+    });
 }
 
 // ============================================================================
@@ -846,16 +888,23 @@ struct AsyncPickerCallbackResult {
 }
 
 #[cfg(feature = "macos_14_0")]
+// SAFETY: `AsyncPickerCallbackResult` stores a `*const c_void` that is an
+// Apple Objective-C object reference (`SCPickerResult`). All ScreenCaptureKit
+// objects are thread-safe to pass across threads (they follow ObjC ARC rules),
+// so sending this pointer to another thread is sound.
 unsafe impl Send for AsyncPickerCallbackResult {}
 
 /// Callback for async picker
 #[cfg(feature = "macos_14_0")]
 extern "C" fn async_picker_callback(result_code: i32, ptr: *const c_void, user_data: *mut c_void) {
-    let result = AsyncPickerCallbackResult {
-        code: result_code,
-        ptr,
-    };
-    unsafe { AsyncCompletion::complete_ok(user_data, result) };
+    crate::utils::panic_safe::catch_user_panic("async_picker_callback", move || {
+        let result = AsyncPickerCallbackResult {
+            code: result_code,
+            ptr,
+        };
+        // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`.
+        unsafe { AsyncCompletion::complete_ok(user_data, result) };
+    });
 }
 
 /// Future for async picker with full result
@@ -987,6 +1036,7 @@ impl AsyncSCContentSharingPicker {
     ) -> AsyncPickerFuture {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `config.as_ptr()` returns a valid non-null pointer for the duration of this call. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_with_result(
                 config.as_ptr(),
@@ -1019,6 +1069,7 @@ impl AsyncSCContentSharingPicker {
     ) -> AsyncPickerFilterFuture {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `config.as_ptr()` returns a valid non-null pointer for the duration of this call. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_content_sharing_picker_show(
                 config.as_ptr(),
@@ -1067,6 +1118,7 @@ impl AsyncSCContentSharingPicker {
     ) -> AsyncPickerFuture {
         let (future, context) = AsyncCompletion::create();
 
+        // SAFETY: `config.as_ptr()` and `stream.as_ptr()` return valid non-null pointers for the duration of this call. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_for_stream(
                 config.as_ptr(),

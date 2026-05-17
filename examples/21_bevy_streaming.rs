@@ -17,7 +17,7 @@
 
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cm::CMSampleBufferExt;
 use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
