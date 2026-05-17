@@ -24,6 +24,22 @@ jobs:
     name: Lint
     steps:
       - uses: actions/checkout@v4
+      - name: Check out sibling path-dependency repos
+        # Cargo.toml uses `path = "../apple-cf-rs"` / `../apple-metal-rs`
+        # alongside published crates.io versions so local dev resolves to
+        # the working tree, but CI has none of those siblings unless we
+        # clone them explicitly. Without this step `cargo` errors with
+        # `failed to read ../apple-cf-rs/Cargo.toml` and every job fails
+        # before it can compile, which also blocks the release-plz job
+        # downstream (`needs: build`).
+        run: |
+          set -euo pipefail
+          parent="$(cd .. && pwd)"
+          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+            if [ ! -d "$parent/$repo" ]; then
+              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+            fi
+          done
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -92,6 +108,15 @@ jobs:
       TARGET_FLAG: ${{ matrix.cross_target && format('--target {0}', matrix.cross_target) || '' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Check out sibling path-dependency repos
+        run: |
+          set -euo pipefail
+          parent="$(cd .. && pwd)"
+          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+            if [ ! -d "$parent/$repo" ]; then
+              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+            fi
+          done
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -148,6 +173,15 @@ jobs:
     needs: [lint]
     steps:
       - uses: actions/checkout@v4
+      - name: Check out sibling path-dependency repos
+        run: |
+          set -euo pipefail
+          parent="$(cd .. && pwd)"
+          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+            if [ ! -d "$parent/$repo" ]; then
+              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+            fi
+          done
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo
@@ -184,6 +218,15 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
+      - name: Check out sibling path-dependency repos
+        run: |
+          set -euo pipefail
+          parent="$(cd .. && pwd)"
+          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+            if [ ! -d "$parent/$repo" ]; then
+              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+            fi
+          done
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
@@ -206,6 +249,15 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
+      - name: Check out sibling path-dependency repos
+        run: |
+          set -euo pipefail
+          parent="$(cd .. && pwd)"
+          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+            if [ ! -d "$parent/$repo" ]; then
+              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+            fi
+          done
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
