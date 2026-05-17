@@ -35,14 +35,25 @@ jobs:
         # `failed to read ../apple-cf-rs/Cargo.toml` and every job fails
         # before it can compile, which also blocks the release-plz job
         # downstream (`needs: build`).
+        #
+        # Pin to the 0.6.x line: it matches the version range in
+        # screencapturekit/Cargo.toml (`>=0.6, <0.8`) and predates the
+        # apple-metal 0.7 changes that statically reference macOS 26-SDK
+        # Metal symbols (e.g. MTLSamplerDescriptor.reductionMode) without
+        # compile-time SDK gating — those break the macOS 14 / 15 runners
+        # whose Xcode SDK doesn't define them.
         run: |
           set -euo pipefail
           parent="$(cd .. && pwd)"
-          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+          clone_at() {
+            local repo="$1" tag="$2"
             if [ ! -d "$parent/$repo" ]; then
-              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+              git clone --depth 1 --branch "$tag" "https://github.com/doom-fish/$repo.git" "$parent/$repo"
             fi
-          done
+          }
+          clone_at apple-cf-rs       v0.6.2
+          clone_at apple-metal-rs    v0.6.3
+          clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -115,11 +126,15 @@ jobs:
         run: |
           set -euo pipefail
           parent="$(cd .. && pwd)"
-          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+          clone_at() {
+            local repo="$1" tag="$2"
             if [ ! -d "$parent/$repo" ]; then
-              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+              git clone --depth 1 --branch "$tag" "https://github.com/doom-fish/$repo.git" "$parent/$repo"
             fi
-          done
+          }
+          clone_at apple-cf-rs       v0.6.2
+          clone_at apple-metal-rs    v0.6.3
+          clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -180,11 +195,15 @@ jobs:
         run: |
           set -euo pipefail
           parent="$(cd .. && pwd)"
-          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+          clone_at() {
+            local repo="$1" tag="$2"
             if [ ! -d "$parent/$repo" ]; then
-              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+              git clone --depth 1 --branch "$tag" "https://github.com/doom-fish/$repo.git" "$parent/$repo"
             fi
-          done
+          }
+          clone_at apple-cf-rs       v0.6.2
+          clone_at apple-metal-rs    v0.6.3
+          clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo
@@ -225,11 +244,15 @@ jobs:
         run: |
           set -euo pipefail
           parent="$(cd .. && pwd)"
-          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+          clone_at() {
+            local repo="$1" tag="$2"
             if [ ! -d "$parent/$repo" ]; then
-              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+              git clone --depth 1 --branch "$tag" "https://github.com/doom-fish/$repo.git" "$parent/$repo"
             fi
-          done
+          }
+          clone_at apple-cf-rs       v0.6.2
+          clone_at apple-metal-rs    v0.6.3
+          clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
@@ -256,11 +279,15 @@ jobs:
         run: |
           set -euo pipefail
           parent="$(cd .. && pwd)"
-          for repo in apple-cf-rs apple-metal-rs doom-fish-utils; do
+          clone_at() {
+            local repo="$1" tag="$2"
             if [ ! -d "$parent/$repo" ]; then
-              git clone --depth 1 "https://github.com/doom-fish/$repo.git" "$parent/$repo"
+              git clone --depth 1 --branch "$tag" "https://github.com/doom-fish/$repo.git" "$parent/$repo"
             fi
-          done
+          }
+          clone_at apple-cf-rs       v0.6.2
+          clone_at apple-metal-rs    v0.6.3
+          clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
