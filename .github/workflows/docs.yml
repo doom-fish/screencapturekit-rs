@@ -10,7 +10,7 @@ env:
 
 jobs:
   docs:
-    runs-on: macos-latest
+    runs-on: macos-26
     permissions:
       contents: read
       pages: write
