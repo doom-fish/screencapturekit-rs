@@ -17,10 +17,13 @@ env:
 
 jobs:
   # ==========================================================================
-  # Lint (runs once, not per-platform)
+  # Lint (runs once, not per-platform). Pinned to macos-26 because
+  # `cargo clippy --all-features` activates `macos_26_0`, which pulls in
+  # SDK symbols (MTLSamplerReductionMode, reactiveTextureUsage, …) that
+  # don't exist on the macos-latest (macOS 14) runner.
   # ==========================================================================
   lint:
-    runs-on: macos-latest
+    runs-on: macos-26
     name: Lint
     steps:
       - uses: actions/checkout@v4
