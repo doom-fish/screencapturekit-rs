@@ -363,7 +363,7 @@ TCC prompt requires it and the app will be terminated without one:
 <string>Capture your screen so the app can …</string>
 ```
 
-ScreenCaptureKit itself does **not** require a code-signing entitlement
+`ScreenCaptureKit` itself does **not** require a code-signing entitlement
 on either signed or sandboxed apps — capture is gated by the user's TCC
 grant in **System Settings → Privacy & Security → Screen & System
 Audio Recording**, not by an `Entitlements.plist` key. (There is no
