@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.2](https://github.com/doom-fish/screencapturekit-rs/compare/v3.1.1...v3.1.2) - 2026-05-17
+
+### Fixed
+
+- *(docs)* backtick ScreenCaptureKit in README to satisfy doc-markdown
+- *(docs)* drop non-existent com.apple.security.screen-capture entitlement ([#144](https://github.com/doom-fish/screencapturekit-rs/pull/144))
+- *(stream-config)* pin BGRA as default pixel format ([#145](https://github.com/doom-fish/screencapturekit-rs/pull/145))
+
+### Other
+
+- *(deps)* publish-friendly Cargo.toml; move sibling paths to local .cargo/config
+- add explicit CodeQL workflow on macos-26 (Rust-only)
+- pin apple-metal-rs sibling to v0.7.1 + restrict matrix to macos-26
+- drop macos-14 from build + leak-check matrix
+- *(siblings)* pin apple-cf/apple-metal sibling clones to v0.6.x
+- *(lint)* run on macos-26 so --all-features can compile macos_26_0 code
+- *(workflow)* clone sibling path-dependency repos before build
+- widen apple-cf / apple-metal version constraints
+- fmt + audit-v2 follow-ups
+
 ## [3.1.1](https://github.com/doom-fish/screencapturekit-rs/compare/v3.1.0...v3.1.1) - 2026-05-16
 
 ### Fixed
