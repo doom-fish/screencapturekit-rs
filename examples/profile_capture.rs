@@ -17,8 +17,8 @@
 //! browser (Firefox profiler) and use the inverted-call-tree view to find
 //! per-callback hot self-time.
 
-use screencapturekit::prelude::*;
 use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};

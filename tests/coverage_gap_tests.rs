@@ -17,6 +17,7 @@
 //!   capture is in flight, which exercises the `RwLock<Vec<HandlerEntry>>`
 //!   write path against an active dispatch reader.
 
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::{
     cm::CMSampleBuffer,
     shareable_content::SCShareableContent,
@@ -28,7 +29,6 @@ use screencapturekit::{
         SCStream,
     },
 };
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

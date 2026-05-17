@@ -12,8 +12,8 @@
 #![allow(clippy::option_if_let_else)]
 
 use eframe::egui;
-use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
