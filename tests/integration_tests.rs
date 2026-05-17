@@ -1,4 +1,4 @@
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cm::CMSampleBufferExt;
 use screencapturekit::{
     cv::CVPixelBufferLockFlags,
     shareable_content::SCShareableContent,

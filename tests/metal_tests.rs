@@ -213,7 +213,7 @@ fn test_shader_source_exists() {
 // ============================================================================
 
 mod metal_device_tests {
-    use screencapturekit::metal::IOSurfaceMetalExt;
+    
     use screencapturekit::metal::MetalDevice;
 
     #[test]
@@ -483,7 +483,7 @@ mod metal_texture_tests {
 // ============================================================================
 
 mod metal_pipeline_tests {
-    use screencapturekit::metal::IOSurfaceMetalExt;
+    
     use screencapturekit::metal::{
         MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor, SHADER_SOURCE,
     };
@@ -572,7 +572,7 @@ mod metal_pipeline_tests {
 // ============================================================================
 
 mod metal_layer_tests {
-    use screencapturekit::metal::IOSurfaceMetalExt;
+    
     use screencapturekit::metal::{MTLPixelFormat, MetalDevice, MetalLayer};
 
     #[test]
@@ -742,7 +742,7 @@ mod metal_textures_closure_tests {
 // ============================================================================
 
 mod metal_buffer_tests {
-    use screencapturekit::metal::IOSurfaceMetalExt;
+    
     use screencapturekit::metal::{MetalDevice, ResourceOptions};
 
     #[test]
@@ -820,7 +820,7 @@ mod metal_buffer_tests {
 // ============================================================================
 
 mod metal_command_tests {
-    use screencapturekit::metal::IOSurfaceMetalExt;
+    
     use screencapturekit::metal::{MTLPixelFormat, MetalDevice, SHADER_SOURCE};
 
     #[test]
@@ -908,7 +908,7 @@ mod metal_command_tests {
 // ============================================================================
 
 mod metal_vertex_descriptor_tests {
-    use screencapturekit::metal::IOSurfaceMetalExt;
+    
     use screencapturekit::metal::{MTLVertexFormat, MTLVertexStepFunction, MetalVertexDescriptor};
 
     #[test]

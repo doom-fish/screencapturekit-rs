@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let target_idx = app_snaps
         .iter()
         .position(|a| a.application_name.contains("Finder"))
-        .or_else(|| if app_snaps.is_empty() { None } else { Some(0) });
+        .or(if app_snaps.is_empty() { None } else { Some(0) });
 
     let Some(target_idx) = target_idx else {
         println!("⚠️  No applications found");

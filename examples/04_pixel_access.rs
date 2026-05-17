@@ -7,7 +7,7 @@
 //! - Reading specific pixel coordinates
 //! - Direct slice access
 
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cm::CMSampleBufferExt;
 use screencapturekit::cv::{CVPixelBufferLockFlags, PixelBufferCursorExt};
 use screencapturekit::prelude::*;
 use std::io::{Read, Seek, SeekFrom};

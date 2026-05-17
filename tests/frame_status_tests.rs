@@ -1,7 +1,6 @@
 //! Tests for `SCFrameStatus`
 
 use screencapturekit::cm::SCFrameStatus;
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use std::collections::HashSet;
 
 #[test]

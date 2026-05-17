@@ -13,24 +13,24 @@
 //! Each section measures both the new and the legacy path so you can see
 //! the win on YOUR machine. Run with:
 //!
-//!   cargo run --release --example 24_batched_apis_showcase --features macos_14_0
+//!   cargo run --release --example `24_batched_apis_showcase` --features `macos_14_0`
 //!
 //! Expected output (numbers vary by machine):
 //!
 //!   == snapshot vs per-element ==
-//!   snapshot()           : 38µs
+//!   `snapshot()`           : 38µs
 //!   per-element + attrs  : 73µs   (1.9× slower)
 //!
-//!   == frame_info vs per-attribute ==
-//!   frame_info()         : 7.6µs
+//!   == `frame_info` vs per-attribute ==
+//!   `frame_info()`         : 7.6µs
 //!   5× per-attribute calls: 11.3µs (1.5× slower)
 //!
-//!   == bgra_data vs rgba_data (held image) ==
-//!   bgra_data() 1080p    : 199µs
-//!   rgba_data() 1080p    : 209µs  (5% slower)
+//!   == `bgra_data` vs `rgba_data` (held image) ==
+//!   `bgra_data()` 1080p    : 199µs
+//!   `rgba_data()` 1080p    : 209µs  (5% slower)
 
 use screencapturekit::cm::CMSampleBuffer;
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cm::CMSampleBufferSCExt;
 use screencapturekit::prelude::*;
 use screencapturekit::screenshot_manager::SCScreenshotManager;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -170,7 +170,7 @@ fn showcase_bgra_data() -> Result<(), Box<dyn std::error::Error>> {
         println!("    rgba_data()                 : {rgba_avg:>9?}");
         println!("    bgra_data()                 : {bgra_avg:>9?}");
         if rgba_avg > bgra_avg {
-            let saved = rgba_avg - bgra_avg;
+            let saved = rgba_avg.checked_sub(bgra_avg).unwrap();
             let pct = 100.0 * saved.as_secs_f64() / rgba_avg.as_secs_f64();
             println!("    → bgra_data() saves {saved:?} ({pct:.1}%)");
         }

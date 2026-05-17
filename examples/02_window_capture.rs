@@ -54,8 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let app_name = w
             .owning_app_index
             .and_then(|idx| app_snaps.get(idx))
-            .map(|a| a.application_name.as_str())
-            .unwrap_or("");
+            .map_or("", |a| a.application_name.as_str());
 
         println!(
             "  {}. {} - {} ({}x{})",
@@ -87,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 w.is_on_screen
                     && w.frame.width > 100.0
                     && w.frame.height > 100.0
-                    && w.title.as_deref().map_or(false, |t| !t.is_empty())
+                    && w.title.as_deref().is_some_and(|t| !t.is_empty())
             })
         })
         .or_else(|| window_snaps.iter().find(|w| w.is_on_screen))
@@ -110,8 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chosen_app_name = chosen_snap
         .owning_app_index
         .and_then(|i| app_snaps.get(i))
-        .map(|a| a.application_name.as_str())
-        .unwrap_or("");
+        .map_or("", |a| a.application_name.as_str());
     println!(
         "\nCapturing: {} - {}\n",
         chosen_app_name,

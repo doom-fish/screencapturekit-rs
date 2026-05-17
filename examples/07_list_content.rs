@@ -79,8 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let app_name = w
             .owning_app_index
             .and_then(|i| applications.get(i))
-            .map(|a| a.application_name.as_str())
-            .unwrap_or("");
+            .map_or("", |a| a.application_name.as_str());
 
         println!("  - {} - {}", app_name, w.title.as_deref().unwrap_or(""));
         println!("    Window ID: {}", w.window_id);

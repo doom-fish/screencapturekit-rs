@@ -21,7 +21,7 @@
 #![allow(clippy::significant_drop_tightening)]
 #![allow(clippy::option_if_let_else)]
 
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cm::CMSampleBufferExt;
 use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
 use std::io::Write;
