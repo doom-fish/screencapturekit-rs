@@ -629,8 +629,8 @@ mod metal_layer_tests {
 // ============================================================================
 
 mod metal_render_pass_tests {
-    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::cm::IOSurface;
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{
         MTLLoadAction, MTLStoreAction, MetalDevice, MetalRenderPassDescriptor,
     };
@@ -1397,8 +1397,8 @@ fn test_mtl_primitive_type_copy() {
 
 // YCbCr surface and Metal texture tests
 mod ycbcr_tests {
-    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::cm::{IOSurface, PlaneProperties};
+    use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::MetalDevice;
 
     fn create_ycbcr_surface(width: usize, height: usize) -> Option<IOSurface> {

@@ -20,6 +20,7 @@
 //! This uses the macOS `leaks` command which requires running as a standalone process.
 //! Some Apple framework leaks in `ScreenCaptureKit` itself are expected and ignored.
 
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::{
     cg::CGRect,
     cm::CMSampleBuffer,
@@ -32,7 +33,6 @@ use screencapturekit::{
         SCStream,
     },
 };
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use std::{
     process::Command,
     sync::{

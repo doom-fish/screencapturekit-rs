@@ -19,8 +19,8 @@
 #![allow(clippy::significant_drop_tightening)]
 #![allow(clippy::cast_precision_loss)]
 
-use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
 use std::io::Write;
 use std::process::{Child, Command, Stdio};

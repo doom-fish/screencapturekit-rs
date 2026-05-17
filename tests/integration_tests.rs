@@ -1,3 +1,4 @@
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use screencapturekit::{
     cv::CVPixelBufferLockFlags,
     shareable_content::SCShareableContent,
@@ -7,7 +8,6 @@ use screencapturekit::{
     },
     CMSampleBuffer,
 };
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 

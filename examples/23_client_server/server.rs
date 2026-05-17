@@ -21,8 +21,8 @@
 #![allow(clippy::significant_drop_tightening)]
 #![allow(clippy::option_if_let_else)]
 
-use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
 use std::io::Write;
 use std::net::TcpListener;

@@ -4,8 +4,8 @@
 
 #![allow(clippy::similar_names)]
 
-use screencapturekit::prelude::*;
 use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::prelude::*;
 use screencapturekit::{
     cg::{CGPoint, CGRect, CGSize},
     cm::{CMSampleTimingInfo, CMTime},
