@@ -10,6 +10,24 @@ fn test_default_configuration() {
     // Just verify it doesn't crash
 }
 
+/// Regression test for issue #145.
+///
+/// Apple's stock `SCStreamConfiguration()` no longer defaults to BGRA on
+/// macOS 26 / Apple Silicon — the runtime delivers `420v` unless the caller
+/// overrides `pixelFormat`. The Swift bridge pins BGRA at construction time
+/// to restore the long-standing crate default; this test locks in that
+/// guarantee so a future regression in the bridge surfaces immediately.
+#[test]
+fn test_default_pixel_format_is_bgra() {
+    let config = SCStreamConfiguration::new();
+    assert_eq!(
+        config.pixel_format(),
+        PixelFormat::BGRA,
+        "SCStreamConfiguration::new() must default to BGRA across macOS \
+         versions (see issue #145)",
+    );
+}
+
 #[test]
 fn test_set_dimensions() {
     let mut config = SCStreamConfiguration::default();

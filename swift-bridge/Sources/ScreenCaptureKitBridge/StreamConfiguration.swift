@@ -2,6 +2,7 @@
 
 import CoreGraphics
 import CoreMedia
+import CoreVideo
 import Foundation
 import ScreenCaptureKit
 
@@ -69,6 +70,16 @@ private func streamConfigurationState(for config: SCStreamConfiguration) -> Stre
 @_cdecl("sc_stream_configuration_create")
 public func createStreamConfiguration() -> OpaquePointer {
     let config = SCStreamConfiguration()
+    // Apple's stock `SCStreamConfiguration()` no longer guarantees a BGRA
+    // default — on macOS 26 / Apple Silicon the runtime delivers
+    // `kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange` ('420v') unless the
+    // caller explicitly overrides `pixelFormat`. That silently breaks
+    // consumers that assume 32-bit BGRA samples (the long-standing
+    // documented default for this crate). Pin BGRA at construction so
+    // `SCStreamConfiguration::new()` produces the same wire-level format
+    // across macOS versions. Callers who want YUV / HDR formats override
+    // this via `set_pixel_format` as before. See issue #145.
+    config.pixelFormat = kCVPixelFormatType_32BGRA
     retainStreamConfigurationState(for: config)
     return retain(config)
 }
