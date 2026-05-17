@@ -364,7 +364,8 @@ pub trait CMSampleBufferExt {
     /// Returns the underlying `OSStatus` if `index` is out of range.
     fn sample_timing_info(&self, index: usize) -> Result<CMSampleTimingInfo, i32>;
 
-    /// Build a [`CGImage`] from the buffer's attached `CVImageBuffer`.
+    /// Build an [`apple_cf::cg::CGImage`] from the buffer's attached
+    /// `CVImageBuffer`.
     ///
     /// Backed by `VTCreateCGImageFromCVPixelBuffer`, which understands every
     /// pixel format `ScreenCaptureKit` (or any other `CoreMedia` producer) can
@@ -375,13 +376,18 @@ pub trait CMSampleBufferExt {
     /// `ImageDestination::add_cg_image`) or into Metal sampling avoids any
     /// host-side pixel copy.
     ///
+    /// Returns the canonical `apple_cf::cg::CGImage` (the same type used by
+    /// `imageio-rs` and every other doom-fish suite crate that consumes
+    /// `CGImage`s), so the result flows straight into safe APIs with no
+    /// pointer juggling at the callsite.
+    ///
     /// # Errors
     ///
     /// Returns the underlying `OSStatus` from `VTCreateCGImageFromCVPixelBuffer`
     /// (or `-12731` `kCMSampleBufferError_NoSampleBufferContent` when the
     /// buffer has no image buffer attached — typical for audio-only or
     /// timing-metadata-only samples).
-    fn cg_image(&self) -> Result<crate::screenshot_manager::CGImage, i32>;
+    fn cg_image(&self) -> Result<apple_cf::cg::CGImage, i32>;
 }
 
 impl CMSampleBufferExt for CMSampleBuffer {
@@ -562,12 +568,15 @@ impl CMSampleBufferExt for CMSampleBuffer {
         }
     }
 
-    fn cg_image(&self) -> Result<crate::screenshot_manager::CGImage, i32> {
+    fn cg_image(&self) -> Result<apple_cf::cg::CGImage, i32> {
         unsafe {
             let mut status: i32 = 0;
             let ptr = ffi::cm_sample_buffer_create_cg_image(self.as_ptr(), &mut status);
             if !ptr.is_null() && status == 0 {
-                Ok(crate::screenshot_manager::CGImage::from_ptr(ptr))
+                // Safety: the Swift bridge returns a retained CGImage on
+                // success; passing it straight to CGImage::from_raw takes
+                // ownership of that refcount.
+                Ok(apple_cf::cg::CGImage::from_raw(ptr as *mut std::ffi::c_void))
             } else {
                 Err(status)
             }
