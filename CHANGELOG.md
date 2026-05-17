@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.3](https://github.com/doom-fish/screencapturekit-rs/compare/v3.1.2...v3.1.3) - 2026-05-17
+
+### Other
+
+- *(docs)* pin Documentation workflow to macos-26
+- widen apple-metal to <0.9 (use v0.8.0 with @available guards)
+
 ## [3.1.2](https://github.com/doom-fish/screencapturekit-rs/compare/v3.1.1...v3.1.2) - 2026-05-17
 
 ### Fixed
