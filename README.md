@@ -355,12 +355,24 @@ Screen capture **always requires user permission**. To grant it:
 2. Enable your binary (during development this is usually your terminal or IDE)
 3. Restart the app
 
-For distribution, add `NSScreenCaptureUsageDescription` to `Info.plist` and the
-appropriate entitlements:
+For distribution, add a purpose string to `Info.plist` — the user-facing
+TCC prompt requires it and the app will be terminated without one:
+
+```xml
+<key>NSScreenCaptureUsageDescription</key>
+<string>Capture your screen so the app can …</string>
+```
+
+ScreenCaptureKit itself does **not** require a code-signing entitlement
+on either signed or sandboxed apps — capture is gated by the user's TCC
+grant in **System Settings → Privacy & Security → Screen & System
+Audio Recording**, not by an `Entitlements.plist` key. (There is no
+`com.apple.security.screen-capture` entitlement; that key does not
+exist in Apple's entitlement reference.) If your app is sandboxed you
+still need the sandbox entitlement itself:
 
 ```xml
 <key>com.apple.security.app-sandbox</key>      <true/>
-<key>com.apple.security.screen-capture</key>   <true/>
 ```
 
 ## Performance
@@ -422,7 +434,7 @@ numbers at various resolutions, and tuning guidance.
 | Black / empty frames | Captured window minimized; pixel format mismatch; filter doesn't include the right display/window |
 | No audio samples | Did you set `.with_captures_audio(true)` **and** add a handler for `SCStreamOutputType::Audio`? |
 | Build fails with Swift bridge errors | `xcode-select --install`; then `cargo clean && cargo build` |
-| App crashes after notarization | Add the `screen-capture` entitlement (see [Requirements](#requirements--permissions)) |
+| App crashes after notarization | Missing `NSScreenCaptureUsageDescription` in `Info.plist` — the system terminates apps that trigger the Screen Recording TCC prompt without one (see [Requirements](#requirements--permissions)) |
 | `match` on `PixelFormat` / `SCStreamErrorCode` no longer compiles | Both are `#[non_exhaustive]` in 2.0 — add a wildcard `_ => …` arm |
 
 ## Migration
