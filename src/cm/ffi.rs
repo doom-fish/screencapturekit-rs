@@ -9,6 +9,14 @@ extern "C" {
     ) -> *mut std::ffi::c_void;
     pub fn cm_sample_buffer_get_frame_status(sample_buffer: *mut std::ffi::c_void) -> i32;
 
+    /// Build a retained CGImage from the sample buffer's image buffer via
+    /// VTCreateCGImageFromCVPixelBuffer. Returns null on failure with
+    /// `out_status` set to the underlying OSStatus (0 = noErr on success).
+    pub fn cm_sample_buffer_create_cg_image(
+        sample_buffer: *mut std::ffi::c_void,
+        out_status: *mut i32,
+    ) -> *const std::ffi::c_void;
+
     // Frame info accessors
     pub fn cm_sample_buffer_get_display_time(
         sample_buffer: *mut std::ffi::c_void,
