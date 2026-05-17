@@ -1,0 +1,26 @@
+# Local-only Cargo overrides for working against in-tree sibling repos.
+#
+# Copy this file to `.cargo/config.toml` (it's gitignored) when you want
+# Cargo to resolve `apple-cf` / `apple-metal` to your local checkouts
+# instead of the crates.io versions. The default `Cargo.toml` keeps the
+# version-only dependency declaration so `cargo install` and release-plz
+# work from a clean checkout, and downstream consumers don't need to
+# clone three sibling repos to build.
+#
+# Layout this assumes (matches the original `path = "../apple-cf-rs"`
+# convention):
+#
+#   <parent>/
+#     screencapturekit-rs/
+#     apple-cf-rs/
+#     apple-metal-rs/
+#     doom-fish-utils/        # transitive dep of apple-cf-rs / apple-metal-rs
+#
+# Adjust the paths if your checkout lives elsewhere.
+
+[patch.crates-io]
+apple-cf       = { path = "../apple-cf-rs" }
+apple-metal    = { path = "../apple-metal-rs" }
+# doom-fish-utils is pulled in transitively by apple-cf-rs / apple-metal-rs.
+# Uncomment if you want to work against a local checkout of it as well:
+# doom-fish-utils = { path = "../doom-fish-utils" }
