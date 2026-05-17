@@ -81,11 +81,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
-            name: macOS 14 (Sonoma) ARM64
-            features: "async,macos_14_4"
-            assert_symbol_absent: ""
-            assert_symbol_present: ""
+          # NOTE: macos-14 (Sonoma) dropped from the matrix because the
+          # apple-metal-rs Swift bridge now uses macOS 15+ APIs
+          # (MTLLogState, MTLResidencySet, MTL4*) without availability
+          # guards. screencapturekit's effective minimum-supported macOS
+          # has thus moved to 15.0. See doom-fish/apple-metal-rs#TODO for
+          # tracking the back-port.
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
             features: "async,macos_15_2"
@@ -174,9 +175,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
-            name: macOS 14 (Sonoma) ARM64
-            features: "async,macos_14_4"
+          # macos-14 dropped here too — see comment above the build matrix.
           - os: macos-15
             name: macOS 15 (Sequoia) ARM64
             features: "async,macos_15_2"
