@@ -67,7 +67,7 @@ macos_26_0 = ["macos_15_2"]
 # This lets `cargo install screencapturekit` and `release-plz` work from
 # a clean checkout without requiring the sibling repos.
 apple-cf = { version = ">=0.6, <0.8", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
-apple-metal = { version = ">=0.6, <0.8", default-features = false, features = ["iosurface"] }
+apple-metal = { version = ">=0.6, <0.9", default-features = false, features = ["iosurface"] }
 
 [dev-dependencies]
 png = "0.18"
