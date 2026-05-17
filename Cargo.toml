@@ -60,8 +60,8 @@ macos_15_2 = ["macos_15_0"]
 macos_26_0 = ["macos_15_2"]
 
 [dependencies]
-apple-cf = { path = "../apple-cf-rs", version = ">=0.6, <0.7", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
-apple-metal = { path = "../apple-metal-rs", version = ">=0.6, <0.7", default-features = false, features = ["iosurface"] }
+apple-cf = { path = "../apple-cf-rs", version = ">=0.6, <0.8", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
+apple-metal = { path = "../apple-metal-rs", version = ">=0.6, <0.8", default-features = false, features = ["iosurface"] }
 
 [dev-dependencies]
 png = "0.18"
