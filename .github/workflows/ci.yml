@@ -156,10 +156,12 @@ jobs:
         run: cargo run --example 15_memory_leak_check --features "${{ matrix.features }}"
 
   # ==========================================================================
-  # Release (only on main, after successful build and leak-check)
+  # Release (only on main, after successful build and leak-check).
+  # Pinned to macos-26 so `cargo publish --verify` builds against the macOS
+  # 26 SDK that apple-metal 0.6.x already requires (see build matrix note).
   # ==========================================================================
   release-pr:
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: [lint, build, leak-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: release
@@ -185,7 +187,7 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   release:
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: [lint, build, leak-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: release
