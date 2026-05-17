@@ -47,7 +47,15 @@ use crate::utils::four_char_code::FourCharCode;
 #[derive(Debug, Clone, Copy, Default)]
 #[non_exhaustive]
 pub enum PixelFormat {
-    /// Packed little endian ARGB8888 (most common)
+    /// Packed little-endian 32-bit BGRA — the default pixel format for
+    /// streams created via [`crate::stream::configuration::SCStreamConfiguration::new`].
+    ///
+    /// The crate pins this format at construction time so that
+    /// `SCStreamConfiguration::new()` delivers a stable BGRA wire format
+    /// across macOS releases. Without the explicit pin Apple's runtime
+    /// chooses its own default, which on macOS 26 / Apple Silicon is
+    /// `420v` (bi-planar YCbCr) — silently breaking consumers that assume
+    /// packed BGRA samples. See issue #145.
     #[default]
     BGRA,
     /// Packed little endian ARGB2101010 (10-bit color)

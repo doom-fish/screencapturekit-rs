@@ -24,6 +24,13 @@ use super::{internal::SCStreamConfiguration, pixel_format::PixelFormat};
 impl SCStreamConfiguration {
     /// Set the pixel format for captured frames
     ///
+    /// Streams created via [`Self::new`] / [`Self::default`] are pinned to
+    /// [`PixelFormat::BGRA`] at construction time, so calling this method is
+    /// only required when you want a non-BGRA format (e.g. YUV `420v` for
+    /// video encoding, or `l10r` for HDR). Apple's runtime default for
+    /// `SCStreamConfiguration()` varies by macOS release — see
+    /// [`PixelFormat::BGRA`] for context.
+    ///
     /// # Examples
     ///
     /// ```
