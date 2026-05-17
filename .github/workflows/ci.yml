@@ -52,7 +52,7 @@ jobs:
             fi
           }
           clone_at apple-cf-rs       v0.6.2
-          clone_at apple-metal-rs    v0.6.3
+          clone_at apple-metal-rs    v0.7.1
           clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -81,22 +81,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # NOTE: macos-14 (Sonoma) dropped from the matrix because the
-          # apple-metal-rs Swift bridge now uses macOS 15+ APIs
-          # (MTLLogState, MTLResidencySet, MTL4*) without availability
-          # guards. screencapturekit's effective minimum-supported macOS
-          # has thus moved to 15.0. See doom-fish/apple-metal-rs#TODO for
-          # tracking the back-port.
-          - os: macos-15
-            name: macOS 15 (Sequoia) ARM64
-            features: "async,macos_15_2"
-            assert_symbol_absent: ""
-            assert_symbol_present: ""
-          - os: macos-15-intel
-            name: macOS 15 (Sequoia) Intel
-            features: "async,macos_15_2"
-            assert_symbol_absent: ""
-            assert_symbol_present: ""
+          # NOTE: macos-14 + macos-15 dropped from the matrix because the
+          # current apple-metal-rs (v0.7.x) Swift bridge uses macOS 26+
+          # APIs (MTLLogState, MTLResidencySet, MTL4*,
+          # MTLSamplerDescriptor.reductionMode, etc.) without availability
+          # guards. The bridge only compiles cleanly against the macOS 26
+          # SDK. screencapturekit's effective minimum-supported macOS for
+          # CI is therefore 26.0 until apple-metal-rs gates its post-15
+          # APIs behind `#available(macOS 15, *)` / `(macOS 26, *)`.
           - os: macos-26
             name: macOS 26 (Tahoe) ARM64
             features: "async,macos_26_0"
@@ -109,9 +101,9 @@ jobs:
             features: "async,macos_15_2"
             assert_symbol_absent: "SCScreenshotConfiguration"
             assert_symbol_present: ""
-          # Cross-arch: verify x86_64 cross-compilation on ARM64 runner
-          - os: macos-15
-            name: macOS 15 Cross-compile (x86_64 on ARM64)
+          # Cross-arch: verify x86_64 cross-compilation on the ARM64 runner
+          - os: macos-26
+            name: macOS 26 Cross-compile (x86_64 on ARM64)
             features: "async,macos_15_2"
             cross_target: x86_64-apple-darwin
             assert_symbol_absent: ""
@@ -134,7 +126,7 @@ jobs:
             fi
           }
           clone_at apple-cf-rs       v0.6.2
-          clone_at apple-metal-rs    v0.6.3
+          clone_at apple-metal-rs    v0.7.1
           clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -175,13 +167,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macos-14 dropped here too — see comment above the build matrix.
-          - os: macos-15
-            name: macOS 15 (Sequoia) ARM64
-            features: "async,macos_15_2"
-          - os: macos-15-intel
-            name: macOS 15 (Sequoia) Intel
-            features: "async,macos_15_2"
+          # Only macos-26 — see comment above the build matrix for why
+          # macos-14 / macos-15 are no longer compatible with apple-metal
+          # v0.7.x.
           - os: macos-26
             name: macOS 26 (Tahoe) ARM64
             features: "async,macos_26_0"
@@ -201,7 +189,7 @@ jobs:
             fi
           }
           clone_at apple-cf-rs       v0.6.2
-          clone_at apple-metal-rs    v0.6.3
+          clone_at apple-metal-rs    v0.7.1
           clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -250,7 +238,7 @@ jobs:
             fi
           }
           clone_at apple-cf-rs       v0.6.2
-          clone_at apple-metal-rs    v0.6.3
+          clone_at apple-metal-rs    v0.7.1
           clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -285,7 +273,7 @@ jobs:
             fi
           }
           clone_at apple-cf-rs       v0.6.2
-          clone_at apple-metal-rs    v0.6.3
+          clone_at apple-metal-rs    v0.7.1
           clone_at doom-fish-utils   v0.1.0
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
