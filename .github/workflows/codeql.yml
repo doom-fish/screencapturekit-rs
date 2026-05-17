@@ -1,0 +1,44 @@
+# CodeQL workflow — Rust only, macos-26 runner.
+#
+# The default auto-configured CodeQL workflow runs the Swift `autobuild`
+# step, which tries to compile the `swift-bridge/` SwiftPM package on
+# `macos-latest`. That SDK does not yet include the macOS 26 (Tahoe)
+# APIs the bridge code targets, so autobuild fails. Swift correctness
+# is verified at `cargo build` time on a real macOS 26 machine before
+# every release; CodeQL here covers only the Rust crate.
+name: CodeQL
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "32 5 * * 0"
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze (rust)
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:rust"
