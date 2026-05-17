@@ -367,7 +367,7 @@ pub trait CMSampleBufferExt {
     /// Build a [`CGImage`] from the buffer's attached `CVImageBuffer`.
     ///
     /// Backed by `VTCreateCGImageFromCVPixelBuffer`, which understands every
-    /// pixel format `ScreenCaptureKit` (or any other CoreMedia producer) can
+    /// pixel format `ScreenCaptureKit` (or any other `CoreMedia` producer) can
     /// emit — BGRA, 420v YCbCr 8-bit bi-planar video range, l10r 10-bit ARGB,
     /// etc. — and uses Apple's hardware path when one exists. The resulting
     /// `CGImage` is `IOSurface`-backed when the source was, so passing it
