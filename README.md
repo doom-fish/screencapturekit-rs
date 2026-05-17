@@ -363,17 +363,25 @@ TCC prompt requires it and the app will be terminated without one:
 <string>Capture your screen so the app can …</string>
 ```
 
-`ScreenCaptureKit` itself does **not** require a code-signing entitlement
-on either signed or sandboxed apps — capture is gated by the user's TCC
-grant in **System Settings → Privacy & Security → Screen & System
-Audio Recording**, not by an `Entitlements.plist` key. (There is no
-`com.apple.security.screen-capture` entitlement; that key does not
-exist in Apple's entitlement reference.) If your app is sandboxed you
-still need the sandbox entitlement itself:
+`ScreenCaptureKit` is **purely TCC-gated**: there is no code-signing
+entitlement that grants screen capture access. Capture is allowed solely
+when the user enables your binary under **System Settings → Privacy &
+Security → Screen & System Audio Recording**.
 
-```xml
-<key>com.apple.security.app-sandbox</key>      <true/>
-```
+| App type | What you need |
+|---|---|
+| Any signed macOS app (sandboxed or not) | `NSScreenCaptureUsageDescription` in `Info.plist` + user TCC grant |
+| Sandboxed app | Additionally `com.apple.security.app-sandbox = true` in `Entitlements.plist` — this only turns the sandbox on; it does not grant capture |
+| Sandboxed app capturing system audio (macOS 13+) | Optionally `com.apple.security.device.audio-input = true` |
+
+> **There is no `com.apple.security.screen-capture` entitlement.** That key
+> isn't part of Apple's [security-entitlements reference](https://developer.apple.com/documentation/bundleresources/security-entitlements);
+> the only `com.apple.security.device.*` keys are `camera`, `microphone`,
+> `audio-input`, `usb`, and `bluetooth`. The two real screen-capture
+> entitlements ([`com.apple.developer.screen-capture.include-passthrough`](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.screen-capture.include-passthrough)
+> and [`com.apple.developer.protected-content`](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.protected-content))
+> are Enterprise / visionOS managed entitlements and don't apply to
+> `ScreenCaptureKit` on macOS.
 
 ## Performance
 
