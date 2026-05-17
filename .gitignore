@@ -5,6 +5,11 @@ debug/
 **/*.rs.bk
 Cargo.lock
 
+# Local-only Cargo overrides (see .cargo/config.example.toml).
+# Committing these would force every contributor / CI / release-plz to use
+# in-tree sibling checkouts of apple-cf-rs / apple-metal-rs.
+.cargo/config.toml
+
 # Swift/Xcode
 # Swift Package Manager
 .build/
