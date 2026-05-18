@@ -4,6 +4,7 @@ import CoreMedia
 import CoreVideo
 import Foundation
 import ScreenCaptureKit
+import VideoToolbox
 
 // MARK: - Audio Buffer List Bridge Types
 
@@ -712,3 +713,38 @@ public func cm_sample_buffer_create_for_image_buffer(
 /// Create a CMBlockBuffer with the given data for testing purposes
 
 /// Create an empty CMBlockBuffer for testing
+
+// MARK: - CMSampleBuffer → CGImage
+
+/// Build a CGImage from the CVImageBuffer (typically CVPixelBuffer) attached
+/// to a CMSampleBuffer.
+///
+/// Backed by `VTCreateCGImageFromCVPixelBuffer`, which handles every pixel
+/// format ScreenCaptureKit can deliver (BGRA, 420v YCbCr 8-bit bi-planar
+/// video range, l10r 10-bit ARGB, etc.) and uses Apple's hardware-accelerated
+/// path when one exists for the input. The returned CGImage is IOSurface-
+/// backed where the source was, so downstream consumers (ImageIO encoders,
+/// Metal sampling) can avoid host-side pixel copies entirely.
+///
+/// Returns a retained CGImage pointer on success (caller must release via
+/// `cgimage_release`), or NULL on failure with the OSStatus copied into
+/// `outStatus`. `outStatus = noErr` on success.
+@_cdecl("cm_sample_buffer_create_cg_image")
+public func cm_sample_buffer_create_cg_image(
+    _ sampleBuffer: UnsafeMutableRawPointer,
+    _ outStatus: UnsafeMutablePointer<Int32>
+) -> OpaquePointer? {
+    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+    guard let imageBuffer = CMSampleBufferGetImageBuffer(buffer) else {
+        outStatus.pointee = -12731 // kCMSampleBufferError_NoSampleBufferContent
+        return nil
+    }
+
+    var cgImage: CGImage?
+    let status = VTCreateCGImageFromCVPixelBuffer(imageBuffer, options: nil, imageOut: &cgImage)
+    outStatus.pointee = status
+    guard status == noErr, let image = cgImage else {
+        return nil
+    }
+    return OpaquePointer(Unmanaged.passRetained(image).toOpaque())
+}
