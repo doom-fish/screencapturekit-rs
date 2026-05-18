@@ -12,7 +12,7 @@
 #[cfg(feature = "macos_14_0")]
 use screencapturekit::prelude::*;
 #[cfg(feature = "macos_14_0")]
-use screencapturekit::screenshot_manager::SCScreenshotManager;
+use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 
 #[cfg(not(feature = "macos_14_0"))]
 fn main() {

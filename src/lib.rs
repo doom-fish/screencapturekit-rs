@@ -27,14 +27,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! screencapturekit = "3"
+//! screencapturekit = "4"
 //! ```
 //!
 //! For async support:
 //!
 //! ```toml
 //! [dependencies]
-//! screencapturekit = { version = "3", features = ["async"] }
+//! screencapturekit = { version = "4", features = ["async"] }
 //! ```
 //!
 //! ## Quick Start
@@ -735,6 +735,7 @@ pub mod error;
 pub mod ffi;
 pub mod metal;
 
+pub use apple_cf::cg::CGImage;
 /// Re-export of the lightweight [`apple-metal`](https://crates.io/crates/apple-metal)
 /// crate so downstream code can use either `ScreenCaptureKit`'s full
 /// Metal renderer ([`crate::metal`]) or the minimal device/texture

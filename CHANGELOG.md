@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-05-18
+
+### Changed
+
+- [**breaking**] `ScreenshotManager::capture_image` now returns `apple_cf::cg::CGImage` (was a private nominal duplicate)
+- [**breaking**] `screencapturekit::cm::CMTime` is now a re-export of `apple_cf::cm::CMTime` (was a private nominal duplicate)
+- both changes eliminate cross-crate type conversions for downstream consumers chaining `ScreenCaptureKit` → `ImageIO` / `VideoToolbox` / related Apple frameworks
+
 ## [3.1.4] - 2026-05-17
 
 ### Fixed

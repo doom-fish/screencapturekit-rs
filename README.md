@@ -43,7 +43,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "3"
+screencapturekit = "4"
 ```
 
 Opt-in features (additive):
@@ -62,7 +62,7 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "3", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "4", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading from 1.x?** See [`docs/MIGRATION.md`](docs/MIGRATION.md#migrating-from-1x-to-20)
@@ -206,7 +206,7 @@ custom executor — the binding does **not** spawn its own runtime.
 #     filter: &screencapturekit::stream::content_filter::SCContentFilter,
 #     config: &screencapturekit::stream::configuration::SCStreamConfiguration,
 # ) -> Result<(), Box<dyn std::error::Error>> {
-use screencapturekit::screenshot_manager::SCScreenshotManager;
+use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 
 let img = SCScreenshotManager::capture_image(filter, config)?;
 let pixels = img.bgra_data()?;            // native BGRA — skips R↔B swap
@@ -398,7 +398,7 @@ sampling profiler; nearly all CPU lives in Apple's `SkyLight` /
 **Hot-path tips:**
 
 - Prefer `BGRA` to skip the per-pixel R↔B swap when uploading to Metal /
-  wgpu / ffmpeg (`SCScreenshotManager::bgra_data` is ~5% faster than `rgba_data`).
+  wgpu / ffmpeg (`CGImageExt::bgra_data` is ~5% faster than `rgba_data`).
 - Reuse a `Vec<u8>` across screenshots with the `*_data_into` variants
   (saves a ~33 MB allocation per 4K frame — new in 2.1).
 - When iterating many windows / displays / apps, use the batched
@@ -461,7 +461,7 @@ The 2.0 highlights:
   dropping symbols)
 
 2.1 added the `bgra_data_into` / `rgba_data_into` buffer-reuse APIs and a
-native-BGRA fast path on `SCScreenshotManager` — both are non-breaking.
+native-BGRA fast path on captured `CGImage`s — both are non-breaking.
 
 ## Contributing
 

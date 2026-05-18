@@ -5,7 +5,7 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use screencapturekit::prelude::*;
-use screencapturekit::screenshot_manager::SCScreenshotManager;
+use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 use serde::{Deserialize, Serialize};
 
 /// Display information returned to the frontend

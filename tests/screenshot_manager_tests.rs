@@ -2,7 +2,7 @@
 
 #![cfg(feature = "macos_14_0")]
 
-use screencapturekit::screenshot_manager::{CGImage, SCScreenshotManager};
+use screencapturekit::screenshot_manager::{CGImage, CGImageExt, SCScreenshotManager};
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::configuration::SCStreamConfiguration;
 use screencapturekit::stream::content_filter::SCContentFilter;

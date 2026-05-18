@@ -15,7 +15,7 @@
 //! ## Example
 //!
 //! ```no_run
-//! use screencapturekit::screenshot_manager::{SCScreenshotManager, ImageFormat};
+//! use screencapturekit::screenshot_manager::{CGImageExt, ImageFormat, SCScreenshotManager};
 //! use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
 //! use screencapturekit::shareable_content::SCShareableContent;
 //!
@@ -32,10 +32,10 @@
 //! println!("Screenshot: {}x{}", image.width(), image.height());
 //!
 //! // Save to file
-//! image.save_png("/tmp/screenshot.png")?;
+//! image.save_png("screenshot.png")?;
 //!
 //! // Or save as JPEG with quality
-//! image.save("/tmp/screenshot.jpg", ImageFormat::Jpeg(0.85))?;
+//! image.save("screenshot.jpg", ImageFormat::Jpeg(0.85))?;
 //! # Ok(())
 //! # }
 //! ```
@@ -48,6 +48,9 @@ use std::ffi::c_void;
 
 #[cfg(feature = "macos_15_2")]
 use crate::cg::CGRect;
+
+#[doc(no_inline)]
+pub use apple_cf::cg::CGImage;
 
 /// Image output format for saving screenshots
 ///
@@ -114,6 +117,13 @@ impl ImageFormat {
     }
 }
 
+/// # Safety
+/// `ptr` must be a non-null retained `CGImageRef` whose +1 ownership is
+/// transferred to the returned wrapper.
+pub(crate) unsafe fn cgimage_from_retained_ptr(ptr: *const c_void) -> CGImage {
+    CGImage::from_raw(ptr.cast_mut())
+}
+
 extern "C" fn image_callback(
     image_ptr: *const c_void,
     error_ptr: *const i8,
@@ -127,7 +137,7 @@ extern "C" fn image_callback(
             unsafe { SyncCompletion::<CGImage>::complete_err(user_data, error) };
         } else if !image_ptr.is_null() {
             // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
-            unsafe { SyncCompletion::complete_ok(user_data, CGImage::from_ptr(image_ptr)) };
+            unsafe { SyncCompletion::complete_ok(user_data, cgimage_from_retained_ptr(image_ptr)) };
         } else {
             // SAFETY: `user_data` is the one-shot completion context from `SyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
             unsafe {
@@ -194,31 +204,77 @@ extern "C" fn screenshot_output_callback(
     });
 }
 
-/// `CGImage` wrapper for screenshots
+/// Screenshot-specific helpers implemented for the canonical [`CGImage`] type.
 ///
-/// Represents a Core Graphics image returned from screenshot capture.
-///
-/// # Examples
-///
-/// ```no_run
-/// # use screencapturekit::screenshot_manager::SCScreenshotManager;
-/// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
-/// # use screencapturekit::shareable_content::SCShareableContent;
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let content = SCShareableContent::get()?;
-/// let display = &content.displays()[0];
-/// let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
-/// let config = SCStreamConfiguration::new()
-///     .with_width(1920)
-///     .with_height(1080);
-///
-/// let image = SCScreenshotManager::capture_image(&filter, &config)?;
-/// println!("Screenshot size: {}x{}", image.width(), image.height());
-/// # Ok(())
-/// # }
-/// ```
-pub struct CGImage {
-    ptr: *const c_void,
+/// Import this trait to access pixel extraction helpers and multi-format file
+/// export on images returned by [`SCScreenshotManager`].
+pub trait CGImageExt {
+    /// Get raw RGBA pixel data.
+    ///
+    /// # Errors
+    /// Returns an error if the pixel data cannot be extracted.
+    fn rgba_data(&self) -> Result<Vec<u8>, SCError>;
+
+    /// Get raw BGRA pixel data.
+    ///
+    /// # Errors
+    /// Returns an error if the pixel data cannot be extracted.
+    fn bgra_data(&self) -> Result<Vec<u8>, SCError>;
+
+    /// Render the image's RGBA bytes into a caller-supplied buffer.
+    ///
+    /// # Errors
+    /// Returns an error if `dest` is too small or the render fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
+    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
+    /// # use screencapturekit::shareable_content::SCShareableContent;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+    /// let mut buffer: Vec<u8> = vec![0; 1920 * 1080 * 4];
+    /// let img = SCScreenshotManager::capture_image(&filter, &config)?;
+    /// img.rgba_data_into(&mut buffer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn rgba_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError>;
+
+    /// Render the image's BGRA bytes into a caller-supplied buffer.
+    ///
+    /// # Errors
+    /// Returns an error if `dest` is too small or the render fails.
+    fn bgra_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError>;
+
+    /// Save the image to a file in the specified format.
+    ///
+    /// # Errors
+    /// Returns an error if the path contains interior null bytes or the export fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use screencapturekit::screenshot_manager::{CGImageExt, ImageFormat, SCScreenshotManager};
+    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
+    /// # use screencapturekit::shareable_content::SCShareableContent;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let content = SCShareableContent::get()?;
+    /// # let display = &content.displays()[0];
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
+    /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
+    /// image.save("screenshot.png", ImageFormat::Png)?;
+    /// image.save("screenshot.jpg", ImageFormat::Jpeg(0.85))?;
+    /// image.save("screenshot.heic", ImageFormat::Heic(0.9))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn save(&self, path: &str, format: ImageFormat) -> Result<(), SCError>;
 }
 
 /// Internal selector for the channel ordering passed to the Swift renderer.
@@ -249,269 +305,30 @@ impl PixelLayout {
     }
 }
 
-impl CGImage {
-    pub(crate) fn from_ptr(ptr: *const c_void) -> Self {
-        Self { ptr }
+impl CGImageExt for CGImage {
+    fn rgba_data(&self) -> Result<Vec<u8>, SCError> {
+        render_pixel_data(self, PixelLayout::Rgba)
     }
 
-    /// Get image width in pixels
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use screencapturekit::screenshot_manager::SCScreenshotManager;
-    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
-    /// # use screencapturekit::shareable_content::SCShareableContent;
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let content = SCShareableContent::get()?;
-    /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
-    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
-    /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
-    /// let width = image.width();
-    /// println!("Width: {}", width);
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[must_use]
-    pub fn width(&self) -> usize {
-        unsafe { crate::ffi::cgimage_get_width(self.ptr) }
+    fn bgra_data(&self) -> Result<Vec<u8>, SCError> {
+        render_pixel_data(self, PixelLayout::Bgra)
     }
 
-    /// Get image height in pixels
-    #[must_use]
-    pub fn height(&self) -> usize {
-        unsafe { crate::ffi::cgimage_get_height(self.ptr) }
+    fn rgba_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError> {
+        render_pixel_data_into(self, dest, PixelLayout::Rgba)
     }
 
-    #[must_use]
-    pub fn as_ptr(&self) -> *const c_void {
-        self.ptr
+    fn bgra_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError> {
+        render_pixel_data_into(self, dest, PixelLayout::Bgra)
     }
 
-    /// Get raw RGBA pixel data
-    ///
-    /// Returns a vector containing RGBA bytes (4 bytes per pixel).
-    /// The data is in row-major order.
-    ///
-    /// **Performance note:** every `ScreenCaptureKit`-produced `CGImage` is
-    /// natively in **BGRA**. Forcing RGBA here makes `CGContext.draw` perform
-    /// a per-pixel channel swap that costs ~20 ms on a 4K image. If your
-    /// consumer accepts BGRA (Metal / wgpu / ffmpeg / most GPU pipelines),
-    /// prefer [`bgra_data`](Self::bgra_data) which skips the conversion.
-    ///
-    /// **Allocation note:** this allocates a fresh `Vec<u8>` of
-    /// `width*height*4` bytes per call (~33 MB for 4K). For sustained
-    /// screenshot loops, prefer [`rgba_data_into`](Self::rgba_data_into)
-    /// which writes into a caller-supplied buffer and lets you reuse the
-    /// allocation across calls.
-    ///
-    /// # Errors
-    /// Returns an error if the pixel data cannot be extracted
-    pub fn rgba_data(&self) -> Result<Vec<u8>, SCError> {
-        self.render_pixel_data(PixelLayout::Rgba)
-    }
-
-    /// Get raw **BGRA** pixel data — the native `ScreenCaptureKit` pixel layout.
-    ///
-    /// Returns a vector containing BGRA bytes (4 bytes per pixel) in row-major
-    /// order. Each pixel is stored as `[B, G, R, A]`.
-    ///
-    /// This skips the BGRA → RGBA channel-swap that [`rgba_data`](Self::rgba_data)
-    /// performs inside `CGContext.draw`, saving roughly **20 ms on a 4K screenshot**.
-    /// Use this when the downstream consumer accepts BGRA natively — that
-    /// includes Metal (`MTLPixelFormat::BGRA8Unorm`), wgpu (`Bgra8Unorm`),
-    /// ffmpeg (`AV_PIX_FMT_BGRA`), and any direct upload to a `kCVPixelFormatType_32BGRA`
-    /// pixel buffer.
-    ///
-    /// For sustained capture loops, see [`bgra_data_into`](Self::bgra_data_into)
-    /// which writes into a caller-supplied buffer.
-    ///
-    /// # Errors
-    /// Returns an error if the pixel data cannot be extracted.
-    pub fn bgra_data(&self) -> Result<Vec<u8>, SCError> {
-        self.render_pixel_data(PixelLayout::Bgra)
-    }
-
-    /// Render the image's RGBA bytes into a caller-supplied buffer.
-    ///
-    /// `dest` must hold at least `width * height * 4` bytes. Returns the
-    /// number of bytes written on success. Use this for sustained screenshot
-    /// loops to amortise the per-call ~33 MB-at-4K allocation across many
-    /// frames — pre-allocate one `Vec<u8>::with_capacity(...)` (or set
-    /// `dest.len() = capacity` once after the first call) and reuse it.
-    ///
-    /// # Errors
-    /// Returns `SCError::InternalError` if `dest` is too small or the
-    /// `CGContext` draw fails.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use screencapturekit::screenshot_manager::SCScreenshotManager;
-    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
-    /// # use screencapturekit::shareable_content::SCShareableContent;
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let content = SCShareableContent::get()?;
-    /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
-    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
-    /// // Pre-allocate once, reuse across many screenshots.
-    /// let mut buffer: Vec<u8> = vec![0; 1920 * 1080 * 4];
-    /// for _ in 0..100 {
-    ///     let img = SCScreenshotManager::capture_image(&filter, &config)?;
-    ///     img.rgba_data_into(&mut buffer)?;
-    ///     // process `buffer`...
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn rgba_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError> {
-        self.render_pixel_data_into(dest, PixelLayout::Rgba)
-    }
-
-    /// Render the image's **BGRA** bytes into a caller-supplied buffer.
-    ///
-    /// Same shape as [`rgba_data_into`](Self::rgba_data_into) but in the
-    /// native source pixel layout — saves the per-pixel R↔B swap
-    /// `rgba_data_into` performs. Combine with a reusable buffer for the
-    /// fastest possible sustained-capture loop.
-    ///
-    /// # Errors
-    /// Returns `SCError::InternalError` if `dest` is too small or the
-    /// `CGContext` draw fails.
-    pub fn bgra_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError> {
-        self.render_pixel_data_into(dest, PixelLayout::Bgra)
-    }
-
-    fn render_pixel_data(&self, layout: PixelLayout) -> Result<Vec<u8>, SCError> {
-        let total_bytes = self.required_byte_size()?;
-        if total_bytes == 0 {
-            return Ok(Vec::new());
-        }
-
-        // Allocate uninitialised — the FFI draws straight into this buffer via
-        // CGContext, writing every byte. The previous flow allocated three
-        // times the data: CGContext buffer + Swift-owned malloc copy + Rust
-        // .to_vec() copy. This single-buffer form measured ~28% end-to-end
-        // faster on 4K screenshots; the BGRA variant additionally skips the
-        // per-pixel channel swap CGContext.draw performs when targeting RGBA
-        // (~20 ms saved on a 4K shot).
-        let mut data: Vec<u8> = Vec::with_capacity(total_bytes);
-        let written = unsafe { layout.render(self.ptr, data.as_mut_ptr(), total_bytes) };
-
-        if written != total_bytes {
-            return Err(SCError::internal_error(format!(
-                "Failed to render CGImage into {} buffer",
-                layout.name()
-            )));
-        }
-
-        unsafe { data.set_len(total_bytes) };
-        Ok(data)
-    }
-
-    fn render_pixel_data_into(
-        &self,
-        dest: &mut [u8],
-        layout: PixelLayout,
-    ) -> Result<usize, SCError> {
-        let total_bytes = self.required_byte_size()?;
-        if dest.len() < total_bytes {
-            return Err(SCError::internal_error(format!(
-                "Destination buffer too small: need {total_bytes} bytes, got {}",
-                dest.len()
-            )));
-        }
-        if total_bytes == 0 {
-            return Ok(0);
-        }
-
-        let written = unsafe { layout.render(self.ptr, dest.as_mut_ptr(), total_bytes) };
-        if written != total_bytes {
-            return Err(SCError::internal_error(format!(
-                "Failed to render CGImage into {} buffer",
-                layout.name()
-            )));
-        }
-        Ok(written)
-    }
-
-    fn required_byte_size(&self) -> Result<usize, SCError> {
-        self.width()
-            .checked_mul(self.height())
-            .and_then(|n| n.checked_mul(4))
-            .ok_or_else(|| SCError::internal_error("CGImage dimensions overflow usize"))
-    }
-
-    /// Save the image to a PNG file
-    ///
-    /// # Arguments
-    /// * `path` - The file path to save the PNG to
-    ///
-    /// # Errors
-    /// Returns an error if the image cannot be saved
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use screencapturekit::screenshot_manager::SCScreenshotManager;
-    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
-    /// # use screencapturekit::shareable_content::SCShareableContent;
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let content = SCShareableContent::get()?;
-    /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
-    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
-    /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
-    /// image.save_png("/tmp/screenshot.png")?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn save_png(&self, path: &str) -> Result<(), SCError> {
-        self.save(path, ImageFormat::Png)
-    }
-
-    /// Save the image to a file in the specified format
-    ///
-    /// # Arguments
-    /// * `path` - The file path to save the image to
-    /// * `format` - The output format (PNG, JPEG, TIFF, GIF, BMP, or HEIC)
-    ///
-    /// # Errors
-    /// Returns an error if the image cannot be saved
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use screencapturekit::screenshot_manager::{SCScreenshotManager, ImageFormat};
-    /// # use screencapturekit::stream::{content_filter::SCContentFilter, configuration::SCStreamConfiguration};
-    /// # use screencapturekit::shareable_content::SCShareableContent;
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let content = SCShareableContent::get()?;
-    /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
-    /// # let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
-    /// let image = SCScreenshotManager::capture_image(&filter, &config)?;
-    ///
-    /// // Save as PNG (lossless)
-    /// image.save("/tmp/screenshot.png", ImageFormat::Png)?;
-    ///
-    /// // Save as JPEG with 85% quality
-    /// image.save("/tmp/screenshot.jpg", ImageFormat::Jpeg(0.85))?;
-    ///
-    /// // Save as HEIC with 90% quality (smaller file size)
-    /// image.save("/tmp/screenshot.heic", ImageFormat::Heic(0.9))?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn save(&self, path: &str, format: ImageFormat) -> Result<(), SCError> {
+    fn save(&self, path: &str, format: ImageFormat) -> Result<(), SCError> {
         let c_path = std::ffi::CString::new(path)
             .map_err(|_| SCError::internal_error("Path contains null bytes"))?;
 
         let success = unsafe {
             crate::ffi::cgimage_save_to_file(
-                self.ptr,
+                self.as_ptr(),
                 c_path.as_ptr(),
                 format.to_format_id(),
                 format.quality(),
@@ -529,27 +346,59 @@ impl CGImage {
     }
 }
 
-impl Drop for CGImage {
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe {
-                crate::ffi::cgimage_release(self.ptr);
-            }
-        }
+fn render_pixel_data(image: &CGImage, layout: PixelLayout) -> Result<Vec<u8>, SCError> {
+    let total_bytes = required_byte_size(image)?;
+    if total_bytes == 0 {
+        return Ok(Vec::new());
     }
+
+    let mut data: Vec<u8> = Vec::with_capacity(total_bytes);
+    let written = unsafe { layout.render(image.as_ptr(), data.as_mut_ptr(), total_bytes) };
+
+    if written != total_bytes {
+        return Err(SCError::internal_error(format!(
+            "Failed to render CGImage into {} buffer",
+            layout.name()
+        )));
+    }
+
+    unsafe { data.set_len(total_bytes) };
+    Ok(data)
 }
 
-impl std::fmt::Debug for CGImage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CGImage")
-            .field("width", &self.width())
-            .field("height", &self.height())
-            .finish()
+fn render_pixel_data_into(
+    image: &CGImage,
+    dest: &mut [u8],
+    layout: PixelLayout,
+) -> Result<usize, SCError> {
+    let total_bytes = required_byte_size(image)?;
+    if dest.len() < total_bytes {
+        return Err(SCError::internal_error(format!(
+            "Destination buffer too small: need {total_bytes} bytes, got {}",
+            dest.len()
+        )));
     }
+    if total_bytes == 0 {
+        return Ok(0);
+    }
+
+    let written = unsafe { layout.render(image.as_ptr(), dest.as_mut_ptr(), total_bytes) };
+    if written != total_bytes {
+        return Err(SCError::internal_error(format!(
+            "Failed to render CGImage into {} buffer",
+            layout.name()
+        )));
+    }
+    Ok(written)
 }
 
-unsafe impl Send for CGImage {}
-unsafe impl Sync for CGImage {}
+fn required_byte_size(image: &CGImage) -> Result<usize, SCError> {
+    image
+        .width()
+        .checked_mul(image.height())
+        .and_then(|n| n.checked_mul(4))
+        .ok_or_else(|| SCError::internal_error("CGImage dimensions overflow usize"))
+}
 
 /// Manager for capturing single screenshots
 ///
@@ -1095,7 +944,7 @@ impl SCScreenshotOutput {
         if ptr.is_null() {
             None
         } else {
-            Some(CGImage::from_ptr(ptr))
+            Some(unsafe { cgimage_from_retained_ptr(ptr) })
         }
     }
 
@@ -1106,7 +955,7 @@ impl SCScreenshotOutput {
         if ptr.is_null() {
             None
         } else {
-            Some(CGImage::from_ptr(ptr))
+            Some(unsafe { cgimage_from_retained_ptr(ptr) })
         }
     }
 

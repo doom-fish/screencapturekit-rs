@@ -11,6 +11,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use screencapturekit::cm::CMSampleBuffer;
 use screencapturekit::cv::CVPixelBufferLockFlags;
 use screencapturekit::prelude::*;
+use screencapturekit::screenshot_manager::CGImageExt;
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::configuration::SCStreamConfiguration;
 use screencapturekit::stream::content_filter::SCContentFilter;

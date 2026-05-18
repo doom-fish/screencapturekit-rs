@@ -576,7 +576,7 @@ impl CMSampleBufferExt for CMSampleBuffer {
                 // Safety: the Swift bridge returns a retained CGImage on
                 // success; passing it straight to CGImage::from_raw takes
                 // ownership of that refcount.
-                Ok(apple_cf::cg::CGImage::from_raw(ptr as *mut std::ffi::c_void))
+                Ok(apple_cf::cg::CGImage::from_raw(ptr.cast_mut()))
             } else {
                 Err(status)
             }

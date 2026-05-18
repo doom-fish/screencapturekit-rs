@@ -110,13 +110,8 @@ impl SCStreamConfiguration {
     ///     .with_fps(60);
     /// ```
     pub fn set_fps(&mut self, fps: u32) -> &mut Self {
-        let cm_time = CMTime {
-            value: 1,
-            #[allow(clippy::cast_possible_wrap)]
-            timescale: fps as i32,
-            flags: 1, // kCMTimeFlags_Valid
-            epoch: 0,
-        };
+        #[allow(clippy::cast_possible_wrap)]
+        let cm_time = CMTime::new(1, fps as i32);
         self.set_minimum_frame_interval(&cm_time)
     }
 

@@ -32,7 +32,7 @@
 use screencapturekit::cm::CMSampleBuffer;
 use screencapturekit::cm::CMSampleBufferSCExt;
 use screencapturekit::prelude::*;
-use screencapturekit::screenshot_manager::SCScreenshotManager;
+use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

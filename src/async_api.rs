@@ -624,7 +624,8 @@ extern "C" fn screenshot_image_callback(
                 );
             }
         } else if !image_ptr.is_null() {
-            let image = crate::screenshot_manager::CGImage::from_ptr(image_ptr);
+            // SAFETY: the Swift bridge hands back a retained `CGImageRef` on success.
+            let image = unsafe { crate::screenshot_manager::cgimage_from_retained_ptr(image_ptr) };
             // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`; Swift invokes this callback exactly once, so the pointer is still valid.
             unsafe { AsyncCompletion::complete_ok(user_data, image) };
         } else {

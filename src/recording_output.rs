@@ -619,12 +619,7 @@ impl SCRecordingOutput {
                 &mut timescale,
             );
         }
-        CMTime {
-            value,
-            timescale,
-            flags: 0,
-            epoch: 0,
-        }
+        CMTime::new(value, timescale)
     }
 
     /// Get the current recorded file size in bytes
