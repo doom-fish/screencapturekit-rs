@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1] - 2026-05-18
+
+### Changed
+
+- derive `Debug` for the remaining public zero-sized helper types and add manual `Debug` impls for closure-backed delegate wrappers
+
 ## [5.0.0] - 2026-05-18
 
 ### Changed

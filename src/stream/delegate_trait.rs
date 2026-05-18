@@ -130,6 +130,15 @@ where
     handler: F,
 }
 
+impl<F> std::fmt::Debug for ErrorHandler<F>
+where
+    F: Fn(SCError) + Send + Sync + 'static,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ErrorHandler").finish_non_exhaustive()
+    }
+}
+
 impl<F> ErrorHandler<F>
 where
     F: Fn(SCError) + Send + Sync + 'static,
@@ -271,6 +280,22 @@ impl StreamCallbacks {
 impl Default for StreamCallbacks {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl std::fmt::Debug for StreamCallbacks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamCallbacks")
+            .field("on_stop", &self.on_stop.is_some())
+            .field("on_error", &self.on_error.is_some())
+            .field("on_active", &self.on_active.is_some())
+            .field("on_inactive", &self.on_inactive.is_some())
+            .field(
+                "on_video_effect_start",
+                &self.on_video_effect_start.is_some(),
+            )
+            .field("on_video_effect_stop", &self.on_video_effect_stop.is_some())
+            .finish()
     }
 }
 

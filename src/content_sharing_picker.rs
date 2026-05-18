@@ -617,6 +617,7 @@ pub enum SCPickerOutcome {
 ///     }
 /// }
 /// ```
+#[derive(Debug)]
 pub struct SCContentSharingPicker;
 
 impl SCContentSharingPicker {

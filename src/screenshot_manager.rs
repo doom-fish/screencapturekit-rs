@@ -424,6 +424,7 @@ fn required_byte_size(image: &CGImage) -> Result<usize, SCError> {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct SCScreenshotManager;
 
 impl SCScreenshotManager {

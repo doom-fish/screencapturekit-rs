@@ -13,8 +13,6 @@
     <a href="https://github.com/doom-fish/screencapturekit-rs/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/doom-fish/screencapturekit-rs?style=for-the-badge&logo=starship&color=F5E0DC&logoColor=D9E0EE&labelColor=302D41" /></a>
 </p></div>
 
-> **💼 Looking for a hosted desktop recording API?** Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) — an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
-
 <https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d>
 
 ---
@@ -43,7 +41,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "4"
+screencapturekit = "5"
 ```
 
 Opt-in features (additive):
@@ -62,7 +60,7 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "4", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "5", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading from 1.x?** See [`docs/MIGRATION.md`](docs/MIGRATION.md#migrating-from-1x-to-20)
