@@ -177,10 +177,10 @@ impl SCStreamConfiguration {
         unsafe {
             crate::ffi::sc_stream_configuration_set_source_rect(
                 self.as_ptr(),
-                source_rect.x,
-                source_rect.y,
-                source_rect.width,
-                source_rect.height,
+                source_rect.origin.x,
+                source_rect.origin.y,
+                source_rect.size.width,
+                source_rect.size.height,
             );
         }
         self
@@ -231,10 +231,10 @@ impl SCStreamConfiguration {
         unsafe {
             crate::ffi::sc_stream_configuration_set_destination_rect(
                 self.as_ptr(),
-                destination_rect.x,
-                destination_rect.y,
-                destination_rect.width,
-                destination_rect.height,
+                destination_rect.origin.x,
+                destination_rect.origin.y,
+                destination_rect.size.width,
+                destination_rect.size.height,
             );
         }
         self

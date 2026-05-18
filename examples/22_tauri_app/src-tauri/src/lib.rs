@@ -77,10 +77,10 @@ fn list_windows() -> Result<Vec<WindowInfo>, String> {
                 app_name: w.owning_application().map(|a| a.application_name()),
                 bundle_id: w.owning_application().map(|a| a.bundle_identifier()),
                 is_on_screen: w.is_on_screen(),
-                frame_x: frame.x,
-                frame_y: frame.y,
-                width: frame.width,
-                height: frame.height,
+                frame_x: frame.origin.x,
+                frame_y: frame.origin.y,
+                width: frame.size.width,
+                height: frame.size.height,
             }
         })
         .collect();
@@ -150,8 +150,8 @@ fn take_screenshot_window(window_id: u32) -> Result<ScreenshotResult, String> {
 
     let frame = window.frame();
     let config = SCStreamConfiguration::new()
-        .with_width(frame.width as u32)
-        .with_height(frame.height as u32)
+        .with_width(frame.size.width as u32)
+        .with_height(frame.size.height as u32)
         .with_pixel_format(PixelFormat::BGRA);
 
     let image = SCScreenshotManager::capture_image(&filter, &config)

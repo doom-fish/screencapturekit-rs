@@ -115,8 +115,8 @@ fn test_content_filter_content_rect() {
     // Test get_content_rect
     let retrieved_rect = filter.content_rect();
     // The rect should be set (though exact values may vary based on macOS version)
-    assert!(retrieved_rect.width >= 0.0);
-    assert!(retrieved_rect.height >= 0.0);
+    assert!(retrieved_rect.size.width >= 0.0);
+    assert!(retrieved_rect.size.height >= 0.0);
 }
 
 #[test]

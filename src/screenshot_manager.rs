@@ -516,10 +516,10 @@ impl SCScreenshotManager {
 
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_image_in_rect(
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
                 image_callback,
                 context,
             );
@@ -599,10 +599,10 @@ impl SCScreenshotManager {
 
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_screenshot_in_rect(
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
                 configuration.as_ptr(),
                 screenshot_output_callback,
                 context,
@@ -716,10 +716,10 @@ impl SCScreenshotConfiguration {
         unsafe {
             crate::ffi::sc_screenshot_configuration_set_source_rect(
                 self.ptr,
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
             );
         }
         self
@@ -731,10 +731,10 @@ impl SCScreenshotConfiguration {
         unsafe {
             crate::ffi::sc_screenshot_configuration_set_destination_rect(
                 self.ptr,
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
             );
         }
         self

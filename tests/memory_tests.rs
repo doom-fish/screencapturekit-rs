@@ -232,10 +232,10 @@ fn test_geometry_types() {
         };
         let rect = CGRect::new(point.x, point.y, size.width, size.height);
 
-        let _ = rect.x;
-        let _ = rect.y;
-        let _ = rect.width;
-        let _ = rect.height;
+        let _ = rect.origin.x;
+        let _ = rect.origin.y;
+        let _ = rect.size.width;
+        let _ = rect.size.height;
     }
 }
 

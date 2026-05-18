@@ -769,10 +769,10 @@ impl AsyncSCScreenshotManager {
         // SAFETY: The rectangle coordinates are plain values passed by copy. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_image_in_rect(
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
                 screenshot_image_callback,
                 context,
             );
@@ -830,10 +830,10 @@ impl AsyncSCScreenshotManager {
         // SAFETY: `configuration.as_ptr()` returns a valid non-null pointer for the duration of this call (borrowed via `&`). The rectangle coordinates are plain values passed by copy. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_screenshot_manager_capture_screenshot_in_rect(
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
                 configuration.as_ptr(),
                 screenshot_output_callback,
                 context,

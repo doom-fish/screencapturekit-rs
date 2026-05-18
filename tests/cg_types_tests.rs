@@ -106,10 +106,10 @@ fn test_cgsize_display() {
 #[test]
 fn test_cgrect_new() {
     let rect = CGRect::new(10.0, 20.0, 100.0, 200.0);
-    assert_eq!(rect.x, 10.0);
-    assert_eq!(rect.y, 20.0);
-    assert_eq!(rect.width, 100.0);
-    assert_eq!(rect.height, 200.0);
+    assert_eq!(rect.origin.x, 10.0);
+    assert_eq!(rect.origin.y, 20.0);
+    assert_eq!(rect.size.width, 100.0);
+    assert_eq!(rect.size.height, 200.0);
 }
 
 #[test]
@@ -124,10 +124,10 @@ fn test_cgrect_with_origin_and_size() {
     let size = CGSize::new(100.0, 200.0);
     let rect = CGRect::with_origin_and_size(origin, size);
 
-    assert_eq!(rect.x, 10.0);
-    assert_eq!(rect.y, 20.0);
-    assert_eq!(rect.width, 100.0);
-    assert_eq!(rect.height, 200.0);
+    assert_eq!(rect.origin.x, 10.0);
+    assert_eq!(rect.origin.y, 20.0);
+    assert_eq!(rect.size.width, 100.0);
+    assert_eq!(rect.size.height, 200.0);
 }
 
 #[test]

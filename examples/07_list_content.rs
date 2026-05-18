@@ -94,7 +94,10 @@ fn print_windows(applications: &[ApplicationSnapshot], windows: &[WindowSnapshot
             window.title.as_deref().unwrap_or("")
         );
         println!("    Window ID: {}", window.window_id);
-        println!("    Size: {}x{}", window.frame.width, window.frame.height);
+        println!(
+            "    Size: {}x{}",
+            window.frame.size.width, window.frame.size.height
+        );
         println!("    Layer: {}", window.window_layer);
         println!("    On screen: {}", window.is_on_screen);
     }

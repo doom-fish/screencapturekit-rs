@@ -578,9 +578,9 @@ impl SCShareableContentInfo {
         let rect = self.content_rect();
         let scale = self.point_pixel_scale();
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let width = (rect.width * f64::from(scale)) as u32;
+        let width = (rect.size.width * f64::from(scale)) as u32;
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let height = (rect.height * f64::from(scale)) as u32;
+        let height = (rect.size.height * f64::from(scale)) as u32;
         (width, height)
     }
 }

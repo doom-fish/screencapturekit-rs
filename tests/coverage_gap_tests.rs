@@ -337,7 +337,7 @@ fn test_presenter_overlay_content_rect_absent_when_overlay_disabled() {
     let overlay_rect = sample.presenter_overlay_content_rect();
     if let Some(rect) = overlay_rect {
         assert!(
-            !rect.x.is_finite() || rect.width == 0.0 || rect.height == 0.0,
+            !rect.origin.x.is_finite() || rect.size.width == 0.0 || rect.size.height == 0.0,
             "presenter_overlay_content_rect() returned a finite rect ({rect:?}) on a \
              stream that did not enable Presenter Overlay; expected None or CGRectNull"
         );

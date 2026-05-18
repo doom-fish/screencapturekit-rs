@@ -738,11 +738,13 @@ pub mod metal;
 pub use apple_cf::cg::CGImage;
 /// Re-export of the lightweight [`apple-metal`](https://crates.io/crates/apple-metal)
 /// crate so downstream code can use either `ScreenCaptureKit`'s full
-/// Metal renderer ([`crate::metal`]) or the minimal device/texture
-/// surface from `apple-metal` without an extra `Cargo.toml` line.
+/// Metal renderer ([`crate::metal`]) or the minimal core Metal
+/// device/texture surface from `apple-metal` without an extra
+/// `Cargo.toml` line.
 ///
-/// `screencapturekit::metal::MetalDevice::as_apple_metal()` bridges
-/// between the two.
+/// `IOSurface` helpers remain available on [`crate::metal::IOSurfaceMetalExt`],
+/// and `screencapturekit::metal::MetalDevice::as_apple_metal()` bridges
+/// between the two device handles.
 pub use apple_metal;
 #[cfg(feature = "macos_15_0")]
 pub mod recording_output;

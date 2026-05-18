@@ -61,8 +61,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             i + 1,
             app_name,
             w.title.as_deref().unwrap_or(""),
-            w.frame.width,
-            w.frame.height
+            w.frame.size.width,
+            w.frame.size.height
         );
     }
 
@@ -84,8 +84,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .or_else(|| {
             window_snaps.iter().find(|w| {
                 w.is_on_screen
-                    && w.frame.width > 100.0
-                    && w.frame.height > 100.0
+                    && w.frame.size.width > 100.0
+                    && w.frame.size.height > 100.0
                     && w.title.as_deref().is_some_and(|t| !t.is_empty())
             })
         })

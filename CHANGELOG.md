@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-05-18
+
+### Changed
+
+- [**breaking**] widen `apple-cf` to `>=0.6, <0.9` and migrate all `CGRect` field access to the nested `origin`/`size` layout introduced in `apple-cf` 0.8.0
+- the re-exported `apple-metal` dependency now stays on its minimal non-IOSurface surface so `apple-cf` 0.8 can resolve cleanly
+
 ## [4.0.0] - 2026-05-18
 
 ### Changed

@@ -153,9 +153,9 @@ fn test_shareable_content_info_pixel_size_calculation() {
 
         // Verify the pixel size calculation
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let expected_width = (rect.width * f64::from(scale)) as u32;
+        let expected_width = (rect.size.width * f64::from(scale)) as u32;
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let expected_height = (rect.height * f64::from(scale)) as u32;
+        let expected_height = (rect.size.height * f64::from(scale)) as u32;
 
         assert_eq!(width, expected_width, "Width calculation mismatch");
         assert_eq!(height, expected_height, "Height calculation mismatch");

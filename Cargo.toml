@@ -1,6 +1,6 @@
 [package]
 name = "screencapturekit"
-version = "4.0.0"
+version = "5.0.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/screencapturekit-rs"
@@ -67,7 +67,7 @@ macos_26_0 = ["macos_15_2"]
 # This lets `cargo install screencapturekit` and `release-plz` work from
 # a clean checkout without requiring the sibling repos.
 apple-cf = { version = ">=0.6, <0.9", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
-apple-metal = { version = ">=0.6, <0.9", default-features = false, features = ["iosurface"] }
+apple-metal = { version = ">=0.6, <0.9", default-features = false }
 
 [dev-dependencies]
 png = "0.18"

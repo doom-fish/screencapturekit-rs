@@ -125,10 +125,10 @@ impl SCContentFilter {
         unsafe {
             ffi::sc_content_filter_set_content_rect(
                 self.0,
-                rect.x,
-                rect.y,
-                rect.width,
-                rect.height,
+                rect.origin.x,
+                rect.origin.y,
+                rect.size.width,
+                rect.size.height,
             );
         }
         self

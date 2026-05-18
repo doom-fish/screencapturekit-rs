@@ -781,8 +781,7 @@ impl MetalDevice {
     /// release it on drop — keep this [`MetalDevice`] alive while the
     /// borrowed handle is in use.
     ///
-    /// Useful when calling helpers like
-    /// [`apple_metal::IOSurfaceMetalExt::create_metal_texture`] from
+    /// Useful when handing this device to other `apple_metal` APIs from
     /// code that already holds an SCK [`MetalDevice`].
     #[must_use]
     pub fn as_apple_metal(&self) -> apple_metal::ManuallyDropDevice {
