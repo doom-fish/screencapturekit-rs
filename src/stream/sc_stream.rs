@@ -690,11 +690,7 @@ impl SCStream {
     #[cfg(feature = "macos_13_0")]
     pub fn synchronization_clock(&self) -> Option<crate::cm::CMClock> {
         let ptr = unsafe { ffi::sc_stream_get_synchronization_clock(self.ptr) };
-        if ptr.is_null() {
-            None
-        } else {
-            Some(crate::cm::CMClock::from_ptr(ptr))
-        }
+        crate::cm::CMClock::from_raw(ptr)
     }
 
     /// Add a recording output to the stream (macOS 15.0+)
