@@ -78,7 +78,7 @@ fn print_display_scale_info(content: &SCShareableContent, display: &DisplaySnaps
 }
 
 #[cfg(not(feature = "macos_14_0"))]
-fn print_display_scale_info(_content: &SCShareableContent, _display: &DisplaySnapshot) {}
+const fn print_display_scale_info(_content: &SCShareableContent, _display: &DisplaySnapshot) {}
 
 fn print_windows(applications: &[ApplicationSnapshot], windows: &[WindowSnapshot]) {
     println!("\n🪟 Windows (showing first 10 of {}):", windows.len());

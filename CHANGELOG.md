@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1] - 2026-05-20
+
+- Clippy hygiene sweep: cleared all `-D warnings` lints across the crate. No public API change.
+
 ## [6.0.0] - 2026-05-18
 
 ### Changed

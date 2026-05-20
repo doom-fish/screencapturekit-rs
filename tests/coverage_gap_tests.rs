@@ -17,7 +17,7 @@
 //!   capture is in flight, which exercises the `RwLock<Vec<HandlerEntry>>`
 //!   write path against an active dispatch reader.
 
-use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+use screencapturekit::cm::CMSampleBufferExt;
 use screencapturekit::{
     cm::CMSampleBuffer,
     shareable_content::SCShareableContent,
