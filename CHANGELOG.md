@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0](https://github.com/doom-fish/screencapturekit-rs/compare/v6.0.1...v6.1.0) - 2026-05-29
+
+### Added
+
+- add SCContentFilterBuilder::try_build and fix CI/release flow
+
+### Other
+
+- add comment to CARGO_TERM_COLOR env (no-op)
+
 ## [6.0.1] - 2026-05-20
 
 - Clippy hygiene sweep: cleared all `-D warnings` lints across the crate. No public API change.
