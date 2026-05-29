@@ -63,10 +63,11 @@ Opt-in features (additive):
 screencapturekit = { version = "6", features = ["async", "macos_15_0"] }
 ```
 
-> **Upgrading from 1.x?** See [`docs/MIGRATION.md`](docs/MIGRATION.md#migrating-from-1x-to-20)
-> — the headline 2.0 changes are a `Send + Sync` bound on output / delegate
-> traits, `#[non_exhaustive]` on `PixelFormat` and `SCStreamErrorCode`, and a
-> new `PixelFormat::Unknown(FourCharCode)` variant.
+> **Upgrading a major version?** See [`docs/MIGRATION.md`](docs/MIGRATION.md)
+> for a per-version guide. The 3.0–6.0 line consolidated the Core Graphics /
+> Core Media foundation types onto the shared `apple-cf` crate; the most likely
+> source change is 5.0's nested `CGRect` layout (`rect.origin.x` /
+> `rect.size.width`).
 
 ## Quick Start
 
@@ -445,21 +446,31 @@ numbers at various resolutions, and tuning guidance.
 
 ## Migration
 
-Upgrading? See [`docs/MIGRATION.md`](docs/MIGRATION.md) for the full guide.
-The 2.0 highlights:
+Upgrading? See [`docs/MIGRATION.md`](docs/MIGRATION.md) for the full guide,
+including a section for every major version bump.
 
-- `SCStreamOutputTrait` / `SCStreamDelegateTrait` (and closure overloads)
-  now require `Send + Sync`
-- `PixelFormat` is `#[non_exhaustive]` and gained `Unknown(FourCharCode)`
-  for forward-compat with future Apple pixel formats
-- `SCStreamErrorCode` is `#[non_exhaustive]`
-- `PixelFormat`'s `PartialEq` / `Hash` are normalised through `FourCharCode`
-- Every `macos_*` Cargo feature now propagates to the Swift bridge build
-  (the build fails loudly on SDK detection failure rather than silently
-  dropping symbols)
+Highlights by major version:
 
-2.1 added the `bgra_data_into` / `rgba_data_into` buffer-reuse APIs and a
-native-BGRA fast path on captured `CGImage`s — both are non-breaking.
+- **2.0** — output / delegate traits (and closure overloads) now require
+  `Send + Sync`; `PixelFormat` and `SCStreamErrorCode` became
+  `#[non_exhaustive]`; `PixelFormat` gained `Unknown(FourCharCode)`; every
+  `macos_*` Cargo feature now propagates to the Swift bridge build.
+- **3.0** — foundation types (Core Graphics / Core Media / IOSurface / Core
+  Video) moved onto the shared [`apple-cf`](https://crates.io/crates/apple-cf)
+  / [`apple-metal`](https://crates.io/crates/apple-metal) crates as re-exports;
+  ScreenCaptureKit-specific `CMSampleBuffer` accessors moved to the
+  `CMSampleBufferExt` / `CMSampleBufferSCExt` extension traits (both in the
+  prelude).
+- **4.0** — `ScreenshotManager::capture_image` returns `apple_cf::cg::CGImage`
+  and `screencapturekit::cm::CMTime` is an `apple-cf` re-export (drop any
+  cross-crate conversions).
+- **5.0** — adopts `apple-cf` 0.8's nested `CGRect` layout: use
+  `rect.origin.x` / `rect.size.width` instead of flat `rect.x` / `rect.width`.
+- **6.0** — `CMSampleTimingInfo` and `CMClock` are now re-exported from
+  `apple-cf` as well.
+
+If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–6.0
+upgrades are typically just the 5.0 `CGRect` field-access change.
 
 ## Contributing
 

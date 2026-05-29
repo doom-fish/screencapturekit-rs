@@ -126,6 +126,68 @@ New optional APIs:
 - Native-BGRA fast path in `SCScreenshotManager` skips the channel swap
   for downstreams that accept BGRA directly (Metal / wgpu / ffmpeg).
 
+## Migrating from 2.1 to 3.0
+
+3.0 migrates the Core Graphics / Core Media / IOSurface / Core Video
+foundation types onto the shared
+[`apple-cf`](https://crates.io/crates/apple-cf) and
+[`apple-metal`](https://crates.io/crates/apple-metal) crates, eliminating
+`screencapturekit`'s private nominal duplicates. Most affected types are now
+**re-exports**, so `use screencapturekit::cg::CGRect;` (or the prelude) keeps
+working unchanged.
+
+The one source-level change: the ScreenCaptureKit-specific accessors on
+`CMSampleBuffer` moved to **extension traits**. Bring them into scope to call
+them:
+
+```rust,ignore
+use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
+// now `sample.image_buffer()`, `sample.frame_status()`, … resolve
+```
+
+The prelude already re-exports both traits, so `use screencapturekit::prelude::*;`
+is enough.
+
+## Migrating from 3.x to 4.0
+
+4.0 removes duplicated Core Media / Core Graphics value types from the public
+API in favour of the canonical `apple-cf` ones:
+
+- `ScreenshotManager::capture_image` now returns `apple_cf::cg::CGImage`.
+- `screencapturekit::cm::CMTime` is now a re-export of `apple_cf::cm::CMTime`.
+
+If you previously converted between `screencapturekit`'s types and `apple-cf`'s
+when chaining into ImageIO / VideoToolbox, **delete those conversions** — the
+types are now identical.
+
+## Migrating from 4.0 to 5.0
+
+5.0 adopts `apple-cf` 0.8's **nested `CGRect` layout**. Flat field *access*
+becomes nested through `origin` / `size`:
+
+```diff
+-let x = rect.x;
+-let w = rect.width;
++let x = rect.origin.x;
++let w = rect.size.width;
+```
+
+The convenience constructor is unchanged — `CGRect::new(x, y, w, h)` still
+takes four flat coordinates.
+
+## Migrating from 5.0 to 6.0
+
+6.0 re-exports the final Core Media timing types from `apple-cf`:
+`screencapturekit::cm::{CMSampleTimingInfo, CMClock}` are now re-exports of
+`apple_cf::cm::{CMSampleTimingInfo, CMClock}`. As with 4.0, drop any manual
+conversions between the previously-distinct types. No other source changes are
+required.
+
+> The 4.0 → 6.0 bumps are all driven by consolidating onto `apple-cf`; if your
+> code only used `screencapturekit`'s own types (via the prelude or
+> `screencapturekit::{cg, cm}`) the upgrade is typically just the `CGRect`
+> field-access change from 5.0.
+
 ## Migrating from 0.x to 1.0
 
 Version 1.0 introduced a complete API redesign with builder patterns, async support, and new macOS features.
