@@ -495,6 +495,8 @@ extern "C" {
         context: *mut c_void,
         error_callback: extern "C" fn(*mut c_void, i32, *const i8),
         sample_callback: extern "C" fn(*mut c_void, *const c_void, i32),
+        context_retain: extern "C" fn(*mut c_void),
+        context_release: extern "C" fn(*mut c_void),
     ) -> *const c_void;
     pub fn sc_stream_add_stream_output(stream: *const c_void, output_type: i32) -> bool;
     pub fn sc_stream_add_stream_output_with_queue(

@@ -118,6 +118,23 @@ const _: fn() = || {
 /// Monotonically increasing handler ID generator (process-wide).
 static NEXT_HANDLER_ID: AtomicUsize = AtomicUsize::new(1);
 
+// C trampoline handed to Swift so the bridge objects (delegate wrapper and
+// output handler) can each take a +1 reference on the `StreamContext` for the
+// duration of their own lifetime. This keeps the context alive while any
+// callback can still be dispatched on it.
+extern "C" fn context_retain_cb(context: *mut c_void) {
+    if !context.is_null() {
+        unsafe { StreamContext::retain(context.cast::<StreamContext>()) };
+    }
+}
+
+// C trampoline handed to Swift, invoked from each bridge object's `deinit` to
+// drop the +1 reference taken in `context_retain_cb`. `StreamContext::release`
+// null-checks internally.
+extern "C" fn context_release_cb(context: *mut c_void) {
+    unsafe { StreamContext::release(context.cast::<StreamContext>()) };
+}
+
 // C callback for stream errors — dispatches to per-stream delegate via context pointer.
 //
 // Safety: this function is called from Swift. A Rust panic unwinding across
@@ -331,6 +348,8 @@ impl SCStream {
                 context_ptr,
                 delegate_error_callback,
                 sample_handler,
+                context_retain_cb,
+                context_release_cb,
             )
         };
 
@@ -388,6 +407,8 @@ impl SCStream {
                 context_ptr,
                 delegate_error_callback,
                 sample_handler,
+                context_retain_cb,
+                context_release_cb,
             )
         };
 
@@ -759,11 +780,21 @@ impl Drop for SCStream {
     // We release the `StreamContext` only afterwards, so the ordering here is
     // release-stream-then-release-context.
     //
-    // Note: `SCStream`'s underlying stop is asynchronous on the Apple side. If a
-    // sample-handler callback was already in flight on the stream's dispatch
-    // queue at the moment of drop, it borrows `context` for its duration. Callers
-    // that need a hard guarantee that no callback is running should call
-    // `stop_capture()` and await/observe completion before dropping the stream.
+    // In-flight callbacks are safe even though Apple's stop is asynchronous: the
+    // Swift `StreamDelegateWrapper` and `StreamOutputHandler` objects each hold
+    // their own +1 reference on the `StreamContext` (taken in `init` via
+    // `context_retain_cb`, dropped in `deinit` via `context_release_cb`). Each
+    // callback runs as a method on one of those objects, and ARC keeps that
+    // object (`self`) alive for the duration of the call, so its context
+    // reference is also held for the duration of the call. Therefore a callback
+    // already in flight can never observe a freed context: the final
+    // `Box::from_raw` only happens once every holder — this Rust `SCStream` and
+    // both Swift bridge objects — has released its reference.
+    //
+    // Refcount accounting: `StreamContext::new` starts at 1; the Swift
+    // `createStream` adds +1 per bridge object (delegate + output handler) = 3;
+    // this `drop` removes -1 = 2; each bridge object's `deinit` removes -1,
+    // reaching 0 and freeing the context.
     fn drop(&mut self) {
         if !self.ptr.is_null() {
             unsafe { ffi::sc_stream_release(self.ptr) };
