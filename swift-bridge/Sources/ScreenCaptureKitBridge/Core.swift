@@ -77,6 +77,31 @@ public func initializeCoreGraphics() {
     _ = CGMainDisplayID()
 }
 
+// MARK: - FFI Layout Verification
+
+/// Cross-language ABI check called from Rust's `tests/ffi_layout_tests.rs`.
+///
+/// Returns `true` only if the Swift `MemoryLayout` (size, stride and alignment)
+/// of all four FFI structs matches the values pinned on the Rust side via the
+/// `const _: () = assert!(...)` checks in `src/ffi/mod.rs`. If the layouts ever
+/// drift apart this returns `false` and the Rust test fails, flagging a real
+/// ABI mismatch.
+@_cdecl("sc_verify_ffi_layout")
+public func verifyFFILayout() -> Bool {
+    return MemoryLayout<FFIRect>.size == 32
+        && MemoryLayout<FFIRect>.stride == 32
+        && MemoryLayout<FFIRect>.alignment == 8
+        && MemoryLayout<FFIDisplayData>.size == 48
+        && MemoryLayout<FFIDisplayData>.stride == 48
+        && MemoryLayout<FFIDisplayData>.alignment == 8
+        && MemoryLayout<FFIWindowData>.size == 64
+        && MemoryLayout<FFIWindowData>.stride == 64
+        && MemoryLayout<FFIWindowData>.alignment == 8
+        && MemoryLayout<FFIApplicationData>.size == 24
+        && MemoryLayout<FFIApplicationData>.stride == 24
+        && MemoryLayout<FFIApplicationData>.alignment == 4
+}
+
 // MARK: - Error Types
 
 /// Strongly typed errors for the ScreenCaptureKit bridge

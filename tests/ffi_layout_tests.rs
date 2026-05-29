@@ -8,7 +8,9 @@
 
 use std::mem::{align_of, size_of};
 
-use screencapturekit::ffi::{FFIApplicationData, FFIDisplayData, FFIRect, FFIWindowData};
+use screencapturekit::ffi::{
+    sc_verify_ffi_layout, FFIApplicationData, FFIDisplayData, FFIRect, FFIWindowData,
+};
 
 #[test]
 fn ffi_rect_layout() {
@@ -55,5 +57,20 @@ fn ffi_application_data_layout() {
         align_of::<FFIApplicationData>(),
         4,
         "FFIApplicationData alignment drifted"
+    );
+}
+
+/// Cross-language ABI check: asks the Swift bridge to verify that *its*
+/// `MemoryLayout` (size/stride/alignment) for all four FFI structs matches the
+/// values pinned on the Rust side. A `false` return means the Rust and Swift
+/// layouts genuinely disagree, which is a real ABI bug.
+#[test]
+fn ffi_layout_matches_swift() {
+    // SAFETY: `sc_verify_ffi_layout` takes no arguments and only reads
+    // compile-time `MemoryLayout` constants in the Swift bridge.
+    let matches = unsafe { sc_verify_ffi_layout() };
+    assert!(
+        matches,
+        "Swift FFI struct layout disagrees with Rust layout (ABI mismatch)"
     );
 }
