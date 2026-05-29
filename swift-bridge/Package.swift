@@ -26,8 +26,7 @@ let package = Package(
         .target(
             name: "ScreenCaptureKitBridge",
             dependencies: ["CoreMediaBridge", "MetalBridge"],
-            path: "Sources/ScreenCaptureKitBridge",
-            publicHeadersPath: "include"),
+            path: "Sources/ScreenCaptureKitBridge"),
         // CoreMedia bindings — only the SCStreamFrameInfo attachment readers
         // and SC-specific sample-buffer helpers. Generic CMSampleBuffer /
         // CMBlockBuffer / CMFormatDescription accessors come from
