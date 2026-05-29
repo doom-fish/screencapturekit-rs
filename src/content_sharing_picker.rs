@@ -69,6 +69,7 @@
 
 use crate::stream::content_filter::SCContentFilter;
 use std::ffi::c_void;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Represents the type of content selected in the picker
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -647,13 +648,12 @@ impl SCContentSharingPicker {
     where
         F: FnOnce(SCPickerOutcome) + Send + 'static,
     {
-        let callback = Box::new(callback);
-        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
+        let context = into_callback_context::<SCPickerOutcome, F>(callback);
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_with_result(
                 config.as_ptr(),
-                picker_callback_boxed::<F>,
+                picker_trampoline::<ResultDecoder>,
                 context,
             );
         }
@@ -699,14 +699,13 @@ impl SCContentSharingPicker {
     ) where
         F: FnOnce(SCPickerOutcome) + Send + 'static,
     {
-        let callback = Box::new(callback);
-        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
+        let context = into_callback_context::<SCPickerOutcome, F>(callback);
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_for_stream(
                 config.as_ptr(),
                 stream.as_ptr(),
-                picker_callback_boxed::<F>,
+                picker_trampoline::<ResultDecoder>,
                 context,
             );
         }
@@ -731,13 +730,12 @@ impl SCContentSharingPicker {
     where
         F: FnOnce(SCPickerFilterOutcome) + Send + 'static,
     {
-        let callback = Box::new(callback);
-        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
+        let context = into_callback_context::<SCPickerFilterOutcome, F>(callback);
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show(
                 config.as_ptr(),
-                picker_filter_callback_boxed::<F>,
+                picker_trampoline::<FilterDecoder>,
                 context,
             );
         }
@@ -758,14 +756,13 @@ impl SCContentSharingPicker {
     ) where
         F: FnOnce(SCPickerOutcome) + Send + 'static,
     {
-        let callback = Box::new(callback);
-        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
+        let context = into_callback_context::<SCPickerOutcome, F>(callback);
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_using_style(
                 config.as_ptr(),
                 style as i32,
-                picker_callback_boxed::<F>,
+                picker_trampoline::<ResultDecoder>,
                 context,
             );
         }
@@ -786,15 +783,14 @@ impl SCContentSharingPicker {
     ) where
         F: FnOnce(SCPickerOutcome) + Send + 'static,
     {
-        let callback = Box::new(callback);
-        let context = Box::into_raw(callback).cast::<std::ffi::c_void>();
+        let context = into_callback_context::<SCPickerOutcome, F>(callback);
 
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_for_stream_using_style(
                 config.as_ptr(),
                 stream.as_ptr(),
                 style as i32,
-                picker_callback_boxed::<F>,
+                picker_trampoline::<ResultDecoder>,
                 context,
             );
         }
@@ -849,39 +845,104 @@ impl SCContentSharingPicker {
     }
 }
 
-/// Callback trampoline for boxed closures (picker with result)
-extern "C" fn picker_callback_boxed<F>(
-    code: i32,
-    ptr: *const std::ffi::c_void,
-    context: *mut std::ffi::c_void,
-) where
-    F: FnOnce(SCPickerOutcome) + Send + 'static,
-{
-    let callback = unsafe { Box::from_raw(context.cast::<F>()) };
-    let outcome = match code {
-        1 if !ptr.is_null() => SCPickerOutcome::Picked(SCPickerResult { ptr }),
-        0 => SCPickerOutcome::Cancelled,
-        _ => SCPickerOutcome::Error("Picker failed".to_string()),
-    };
-    crate::utils::panic_safe::catch_user_panic("picker callback", move || callback(outcome));
+// ============================================================================
+// One-shot callback context + trampoline (shared by all `show*()` methods)
+// ============================================================================
+
+/// Heap context handed to the Swift bridge as the opaque `user_data` pointer.
+///
+/// It owns the user's closure plus a `consumed` guard. Centralising the
+/// `Box::into_raw` / `Box::from_raw` lifecycle here means the one-shot
+/// reclaim happens in exactly one place ([`picker_trampoline`]) instead of
+/// being duplicated across every `show*()` method, and the `consumed` flag
+/// makes a (mis-behaving) double fire from Swift safe: the second invocation
+/// observes `true` and returns without a second `Box::from_raw`.
+struct PickerCallbackContext<O> {
+    consumed: AtomicBool,
+    closure: Box<dyn FnOnce(O) + Send>,
 }
 
-/// Callback trampoline for boxed closures (picker filter only)
-extern "C" fn picker_filter_callback_boxed<F>(
-    code: i32,
-    ptr: *const std::ffi::c_void,
-    context: *mut std::ffi::c_void,
-) where
-    F: FnOnce(SCPickerFilterOutcome) + Send + 'static,
+/// Box a user closure into the opaque `*mut c_void` context handed to Swift.
+fn into_callback_context<O, F>(callback: F) -> *mut c_void
+where
+    F: FnOnce(O) + Send + 'static,
 {
-    let callback = unsafe { Box::from_raw(context.cast::<F>()) };
-    let outcome = match code {
-        1 if !ptr.is_null() => SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(ptr)),
-        0 => SCPickerFilterOutcome::Cancelled,
-        _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
-    };
-    crate::utils::panic_safe::catch_user_panic("picker filter callback", move || {
-        callback(outcome);
+    let context = Box::new(PickerCallbackContext {
+        consumed: AtomicBool::new(false),
+        closure: Box::new(callback),
+    });
+    Box::into_raw(context).cast::<c_void>()
+}
+
+/// Decodes the `(code, ptr)` pair from the Swift bridge into a typed outcome.
+///
+/// Implemented by zero-sized marker types so a single generic trampoline can
+/// serve both the result-bearing and filter-only APIs while keeping the FFI
+/// signature identical.
+trait PickerDecode {
+    type Outcome;
+    fn decode(code: i32, ptr: *const c_void) -> Self::Outcome;
+}
+
+struct ResultDecoder;
+impl PickerDecode for ResultDecoder {
+    type Outcome = SCPickerOutcome;
+    fn decode(code: i32, ptr: *const c_void) -> SCPickerOutcome {
+        match code {
+            1 if !ptr.is_null() => SCPickerOutcome::Picked(SCPickerResult { ptr }),
+            0 => SCPickerOutcome::Cancelled,
+            _ => SCPickerOutcome::Error("Picker failed".to_string()),
+        }
+    }
+}
+
+struct FilterDecoder;
+impl PickerDecode for FilterDecoder {
+    type Outcome = SCPickerFilterOutcome;
+    fn decode(code: i32, ptr: *const c_void) -> SCPickerFilterOutcome {
+        match code {
+            1 if !ptr.is_null() => {
+                SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(ptr))
+            }
+            0 => SCPickerFilterOutcome::Cancelled,
+            _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
+        }
+    }
+}
+
+/// Single trampoline for every picker `show*()` callback.
+///
+/// `code` follows the Swift bridge contract (1 = picked, 0 = cancelled,
+/// anything else = error). A `code` of 0 is also produced by the Swift
+/// replacement path when a pending observer is superseded by a newer
+/// `show*()`, so a replaced picker resolves as `Cancelled` rather than
+/// leaking its context.
+///
+/// The boxed closure is reclaimed here exactly once; a duplicate fire on the
+/// same still-live context is rejected by the atomic `consumed` guard.
+extern "C" fn picker_trampoline<D: PickerDecode>(
+    code: i32,
+    ptr: *const c_void,
+    context: *mut c_void,
+) {
+    if context.is_null() {
+        return;
+    }
+
+    // SAFETY: `context` is a live `PickerCallbackContext<D::Outcome>` created
+    // by `into_callback_context`. We only read `consumed` here without taking
+    // ownership; ownership is taken below only by the winner of the swap.
+    let consumed = unsafe { &(*context.cast::<PickerCallbackContext<D::Outcome>>()).consumed };
+    if consumed.swap(true, Ordering::AcqRel) {
+        return;
+    }
+
+    // SAFETY: we won the `consumed` swap, so this is the unique reclaim of the
+    // box created in `into_callback_context`.
+    let context = unsafe { Box::from_raw(context.cast::<PickerCallbackContext<D::Outcome>>()) };
+    let outcome = D::decode(code, ptr);
+    crate::utils::panic_safe::catch_user_panic("picker callback", move || {
+        (context.closure)(outcome);
     });
 }
 
