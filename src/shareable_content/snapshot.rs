@@ -239,10 +239,17 @@ unsafe fn collect_windows(content: *const c_void, app_count_hint: usize) -> Vec<
 }
 
 fn read_string(pool: &[u8], offset: u32, length: u32) -> String {
+    read_str(pool, offset, length).map_or_else(String::new, str::to_owned)
+}
+
+/// Zero-copy view of a string slice in the shared pool.
+///
+/// Returns `None` if the `[offset, offset+length)` range is out of bounds or
+/// the bytes are not valid UTF-8. The borrow is tied to the pool, so callers
+/// only allocate when they need an owned value.
+fn read_str(pool: &[u8], offset: u32, length: u32) -> Option<&str> {
     let start = offset as usize;
     let end = start.saturating_add(length as usize);
-    if end > pool.len() {
-        return String::new();
-    }
-    String::from_utf8_lossy(&pool[start..end]).into_owned()
+    let bytes = pool.get(start..end)?;
+    std::str::from_utf8(bytes).ok()
 }
