@@ -244,12 +244,24 @@ class PickerResult {
     }
 }
 
-// Observer class to handle picker callbacks - returns filter directly
+// Base class that owns the one-shot C callback and guarantees it fires at
+// most once per observer.
+//
+// The picker's delegate callbacks are not documented to arrive on the main
+// queue, while the replacement path (`fireCancelledIfPending`, invoked from
+// the `show*()` trampolines) runs on the main queue. The once-guard is
+// therefore protected by an `NSLock` (the same lock pattern used elsewhere
+// in this bridge) so the completion can never race itself.
+//
+// Firing the callback exactly once is also what lets the Rust side reclaim
+// the boxed closure context: every code path (success, cancel, error, and
+// replacement-cancel) routes the C callback through `beginCompletion()`.
 @available(macOS 14.0, *)
-class PickerObserver: NSObject, SCContentSharingPickerObserver {
+class BasePickerObserver: NSObject {
     let callback: @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void
     let userData: UnsafeMutableRawPointer?
-    var hasCompleted = false
+    private let lock = NSLock()
+    private var hasCompleted = false
 
     init(callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
          userData: UnsafeMutableRawPointer?)
@@ -258,50 +270,58 @@ class PickerObserver: NSObject, SCContentSharingPickerObserver {
         self.userData = userData
     }
 
-    func contentSharingPicker(_: SCContentSharingPicker, didCancelFor _: SCStream?) {
-        guard !hasCompleted else { return }
+    // Atomically claim the single completion slot. Returns `true` only for the
+    // first caller; all later callers (duplicate delegate fires or a
+    // replacement-cancel after the picker already resolved) get `false`.
+    func beginCompletion() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if hasCompleted { return false }
         hasCompleted = true
+        return true
+    }
+
+    // Deliver a cancelled outcome if (and only if) this observer is still
+    // pending. Called when a newer `show*()` request replaces this observer:
+    // without this the Rust trampoline would never run and its boxed closure
+    // context would leak.
+    func fireCancelledIfPending() {
+        guard beginCompletion() else { return }
+        callback(0, nil, userData) // 0 = cancelled
+    }
+}
+
+// Observer class to handle picker callbacks - returns filter directly
+@available(macOS 14.0, *)
+final class PickerObserver: BasePickerObserver, SCContentSharingPickerObserver {
+    func contentSharingPicker(_: SCContentSharingPicker, didCancelFor _: SCStream?) {
+        guard beginCompletion() else { return }
         callback(0, nil, userData) // 0 = cancelled
     }
 
     func contentSharingPicker(_: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for _: SCStream?) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
+        guard beginCompletion() else { return }
         // Return the filter in the same format as other APIs
         let ptr = ScreenCaptureKitBridge.retain(filter)
         callback(1, ptr, userData) // 1 = success with filter
     }
 
     func contentSharingPickerStartDidFailWithError(_: Error) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
+        guard beginCompletion() else { return }
         callback(-1, nil, userData) // -1 = error
     }
 }
 
 // Observer that returns PickerResult with metadata
 @available(macOS 14.0, *)
-class PickerObserverWithResult: NSObject, SCContentSharingPickerObserver {
-    let callback: @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void
-    let userData: UnsafeMutableRawPointer?
-    var hasCompleted = false
-
-    init(callback: @escaping @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void,
-         userData: UnsafeMutableRawPointer?)
-    {
-        self.callback = callback
-        self.userData = userData
-    }
-
+final class PickerObserverWithResult: BasePickerObserver, SCContentSharingPickerObserver {
     func contentSharingPicker(_: SCContentSharingPicker, didCancelFor _: SCStream?) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
+        guard beginCompletion() else { return }
         callback(0, nil, userData)
     }
 
     func contentSharingPicker(_: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for _: SCStream?) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
+        guard beginCompletion() else { return }
         // Return PickerResult with metadata
         let result = PickerResult(filter: filter)
         let ptr = ScreenCaptureKitBridge.retain(result)
@@ -309,15 +329,14 @@ class PickerObserverWithResult: NSObject, SCContentSharingPickerObserver {
     }
 
     func contentSharingPickerStartDidFailWithError(_: Error) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
+        guard beginCompletion() else { return }
         callback(-1, nil, userData)
     }
 }
 
 // Global to keep observer alive during picker
 @available(macOS 14.0, *)
-private var currentObserver: (any SCContentSharingPickerObserver)? = nil
+private var currentObserver: (BasePickerObserver & SCContentSharingPickerObserver)? = nil
 
 /// Show picker and return SCContentFilter directly (simple API)
 @available(macOS 14.0, *)
@@ -337,6 +356,9 @@ public func showContentSharingPicker(
 
         if let old = currentObserver {
             picker.remove(old)
+            // Deliver a cancelled outcome to the replaced observer so the Rust
+            // trampoline reclaims its boxed closure context (avoids a leak).
+            old.fireCancelledIfPending()
         }
 
         let observer = PickerObserver(callback: callback, userData: userData)
@@ -367,6 +389,9 @@ public func showContentSharingPickerWithResult(
 
         if let old = currentObserver {
             picker.remove(old)
+            // Deliver a cancelled outcome to the replaced observer so the Rust
+            // trampoline reclaims its boxed closure context (avoids a leak).
+            old.fireCancelledIfPending()
         }
 
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
@@ -399,6 +424,9 @@ public func showContentSharingPickerForStream(
 
         if let old = currentObserver {
             picker.remove(old)
+            // Deliver a cancelled outcome to the replaced observer so the Rust
+            // trampoline reclaims its boxed closure context (avoids a leak).
+            old.fireCancelledIfPending()
         }
 
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
@@ -437,6 +465,9 @@ public func showContentSharingPickerUsingStyle(
 
         if let old = currentObserver {
             picker.remove(old)
+            // Deliver a cancelled outcome to the replaced observer so the Rust
+            // trampoline reclaims its boxed closure context (avoids a leak).
+            old.fireCancelledIfPending()
         }
 
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
@@ -477,6 +508,9 @@ public func showContentSharingPickerForStreamUsingStyle(
 
         if let old = currentObserver {
             picker.remove(old)
+            // Deliver a cancelled outcome to the replaced observer so the Rust
+            // trampoline reclaims its boxed closure context (avoids a leak).
+            old.fireCancelledIfPending()
         }
 
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
