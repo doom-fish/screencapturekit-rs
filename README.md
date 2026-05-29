@@ -455,7 +455,7 @@ Highlights by major version:
   `Send + Sync`; `PixelFormat` and `SCStreamErrorCode` became
   `#[non_exhaustive]`; `PixelFormat` gained `Unknown(FourCharCode)`; every
   `macos_*` Cargo feature now propagates to the Swift bridge build.
-- **3.0** — foundation types (Core Graphics / Core Media / IOSurface / Core
+- **3.0** — foundation types (Core Graphics / Core Media / `IOSurface` / Core
   Video) moved onto the shared [`apple-cf`](https://crates.io/crates/apple-cf)
   / [`apple-metal`](https://crates.io/crates/apple-metal) crates as re-exports;
   ScreenCaptureKit-specific `CMSampleBuffer` accessors moved to the
