@@ -287,12 +287,26 @@ public func getContentFilterIncludeMenuBar(_ filter: OpaquePointer) -> Bool {
 private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
     let contextPtr: UnsafeMutableRawPointer
     let errorCallback: @convention(c) (UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>) -> Void
+    let contextRelease: @convention(c) (UnsafeMutableRawPointer) -> Void
     var activeCallback: (@convention(c) (UnsafeMutableRawPointer) -> Void)?
     var inactiveCallback: (@convention(c) (UnsafeMutableRawPointer) -> Void)?
 
-    init(contextPtr: UnsafeMutableRawPointer, errorCallback: @escaping @convention(c) (UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>) -> Void) {
+    init(
+        contextPtr: UnsafeMutableRawPointer,
+        errorCallback: @escaping @convention(c) (UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>) -> Void,
+        contextRetain: @escaping @convention(c) (UnsafeMutableRawPointer) -> Void,
+        contextRelease: @escaping @convention(c) (UnsafeMutableRawPointer) -> Void
+    ) {
         self.contextPtr = contextPtr
         self.errorCallback = errorCallback
+        self.contextRelease = contextRelease
+        // Take a +1 on the Rust StreamContext for the lifetime of this object so
+        // an in-flight delegate callback can never observe a freed context.
+        contextRetain(contextPtr)
+    }
+
+    deinit {
+        contextRelease(contextPtr)
     }
 
     func stream(_: SCStream, didStopWithError error: Error) {
@@ -317,10 +331,24 @@ private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
 private class StreamOutputHandler: NSObject, SCStreamOutput {
     let contextPtr: UnsafeMutableRawPointer
     let sampleBufferCallback: @convention(c) (UnsafeMutableRawPointer, OpaquePointer, Int32) -> Void
+    let contextRelease: @convention(c) (UnsafeMutableRawPointer) -> Void
 
-    init(contextPtr: UnsafeMutableRawPointer, sampleBufferCallback: @escaping @convention(c) (UnsafeMutableRawPointer, OpaquePointer, Int32) -> Void) {
+    init(
+        contextPtr: UnsafeMutableRawPointer,
+        sampleBufferCallback: @escaping @convention(c) (UnsafeMutableRawPointer, OpaquePointer, Int32) -> Void,
+        contextRetain: @escaping @convention(c) (UnsafeMutableRawPointer) -> Void,
+        contextRelease: @escaping @convention(c) (UnsafeMutableRawPointer) -> Void
+    ) {
         self.contextPtr = contextPtr
         self.sampleBufferCallback = sampleBufferCallback
+        self.contextRelease = contextRelease
+        // Take a +1 on the Rust StreamContext for the lifetime of this object so
+        // an in-flight sample callback can never observe a freed context.
+        contextRetain(contextPtr)
+    }
+
+    deinit {
+        contextRelease(contextPtr)
     }
 
     func stream(_: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
@@ -400,13 +428,25 @@ public func createStream(
     _ config: OpaquePointer,
     _ context: UnsafeMutableRawPointer,
     _ errorCallback: @escaping @convention(c) (UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>) -> Void,
-    _ sampleCallback: @escaping @convention(c) (UnsafeMutableRawPointer, OpaquePointer, Int32) -> Void
+    _ sampleCallback: @escaping @convention(c) (UnsafeMutableRawPointer, OpaquePointer, Int32) -> Void,
+    _ contextRetain: @escaping @convention(c) (UnsafeMutableRawPointer) -> Void,
+    _ contextRelease: @escaping @convention(c) (UnsafeMutableRawPointer) -> Void
 ) -> OpaquePointer? {
     let scFilter: SCContentFilter = unretained(filter)
     let scConfig: SCStreamConfiguration = unretained(config)
 
-    let delegate = StreamDelegateWrapper(contextPtr: context, errorCallback: errorCallback)
-    let outputHandler = StreamOutputHandler(contextPtr: context, sampleBufferCallback: sampleCallback)
+    let delegate = StreamDelegateWrapper(
+        contextPtr: context,
+        errorCallback: errorCallback,
+        contextRetain: contextRetain,
+        contextRelease: contextRelease
+    )
+    let outputHandler = StreamOutputHandler(
+        contextPtr: context,
+        sampleBufferCallback: sampleCallback,
+        contextRetain: contextRetain,
+        contextRelease: contextRelease
+    )
 
     let stream = SCStream(filter: scFilter, configuration: scConfig, delegate: delegate)
     let state = StreamState(delegate: delegate, outputHandler: outputHandler)
