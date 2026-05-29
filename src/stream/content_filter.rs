@@ -27,6 +27,7 @@ use std::fmt;
 #[cfg(feature = "macos_14_2")]
 use crate::cg::CGRect;
 use crate::{
+    error::{SCError, SCResult},
     ffi,
     shareable_content::{SCDisplay, SCRunningApplication, SCWindow},
 };
@@ -624,14 +625,28 @@ impl SCContentFilterBuilder {
         self.with_content_rect(rect)
     }
 
-    /// Build the content filter
+    /// Build the content filter.
     ///
     /// # Panics
     ///
     /// Panics if no filter type was set. Call `.display()` or `.window()` before `.build()`.
+    /// For a non-panicking alternative that reports this as a recoverable error, use
+    /// [`try_build`](Self::try_build).
     #[must_use]
-    #[allow(clippy::too_many_lines)]
     pub fn build(self) -> SCContentFilter {
+        self.try_build()
+            .expect("SCContentFilterBuilder: No filter type set. Call .display() or .window() before .build()")
+    }
+
+    /// Build the content filter, returning an error instead of panicking when no
+    /// filter type was set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SCError::InvalidConfiguration`] if neither `.display()` nor `.window()`
+    /// was called before building.
+    #[allow(clippy::too_many_lines)]
+    pub fn try_build(self) -> SCResult<SCContentFilter> {
         let filter = match self.filter_type {
             FilterType::Window(window) => unsafe {
                 let ptr =
@@ -735,10 +750,10 @@ impl SCContentFilterBuilder {
                 }
             }
             FilterType::None => {
-                panic!(
+                return Err(SCError::invalid_config(
                     "SCContentFilterBuilder: No filter type set. \
-                     Call .display() or .window() before .build()"
-                );
+                     Call .display() or .window() before building.",
+                ));
             }
         };
 
@@ -750,7 +765,7 @@ impl SCContentFilterBuilder {
             filter
         };
 
-        filter
+        Ok(filter)
     }
 }
 

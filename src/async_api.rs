@@ -293,7 +293,16 @@ impl AsyncSCShareableContent {
 // AsyncSCStream - Async stream with integrated frame iteration
 // ============================================================================
 
-/// Async iterator over sample buffers
+/// Async iterator over sample buffers.
+///
+/// # Delivery semantics
+///
+/// This is a **lossy, bounded** buffer. When the queue is full (`capacity`
+/// reached) and a new sample arrives faster than the consumer polls it,
+/// the **oldest** buffered sample is dropped to make room for the newest
+/// (drop-oldest policy). This keeps latency low and favors fresh frames over
+/// stale ones, but means consumers that fall behind will miss intermediate
+/// frames rather than blocking the capture callback.
 struct AsyncSampleIteratorState {
     buffer: std::collections::VecDeque<crate::cm::CMSampleBuffer>,
     waker: Option<Waker>,

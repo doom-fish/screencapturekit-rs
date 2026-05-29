@@ -112,6 +112,10 @@ impl SCStreamConfiguration {
     /// Set the color space name for captured content.
     ///
     /// Available on macOS 13.0+
+    ///
+    /// If `name` contains an interior NUL byte it cannot be converted to a C
+    /// string and the call is silently ignored (the configuration is left
+    /// unchanged). Valid color-space names never contain NUL bytes.
     pub fn set_color_space_name(&mut self, name: &str) -> &mut Self {
         if let Ok(c_name) = std::ffi::CString::new(name) {
             unsafe {
@@ -143,6 +147,10 @@ impl SCStreamConfiguration {
     /// Set the color matrix for captured content
     ///
     /// Available on macOS 13.0+. The matrix should be a 3x3 array in row-major order.
+    ///
+    /// If `matrix` contains an interior NUL byte it cannot be converted to a C
+    /// string and the call is silently ignored (the configuration is left
+    /// unchanged). Valid matrix-name strings never contain NUL bytes.
     pub fn set_color_matrix(&mut self, matrix: &str) -> &mut Self {
         if let Ok(c_matrix) = std::ffi::CString::new(matrix) {
             unsafe {

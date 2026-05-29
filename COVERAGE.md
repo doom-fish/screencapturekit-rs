@@ -1,5 +1,10 @@
 # ScreenCaptureKit SDK Coverage
 
+> **Snapshot — not a live coverage status.** This document records a point-in-time
+> audit performed against `screencapturekit` **v3.1.1**. It has **not** been
+> re-verified against the current crate version (6.x) and should be read as a
+> historical audit, not an up-to-date certification.
+
 This document records the `screencapturekit` v3.1.1 coverage audit against Apple's `ScreenCaptureKit.framework` from Xcode 26.2 (`MacOSX26.2.sdk`).
 
 ## Certification

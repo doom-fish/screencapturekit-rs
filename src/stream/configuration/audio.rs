@@ -393,6 +393,10 @@ impl SCStreamConfiguration {
     /// # Availability
     /// macOS 15.0+. On earlier versions, this setting has no effect.
     ///
+    /// If `device_id` contains an interior NUL byte it cannot be converted to a
+    /// C string and the call is silently ignored. Valid Core Audio device IDs
+    /// never contain NUL bytes.
+    ///
     /// # Example
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;

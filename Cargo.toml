@@ -26,10 +26,8 @@ include = [
 ]
 
 [lints.rust]
-# TODO: Enable after adding unsafe blocks inside unsafe fns
-# unsafe_op_in_unsafe_fn = "warn"
-# TODO: Enable after adding Debug impls to public types
-# missing_debug_implementations = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+missing_debug_implementations = "warn"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

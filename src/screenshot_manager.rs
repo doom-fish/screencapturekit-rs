@@ -121,7 +121,7 @@ impl ImageFormat {
 /// `ptr` must be a non-null retained `CGImageRef` whose +1 ownership is
 /// transferred to the returned wrapper.
 pub(crate) unsafe fn cgimage_from_retained_ptr(ptr: *const c_void) -> CGImage {
-    CGImage::from_raw(ptr.cast_mut())
+    unsafe { CGImage::from_raw(ptr.cast_mut()) }
 }
 
 extern "C" fn image_callback(
@@ -298,9 +298,11 @@ impl PixelLayout {
     /// The destination must point to at least `capacity` bytes and `ptr` must
     /// be a live retained `CGImage`.
     unsafe fn render(self, ptr: *const c_void, dest: *mut u8, capacity: usize) -> usize {
-        match self {
-            Self::Rgba => crate::ffi::cgimage_render_rgba_into(ptr, dest, capacity),
-            Self::Bgra => crate::ffi::cgimage_render_bgra_into(ptr, dest, capacity),
+        unsafe {
+            match self {
+                Self::Rgba => crate::ffi::cgimage_render_rgba_into(ptr, dest, capacity),
+                Self::Bgra => crate::ffi::cgimage_render_bgra_into(ptr, dest, capacity),
+            }
         }
     }
 }

@@ -53,7 +53,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 3. Configure stream (how to capture)
-    let config = SCStreamConfiguration::new()
+    #[cfg_attr(not(feature = "macos_14_0"), allow(unused_mut))]
+    let mut config = SCStreamConfiguration::new()
         .with_width(1920)
         .with_height(1080)
         .with_pixel_format(PixelFormat::BGRA)

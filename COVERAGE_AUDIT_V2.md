@@ -1,5 +1,7 @@
 # screencapturekit-rs coverage audit v2 (vs MacOSX26.2.sdk)
 
+> Snapshot from the `screencapturekit` v3.1.1 audit pass — historical, not re-verified against 6.x.
+
 SDK_PUBLIC_SYMBOLS: 42
 VERIFIED: 41
 GAPS: 0

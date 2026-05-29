@@ -1006,6 +1006,7 @@ mod tokio_async_tests {
         assert!(result.is_ok());
     }
 
+    #[cfg(feature = "macos_14_4")]
     #[tokio::test]
     async fn test_async_shareable_content_current_process() {
         let result = AsyncSCShareableContent::current_process().await;

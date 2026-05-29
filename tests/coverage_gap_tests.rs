@@ -18,6 +18,8 @@
 //!   write path against an active dispatch reader.
 
 use screencapturekit::cm::CMSampleBufferExt;
+#[cfg(feature = "macos_14_2")]
+use screencapturekit::cm::CMSampleBufferSCExt;
 use screencapturekit::{
     cm::CMSampleBuffer,
     shareable_content::SCShareableContent,

@@ -2034,6 +2034,8 @@ where
 /// }
 /// ```
 pub unsafe fn setup_metal_view(view: *mut c_void, layer: &MetalLayer) {
-    nsview_set_wants_layer(view);
-    nsview_set_layer(view, layer.as_ptr());
+    unsafe {
+        nsview_set_wants_layer(view);
+        nsview_set_layer(view, layer.as_ptr());
+    }
 }

@@ -27,14 +27,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! screencapturekit = "4"
+//! screencapturekit = "6"
 //! ```
 //!
 //! For async support:
 //!
 //! ```toml
 //! [dependencies]
-//! screencapturekit = { version = "4", features = ["async"] }
+//! screencapturekit = { version = "6", features = ["async"] }
 //! ```
 //!
 //! ## Quick Start

@@ -26,13 +26,13 @@ jobs:
     runs-on: macos-26
     name: Lint
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -42,7 +42,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-lint-cargo-
       - name: Run clippy
-        run: cargo clippy --all-features -- -D warnings
+        run: cargo clippy --all-features --all-targets -- -D warnings
       - name: Check formatting
         run: cargo fmt --check
 
@@ -87,13 +87,13 @@ jobs:
     env:
       TARGET_FLAG: ${{ matrix.cross_target && format('--target {0}', matrix.cross_target) || '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.cross_target || '' }}
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -137,11 +137,11 @@ jobs:
     name: Leak Check - ${{ matrix.name }}
     needs: [lint]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -172,14 +172,14 @@ jobs:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
-        uses: release-plz/action@v0.5.128
+        uses: release-plz/action@v0.5.129
         with:
           command: release-pr
         env:
@@ -193,15 +193,18 @@ jobs:
     environment: release
     permissions:
       contents: write
+    concurrency:
+      group: release-plz-publish-${{ github.ref }}
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
-        uses: release-plz/action@v0.5.128
+        uses: release-plz/action@v0.5.129
         with:
           command: release
         env:

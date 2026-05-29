@@ -26,7 +26,7 @@
 - 📸 **Screenshots** + **direct-to-file recording** (macOS 14.0+ / 15.0+)
 - 🖱️ **System content picker** UI (macOS 14.0+)
 - 🛡️ **Memory safe** — proper retain/release, leak-tested
-- 📦 **Zero runtime dependencies**
+- 📦 **Minimal dependencies** — only the thin `apple-cf` / `apple-metal` binding crates (no heavy third-party runtime deps)
 
 ## Table of Contents
 
@@ -41,7 +41,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "5"
+screencapturekit = "6"
 ```
 
 Opt-in features (additive):
@@ -60,7 +60,7 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "5", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "6", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading from 1.x?** See [`docs/MIGRATION.md`](docs/MIGRATION.md#migrating-from-1x-to-20)

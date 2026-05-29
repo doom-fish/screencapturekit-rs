@@ -5,17 +5,19 @@ unsafe fn ffi_string_from_buffer<F>(size: usize, f: F) -> Option<String>
 where
     F: FnOnce(*mut i8, usize) -> bool,
 {
-    let mut buffer = vec![0i8; size];
-    if f(buffer.as_mut_ptr(), size) {
-        let c_str = std::ffi::CStr::from_ptr(buffer.as_ptr());
-        let s = c_str.to_str().ok()?.to_string();
-        if s.is_empty() {
-            None
+    unsafe {
+        let mut buffer = vec![0i8; size];
+        if f(buffer.as_mut_ptr(), size) {
+            let c_str = std::ffi::CStr::from_ptr(buffer.as_ptr());
+            let s = c_str.to_str().ok()?.to_string();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
         } else {
-            Some(s)
+            None
         }
-    } else {
-        None
     }
 }
 

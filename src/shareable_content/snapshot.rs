@@ -91,137 +91,143 @@ impl ContentSnapshot {
 }
 
 unsafe fn collect_displays(content: *const c_void) -> Vec<DisplaySnapshot> {
-    let mut buffer: Vec<FFIDisplayData> = Vec::with_capacity(MAX_DISPLAYS);
-    // We pass uninitialised memory; Swift writes exactly `count` valid
-    // entries and we set_len to that.
-    let written = crate::ffi::sc_shareable_content_get_displays_batch(
-        content,
-        buffer.as_mut_ptr().cast::<c_void>(),
-        MAX_DISPLAYS as isize,
-    );
-    if written <= 0 {
-        return Vec::new();
-    }
-    let count = (written as usize).min(MAX_DISPLAYS);
-    buffer.set_len(count);
+    unsafe {
+        let mut buffer: Vec<FFIDisplayData> = Vec::with_capacity(MAX_DISPLAYS);
+        // We pass uninitialised memory; Swift writes exactly `count` valid
+        // entries and we set_len to that.
+        let written = crate::ffi::sc_shareable_content_get_displays_batch(
+            content,
+            buffer.as_mut_ptr().cast::<c_void>(),
+            MAX_DISPLAYS as isize,
+        );
+        if written <= 0 {
+            return Vec::new();
+        }
+        let count = (written as usize).min(MAX_DISPLAYS);
+        buffer.set_len(count);
 
-    buffer
-        .into_iter()
-        .map(|d| DisplaySnapshot {
-            display_id: d.display_id,
-            width: d.width,
-            height: d.height,
-            frame: CGRect::new(d.frame.x, d.frame.y, d.frame.width, d.frame.height),
-        })
-        .collect()
+        buffer
+            .into_iter()
+            .map(|d| DisplaySnapshot {
+                display_id: d.display_id,
+                width: d.width,
+                height: d.height,
+                frame: CGRect::new(d.frame.x, d.frame.y, d.frame.width, d.frame.height),
+            })
+            .collect()
+    }
 }
 
 unsafe fn collect_applications(content: *const c_void) -> Vec<ApplicationSnapshot> {
-    let mut packed: Vec<FFIApplicationData> = Vec::with_capacity(MAX_APPS);
-    let mut strings: Vec<i8> = vec![0; STRING_POOL_BYTES];
-    let mut strings_used: isize = 0;
+    unsafe {
+        let mut packed: Vec<FFIApplicationData> = Vec::with_capacity(MAX_APPS);
+        let mut strings: Vec<i8> = vec![0; STRING_POOL_BYTES];
+        let mut strings_used: isize = 0;
 
-    let written = crate::ffi::sc_shareable_content_get_applications_batch(
-        content,
-        packed.as_mut_ptr().cast::<c_void>(),
-        MAX_APPS as isize,
-        strings.as_mut_ptr(),
-        STRING_POOL_BYTES as isize,
-        &mut strings_used,
-    );
-    if written <= 0 {
-        return Vec::new();
+        let written = crate::ffi::sc_shareable_content_get_applications_batch(
+            content,
+            packed.as_mut_ptr().cast::<c_void>(),
+            MAX_APPS as isize,
+            strings.as_mut_ptr(),
+            STRING_POOL_BYTES as isize,
+            &mut strings_used,
+        );
+        if written <= 0 {
+            return Vec::new();
+        }
+        let count = (written as usize).min(MAX_APPS);
+        packed.set_len(count);
+
+        let pool: &[u8] = std::slice::from_raw_parts(
+            strings.as_ptr().cast::<u8>(),
+            (strings_used as usize).min(STRING_POOL_BYTES),
+        );
+
+        packed
+            .into_iter()
+            .map(|app| ApplicationSnapshot {
+                process_id: app.process_id,
+                bundle_identifier: read_string(pool, app.bundle_id_offset, app.bundle_id_length),
+                application_name: read_string(pool, app.app_name_offset, app.app_name_length),
+            })
+            .collect()
     }
-    let count = (written as usize).min(MAX_APPS);
-    packed.set_len(count);
-
-    let pool: &[u8] = std::slice::from_raw_parts(
-        strings.as_ptr().cast::<u8>(),
-        (strings_used as usize).min(STRING_POOL_BYTES),
-    );
-
-    packed
-        .into_iter()
-        .map(|app| ApplicationSnapshot {
-            process_id: app.process_id,
-            bundle_identifier: read_string(pool, app.bundle_id_offset, app.bundle_id_length),
-            application_name: read_string(pool, app.app_name_offset, app.app_name_length),
-        })
-        .collect()
 }
 
 unsafe fn collect_windows(content: *const c_void, app_count_hint: usize) -> Vec<WindowSnapshot> {
-    let mut packed: Vec<FFIWindowData> = Vec::with_capacity(MAX_WINDOWS);
-    let mut strings: Vec<i8> = vec![0; STRING_POOL_BYTES];
-    let mut strings_used: isize = 0;
-    // The Swift bridge also retains app pointers into this buffer for the
-    // owning-app index lookup. We don't need to keep the pointers (we already
-    // have `applications` from the previous batch call), but we still have to
-    // accept and release them so the bridge balances its retain.
-    let app_cap = MAX_APPS.max(app_count_hint);
-    let mut app_pointers: Vec<*const c_void> = vec![std::ptr::null(); app_cap];
-    let mut app_count: isize = 0;
+    unsafe {
+        let mut packed: Vec<FFIWindowData> = Vec::with_capacity(MAX_WINDOWS);
+        let mut strings: Vec<i8> = vec![0; STRING_POOL_BYTES];
+        let mut strings_used: isize = 0;
+        // The Swift bridge also retains app pointers into this buffer for the
+        // owning-app index lookup. We don't need to keep the pointers (we already
+        // have `applications` from the previous batch call), but we still have to
+        // accept and release them so the bridge balances its retain.
+        let app_cap = MAX_APPS.max(app_count_hint);
+        let mut app_pointers: Vec<*const c_void> = vec![std::ptr::null(); app_cap];
+        let mut app_count: isize = 0;
 
-    let written = crate::ffi::sc_shareable_content_get_windows_batch(
-        content,
-        packed.as_mut_ptr().cast::<c_void>(),
-        MAX_WINDOWS as isize,
-        strings.as_mut_ptr(),
-        STRING_POOL_BYTES as isize,
-        &mut strings_used,
-        app_pointers.as_mut_ptr(),
-        app_cap as isize,
-        &mut app_count,
-    );
+        let written = crate::ffi::sc_shareable_content_get_windows_batch(
+            content,
+            packed.as_mut_ptr().cast::<c_void>(),
+            MAX_WINDOWS as isize,
+            strings.as_mut_ptr(),
+            STRING_POOL_BYTES as isize,
+            &mut strings_used,
+            app_pointers.as_mut_ptr(),
+            app_cap as isize,
+            &mut app_count,
+        );
 
-    // Release the SCRunningApplication pointers the bridge retained for us;
-    // we don't need them in the snapshot path (the snapshot is plain data).
-    let returned_apps = (app_count as usize).min(app_cap);
-    for &ptr in &app_pointers[..returned_apps] {
-        if !ptr.is_null() {
-            crate::ffi::sc_running_application_release(ptr);
-        }
-    }
-
-    if written <= 0 {
-        return Vec::new();
-    }
-    let count = (written as usize).min(MAX_WINDOWS);
-    packed.set_len(count);
-
-    let pool: &[u8] = std::slice::from_raw_parts(
-        strings.as_ptr().cast::<u8>(),
-        (strings_used as usize).min(STRING_POOL_BYTES),
-    );
-
-    packed
-        .into_iter()
-        .map(|w| {
-            let title = if w.title_length == 0 {
-                None
-            } else {
-                let s = read_string(pool, w.title_offset, w.title_length);
-                if s.is_empty() {
-                    None
-                } else {
-                    Some(s)
-                }
-            };
-            WindowSnapshot {
-                window_id: w.window_id,
-                window_layer: w.window_layer,
-                is_on_screen: w.is_on_screen,
-                is_active: w.is_active,
-                frame: CGRect::new(w.frame.x, w.frame.y, w.frame.width, w.frame.height),
-                title,
-                owning_app_index: if w.owning_app_index < 0 {
-                    None
-                } else {
-                    Some(w.owning_app_index as usize)
-                },
+        // Release the SCRunningApplication pointers the bridge retained for us;
+        // we don't need them in the snapshot path (the snapshot is plain data).
+        let returned_apps = (app_count as usize).min(app_cap);
+        for &ptr in &app_pointers[..returned_apps] {
+            if !ptr.is_null() {
+                crate::ffi::sc_running_application_release(ptr);
             }
-        })
-        .collect()
+        }
+
+        if written <= 0 {
+            return Vec::new();
+        }
+        let count = (written as usize).min(MAX_WINDOWS);
+        packed.set_len(count);
+
+        let pool: &[u8] = std::slice::from_raw_parts(
+            strings.as_ptr().cast::<u8>(),
+            (strings_used as usize).min(STRING_POOL_BYTES),
+        );
+
+        packed
+            .into_iter()
+            .map(|w| {
+                let title = if w.title_length == 0 {
+                    None
+                } else {
+                    let s = read_string(pool, w.title_offset, w.title_length);
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s)
+                    }
+                };
+                WindowSnapshot {
+                    window_id: w.window_id,
+                    window_layer: w.window_layer,
+                    is_on_screen: w.is_on_screen,
+                    is_active: w.is_active,
+                    frame: CGRect::new(w.frame.x, w.frame.y, w.frame.width, w.frame.height),
+                    title,
+                    owning_app_index: if w.owning_app_index < 0 {
+                        None
+                    } else {
+                        Some(w.owning_app_index as usize)
+                    },
+                }
+            })
+            .collect()
+    }
 }
 
 fn read_string(pool: &[u8], offset: u32, length: u32) -> String {

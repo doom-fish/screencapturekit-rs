@@ -751,6 +751,19 @@ impl SCStream {
 }
 
 impl Drop for SCStream {
+    // Safety / teardown ordering:
+    //
+    // `sc_stream_release` removes this stream's entry from the Swift-side stream
+    // registry and releases the `SCStream`, which detaches the stream-output
+    // delegate so no *new* callbacks can be dispatched referencing `self.context`.
+    // We release the `StreamContext` only afterwards, so the ordering here is
+    // release-stream-then-release-context.
+    //
+    // Note: `SCStream`'s underlying stop is asynchronous on the Apple side. If a
+    // sample-handler callback was already in flight on the stream's dispatch
+    // queue at the moment of drop, it borrows `context` for its duration. Callers
+    // that need a hard guarantee that no callback is running should call
+    // `stop_capture()` and await/observe completion before dropping the stream.
     fn drop(&mut self) {
         if !self.ptr.is_null() {
             unsafe { ffi::sc_stream_release(self.ptr) };

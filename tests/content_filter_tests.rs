@@ -1,5 +1,7 @@
 //! `SCContentFilter` tests
 
+#[cfg(feature = "macos_14_2")]
+use screencapturekit::cg::CGRect;
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::content_filter::SCContentFilter;
 
