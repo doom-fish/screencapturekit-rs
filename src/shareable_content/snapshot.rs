@@ -16,6 +16,7 @@
 use crate::cg::CGRect;
 use crate::ffi::{FFIApplicationData, FFIDisplayData, FFIWindowData};
 use std::ffi::c_void;
+use std::mem::MaybeUninit;
 
 // Static caps for the bridge's batch FFI scratch buffers. These are
 // intentionally generous — the bridge silently truncates above the cap, so
@@ -92,9 +93,11 @@ impl ContentSnapshot {
 
 unsafe fn collect_displays(content: *const c_void) -> Vec<DisplaySnapshot> {
     unsafe {
-        let mut buffer: Vec<FFIDisplayData> = Vec::with_capacity(MAX_DISPLAYS);
-        // We pass uninitialised memory; Swift writes exactly `count` valid
-        // entries and we set_len to that.
+        // Use `MaybeUninit` for the scratch buffer: the Swift bridge writes
+        // exactly `count` fully-initialised entries and we only ever read those.
+        // Building a `Vec<FFIDisplayData>` over uninitialised memory would be
+        // unsound because the element type has validity invariants.
+        let mut buffer: Vec<MaybeUninit<FFIDisplayData>> = Vec::with_capacity(MAX_DISPLAYS);
         let written = crate::ffi::sc_shareable_content_get_displays_batch(
             content,
             buffer.as_mut_ptr().cast::<c_void>(),
@@ -104,15 +107,16 @@ unsafe fn collect_displays(content: *const c_void) -> Vec<DisplaySnapshot> {
             return Vec::new();
         }
         let count = (written as usize).min(MAX_DISPLAYS);
-        buffer.set_len(count);
 
-        buffer
-            .into_iter()
-            .map(|d| DisplaySnapshot {
-                display_id: d.display_id,
-                width: d.width,
-                height: d.height,
-                frame: CGRect::new(d.frame.x, d.frame.y, d.frame.width, d.frame.height),
+        (0..count)
+            .map(|i| {
+                let d = buffer[i].assume_init();
+                DisplaySnapshot {
+                    display_id: d.display_id,
+                    width: d.width,
+                    height: d.height,
+                    frame: CGRect::new(d.frame.x, d.frame.y, d.frame.width, d.frame.height),
+                }
             })
             .collect()
     }
@@ -120,7 +124,7 @@ unsafe fn collect_displays(content: *const c_void) -> Vec<DisplaySnapshot> {
 
 unsafe fn collect_applications(content: *const c_void) -> Vec<ApplicationSnapshot> {
     unsafe {
-        let mut packed: Vec<FFIApplicationData> = Vec::with_capacity(MAX_APPS);
+        let mut packed: Vec<MaybeUninit<FFIApplicationData>> = Vec::with_capacity(MAX_APPS);
         let mut strings: Vec<i8> = vec![0; STRING_POOL_BYTES];
         let mut strings_used: isize = 0;
 
@@ -136,19 +140,24 @@ unsafe fn collect_applications(content: *const c_void) -> Vec<ApplicationSnapsho
             return Vec::new();
         }
         let count = (written as usize).min(MAX_APPS);
-        packed.set_len(count);
 
         let pool: &[u8] = std::slice::from_raw_parts(
             strings.as_ptr().cast::<u8>(),
             (strings_used as usize).min(STRING_POOL_BYTES),
         );
 
-        packed
-            .into_iter()
-            .map(|app| ApplicationSnapshot {
-                process_id: app.process_id,
-                bundle_identifier: read_string(pool, app.bundle_id_offset, app.bundle_id_length),
-                application_name: read_string(pool, app.app_name_offset, app.app_name_length),
+        (0..count)
+            .map(|i| {
+                let app = packed[i].assume_init();
+                ApplicationSnapshot {
+                    process_id: app.process_id,
+                    bundle_identifier: read_string(
+                        pool,
+                        app.bundle_id_offset,
+                        app.bundle_id_length,
+                    ),
+                    application_name: read_string(pool, app.app_name_offset, app.app_name_length),
+                }
             })
             .collect()
     }
@@ -156,7 +165,7 @@ unsafe fn collect_applications(content: *const c_void) -> Vec<ApplicationSnapsho
 
 unsafe fn collect_windows(content: *const c_void, app_count_hint: usize) -> Vec<WindowSnapshot> {
     unsafe {
-        let mut packed: Vec<FFIWindowData> = Vec::with_capacity(MAX_WINDOWS);
+        let mut packed: Vec<MaybeUninit<FFIWindowData>> = Vec::with_capacity(MAX_WINDOWS);
         let mut strings: Vec<i8> = vec![0; STRING_POOL_BYTES];
         let mut strings_used: isize = 0;
         // The Swift bridge also retains app pointers into this buffer for the
@@ -192,16 +201,15 @@ unsafe fn collect_windows(content: *const c_void, app_count_hint: usize) -> Vec<
             return Vec::new();
         }
         let count = (written as usize).min(MAX_WINDOWS);
-        packed.set_len(count);
 
         let pool: &[u8] = std::slice::from_raw_parts(
             strings.as_ptr().cast::<u8>(),
             (strings_used as usize).min(STRING_POOL_BYTES),
         );
 
-        packed
-            .into_iter()
-            .map(|w| {
+        (0..count)
+            .map(|i| {
+                let w = packed[i].assume_init();
                 let title = if w.title_length == 0 {
                     None
                 } else {
