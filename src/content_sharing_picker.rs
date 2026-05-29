@@ -285,25 +285,12 @@ impl Default for SCContentSharingPickerConfiguration {
     }
 }
 
-impl Clone for SCContentSharingPickerConfiguration {
-    fn clone(&self) -> Self {
-        unsafe {
-            Self {
-                ptr: crate::ffi::sc_content_sharing_picker_configuration_retain(self.ptr),
-            }
-        }
-    }
-}
-
-impl Drop for SCContentSharingPickerConfiguration {
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe {
-                crate::ffi::sc_content_sharing_picker_configuration_release(self.ptr);
-            }
-        }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCContentSharingPickerConfiguration,
+    field = ptr,
+    retain = crate::ffi::sc_content_sharing_picker_configuration_retain,
+    release = crate::ffi::sc_content_sharing_picker_configuration_release,
+);
 
 impl std::fmt::Debug for SCContentSharingPickerConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -441,11 +428,7 @@ impl SCPickerResult {
         (0..count)
             .filter_map(|i| {
                 let ptr = unsafe { crate::ffi::sc_picker_result_get_window_at(self.ptr, i) };
-                if ptr.is_null() {
-                    None
-                } else {
-                    Some(crate::shareable_content::SCWindow::from_ffi_owned(ptr))
-                }
+                unsafe { crate::shareable_content::SCWindow::from_retained_ptr(ptr) }
             })
             .collect()
     }
@@ -479,11 +462,7 @@ impl SCPickerResult {
         (0..count)
             .filter_map(|i| {
                 let ptr = unsafe { crate::ffi::sc_picker_result_get_display_at(self.ptr, i) };
-                if ptr.is_null() {
-                    None
-                } else {
-                    Some(crate::shareable_content::SCDisplay::from_ffi_owned(ptr))
-                }
+                unsafe { crate::shareable_content::SCDisplay::from_retained_ptr(ptr) }
             })
             .collect()
     }
@@ -497,11 +476,7 @@ impl SCPickerResult {
         (0..count)
             .filter_map(|i| {
                 let ptr = unsafe { crate::ffi::sc_picker_result_get_application_at(self.ptr, i) };
-                if ptr.is_null() {
-                    None
-                } else {
-                    Some(crate::shareable_content::SCRunningApplication::from_ffi_owned(ptr))
-                }
+                unsafe { crate::shareable_content::SCRunningApplication::from_retained_ptr(ptr) }
             })
             .collect()
     }
@@ -543,15 +518,11 @@ impl SCPickerResult {
     }
 }
 
-impl Drop for SCPickerResult {
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe {
-                crate::ffi::sc_picker_result_release(self.ptr);
-            }
-        }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCPickerResult,
+    field = ptr,
+    release = crate::ffi::sc_picker_result_release,
+);
 
 impl std::fmt::Debug for SCPickerResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

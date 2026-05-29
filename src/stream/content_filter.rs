@@ -213,11 +213,7 @@ impl SCContentFilter {
                 #[allow(clippy::cast_possible_wrap)]
                 let ptr =
                     unsafe { ffi::sc_content_filter_get_included_display_at(self.0, i as isize) };
-                if ptr.is_null() {
-                    None
-                } else {
-                    Some(SCDisplay::from_ffi_owned(ptr))
-                }
+                unsafe { SCDisplay::from_retained_ptr(ptr) }
             })
             .collect()
     }
@@ -237,11 +233,7 @@ impl SCContentFilter {
                 #[allow(clippy::cast_possible_wrap)]
                 let ptr =
                     unsafe { ffi::sc_content_filter_get_included_window_at(self.0, i as isize) };
-                if ptr.is_null() {
-                    None
-                } else {
-                    Some(SCWindow::from_ffi_owned(ptr))
-                }
+                unsafe { SCWindow::from_retained_ptr(ptr) }
             })
             .collect()
     }
@@ -262,11 +254,7 @@ impl SCContentFilter {
                 let ptr = unsafe {
                     ffi::sc_content_filter_get_included_application_at(self.0, i as isize)
                 };
-                if ptr.is_null() {
-                    None
-                } else {
-                    Some(SCRunningApplication::from_ffi_owned(ptr))
-                }
+                unsafe { SCRunningApplication::from_retained_ptr(ptr) }
             })
             .collect()
     }
@@ -344,29 +332,15 @@ impl std::fmt::Display for SCStreamType {
     }
 }
 
-impl Drop for SCContentFilter {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            unsafe {
-                ffi::sc_content_filter_release(self.0);
-            }
-        }
-    }
-}
-
-impl Clone for SCContentFilter {
-    /// Clone the filter by bumping the underlying Objective-C
-    /// reference count.
-    ///
-    /// **Note**: this is **not** a `memcpy`. `Clone::clone` crosses
-    /// the Swift FFI boundary and calls `sc_content_filter_retain`
-    /// (which performs an Objective-C `retain`). For hot-path code
-    /// that needs many references to the same filter, prefer
-    /// `Arc<SCContentFilter>` over per-call `.clone()`.
-    fn clone(&self) -> Self {
-        unsafe { Self(crate::ffi::sc_content_filter_retain(self.0)) }
-    }
-}
+// `Clone::clone` is not a `memcpy`: it crosses the Swift FFI boundary and calls
+// `sc_content_filter_retain` (an Objective-C `retain`). For hot-path code that
+// needs many references to the same filter, prefer `Arc<SCContentFilter>` over
+// per-call `.clone()`.
+crate::utils::retained::sc_retained!(
+    SCContentFilter,
+    retain = crate::ffi::sc_content_filter_retain,
+    release = crate::ffi::sc_content_filter_release,
+);
 
 impl fmt::Debug for SCContentFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

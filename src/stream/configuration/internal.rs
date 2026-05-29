@@ -45,31 +45,16 @@ impl SCStreamConfiguration {
     }
 }
 
-impl Drop for SCStreamConfiguration {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            unsafe {
-                crate::ffi::sc_stream_configuration_release(self.0);
-            }
-        }
-    }
-}
-
-impl Clone for SCStreamConfiguration {
-    /// Clone the configuration by bumping the underlying Objective-C
-    /// reference count.
-    ///
-    /// **Note**: this is **not** a `memcpy`. `Clone::clone` crosses the
-    /// Swift FFI boundary and calls `sc_stream_configuration_retain`
-    /// (which performs an Objective-C `retain`). For most callers the
-    /// cost is irrelevant, but if you're cloning an
-    /// `SCStreamConfiguration` per frame on the hot path, prefer to
-    /// share an `Arc<SCStreamConfiguration>` (or `&SCStreamConfiguration`)
-    /// and clone *that* instead.
-    fn clone(&self) -> Self {
-        unsafe { Self(crate::ffi::sc_stream_configuration_retain(self.0)) }
-    }
-}
+// `Clone::clone` is not a `memcpy`: it crosses the Swift FFI boundary and calls
+// `sc_stream_configuration_retain` (an Objective-C `retain`). For most callers
+// the cost is irrelevant, but if you're cloning an `SCStreamConfiguration` per
+// frame on the hot path, prefer sharing an `Arc<SCStreamConfiguration>` (or
+// `&SCStreamConfiguration`) and cloning *that* instead.
+crate::utils::retained::sc_retained!(
+    SCStreamConfiguration,
+    retain = crate::ffi::sc_stream_configuration_retain,
+    release = crate::ffi::sc_stream_configuration_release,
+);
 
 unsafe impl Send for SCStreamConfiguration {}
 unsafe impl Sync for SCStreamConfiguration {}
