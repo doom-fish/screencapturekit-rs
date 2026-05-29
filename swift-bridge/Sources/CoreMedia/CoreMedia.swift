@@ -518,12 +518,22 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
 
     let buffers = UnsafeMutablePointer<AudioBufferBridge>.allocate(capacity: numBuffers)
 
+    // Trust-boundary hardening: CoreMedia's reported mDataByteSize is copied across
+    // the FFI boundary and used by Rust to build a slice via from_raw_parts. If
+    // CoreMedia ever over-reports a buffer size, that slice would read out of bounds.
+    // Clamp each reported mDataByteSize to the block buffer's actual backing length
+    // so the Rust consumer can trust the value it receives. Per-buffer offsets into
+    // the block buffer aren't tracked here, so we conservatively clamp every buffer
+    // to the total block-buffer data length.
+    let blockDataLength = UInt32(truncatingIfNeeded: CMBlockBufferGetDataLength(blockBuffer))
+
     withUnsafePointer(to: &audioBufferListPtr.pointee.mBuffers) { buffersPtr in
         let bufferArray = UnsafeBufferPointer(start: buffersPtr, count: numBuffers)
         for (index, audioBuffer) in bufferArray.enumerated() {
+            let clampedSize = min(audioBuffer.mDataByteSize, blockDataLength)
             buffers[index] = AudioBufferBridge(
                 number_channels: audioBuffer.mNumberChannels,
-                data_bytes_size: audioBuffer.mDataByteSize,
+                data_bytes_size: clampedSize,
                 data_ptr: audioBuffer.mData
             )
         }

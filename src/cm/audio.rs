@@ -68,6 +68,16 @@ impl AudioBuffer {
     }
 
     /// Get the raw audio data as a mutable byte slice
+    ///
+    /// # Warning
+    ///
+    /// This returns a `&mut [u8]` that points directly into the `CoreMedia` block
+    /// buffer backing the captured sample. That memory may be **aliased** with the
+    /// still-live source `CMSampleBuffer` (and any other copies of the underlying
+    /// `CMBlockBuffer`), so mutating it can race with or corrupt data observed
+    /// elsewhere. Only mutate this slice if you are certain no other reader holds a
+    /// view into the same block buffer, and never mutate it concurrently. Prefer
+    /// copying the bytes out via [`data()`](Self::data) when in doubt.
     pub fn data_mut(&mut self) -> &mut [u8] {
         if self.data_ptr.is_null() || self.data_bytes_size == 0 {
             &mut []
@@ -92,14 +102,19 @@ pub struct AudioBufferRef<'a> {
     buffer: &'a AudioBuffer,
 }
 
-impl AudioBufferRef<'_> {
+impl<'a> AudioBufferRef<'a> {
     /// Get the size of the data in bytes
     pub fn data_byte_size(&self) -> usize {
         self.buffer.data_byte_size()
     }
 
     /// Get the raw audio data as a byte slice
-    pub fn data(&self) -> &[u8] {
+    ///
+    /// The returned slice is tied to the lifetime `'a` of the wrapped buffer
+    /// reference rather than to this `AudioBufferRef`, because the underlying
+    /// block-buffer memory lives at least as long as the borrowed
+    /// [`AudioBuffer`] (and the [`AudioBufferList`] that owns it).
+    pub fn data(&self) -> &'a [u8] {
         self.buffer.data()
     }
 }
