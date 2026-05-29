@@ -52,11 +52,67 @@ pub struct FFIApplicationData {
     pub app_name_length: u32,
 }
 
+// MARK: - ABI Layout Assertions
+//
+// The four `#[repr(C)]` structs above are passed by value (or via packed
+// buffers) across the Rust <-> Swift `@_cdecl` FFI boundary. Their Swift
+// counterparts live in `swift-bridge/Sources/ScreenCaptureKitBridge/Core.swift`
+// (`@frozen public struct FFIRect/FFIDisplayData/FFIWindowData/FFIApplicationData`).
+//
+// These compile-time assertions pin the exact ABI shared with Swift: any change
+// to a field type, field order, or padding fails the build immediately instead
+// of silently corrupting marshalled data at runtime. If you change the layout
+// here you MUST mirror it in Core.swift (and vice versa); the cross-language
+// `sc_verify_ffi_layout` check in `tests/ffi_layout_tests.rs` guards that too.
+use core::mem::{align_of, offset_of, size_of};
+
+const _: () = assert!(size_of::<FFIRect>() == 32);
+const _: () = assert!(align_of::<FFIRect>() == 8);
+const _: () = assert!(offset_of!(FFIRect, x) == 0);
+const _: () = assert!(offset_of!(FFIRect, y) == 8);
+const _: () = assert!(offset_of!(FFIRect, width) == 16);
+const _: () = assert!(offset_of!(FFIRect, height) == 24);
+
+const _: () = assert!(size_of::<FFIDisplayData>() == 48);
+const _: () = assert!(align_of::<FFIDisplayData>() == 8);
+const _: () = assert!(offset_of!(FFIDisplayData, display_id) == 0);
+const _: () = assert!(offset_of!(FFIDisplayData, width) == 4);
+const _: () = assert!(offset_of!(FFIDisplayData, height) == 8);
+const _: () = assert!(offset_of!(FFIDisplayData, frame) == 16);
+
+const _: () = assert!(size_of::<FFIWindowData>() == 64);
+const _: () = assert!(align_of::<FFIWindowData>() == 8);
+const _: () = assert!(offset_of!(FFIWindowData, window_id) == 0);
+const _: () = assert!(offset_of!(FFIWindowData, window_layer) == 4);
+const _: () = assert!(offset_of!(FFIWindowData, is_on_screen) == 8);
+const _: () = assert!(offset_of!(FFIWindowData, is_active) == 9);
+const _: () = assert!(offset_of!(FFIWindowData, frame) == 16);
+const _: () = assert!(offset_of!(FFIWindowData, title_offset) == 48);
+const _: () = assert!(offset_of!(FFIWindowData, title_length) == 52);
+const _: () = assert!(offset_of!(FFIWindowData, owning_app_index) == 56);
+const _: () = assert!(offset_of!(FFIWindowData, _padding) == 60);
+
+const _: () = assert!(size_of::<FFIApplicationData>() == 24);
+const _: () = assert!(align_of::<FFIApplicationData>() == 4);
+const _: () = assert!(offset_of!(FFIApplicationData, process_id) == 0);
+const _: () = assert!(offset_of!(FFIApplicationData, _padding) == 4);
+const _: () = assert!(offset_of!(FFIApplicationData, bundle_id_offset) == 8);
+const _: () = assert!(offset_of!(FFIApplicationData, bundle_id_length) == 12);
+const _: () = assert!(offset_of!(FFIApplicationData, app_name_offset) == 16);
+const _: () = assert!(offset_of!(FFIApplicationData, app_name_length) == 20);
+
 // MARK: - CoreGraphics Initialization
 extern "C" {
     /// Force CoreGraphics initialization by calling `CGMainDisplayID`
     /// This prevents `CGS_REQUIRE_INIT` crashes on headless systems
     pub fn sc_initialize_core_graphics();
+
+    /// Cross-language ABI check implemented in the Swift bridge.
+    ///
+    /// Returns `true` only if the Swift `MemoryLayout` (size, stride and
+    /// alignment) of all four FFI structs matches the values pinned on the
+    /// Rust side. Verified by `tests/ffi_layout_tests.rs`.
+    pub fn sc_verify_ffi_layout() -> bool;
 }
 
 // MARK: - SCShareableContent
