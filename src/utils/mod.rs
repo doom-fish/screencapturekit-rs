@@ -8,6 +8,7 @@
 //! error variants that don't belong in the framework-agnostic foundation.
 
 pub mod error;
+pub(crate) mod retained;
 
 pub use apple_cf::utils::FourCharCode;
 pub use apple_cf::utils::{completion, ffi_string, four_char_code, panic_safe};

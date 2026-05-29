@@ -47,10 +47,17 @@ impl SCWindow {
         Self(ptr)
     }
 
-    /// Create from FFI-owned pointer (caller transfers ownership)
-    #[allow(dead_code)]
-    pub(crate) fn from_ffi_owned(ptr: *const c_void) -> Self {
-        Self(ptr)
+    /// Create from an FFI-owned (retained) pointer, returning `None` if null.
+    ///
+    /// # Safety
+    /// `ptr` must be null or a valid retained `SCWindow` pointer transferred
+    /// from the Swift FFI bridge (ownership moves into the returned wrapper).
+    pub(crate) unsafe fn from_retained_ptr(ptr: *const c_void) -> Option<Self> {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { Self::from_ptr(ptr) })
+        }
     }
 
     /// Get the raw pointer (used internally)
@@ -62,11 +69,7 @@ impl SCWindow {
     pub fn owning_application(&self) -> Option<SCRunningApplication> {
         unsafe {
             let app_ptr = crate::ffi::sc_window_get_owning_application(self.0);
-            if app_ptr.is_null() {
-                None
-            } else {
-                Some(SCRunningApplication::from_ptr(app_ptr))
-            }
+            SCRunningApplication::from_retained_ptr(app_ptr)
         }
     }
 
@@ -117,21 +120,11 @@ impl SCWindow {
     }
 }
 
-impl Drop for SCWindow {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            unsafe {
-                crate::ffi::sc_window_release(self.0);
-            }
-        }
-    }
-}
-
-impl Clone for SCWindow {
-    fn clone(&self) -> Self {
-        unsafe { Self(crate::ffi::sc_window_retain(self.0)) }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCWindow,
+    retain = crate::ffi::sc_window_retain,
+    release = crate::ffi::sc_window_release,
+);
 
 impl fmt::Debug for SCWindow {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -130,12 +130,6 @@ impl std::hash::Hash for SCShareableContent {
     }
 }
 
-impl Clone for SCShareableContent {
-    fn clone(&self) -> Self {
-        unsafe { Self(crate::ffi::sc_shareable_content_retain(self.0)) }
-    }
-}
-
 impl SCShareableContent {
     /// Create from raw pointer (used internally)
     ///
@@ -212,9 +206,7 @@ impl SCShareableContent {
 
             for i in 0..count {
                 let display_ptr = crate::ffi::sc_shareable_content_get_display_at(self.0, i);
-                if !display_ptr.is_null() {
-                    displays.push(SCDisplay::from_ptr(display_ptr));
-                }
+                displays.extend(SCDisplay::from_retained_ptr(display_ptr));
             }
 
             displays
@@ -247,9 +239,7 @@ impl SCShareableContent {
 
             for i in 0..count {
                 let window_ptr = crate::ffi::sc_shareable_content_get_window_at(self.0, i);
-                if !window_ptr.is_null() {
-                    windows.push(SCWindow::from_ptr(window_ptr));
-                }
+                windows.extend(SCWindow::from_retained_ptr(window_ptr));
             }
 
             windows
@@ -280,9 +270,7 @@ impl SCShareableContent {
 
             for i in 0..count {
                 let app_ptr = crate::ffi::sc_shareable_content_get_application_at(self.0, i);
-                if !app_ptr.is_null() {
-                    apps.push(SCRunningApplication::from_ptr(app_ptr));
-                }
+                apps.extend(SCRunningApplication::from_retained_ptr(app_ptr));
             }
 
             apps
@@ -321,15 +309,11 @@ impl SCShareableContent {
     }
 }
 
-impl Drop for SCShareableContent {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            unsafe {
-                crate::ffi::sc_shareable_content_release(self.0);
-            }
-        }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCShareableContent,
+    retain = crate::ffi::sc_shareable_content_retain,
+    release = crate::ffi::sc_shareable_content_release,
+);
 
 impl fmt::Debug for SCShareableContent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -586,22 +570,11 @@ impl SCShareableContentInfo {
 }
 
 #[cfg(feature = "macos_14_0")]
-impl Drop for SCShareableContentInfo {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            unsafe {
-                crate::ffi::sc_shareable_content_info_release(self.0);
-            }
-        }
-    }
-}
-
-#[cfg(feature = "macos_14_0")]
-impl Clone for SCShareableContentInfo {
-    fn clone(&self) -> Self {
-        unsafe { Self(crate::ffi::sc_shareable_content_info_retain(self.0)) }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCShareableContentInfo,
+    retain = crate::ffi::sc_shareable_content_info_retain,
+    release = crate::ffi::sc_shareable_content_info_release,
+);
 
 #[cfg(feature = "macos_14_0")]
 impl fmt::Debug for SCShareableContentInfo {

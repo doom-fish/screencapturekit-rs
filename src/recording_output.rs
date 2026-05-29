@@ -259,25 +259,12 @@ impl Default for SCRecordingOutputConfiguration {
     }
 }
 
-impl Clone for SCRecordingOutputConfiguration {
-    fn clone(&self) -> Self {
-        unsafe {
-            Self {
-                ptr: crate::ffi::sc_recording_output_configuration_retain(self.ptr),
-            }
-        }
-    }
-}
-
-impl Drop for SCRecordingOutputConfiguration {
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe {
-                crate::ffi::sc_recording_output_configuration_release(self.ptr);
-            }
-        }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCRecordingOutputConfiguration,
+    field = ptr,
+    retain = crate::ffi::sc_recording_output_configuration_retain,
+    release = crate::ffi::sc_recording_output_configuration_release,
+);
 
 impl std::fmt::Debug for SCRecordingOutputConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

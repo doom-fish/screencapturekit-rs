@@ -46,10 +46,17 @@ impl SCDisplay {
         Self(ptr)
     }
 
-    /// Create from FFI-owned pointer (caller transfers ownership)
-    #[allow(dead_code)]
-    pub(crate) fn from_ffi_owned(ptr: *const c_void) -> Self {
-        Self(ptr)
+    /// Create from an FFI-owned (retained) pointer, returning `None` if null.
+    ///
+    /// # Safety
+    /// `ptr` must be null or a valid retained `SCDisplay` pointer transferred
+    /// from the Swift FFI bridge (ownership moves into the returned wrapper).
+    pub(crate) unsafe fn from_retained_ptr(ptr: *const c_void) -> Option<Self> {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { Self::from_ptr(ptr) })
+        }
     }
 
     /// Get the raw pointer (used internally)
@@ -125,21 +132,11 @@ impl SCDisplay {
     }
 }
 
-impl Drop for SCDisplay {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            unsafe {
-                crate::ffi::sc_display_release(self.0);
-            }
-        }
-    }
-}
-
-impl Clone for SCDisplay {
-    fn clone(&self) -> Self {
-        unsafe { Self(crate::ffi::sc_display_retain(self.0)) }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCDisplay,
+    retain = crate::ffi::sc_display_retain,
+    release = crate::ffi::sc_display_release,
+);
 
 unsafe impl Send for SCDisplay {}
 unsafe impl Sync for SCDisplay {}

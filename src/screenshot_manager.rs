@@ -1031,15 +1031,11 @@ impl Default for SCScreenshotConfiguration {
 }
 
 #[cfg(feature = "macos_26_0")]
-impl Drop for SCScreenshotConfiguration {
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe {
-                crate::ffi::sc_screenshot_configuration_release(self.ptr);
-            }
-        }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCScreenshotConfiguration,
+    field = ptr,
+    release = crate::ffi::sc_screenshot_configuration_release,
+);
 
 #[cfg(feature = "macos_26_0")]
 unsafe impl Send for SCScreenshotConfiguration {}
@@ -1116,15 +1112,11 @@ impl std::fmt::Debug for SCScreenshotOutput {
 }
 
 #[cfg(feature = "macos_26_0")]
-impl Drop for SCScreenshotOutput {
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe {
-                crate::ffi::sc_screenshot_output_release(self.ptr);
-            }
-        }
-    }
-}
+crate::utils::retained::sc_retained!(
+    SCScreenshotOutput,
+    field = ptr,
+    release = crate::ffi::sc_screenshot_output_release,
+);
 
 #[cfg(feature = "macos_26_0")]
 unsafe impl Send for SCScreenshotOutput {}
