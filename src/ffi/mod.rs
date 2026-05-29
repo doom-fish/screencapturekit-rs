@@ -781,6 +781,26 @@ extern "C" {
         dest: *mut u8,
         dest_capacity: usize,
     ) -> usize;
+    /// Strided variant of [`cgimage_render_rgba_into`]: renders RGBA bytes
+    /// using a caller-specified row stride (`dest_bytes_per_row`) instead of
+    /// the tightly-packed `width * 4`. Lets consumers with row-aligned/padded
+    /// buffers (GPU upload, wgpu) avoid an extra repack. Returns the number of
+    /// bytes spanned (`height * dest_bytes_per_row`) on success, or 0 on
+    /// failure (stride too small or buffer too small).
+    pub fn cgimage_render_rgba_into_strided(
+        image: *const c_void,
+        dest: *mut u8,
+        dest_capacity: usize,
+        dest_bytes_per_row: usize,
+    ) -> usize;
+    /// Strided **BGRA** variant. See [`cgimage_render_bgra_into`] and
+    /// [`cgimage_render_rgba_into_strided`].
+    pub fn cgimage_render_bgra_into_strided(
+        image: *const c_void,
+        dest: *mut u8,
+        dest_capacity: usize,
+        dest_bytes_per_row: usize,
+    ) -> usize;
     pub fn cgimage_release(image: *const c_void);
     pub fn cgimage_save_png(image: *const c_void, path: *const i8) -> bool;
     pub fn cgimage_save_to_file(

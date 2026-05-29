@@ -251,6 +251,42 @@ pub trait CGImageExt {
     /// Returns an error if `dest` is too small or the render fails.
     fn bgra_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError>;
 
+    /// Render the image's RGBA bytes into a caller-supplied buffer using an
+    /// explicit row stride (`dest_bytes_per_row`).
+    ///
+    /// Unlike [`rgba_data_into`](CGImageExt::rgba_data_into), which assumes
+    /// tightly-packed rows (`width * 4`), this accepts a caller-specified row
+    /// stride so consumers with padded/row-aligned buffers (GPU upload, wgpu)
+    /// aren't forced into tight packing.
+    ///
+    /// Returns the number of bytes spanned (`height * dest_bytes_per_row`).
+    ///
+    /// # Errors
+    /// Returns an error if `dest_bytes_per_row` is smaller than `width * 4`,
+    /// if `dest` cannot hold `height * dest_bytes_per_row` bytes, or if the
+    /// render fails.
+    fn rgba_data_into_strided(
+        &self,
+        dest: &mut [u8],
+        dest_bytes_per_row: usize,
+    ) -> Result<usize, SCError>;
+
+    /// Render the image's BGRA bytes into a caller-supplied buffer using an
+    /// explicit row stride (`dest_bytes_per_row`).
+    ///
+    /// See [`rgba_data_into_strided`](CGImageExt::rgba_data_into_strided) for
+    /// the row-stride semantics.
+    ///
+    /// # Errors
+    /// Returns an error if `dest_bytes_per_row` is smaller than `width * 4`,
+    /// if `dest` cannot hold `height * dest_bytes_per_row` bytes, or if the
+    /// render fails.
+    fn bgra_data_into_strided(
+        &self,
+        dest: &mut [u8],
+        dest_bytes_per_row: usize,
+    ) -> Result<usize, SCError>;
+
     /// Save the image to a file in the specified format.
     ///
     /// # Errors
@@ -305,6 +341,31 @@ impl PixelLayout {
             }
         }
     }
+
+    /// Dispatch into the matching strided Swift bridge entry point.
+    ///
+    /// # Safety
+    /// The destination must point to at least `capacity` bytes, span
+    /// `bytes_per_row` per image row, and `ptr` must be a live retained
+    /// `CGImage`.
+    unsafe fn render_strided(
+        self,
+        ptr: *const c_void,
+        dest: *mut u8,
+        capacity: usize,
+        bytes_per_row: usize,
+    ) -> usize {
+        unsafe {
+            match self {
+                Self::Rgba => {
+                    crate::ffi::cgimage_render_rgba_into_strided(ptr, dest, capacity, bytes_per_row)
+                }
+                Self::Bgra => {
+                    crate::ffi::cgimage_render_bgra_into_strided(ptr, dest, capacity, bytes_per_row)
+                }
+            }
+        }
+    }
 }
 
 impl CGImageExt for CGImage {
@@ -322,6 +383,22 @@ impl CGImageExt for CGImage {
 
     fn bgra_data_into(&self, dest: &mut [u8]) -> Result<usize, SCError> {
         render_pixel_data_into(self, dest, PixelLayout::Bgra)
+    }
+
+    fn rgba_data_into_strided(
+        &self,
+        dest: &mut [u8],
+        dest_bytes_per_row: usize,
+    ) -> Result<usize, SCError> {
+        render_pixel_data_into_strided(self, dest, dest_bytes_per_row, PixelLayout::Rgba)
+    }
+
+    fn bgra_data_into_strided(
+        &self,
+        dest: &mut [u8],
+        dest_bytes_per_row: usize,
+    ) -> Result<usize, SCError> {
+        render_pixel_data_into_strided(self, dest, dest_bytes_per_row, PixelLayout::Bgra)
     }
 
     fn save(&self, path: &str, format: ImageFormat) -> Result<(), SCError> {
@@ -386,6 +463,54 @@ fn render_pixel_data_into(
 
     let written = unsafe { layout.render(image.as_ptr(), dest.as_mut_ptr(), total_bytes) };
     if written != total_bytes {
+        return Err(SCError::internal_error(format!(
+            "Failed to render CGImage into {} buffer",
+            layout.name()
+        )));
+    }
+    Ok(written)
+}
+
+fn render_pixel_data_into_strided(
+    image: &CGImage,
+    dest: &mut [u8],
+    dest_bytes_per_row: usize,
+    layout: PixelLayout,
+) -> Result<usize, SCError> {
+    let width = image.width();
+    let height = image.height();
+
+    let min_bytes_per_row = width
+        .checked_mul(4)
+        .ok_or_else(|| SCError::internal_error("CGImage row size overflows usize"))?;
+    if dest_bytes_per_row < min_bytes_per_row {
+        return Err(SCError::internal_error(format!(
+            "Destination row stride too small: need at least {min_bytes_per_row} bytes, got {dest_bytes_per_row}"
+        )));
+    }
+
+    let required = height
+        .checked_mul(dest_bytes_per_row)
+        .ok_or_else(|| SCError::internal_error("CGImage strided size overflows usize"))?;
+    if dest.len() < required {
+        return Err(SCError::internal_error(format!(
+            "Destination buffer too small: need {required} bytes, got {}",
+            dest.len()
+        )));
+    }
+    if required == 0 {
+        return Ok(0);
+    }
+
+    let written = unsafe {
+        layout.render_strided(
+            image.as_ptr(),
+            dest.as_mut_ptr(),
+            dest.len(),
+            dest_bytes_per_row,
+        )
+    };
+    if written != required {
         return Err(SCError::internal_error(format!(
             "Failed to render CGImage into {} buffer",
             layout.name()
@@ -964,21 +1089,11 @@ impl SCScreenshotOutput {
 
     /// Get the file URL where the image was saved, if applicable
     #[must_use]
-    #[allow(clippy::cast_possible_wrap)]
     pub fn file_url(&self) -> Option<String> {
-        let mut buffer = vec![0i8; 4096];
-        let success = unsafe {
-            crate::ffi::sc_screenshot_output_get_file_url(
-                self.ptr,
-                buffer.as_mut_ptr(),
-                buffer.len() as isize,
-            )
-        };
-        if success {
-            let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
-            c_str.to_str().ok().map(String::from)
-        } else {
-            None
+        unsafe {
+            crate::utils::ffi_string::ffi_string_from_buffer(4096, |buffer, len| {
+                crate::ffi::sc_screenshot_output_get_file_url(self.ptr, buffer, len)
+            })
         }
     }
 }
