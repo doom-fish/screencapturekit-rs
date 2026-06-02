@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v6.1.0...v7.0.0) - 2026-05-29
+
+### Added
+
+- add strided pixel render + locked IOSurface CPU view; use ffi_string helper for file_url
+
+### Fixed
+
+- use MaybeUninit for batch FFI scratch buffers
+
+### Other
+
+- cap dev-only bitflags below 2.12 to fix dispatch2 recursion overflow
+- Merge ffi/wrappers: sc_retained! macro + null-checked constructors
+- consolidate retain/release wrappers via sc_retained! macro and standardize null-checked constructors
+- Merge ffi/picker: reclaim observer callback on replacement + consolidate one-shot trampolines
+- Merge ffi/screenshot: strided pixel render + ffi_string helper for file_url
+
 ## [6.1.0](https://github.com/doom-fish/screencapturekit-rs/compare/v6.0.1...v6.1.0) - 2026-05-29
 
 ### Added
