@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v7.0.0...v7.0.1) - 2026-06-06
+
+### Fixed
+
+- resolve safety/FFI findings from deep code review
+
+### Other
+
+- apply rustfmt to satisfy CI formatting check
+- *(deps)* update bitflags requirement from >=2.0, <2.12 to >=2.0, <2.13 ([#150](https://github.com/doom-fish/screencapturekit-rs/pull/150))
+
 ## [7.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v6.1.0...v7.0.0) - 2026-05-29
 
 ### Added
