@@ -116,5 +116,8 @@ impl fmt::Display for SCRunningApplication {
     }
 }
 
+// SAFETY: `SCRunningApplication` wraps an immutable Objective-C ScreenCaptureKit
+// object. ObjC reference counting is atomic and these accessor-only objects are
+// safe to send between and share across threads.
 unsafe impl Send for SCRunningApplication {}
 unsafe impl Sync for SCRunningApplication {}

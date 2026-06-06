@@ -728,6 +728,7 @@ pub mod audio_devices;
 pub mod cg;
 pub mod cm;
 #[cfg(feature = "macos_14_0")]
+#[cfg_attr(docsrs, doc(cfg(feature = "macos_14_0")))]
 pub mod content_sharing_picker;
 pub mod cv;
 pub mod dispatch_queue;
@@ -747,14 +748,17 @@ pub use apple_cf::cg::CGImage;
 /// between the two device handles.
 pub use apple_metal;
 #[cfg(feature = "macos_15_0")]
+#[cfg_attr(docsrs, doc(cfg(feature = "macos_15_0")))]
 pub mod recording_output;
 #[cfg(feature = "macos_14_0")]
+#[cfg_attr(docsrs, doc(cfg(feature = "macos_14_0")))]
 pub mod screenshot_manager;
 pub mod shareable_content;
 pub mod stream;
 pub mod utils;
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 pub mod async_api;
 
 // Re-export commonly used types

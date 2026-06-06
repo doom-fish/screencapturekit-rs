@@ -417,3 +417,35 @@ mod macos_15_tests {
         }
     }
 }
+
+/// Soak test for the `MetalTexture` retain/release balance (`Clone`).
+///
+/// A double-free / over-release would crash and a leak would grow unbounded, so
+/// thousands of clone/drop cycles on a real IOSurface-backed texture exercise
+/// the retain path deterministically — no capture permission required. This is
+/// a regression guard for the `Clone for MetalTexture` retain fix.
+#[test]
+fn test_metal_texture_clone_soak() {
+    use screencapturekit::cm::IOSurface;
+    use screencapturekit::metal::{IOSurfaceMetalExt, MetalDevice};
+
+    let Some(device) = MetalDevice::system_default() else {
+        eprintln!("skipping: no Metal device in this environment");
+        return;
+    };
+    // 0x4247_5241 == 'BGRA'.
+    let surface = IOSurface::create(64, 64, 0x4247_5241, 4).expect("Failed to create IOSurface");
+    let textures = surface
+        .create_metal_textures(&device)
+        .expect("Failed to create textures");
+
+    for _ in 0..10_000 {
+        let clones: Vec<_> = (0..8).map(|_| textures.plane0.clone()).collect();
+        drop(clones);
+    }
+
+    // The original must still be valid after all of the clone/drop churn.
+    assert_eq!(textures.plane0.width(), 64);
+    assert_eq!(textures.plane0.height(), 64);
+    assert!(!textures.plane0.as_ptr().is_null());
+}

@@ -2,9 +2,6 @@
 //!
 //! Methods for configuring color space, pixel format, and background color.
 
-use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
-
 use crate::utils::{
     ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE},
     four_char_code::FourCharCode,
@@ -12,12 +9,6 @@ use crate::utils::{
 
 const DEFAULT_ALPHA: f32 = 1.0;
 type BackgroundColor = (f32, f32, f32, f32);
-
-static BACKGROUND_COLOR_CACHE: OnceLock<Mutex<HashMap<usize, BackgroundColor>>> = OnceLock::new();
-
-fn background_color_cache() -> &'static Mutex<HashMap<usize, BackgroundColor>> {
-    BACKGROUND_COLOR_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
-}
 
 use super::{internal::SCStreamConfiguration, pixel_format::PixelFormat};
 
@@ -72,9 +63,6 @@ impl SCStreamConfiguration {
         unsafe {
             crate::ffi::sc_stream_configuration_set_background_color(self.as_ptr(), r, g, b, a);
         }
-        if let Ok(mut cache) = background_color_cache().lock() {
-            cache.insert(self.as_ptr() as usize, (r, g, b, a));
-        }
         self
     }
 
@@ -103,10 +91,23 @@ impl SCStreamConfiguration {
 
     /// Get the current background color, if it was set through this wrapper.
     pub fn background_color(&self) -> Option<BackgroundColor> {
-        background_color_cache()
-            .lock()
-            .ok()
-            .and_then(|cache| cache.get(&(self.as_ptr() as usize)).copied())
+        let mut r = 0.0f32;
+        let mut g = 0.0f32;
+        let mut b = 0.0f32;
+        let mut a = 0.0f32;
+        // The value is read back from the Swift bridge's per-configuration
+        // state (keyed by object identity and released with the configuration),
+        // so there is no Rust-side cache to leak or to go stale on pointer reuse.
+        let was_set = unsafe {
+            crate::ffi::sc_stream_configuration_get_background_color(
+                self.as_ptr(),
+                &mut r,
+                &mut g,
+                &mut b,
+                &mut a,
+            )
+        };
+        was_set.then_some((r, g, b, a))
     }
 
     /// Set the color space name for captured content.

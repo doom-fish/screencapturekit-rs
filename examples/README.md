@@ -35,6 +35,7 @@ cargo run --example 01_basic_capture
 | 21 | `bevy_streaming` | Bevy texture streaming | - |
 | 22 | `tauri_app` | Tauri 2.0 desktop app with WebGL | `macos_14_0` |
 | 23 | `client_server` | Client/server screen sharing | - |
+| 24 | `batched_apis_showcase` | Batched shareable-content APIs | `macos_14_0` |
 
 ## Running with Features
 

@@ -84,6 +84,9 @@ use std::ffi::c_void;
 #[repr(transparent)]
 pub struct SCShareableContent(*const c_void);
 
+// SAFETY: `SCShareableContent` wraps an immutable Objective-C ScreenCaptureKit
+// object. ObjC reference counting is atomic and these accessor-only objects are
+// safe to send between and share across threads.
 unsafe impl Send for SCShareableContent {}
 unsafe impl Sync for SCShareableContent {}
 
@@ -602,6 +605,9 @@ impl fmt::Display for SCShareableContentInfo {
     }
 }
 
+// SAFETY: `SCShareableContentInfo` wraps an immutable Objective-C
+// ScreenCaptureKit object. ObjC reference counting is atomic and these
+// accessor-only objects are safe to send between and share across threads.
 #[cfg(feature = "macos_14_0")]
 unsafe impl Send for SCShareableContentInfo {}
 #[cfg(feature = "macos_14_0")]

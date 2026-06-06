@@ -146,6 +146,8 @@ extern "C" fn delegate_error_callback(context: *mut c_void, error_code: i32, msg
     if context.is_null() {
         return;
     }
+    // SAFETY: `context` is the +1-retained StreamContext pointer the Swift
+    // bridge stored via context_retain_cb; it outlives this callback.
     let ctx = unsafe { &*(context.cast::<StreamContext>()) };
 
     let message = if msg.is_null() {
@@ -211,6 +213,8 @@ extern "C" fn sample_handler(context: *mut c_void, sample_buffer: *const c_void,
         unsafe { crate::cm::ffi::cm_sample_buffer_release(sample_buffer.cast_mut()) };
         return;
     }
+    // SAFETY: `context` is the +1-retained StreamContext pointer the Swift
+    // bridge stored via context_retain_cb; it outlives this callback.
     let ctx = unsafe { &*(context.cast::<StreamContext>()) };
 
     let output_type_enum = match output_type {
@@ -580,6 +584,9 @@ impl SCStream {
         };
 
         if ok {
+            // SAFETY: self.context is the Box::into_raw StreamContext created in
+            // SCStream::new; it stays valid for the lifetime of self (released
+            // only in Drop, after this method returns).
             unsafe { &*self.context }
                 .handlers
                 .write()
@@ -606,6 +613,8 @@ impl SCStream {
     ///
     /// Returns `true` if the handler was found and removed, `false` otherwise.
     pub fn remove_output_handler(&mut self, id: usize, of_type: SCStreamOutputType) -> bool {
+        // SAFETY: self.context is the Box::into_raw StreamContext created in
+        // SCStream::new; it stays valid for the lifetime of self.
         let mut handlers = unsafe { &*self.context }
             .handlers
             .write()
@@ -711,6 +720,8 @@ impl SCStream {
     #[cfg(feature = "macos_13_0")]
     pub fn synchronization_clock(&self) -> Option<crate::cm::CMClock> {
         let ptr = unsafe { ffi::sc_stream_get_synchronization_clock(self.ptr) };
+        // SAFETY: the Swift thunk returns a +0 (unretained) reference and
+        // CMClock::from_raw retains it, so ownership is balanced (no leak).
         crate::cm::CMClock::from_raw(ptr)
     }
 

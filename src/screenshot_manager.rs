@@ -924,13 +924,15 @@ impl SCScreenshotConfiguration {
 
     /// Set the output file URL
     ///
-    /// # Panics
-    /// Panics if the path contains null bytes
+    /// If `path` contains an interior NUL byte it cannot be converted to a C
+    /// string and the call is silently ignored (the configuration is left
+    /// unchanged). Valid file paths never contain NUL bytes.
     #[must_use]
     pub fn with_file_path(self, path: &str) -> Self {
-        let c_path = std::ffi::CString::new(path).expect("path should not contain null bytes");
-        unsafe {
-            crate::ffi::sc_screenshot_configuration_set_file_url(self.ptr, c_path.as_ptr());
+        if let Ok(c_path) = std::ffi::CString::new(path) {
+            unsafe {
+                crate::ffi::sc_screenshot_configuration_set_file_url(self.ptr, c_path.as_ptr());
+            }
         }
         self
     }
@@ -946,14 +948,15 @@ impl SCScreenshotConfiguration {
     /// Use [`supported_content_types()`](Self::supported_content_types) to get
     /// available formats.
     ///
-    /// # Panics
-    /// Panics if the identifier contains null bytes
+    /// If `identifier` contains an interior NUL byte it cannot be converted to a
+    /// C string and the call is silently ignored (the configuration is left
+    /// unchanged). Valid `UTType` identifiers never contain NUL bytes.
     #[must_use]
     pub fn with_content_type(self, identifier: &str) -> Self {
-        let c_id =
-            std::ffi::CString::new(identifier).expect("identifier should not contain null bytes");
-        unsafe {
-            crate::ffi::sc_screenshot_configuration_set_content_type(self.ptr, c_id.as_ptr());
+        if let Ok(c_id) = std::ffi::CString::new(identifier) {
+            unsafe {
+                crate::ffi::sc_screenshot_configuration_set_content_type(self.ptr, c_id.as_ptr());
+            }
         }
         self
     }
@@ -1037,6 +1040,9 @@ crate::utils::retained::sc_retained!(
     release = crate::ffi::sc_screenshot_configuration_release,
 );
 
+// SAFETY: `SCScreenshotConfiguration` wraps an Objective-C ScreenCaptureKit
+// object whose reference counting is atomic; it is safe to send between and
+// share across threads.
 #[cfg(feature = "macos_26_0")]
 unsafe impl Send for SCScreenshotConfiguration {}
 #[cfg(feature = "macos_26_0")]
@@ -1118,6 +1124,9 @@ crate::utils::retained::sc_retained!(
     release = crate::ffi::sc_screenshot_output_release,
 );
 
+// SAFETY: `SCScreenshotOutput` wraps an immutable Objective-C ScreenCaptureKit
+// object whose reference counting is atomic; it is safe to send between and
+// share across threads.
 #[cfg(feature = "macos_26_0")]
 unsafe impl Send for SCScreenshotOutput {}
 #[cfg(feature = "macos_26_0")]

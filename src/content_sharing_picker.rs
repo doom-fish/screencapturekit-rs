@@ -918,7 +918,12 @@ extern "C" fn picker_trampoline<D: PickerDecode>(
 }
 
 // Safety: Configuration wraps an Objective-C object that is thread-safe
+// SAFETY: `SCContentSharingPickerConfiguration` wraps an Objective-C object
+// whose reference counting is atomic; it is safe to send between and share
+// across threads.
 unsafe impl Send for SCContentSharingPickerConfiguration {}
 unsafe impl Sync for SCContentSharingPickerConfiguration {}
+// SAFETY: `SCPickerResult` holds retained Objective-C objects whose reference
+// counting is atomic; it is safe to send between and share across threads.
 unsafe impl Send for SCPickerResult {}
 unsafe impl Sync for SCPickerResult {}

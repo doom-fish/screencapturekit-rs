@@ -153,5 +153,8 @@ impl fmt::Display for SCWindow {
     }
 }
 
+// SAFETY: `SCWindow` wraps an immutable Objective-C ScreenCaptureKit object.
+// ObjC reference counting is atomic and these accessor-only objects are safe to
+// send between and share across threads.
 unsafe impl Send for SCWindow {}
 unsafe impl Sync for SCWindow {}

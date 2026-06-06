@@ -237,19 +237,19 @@ public func getStreamConfigurationBackgroundColor(
     _ g: UnsafeMutablePointer<Float>,
     _ b: UnsafeMutablePointer<Float>,
     _ a: UnsafeMutablePointer<Float>
-) {
+) -> Bool {
     let scConfig: SCStreamConfiguration = unretained(config)
     guard let color = streamConfigurationState(for: scConfig)?.backgroundColor else {
         r.pointee = 0.0
         g.pointee = 0.0
         b.pointee = 0.0
         a.pointee = 0.0
-        return
+        return false
     }
 
-    let targetSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-    let converted = color.converted(to: targetSpace, intent: .defaultIntent, options: nil) ?? color
-    let components = converted.components ?? [0.0, 0.0, 0.0, 0.0]
+    // Read the stored components directly, without a color-space conversion, so
+    // the value round-trips exactly with what was passed to set_background_color.
+    let components = color.components ?? [0.0, 0.0, 0.0, 0.0]
 
     switch components.count {
     case 4:
@@ -273,6 +273,7 @@ public func getStreamConfigurationBackgroundColor(
         b.pointee = 0.0
         a.pointee = 0.0
     }
+    return true
 }
 
 @_cdecl("sc_stream_configuration_set_color_space_name")

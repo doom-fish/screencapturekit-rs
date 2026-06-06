@@ -418,6 +418,30 @@ mod metal_texture_tests {
     }
 
     #[test]
+    fn test_metal_texture_clone_retains() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let surface = IOSurface::create(64, 64, 0x42475241, 4).expect("Failed to create IOSurface");
+        let textures = surface
+            .create_metal_textures(&device)
+            .expect("Failed to create textures");
+
+        // Clone must not panic and must produce an independently-usable handle
+        // (validates the `retain` in `Clone for MetalTexture`).
+        let original = &textures.plane0;
+        let cloned = original.clone();
+        assert_eq!(cloned.width(), original.width());
+        assert_eq!(cloned.height(), original.height());
+        assert_eq!(cloned.pixel_format(), original.pixel_format());
+        assert!(!cloned.as_ptr().is_null());
+
+        // Dropping the clone must not invalidate the original (retain/release
+        // are balanced).
+        drop(cloned);
+        assert_eq!(original.width(), 64);
+        assert!(!original.as_ptr().is_null());
+    }
+
+    #[test]
     fn test_captured_textures_debug() {
         let device = MetalDevice::system_default().expect("No Metal device");
         let surface = IOSurface::create(64, 64, 0x42475241, 4).expect("Failed to create IOSurface");

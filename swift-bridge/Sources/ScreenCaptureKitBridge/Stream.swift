@@ -706,8 +706,10 @@ public func getStreamSynchronizationClock(_ stream: OpaquePointer) -> OpaquePoin
     if #available(macOS 13.0, *) {
         let s: SCStream = unretained(stream)
         if let clock = s.synchronizationClock {
-            // CMClock is a CoreFoundation type, retain and return it
-            return OpaquePointer(Unmanaged.passRetained(clock as AnyObject).toOpaque())
+            // Return a +0 (unretained) reference; the Rust side wraps it via
+            // CMClock::from_raw, which retains. The clock is owned by the live
+            // stream for the duration of this synchronous call.
+            return OpaquePointer(Unmanaged.passUnretained(clock as AnyObject).toOpaque())
         }
     }
     return nil

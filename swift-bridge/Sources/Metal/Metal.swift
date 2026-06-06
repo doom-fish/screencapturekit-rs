@@ -97,7 +97,25 @@ public func metal_device_release(_ device: UnsafeMutableRawPointer) {
 @_cdecl("metal_device_get_name")
 public func metal_device_get_name(_ device: UnsafeMutableRawPointer) -> UnsafePointer<CChar>? {
     let dev = Unmanaged<MTLDevice>.fromOpaque(device).takeUnretainedValue()
-    return (dev.name as NSString).utf8String
+    // Return a malloc'd copy the caller owns and frees via `metal_string_free`.
+    // `(dev.name as NSString).utf8String` would dangle: the temporary NSString
+    // is released when this function returns, freeing the buffer.
+    guard let copy = strdup(dev.name) else { return nil }
+    return UnsafePointer(copy)
+}
+
+/// Free a C string returned by a Metal bridge thunk (e.g. `metal_device_get_name`
+/// or the `errorOut` of `metal_device_create_library_with_source`).
+@_cdecl("metal_string_free")
+public func metal_string_free(_ ptr: UnsafeMutablePointer<CChar>?) {
+    free(ptr)
+}
+
+/// Retain a Metal device (bump its refcount by one) and return the same pointer.
+@_cdecl("metal_device_retain")
+public func metal_device_retain(_ device: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+    _ = Unmanaged<MTLDevice>.fromOpaque(device).retain()
+    return device
 }
 
 // MARK: - Metal Command Queue
@@ -135,8 +153,9 @@ public func metal_device_create_library_with_source(
         return Unmanaged.passRetained(library).toOpaque()
     } catch {
         if let errorOut = errorOut {
-            let errorStr = (error.localizedDescription as NSString).utf8String
-            errorOut.pointee = errorStr
+            // strdup so the pointer outlives this scope; Rust frees it via
+            // `metal_string_free`. `.utf8String` would dangle after return.
+            errorOut.pointee = strdup(error.localizedDescription).map { UnsafePointer($0) }
         }
         return nil
     }

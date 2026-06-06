@@ -539,9 +539,6 @@ impl SCRecordingOutput {
     ///
     /// # Errors
     /// Returns None if the system is not macOS 15.0+ or creation fails
-    ///
-    /// # Panics
-    /// Panics if the delegate registry mutex is poisoned
     pub fn new_with_delegate<D: SCRecordingOutputDelegate>(
         config: &SCRecordingOutputConfiguration,
         delegate: D,
@@ -551,7 +548,8 @@ impl SCRecordingOutput {
 
         // Store delegate in registry before creating recording output
         {
-            let mut registry = RECORDING_DELEGATE_REGISTRY.lock().unwrap();
+            let mut registry =
+                RECORDING_DELEGATE_REGISTRY.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if registry.is_none() {
                 *registry = Some(HashMap::new());
             }
@@ -580,8 +578,11 @@ impl SCRecordingOutput {
         };
 
         if ptr.is_null() {
-            // Clean up delegate from registry on failure
-            if let Ok(mut registry) = RECORDING_DELEGATE_REGISTRY.lock() {
+            // Clean up delegate from registry on failure (poison-tolerant).
+            {
+                let mut registry = RECORDING_DELEGATE_REGISTRY
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 if let Some(ref mut delegates) = *registry {
                     delegates.remove(&delegate_id);
                 }

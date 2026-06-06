@@ -166,7 +166,7 @@ public func cm_sample_buffer_get_presenter_overlay_content_rect(_ sampleBuffer: 
 }
 
 @_cdecl("cm_sample_buffer_get_dirty_rects")
-public func cm_sample_buffer_get_dirty_rects(_ sampleBuffer: UnsafeMutableRawPointer, _ outRects: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outCount: UnsafeMutablePointer<Int>) -> Bool {
+public func cm_sample_buffer_get_dirty_rects(_ sampleBuffer: UnsafeMutableRawPointer, _ outRects: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outCount: UnsafeMutablePointer<UInt>) -> Bool {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
@@ -203,7 +203,7 @@ public func cm_sample_buffer_get_dirty_rects(_ sampleBuffer: UnsafeMutableRawPoi
     }
 
     outRects.pointee = UnsafeMutableRawPointer(rectsPtr)
-    outCount.pointee = rects.count
+    outCount.pointee = UInt(rects.count)
     return true
 }
 

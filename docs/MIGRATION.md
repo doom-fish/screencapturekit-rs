@@ -2,6 +2,10 @@
 
 This guide helps you migrate between major versions of `screencapturekit-rs`.
 
+> **Note:** The current release line is **7.x**. The sections below document
+> historical major-version migrations (the FFI-hardening work that started in
+> 2.0). For changes in recent releases, see [`CHANGELOG.md`](../CHANGELOG.md).
+
 ## Migrating from 1.x to 2.0
 
 Version 2.0 hardens the FFI boundary. Most projects can upgrade by

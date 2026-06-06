@@ -436,6 +436,8 @@ extern "C" {
     fn metal_create_system_default_device() -> *mut c_void;
     fn metal_device_release(device: *mut c_void);
     fn metal_device_get_name(device: *mut c_void) -> *const std::ffi::c_char;
+    fn metal_device_retain(device: *mut c_void) -> *mut c_void;
+    fn metal_string_free(ptr: *mut std::ffi::c_char);
     fn metal_device_create_command_queue(device: *mut c_void) -> *mut c_void;
     fn metal_device_create_render_pipeline_state(
         device: *mut c_void,
@@ -629,6 +631,9 @@ extern "C" {
 #[derive(Debug)]
 pub struct MetalDevice {
     ptr: NonNull<c_void>,
+    /// Whether this wrapper owns a `+1` reference that must be released on drop.
+    /// `false` for borrowed devices created via [`Self::from_ptr`].
+    owned: bool,
 }
 
 impl MetalDevice {
@@ -638,7 +643,7 @@ impl MetalDevice {
     #[must_use]
     pub fn system_default() -> Option<Self> {
         let ptr = unsafe { metal_create_system_default_device() };
-        NonNull::new(ptr).map(|ptr| Self { ptr })
+        NonNull::new(ptr).map(|ptr| Self { ptr, owned: true })
     }
 
     /// Create a `MetalDevice` from a raw `MTLDevice` pointer
@@ -648,15 +653,20 @@ impl MetalDevice {
     ///
     /// # Safety
     ///
-    /// The pointer must be a valid `MTLDevice` pointer. The device will NOT
-    /// be released when this wrapper is dropped - use `from_ptr_retained` if
-    /// you want the wrapper to own the device.
+    /// The pointer must be a valid `MTLDevice` pointer. The wrapper *borrows*
+    /// the device: it will NOT be released when this wrapper is dropped. Use
+    /// [`Self::from_ptr_retained`] if you want the wrapper to hold its own
+    /// reference.
     #[must_use]
     pub unsafe fn from_ptr(ptr: *mut c_void) -> Option<Self> {
-        NonNull::new(ptr).map(|ptr| Self { ptr })
+        NonNull::new(ptr).map(|ptr| Self { ptr, owned: false })
     }
 
     /// Create a `MetalDevice` from a raw `MTLDevice` pointer, retaining it
+    ///
+    /// The wrapper takes its own `+1` reference (via an Objective-C `retain`)
+    /// and releases it on drop, so the caller keeps ownership of their
+    /// reference.
     ///
     /// # Safety
     ///
@@ -666,9 +676,8 @@ impl MetalDevice {
         if ptr.is_null() {
             return None;
         }
-        // We don't have a retain function exposed, so we create from system default
-        // and verify it's the same device
-        NonNull::new(ptr).map(|ptr| Self { ptr })
+        let retained = unsafe { metal_device_retain(ptr) };
+        NonNull::new(retained).map(|ptr| Self { ptr, owned: true })
     }
 
     /// Get the name of this device
@@ -679,7 +688,10 @@ impl MetalDevice {
             if name_ptr.is_null() {
                 return String::new();
             }
-            CStr::from_ptr(name_ptr).to_string_lossy().into_owned()
+            let name = CStr::from_ptr(name_ptr).to_string_lossy().into_owned();
+            // `metal_device_get_name` returns a malloc'd copy we own.
+            metal_string_free(name_ptr.cast_mut());
+            name
         }
     }
 
@@ -712,7 +724,10 @@ impl MetalDevice {
                 let error = if error_ptr.is_null() {
                     "Unknown shader compilation error".to_string()
                 } else {
-                    unsafe { CStr::from_ptr(error_ptr).to_string_lossy().into_owned() }
+                    let msg = unsafe { CStr::from_ptr(error_ptr).to_string_lossy().into_owned() };
+                    // `errorOut` is a malloc'd copy we own.
+                    unsafe { metal_string_free(error_ptr.cast_mut()) };
+                    msg
                 };
                 Err(error)
             },
@@ -791,10 +806,14 @@ impl MetalDevice {
 
 impl Drop for MetalDevice {
     fn drop(&mut self) {
-        unsafe { metal_device_release(self.ptr.as_ptr()) }
+        if self.owned {
+            unsafe { metal_device_release(self.ptr.as_ptr()) }
+        }
     }
 }
 
+// SAFETY: `MTLDevice` is documented by Apple as thread-safe; the wrapper holds
+// only a retained pointer with atomic ObjC reference counting.
 unsafe impl Send for MetalDevice {}
 unsafe impl Sync for MetalDevice {}
 
@@ -838,8 +857,12 @@ impl MetalTexture {
 impl Clone for MetalTexture {
     fn clone(&self) -> Self {
         let ptr = unsafe { metal_texture_retain(self.ptr.as_ptr()) };
+        // `metal_texture_retain` is an Objective-C `retain`, which returns the
+        // same (non-null) pointer for a live object. Fall back to `self.ptr`
+        // rather than panicking on the unreachable null case (Clone must be
+        // infallible).
         Self {
-            ptr: NonNull::new(ptr).expect("metal_texture_retain returned null"),
+            ptr: NonNull::new(ptr).unwrap_or(self.ptr),
         }
     }
 }
@@ -850,6 +873,9 @@ impl Drop for MetalTexture {
     }
 }
 
+// SAFETY: `MTLTexture` is documented by Apple as thread-safe for the read-only
+// access exposed here; the wrapper holds only a retained pointer with atomic
+// ObjC reference counting.
 unsafe impl Send for MetalTexture {}
 unsafe impl Sync for MetalTexture {}
 
@@ -882,6 +908,8 @@ impl Drop for MetalCommandQueue {
     }
 }
 
+// SAFETY: `MTLCommandQueue` is documented by Apple as thread-safe; the wrapper
+// holds only a retained pointer with atomic ObjC reference counting.
 unsafe impl Send for MetalCommandQueue {}
 unsafe impl Sync for MetalCommandQueue {}
 
@@ -916,6 +944,8 @@ impl Drop for MetalLibrary {
     }
 }
 
+// SAFETY: `MTLLibrary` is documented by Apple as thread-safe; the wrapper holds
+// only a retained pointer with atomic ObjC reference counting.
 unsafe impl Send for MetalLibrary {}
 unsafe impl Sync for MetalLibrary {}
 
@@ -941,6 +971,8 @@ impl Drop for MetalFunction {
     }
 }
 
+// SAFETY: `MTLFunction` is documented by Apple as thread-safe; the wrapper holds
+// only a retained pointer with atomic ObjC reference counting.
 unsafe impl Send for MetalFunction {}
 unsafe impl Sync for MetalFunction {}
 
@@ -996,6 +1028,10 @@ impl Drop for MetalBuffer {
     }
 }
 
+// SAFETY: `MTLBuffer` is documented by Apple as thread-safe. Note that `Sync`
+// exposes `contents()` as a raw `*mut c_void`, not a Rust `&mut`; callers that
+// write to the GPU buffer from multiple threads are responsible for their own
+// synchronization (the standard GPU-programming contract).
 unsafe impl Send for MetalBuffer {}
 unsafe impl Sync for MetalBuffer {}
 
@@ -1082,10 +1118,12 @@ impl MetalDrawable {
     #[must_use]
     pub fn texture(&self) -> MetalTexture {
         let ptr = unsafe { metal_drawable_texture(self.ptr.as_ptr()) };
-        // Texture is borrowed from drawable, need to retain it
-        let ptr = unsafe { metal_texture_retain(ptr) };
+        // Null-check the borrowed pointer BEFORE retaining it.
+        let ptr = NonNull::new(ptr).expect("drawable texture is null");
+        // Texture is borrowed from the drawable; retain so MetalTexture owns it.
+        let retained = unsafe { metal_texture_retain(ptr.as_ptr()) };
         MetalTexture {
-            ptr: NonNull::new(ptr).expect("drawable texture is null"),
+            ptr: NonNull::new(retained).unwrap_or(ptr),
         }
     }
 
@@ -1623,6 +1661,8 @@ impl Drop for MetalRenderPipelineState {
     }
 }
 
+// SAFETY: `MTLRenderPipelineState` is documented by Apple as thread-safe; the
+// wrapper holds only a retained pointer with atomic ObjC reference counting.
 unsafe impl Send for MetalRenderPipelineState {}
 unsafe impl Sync for MetalRenderPipelineState {}
 

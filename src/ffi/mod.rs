@@ -418,7 +418,7 @@ extern "C" {
         g: *mut f32,
         b: *mut f32,
         a: *mut f32,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_set_color_space_name(config: *const c_void, name: *const i8);
     pub fn sc_stream_configuration_get_color_space_name(
         config: *const c_void,

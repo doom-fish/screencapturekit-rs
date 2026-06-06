@@ -416,6 +416,9 @@ impl CMSampleBufferExt for CMSampleBuffer {
 
     fn image_buffer(&self) -> Option<CVPixelBuffer> {
         unsafe {
+            // SAFETY: cm_sample_buffer_get_image_buffer returns a +1
+            // (passRetained) CVImageBuffer; CVPixelBuffer::from_raw adopts that
+            // +1 reference, so ownership is balanced (released on drop).
             let ptr = ffi::cm_sample_buffer_get_image_buffer(self.as_ptr());
             CVPixelBuffer::from_raw(ptr)
         }
@@ -603,7 +606,15 @@ impl CMSampleBufferDataBufferExt for CMSampleBuffer {
     fn data_buffer_local(&self) -> Option<CMBlockBuffer> {
         unsafe {
             let ptr = ffi::cm_sample_buffer_get_data_buffer(self.as_ptr());
-            CMBlockBuffer::from_raw(ptr)
+            if ptr.is_null() {
+                return None;
+            }
+            // `CMSampleBufferGetDataBuffer` returns a +0 (unretained) reference.
+            // `CMBlockBuffer::from_raw` adopts a +1 reference and releases on
+            // drop, so we must retain first to keep the refcount balanced.
+            // (Mirrors apple-cf's own `CMSampleBuffer::data_buffer`.)
+            let retained = ffi::cm_block_buffer_retain(ptr);
+            CMBlockBuffer::from_raw(retained)
         }
     }
 }

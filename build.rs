@@ -44,8 +44,9 @@ fn detect_sdk_major_version() -> Option<u32> {
 ///   with silently-stubbed APIs. The user can opt back in via
 ///   `SCREENCAPTUREKIT_ALLOW_STUBBED_BUILD=1`.
 fn configure_swift_version_defines(sdk_version: Option<u32>) -> Vec<String> {
-    // Today the Swift bridge only consults the MACOS15 and MACOS26 defines,
-    // but the rest are passed through for symmetry so that future
+    // The Swift bridge consults the MACOS14, MACOS15, and MACOS26 defines today
+    // (see ScreenshotManager.swift, StreamConfiguration.swift, Stream.swift).
+    // The remaining defines are passed through for symmetry so that future
     // version-gated Swift APIs don't silently drop their feature gate.
     //
     // (cargo_feature, min_sdk_major, swift_define)

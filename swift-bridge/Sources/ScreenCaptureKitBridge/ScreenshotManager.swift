@@ -8,56 +8,92 @@ import UniformTypeIdentifiers
 
 // MARK: - Screenshot Manager (macOS 14.0+)
 
-@available(macOS 14.0, *)
-@_cdecl("sc_screenshot_manager_capture_image")
-public func captureScreenshot(
-    _ contentFilter: OpaquePointer,
-    _ config: OpaquePointer,
-    _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
-    _ userData: UnsafeMutableRawPointer?
-) {
-    let filter: SCContentFilter = unretained(contentFilter)
-    let configuration: SCStreamConfiguration = unretained(config)
+#if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+    @_cdecl("sc_screenshot_manager_capture_image")
+    public func captureScreenshot(
+        _ contentFilter: OpaquePointer,
+        _ config: OpaquePointer,
+        _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+        _ userData: UnsafeMutableRawPointer?
+    ) {
+        if #available(macOS 14.0, *) {
+            let filter: SCContentFilter = unretained(contentFilter)
+            let configuration: SCStreamConfiguration = unretained(config)
 
-    Task {
-        do {
-            let image = try await SCScreenshotManager.captureImage(
-                contentFilter: filter,
-                configuration: configuration
-            )
-            callback(retain(image), nil, userData)
-        } catch {
-            let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+            Task {
+                do {
+                    let image = try await SCScreenshotManager.captureImage(
+                        contentFilter: filter,
+                        configuration: configuration
+                    )
+                    callback(retain(image), nil, userData)
+                } catch {
+                    let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+                    bridgeError.description.withCString { callback(nil, $0, userData) }
+                }
+            }
+        } else {
+            let bridgeError = SCBridgeError.screenshotError(
+                "SCScreenshotManager.captureImage requires macOS 14.0+")
             bridgeError.description.withCString { callback(nil, $0, userData) }
         }
     }
-}
 
-@available(macOS 14.0, *)
-@_cdecl("sc_screenshot_manager_capture_sample_buffer")
-public func captureScreenshotSampleBuffer(
-    _ contentFilter: OpaquePointer,
-    _ config: OpaquePointer,
-    _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
-    _ userData: UnsafeMutableRawPointer?
-) {
-    let filter: SCContentFilter = unretained(contentFilter)
-    let configuration: SCStreamConfiguration = unretained(config)
+    @_cdecl("sc_screenshot_manager_capture_sample_buffer")
+    public func captureScreenshotSampleBuffer(
+        _ contentFilter: OpaquePointer,
+        _ config: OpaquePointer,
+        _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+        _ userData: UnsafeMutableRawPointer?
+    ) {
+        if #available(macOS 14.0, *) {
+            let filter: SCContentFilter = unretained(contentFilter)
+            let configuration: SCStreamConfiguration = unretained(config)
 
-    Task {
-        do {
-            let sampleBuffer = try await SCScreenshotManager.captureSampleBuffer(
-                contentFilter: filter,
-                configuration: configuration
-            )
-            let retained = Unmanaged.passRetained(sampleBuffer as AnyObject)
-            callback(OpaquePointer(retained.toOpaque()), nil, userData)
-        } catch {
-            let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+            Task {
+                do {
+                    let sampleBuffer = try await SCScreenshotManager.captureSampleBuffer(
+                        contentFilter: filter,
+                        configuration: configuration
+                    )
+                    let retained = Unmanaged.passRetained(sampleBuffer as AnyObject)
+                    callback(OpaquePointer(retained.toOpaque()), nil, userData)
+                } catch {
+                    let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
+                    bridgeError.description.withCString { callback(nil, $0, userData) }
+                }
+            }
+        } else {
+            let bridgeError = SCBridgeError.screenshotError(
+                "SCScreenshotManager.captureSampleBuffer requires macOS 14.0+")
             bridgeError.description.withCString { callback(nil, $0, userData) }
         }
     }
-}
+#else
+    @_cdecl("sc_screenshot_manager_capture_image")
+    public func captureScreenshot(
+        _: OpaquePointer,
+        _: OpaquePointer,
+        _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+        _ userData: UnsafeMutableRawPointer?
+    ) {
+        let bridgeError = SCBridgeError.screenshotError(
+            "SCScreenshotManager requires a macOS 14.0+ SDK")
+        bridgeError.description.withCString { callback(nil, $0, userData) }
+    }
+
+    @_cdecl("sc_screenshot_manager_capture_sample_buffer")
+    public func captureScreenshotSampleBuffer(
+        _: OpaquePointer,
+        _: OpaquePointer,
+        _ callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+        _ userData: UnsafeMutableRawPointer?
+    ) {
+        let bridgeError = SCBridgeError.screenshotError(
+            "SCScreenshotManager requires a macOS 14.0+ SDK")
+        bridgeError.description.withCString { callback(nil, $0, userData) }
+    }
+#endif
 
 // MARK: - Capture image in rect (macOS 15.2+)
 

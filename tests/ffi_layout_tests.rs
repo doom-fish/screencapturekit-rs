@@ -74,3 +74,12 @@ fn ffi_layout_matches_swift() {
         "Swift FFI struct layout disagrees with Rust layout (ABI mismatch)"
     );
 }
+
+#[test]
+fn audio_buffer_layout() {
+    use screencapturekit::cm::AudioBuffer;
+    // Matches the Swift `AudioBufferBridge`: u32 + u32 + pointer. Guards against
+    // silent layout drift of the `#[repr(C)]` struct shared across the FFI.
+    assert_eq!(size_of::<AudioBuffer>(), 16, "AudioBuffer size drifted");
+    assert_eq!(align_of::<AudioBuffer>(), 8, "AudioBuffer alignment drifted");
+}

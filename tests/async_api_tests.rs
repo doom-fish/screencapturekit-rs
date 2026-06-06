@@ -1170,3 +1170,49 @@ mod additional_async_tests {
         }
     }
 }
+
+/// Assertive frame-delivery test.
+///
+/// Unlike the API-shape tests above, this drives a real capture and asserts
+/// that frames are actually delivered through the async iterator. It requires
+/// screen-recording permission and an attached display, so it is `#[ignore]`d
+/// by default. Run it manually with:
+///
+/// ```text
+/// cargo test --features async --test async_api_tests -- --ignored frame_delivery
+/// ```
+#[tokio::test]
+#[ignore = "requires screen-recording permission and an attached display"]
+async fn test_async_frame_delivery_assertive() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+    use std::time::Duration;
+
+    let content = SCShareableContent::get().expect("screen-recording permission required");
+    let displays = content.displays();
+    let display = displays.first().expect("an attached display is required");
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+    let config = SCStreamConfiguration::new().with_width(320).with_height(240);
+
+    let stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen);
+    stream.start_capture().expect("start_capture failed");
+
+    // A real frame must be delivered within a reasonable window.
+    let first = tokio::time::timeout(Duration::from_secs(5), stream.next())
+        .await
+        .expect("timed out waiting for the first frame");
+    assert!(first.is_some(), "stream closed before delivering a frame");
+
+    // next() must keep yielding frames (continuous delivery).
+    let second = tokio::time::timeout(Duration::from_secs(5), stream.next())
+        .await
+        .expect("timed out waiting for the second frame");
+    assert!(second.is_some(), "expected continuous frame delivery");
+
+    stream.stop_capture().expect("stop_capture failed");
+}

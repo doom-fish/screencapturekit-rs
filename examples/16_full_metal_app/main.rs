@@ -712,10 +712,33 @@ fn main() {
     println!("🎮 Metal Overlay Renderer");
     println!("========================\n");
 
-    let event_loop = EventLoop::new().unwrap();
+    // Preflight checks: fail gracefully with an actionable message instead of
+    // panicking deep inside setup when the environment can't support the demo.
+    if MetalDevice::system_default().is_none() {
+        eprintln!("error: no Metal-capable GPU was found; this demo requires Metal.");
+        return;
+    }
+    if let Err(e) = SCShareableContent::get() {
+        eprintln!("error: screen capture is unavailable ({e}).");
+        eprintln!(
+            "Grant permission under System Settings -> Privacy & Security -> Screen Recording, \
+             then re-run."
+        );
+        return;
+    }
+
+    let event_loop = match EventLoop::new() {
+        Ok(event_loop) => event_loop,
+        Err(e) => {
+            eprintln!("error: failed to create the event loop: {e}");
+            return;
+        }
+    };
     event_loop.set_control_flow(ControlFlow::Poll);
     let mut app = App::new();
-    event_loop.run_app(&mut app).unwrap();
+    if let Err(e) = event_loop.run_app(&mut app) {
+        eprintln!("error: the event loop exited with an error: {e}");
+    }
 }
 
 /// Create a textured pipeline with the specified fragment function
