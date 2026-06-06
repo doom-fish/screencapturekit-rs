@@ -81,5 +81,9 @@ fn audio_buffer_layout() {
     // Matches the Swift `AudioBufferBridge`: u32 + u32 + pointer. Guards against
     // silent layout drift of the `#[repr(C)]` struct shared across the FFI.
     assert_eq!(size_of::<AudioBuffer>(), 16, "AudioBuffer size drifted");
-    assert_eq!(align_of::<AudioBuffer>(), 8, "AudioBuffer alignment drifted");
+    assert_eq!(
+        align_of::<AudioBuffer>(),
+        8,
+        "AudioBuffer alignment drifted"
+    );
 }

@@ -1197,7 +1197,9 @@ async fn test_async_frame_delivery_assertive() {
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
-    let config = SCStreamConfiguration::new().with_width(320).with_height(240);
+    let config = SCStreamConfiguration::new()
+        .with_width(320)
+        .with_height(240);
 
     let stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen);
     stream.start_capture().expect("start_capture failed");

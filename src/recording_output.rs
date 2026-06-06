@@ -548,8 +548,9 @@ impl SCRecordingOutput {
 
         // Store delegate in registry before creating recording output
         {
-            let mut registry =
-                RECORDING_DELEGATE_REGISTRY.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut registry = RECORDING_DELEGATE_REGISTRY
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if registry.is_none() {
                 *registry = Some(HashMap::new());
             }
