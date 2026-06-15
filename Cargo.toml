@@ -72,7 +72,7 @@ apple-metal = { version = ">=0.6, <0.9", default-features = false }
 # 2.12.0 overflows the macro recursion limit while compiling dispatch2, which
 # breaks `--all-targets`/`--all-features` lint and test builds. This is a
 # dev-only constraint and does not affect the published dependency set.
-bitflags = ">=2.0, <2.13"
+bitflags = ">=2.0, <2.14"
 png = "0.18"
 tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
 winit = "0.30"
