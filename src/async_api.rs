@@ -308,6 +308,7 @@ struct AsyncSampleIteratorState {
     waker: Option<Waker>,
     closed: bool,
     capacity: usize,
+    stop_error: Option<SCError>,
 }
 
 /// Internal sender for async sample iterator
@@ -398,6 +399,37 @@ impl Future for NextSample<'_> {
 // `Arc<Mutex<...>>` is safe to send and share across threads.
 unsafe impl Send for AsyncSampleSender {}
 unsafe impl Sync for AsyncSampleSender {}
+
+/// Stream delegate for [`AsyncSCStream`] that closes the sample iterator when
+/// `ScreenCaptureKit` stops the stream with an error.
+///
+/// Without this, a stream that fails mid-capture (captured display
+/// disconnected, permission revoked, …) would leave [`NextSample`] pending
+/// forever. On an error stop this records the [`SCError`], marks the iterator
+/// closed (so `next()` resolves to `None` once buffered frames drain), and
+/// wakes any parked task. The error is retrievable via
+/// [`AsyncSCStream::take_error`].
+struct AsyncStreamDelegate {
+    state: Arc<Mutex<AsyncSampleIteratorState>>,
+}
+
+impl crate::stream::delegate_trait::SCStreamDelegateTrait for AsyncStreamDelegate {
+    fn did_stop_with_error(&self, error: SCError) {
+        if let Ok(mut state) = self.state.lock() {
+            state.stop_error = Some(error);
+            state.closed = true;
+            if let Some(waker) = state.waker.take() {
+                waker.wake();
+            }
+        }
+    }
+}
+
+// SAFETY: mirrors `AsyncSampleSender` — `AsyncStreamDelegate` holds the same
+// `Arc<Mutex<AsyncSampleIteratorState>>`, whose contents (`CMSampleBuffer`,
+// `Waker`, `SCError`) are all safe to send and share across threads.
+unsafe impl Send for AsyncStreamDelegate {}
+unsafe impl Sync for AsyncStreamDelegate {}
 
 // ----------------------------------------------------------------------------
 // Stream lifecycle control futures (start / stop / update)
@@ -539,14 +571,28 @@ impl AsyncSCStream {
             waker: None,
             closed: false,
             capacity: buffer_capacity,
+            stop_error: None,
         }));
 
         let sender = AsyncSampleSender {
             inner: Arc::clone(&state),
         };
 
-        let mut stream = crate::stream::SCStream::new(filter, config);
-        stream.add_output_handler(sender, output_type);
+        let delegate = AsyncStreamDelegate {
+            state: Arc::clone(&state),
+        };
+
+        let mut stream = crate::stream::SCStream::new_with_delegate(filter, config, delegate);
+        if stream.add_output_handler(sender, output_type).is_none() {
+            // Registration failed: close the iterator immediately so `next()`
+            // resolves to `None` instead of pending forever, and record why.
+            if let Ok(mut s) = state.lock() {
+                s.closed = true;
+                s.stop_error = Some(SCError::StreamError(
+                    "failed to register stream output handler".to_string(),
+                ));
+            }
+        }
 
         Self {
             stream,
@@ -570,9 +616,39 @@ impl AsyncSCStream {
     }
 
     /// Check if the stream has been closed
+    ///
+    /// Returns `true` once the stream has stopped — either because this
+    /// `AsyncSCStream` was dropped or because `ScreenCaptureKit` stopped it
+    /// with an error (see [`take_error`](Self::take_error)).
     #[must_use]
     pub fn is_closed(&self) -> bool {
         self.iterator_state.lock().map_or(true, |s| s.closed)
+    }
+
+    /// Take the error that stopped the stream, if any.
+    ///
+    /// When `ScreenCaptureKit` stops the stream with an error (e.g. the
+    /// captured display is disconnected or screen-recording permission is
+    /// revoked), the sample iterator is closed — [`next`](Self::next) resolves
+    /// to `None` after any buffered frames drain — and the [`SCError`] is stored
+    /// here. Call this once the iteration loop ends to distinguish an error stop
+    /// from a normal end of stream:
+    ///
+    /// ```no_run
+    /// # async fn example(stream: screencapturekit::async_api::AsyncSCStream) {
+    /// while let Some(_frame) = stream.next().await {
+    ///     // process frames …
+    /// }
+    /// if let Some(err) = stream.take_error() {
+    ///     eprintln!("capture stopped with error: {err}");
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// The stored error is cleared once taken.
+    #[must_use]
+    pub fn take_error(&self) -> Option<SCError> {
+        self.iterator_state.lock().ok()?.stop_error.take()
     }
 
     /// Get the number of buffered samples

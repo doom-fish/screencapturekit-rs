@@ -336,6 +336,28 @@ fn test_async_stream_output_type() {
     assert!(debug_audio.contains("Audio"));
 }
 
+#[test]
+fn test_async_stream_take_error_initially_none() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    if let Ok(content) = SCShareableContent::get() {
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::create()
+                .with_display(display)
+                .with_excluding_windows(&[])
+                .build();
+            let config = SCStreamConfiguration::new().with_width(100).with_height(100);
+            let stream = AsyncSCStream::new(&filter, &config, 4, SCStreamOutputType::Screen);
+
+            // A freshly created stream is open and has no stop error.
+            assert!(!stream.is_closed());
+            assert!(stream.take_error().is_none());
+        }
+    }
+}
+
 #[cfg(feature = "macos_14_0")]
 mod macos_14_tests {
     use super::*;
@@ -1228,4 +1250,10 @@ async fn test_async_frame_delivery_assertive() {
     assert!(second.is_some(), "expected continuous frame delivery");
 
     stream.stop_capture().await.expect("stop_capture failed");
+
+    // A clean stop must not surface a stop error.
+    assert!(
+        stream.take_error().is_none(),
+        "clean capture should leave no stop error"
+    );
 }

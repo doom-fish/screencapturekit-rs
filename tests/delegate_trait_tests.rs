@@ -1,6 +1,9 @@
 //! `SCStreamDelegateTrait` tests
 
 #![allow(clippy::struct_field_names)]
+// Several tests still exercise the deprecated `stream_did_stop` directly to
+// keep its routing covered; suppress the deprecation lint for the whole file.
+#![allow(deprecated)]
 
 use screencapturekit::error::SCError;
 use screencapturekit::stream::delegate_trait::{

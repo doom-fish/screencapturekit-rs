@@ -22,10 +22,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   blocking call, use the synchronous `SCStream` directly via
   `stream.inner().start_capture()`.
 
+- `AsyncSCStream` now installs a stream delegate so that when `ScreenCaptureKit`
+  stops the stream with an error (display disconnected, permission revoked, …)
+  the sample iterator is closed — `next().await` resolves to `None` instead of
+  pending forever — and the error is recorded (see `take_error`). `AsyncSCStream::new`
+  likewise no longer silently swallows a failed output-handler registration: it
+  closes the stream and records the error.
+
+- The stream engine now dispatches a single canonical stop callback,
+  `SCStreamDelegateTrait::did_stop_with_error`, on an error stop. It no longer
+  also calls `stream_did_stop` for the same event (the previous behavior fired
+  both). `StreamCallbacks::on_stop` keeps working (it is now driven by
+  `did_stop_with_error`).
+
 ### Added
 
 - `async_api::StreamControlFuture` — the `Send` future returned by the
   `AsyncSCStream` lifecycle methods.
+- `AsyncSCStream::take_error` — returns the `SCError` that stopped the stream,
+  if any, after `next()` reports the iterator closed.
+
+### Deprecated
+
+- `SCStreamDelegateTrait::stream_did_stop` — `ScreenCaptureKit` only reports
+  stops via `did_stop_with_error`, which is now the single source of truth;
+  the engine no longer invokes `stream_did_stop`. Implement `did_stop_with_error`
+  instead.
 
 ## [7.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v7.0.0...v7.0.1) - 2026-06-06
 

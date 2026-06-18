@@ -170,7 +170,7 @@ extern "C" fn delegate_error_callback(context: *mut c_void, error_code: i32, msg
             },
         )
     } else {
-        SCError::StreamError(message.clone())
+        SCError::StreamError(message)
     };
 
     // Take a read lock and dispatch under it. Multiple delegate callbacks
@@ -183,12 +183,13 @@ extern "C" fn delegate_error_callback(context: *mut c_void, error_code: i32, msg
         .unwrap_or_else(std::sync::PoisonError::into_inner);
 
     if let Some(ref delegate) = *delegate_guard {
-        // Wrap user code in catch_unwind so panics never propagate into Swift.
+        // ScreenCaptureKit reports stops only through `stream(_:didStopWithError:)`,
+        // so we dispatch the single canonical `did_stop_with_error` callback.
+        // The deprecated `stream_did_stop` is intentionally NOT invoked here — it
+        // would double-notify for one event. Wrap user code in catch_unwind so a
+        // panic never propagates into Swift.
         catch_user_panic("delegate.did_stop_with_error", || {
             delegate.did_stop_with_error(error);
-        });
-        catch_user_panic("delegate.stream_did_stop", || {
-            delegate.stream_did_stop(Some(message));
         });
         return;
     }
@@ -362,9 +363,12 @@ impl SCStream {
 
     /// Create a new stream with a content filter, configuration, and delegate
     ///
-    /// The delegate receives callbacks for stream lifecycle events:
-    /// - `did_stop_with_error` - Called when the stream stops due to an error
-    /// - `stream_did_stop` - Called when the stream stops (with optional error message)
+    /// The delegate receives callbacks for stream lifecycle events. The key
+    /// one is [`did_stop_with_error`](crate::stream::delegate_trait::SCStreamDelegateTrait::did_stop_with_error),
+    /// invoked when `ScreenCaptureKit` stops the stream with an error (e.g. the
+    /// captured window closes or permission is revoked). A *clean* stop you
+    /// requested via [`stop_capture`](Self::stop_capture) is observed through
+    /// that call's return value, not the delegate.
     ///
     /// # Examples
     ///
@@ -384,12 +388,7 @@ impl SCStream {
     ///     .with_height(1080);
     ///
     /// let delegate = StreamCallbacks::new()
-    ///     .on_error(|e| eprintln!("Stream error: {}", e))
-    ///     .on_stop(|err| {
-    ///         if let Some(msg) = err {
-    ///             eprintln!("Stream stopped with error: {}", msg);
-    ///         }
-    ///     });
+    ///     .on_error(|e| eprintln!("Stream stopped with error: {}", e));
     ///
     /// let stream = SCStream::new_with_delegate(&filter, &config, delegate);
     /// stream.start_capture()?;
