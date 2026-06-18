@@ -70,6 +70,7 @@ use crate::error::SCError;
 use crate::shareable_content::SCShareableContent;
 use crate::stream::configuration::SCStreamConfiguration;
 use crate::stream::content_filter::SCContentFilter;
+use crate::stream::output_type::SCStreamOutputType;
 use crate::utils::completion::{error_from_cstr, AsyncCompletion, AsyncCompletionFuture};
 use std::ffi::c_void;
 use std::future::Future;
@@ -304,7 +305,7 @@ impl AsyncSCShareableContent {
 /// stale ones, but means consumers that fall behind will miss intermediate
 /// frames rather than blocking the capture callback.
 struct AsyncSampleIteratorState {
-    buffer: std::collections::VecDeque<crate::cm::CMSampleBuffer>,
+    buffer: std::collections::VecDeque<(crate::cm::CMSampleBuffer, SCStreamOutputType)>,
     waker: Option<Waker>,
     closed: bool,
     capacity: usize,
@@ -320,7 +321,7 @@ impl crate::stream::output_trait::SCStreamOutputTrait for AsyncSampleSender {
     fn did_output_sample_buffer(
         &self,
         sample_buffer: crate::cm::CMSampleBuffer,
-        _of_type: crate::stream::output_type::SCStreamOutputType,
+        of_type: SCStreamOutputType,
     ) {
         let Ok(mut state) = self.inner.lock() else {
             return;
@@ -331,7 +332,7 @@ impl crate::stream::output_trait::SCStreamOutputTrait for AsyncSampleSender {
             state.buffer.pop_front();
         }
 
-        state.buffer.push_back(sample_buffer);
+        state.buffer.push_back((sample_buffer, of_type));
 
         if let Some(waker) = state.waker.take() {
             waker.wake();
@@ -369,7 +370,7 @@ impl Future for NextSample<'_> {
             return Poll::Ready(None);
         };
 
-        if let Some(sample) = state.buffer.pop_front() {
+        if let Some((sample, _of_type)) = state.buffer.pop_front() {
             return Poll::Ready(Some(sample));
         }
 
@@ -392,11 +393,54 @@ impl Future for NextSample<'_> {
     }
 }
 
+/// Future for getting the next sample buffer together with its output type.
+///
+/// Like [`NextSample`], but yields the [`SCStreamOutputType`] alongside the
+/// buffer so consumers of a multi-output stream (e.g. screen + audio via
+/// [`AsyncSCStream::add_output_type`]) can tell frames apart. Returned by
+/// [`AsyncSCStream::next_typed`].
+pub struct NextSampleTyped<'a> {
+    state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
+}
+
+impl std::fmt::Debug for NextSampleTyped<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NextSampleTyped").finish_non_exhaustive()
+    }
+}
+
+impl Future for NextSampleTyped<'_> {
+    type Output = Option<(crate::cm::CMSampleBuffer, SCStreamOutputType)>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let Ok(mut state) = self.state.lock() else {
+            return Poll::Ready(None);
+        };
+
+        if let Some(sample) = state.buffer.pop_front() {
+            return Poll::Ready(Some(sample));
+        }
+
+        if state.closed {
+            Poll::Ready(None)
+        } else {
+            // See `NextSample::poll` for the lost-wakeup rationale.
+            let waker = cx.waker();
+            match state.waker {
+                Some(ref existing) if existing.will_wake(waker) => {}
+                _ => state.waker = Some(waker.clone()),
+            }
+            Poll::Pending
+        }
+    }
+}
+
 // SAFETY: `AsyncSampleSender` holds `Arc<Mutex<AsyncSampleIteratorState>>`.
-// `AsyncSampleIteratorState` contains `VecDeque<CMSampleBuffer>` and `Option<Waker>`;
-// `CMSampleBuffer` has its own `unsafe impl Send` (it is an Apple-owned handle
-// safe to transfer across threads) and `Waker` is `Send + Sync`, so the whole
-// `Arc<Mutex<...>>` is safe to send and share across threads.
+// `AsyncSampleIteratorState` buffers `(CMSampleBuffer, SCStreamOutputType)`
+// pairs plus an `Option<Waker>` and `Option<SCError>`; `CMSampleBuffer` has its
+// own `unsafe impl Send` (it is an Apple-owned handle safe to transfer across
+// threads) and the rest are `Send + Sync`, so the whole `Arc<Mutex<...>>` is
+// safe to send and share across threads.
 unsafe impl Send for AsyncSampleSender {}
 unsafe impl Sync for AsyncSampleSender {}
 
@@ -602,16 +646,61 @@ impl AsyncSCStream {
 
     /// Get the next sample buffer asynchronously
     ///
-    /// Returns `None` when the stream is closed.
+    /// Returns `None` when the stream is closed. For a multi-output stream
+    /// (see [`add_output_type`](Self::add_output_type)) use
+    /// [`next_typed`](Self::next_typed) to also learn each sample's
+    /// [`SCStreamOutputType`].
     pub fn next(&self) -> NextSample<'_> {
         NextSample {
             state: &self.iterator_state,
         }
     }
 
+    /// Get the next sample buffer together with its output type.
+    ///
+    /// Use this when the stream carries more than one output type (e.g. screen
+    /// and audio) and you need to tell the samples apart. Returns `None` when
+    /// the stream is closed.
+    pub fn next_typed(&self) -> NextSampleTyped<'_> {
+        NextSampleTyped {
+            state: &self.iterator_state,
+        }
+    }
+
+    /// Also deliver samples of an additional output type.
+    ///
+    /// By default an [`AsyncSCStream`] carries the single output type passed to
+    /// [`new`](Self::new). Call this to capture more than one type from one
+    /// stream — for example add [`SCStreamOutputType::Audio`] to a stream
+    /// created for [`SCStreamOutputType::Screen`] to capture audio and video
+    /// together. Samples from every registered type share the same lossy
+    /// buffer; use [`next_typed`](Self::next_typed) /
+    /// [`try_next_typed`](Self::try_next_typed) to distinguish them.
+    ///
+    /// Returns `true` if the output type was registered. Registration can fail
+    /// if the stream configuration does not enable that type (e.g. audio
+    /// capture was not configured).
+    pub fn add_output_type(&mut self, output_type: SCStreamOutputType) -> bool {
+        let sender = AsyncSampleSender {
+            inner: Arc::clone(&self.iterator_state),
+        };
+        self.stream.add_output_handler(sender, output_type).is_some()
+    }
+
     /// Try to get a sample without waiting
     #[must_use]
     pub fn try_next(&self) -> Option<crate::cm::CMSampleBuffer> {
+        self.iterator_state
+            .lock()
+            .ok()?
+            .buffer
+            .pop_front()
+            .map(|(buffer, _of_type)| buffer)
+    }
+
+    /// Try to get a sample together with its output type, without waiting.
+    #[must_use]
+    pub fn try_next_typed(&self) -> Option<(crate::cm::CMSampleBuffer, SCStreamOutputType)> {
         self.iterator_state.lock().ok()?.buffer.pop_front()
     }
 

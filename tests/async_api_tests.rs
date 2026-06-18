@@ -311,6 +311,12 @@ fn test_next_sample_debug() {
 }
 
 #[test]
+fn test_next_sample_typed_debug() {
+    fn assert_debug<T: std::fmt::Debug>() {}
+    assert_debug::<NextSampleTyped<'_>>();
+}
+
+#[test]
 fn test_stream_control_future_is_send_and_debug() {
     // The lifecycle control futures must be `Send` so they can be driven on
     // multi-threaded executors and moved across `tokio::spawn` boundaries, and
@@ -354,6 +360,50 @@ fn test_async_stream_take_error_initially_none() {
             // A freshly created stream is open and has no stop error.
             assert!(!stream.is_closed());
             assert!(stream.take_error().is_none());
+        }
+    }
+}
+
+#[test]
+fn test_async_stream_multi_output_typed() {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    if let Ok(content) = SCShareableContent::get() {
+        if let Some(display) = content.displays().first() {
+            let filter = SCContentFilter::create()
+                .with_display(display)
+                .with_excluding_windows(&[])
+                .build();
+            let config = SCStreamConfiguration::new()
+                .with_width(160)
+                .with_height(120)
+                .with_captures_audio(true);
+
+            let mut stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen);
+
+            // Nothing is buffered before capture starts.
+            assert!(stream.try_next_typed().is_none());
+
+            // Add audio as a second output type so one stream carries A/V.
+            let _registered = stream.add_output_type(SCStreamOutputType::Audio);
+
+            if stream.inner().start_capture().is_ok() {
+                std::thread::sleep(std::time::Duration::from_millis(300));
+
+                // Every delivered sample must be correctly tagged with its type.
+                while let Some((_buf, ty)) = stream.try_next_typed() {
+                    assert!(matches!(
+                        ty,
+                        SCStreamOutputType::Screen
+                            | SCStreamOutputType::Audio
+                            | SCStreamOutputType::Microphone
+                    ));
+                }
+
+                let _ = stream.inner().stop_capture();
+            }
         }
     }
 }

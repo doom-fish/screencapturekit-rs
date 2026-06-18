@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AsyncSCStream` lifecycle methods.
 - `AsyncSCStream::take_error` — returns the `SCError` that stopped the stream,
   if any, after `next()` reports the iterator closed.
+- Multi-output async capture: `AsyncSCStream::add_output_type` registers an
+  additional output type (e.g. add audio to a screen stream), and
+  `AsyncSCStream::next_typed` / `try_next_typed` (plus the `NextSampleTyped`
+  future) yield each sample together with its `SCStreamOutputType` so audio and
+  video can be captured from one stream and told apart.
 
 ### Deprecated
 
