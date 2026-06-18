@@ -429,8 +429,10 @@ impl SCStream {
     ///
     /// # Returns
     ///
-    /// Returns `Some(handler_id)` on success, `None` on failure.
-    /// The handler ID can be used with [`remove_output_handler`](Self::remove_output_handler).
+    /// Returns `Some(handler_id)` on success, or `None` if `ScreenCaptureKit`
+    /// rejected the registration (e.g. the output type is not enabled by the
+    /// stream configuration); the failure is also logged to stderr. The handler
+    /// ID can be used with [`remove_output_handler`](Self::remove_output_handler).
     ///
     /// # Dispatch queue
     ///
@@ -597,6 +599,14 @@ impl SCStream {
                 });
             Some(handler_id)
         } else {
+            // Surface the failure rather than dropping it silently — registration
+            // only fails if ScreenCaptureKit rejects `addStreamOutput` (e.g. the
+            // output type is not enabled by the stream configuration). The caller
+            // still gets `None`, but this makes the cause visible in logs.
+            eprintln!(
+                "SCStream: failed to register output handler for {of_type:?} \
+                 (ScreenCaptureKit rejected addStreamOutput)"
+            );
             None
         }
     }
