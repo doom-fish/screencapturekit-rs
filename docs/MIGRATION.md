@@ -192,6 +192,26 @@ required.
 > `screencapturekit::{cg, cm}`) the upgrade is typically just the `CGRect`
 > field-access change from 5.0.
 
+## Migrating from 6.0 to 7.0
+
+7.0 is an FFI-hardening release with **no required source changes** for typical
+users. It is a major version only because of conservative semver around two
+low-level changes:
+
+- **`AudioBufferRef::data()` lifetime.** The returned slice is now tied to the
+  lifetime `'a` of the wrapped audio buffer rather than the `&self` borrow.
+  This *relaxes* the borrow (the slice may now outlive the `&self` reference),
+  so existing call sites keep compiling unchanged.
+- **Strided pixel render + locked `IOSurface` CPU view.** New additive helpers
+  [`CGImageExt::rgba_data_into_strided`](../src/screenshot_manager.rs) /
+  `bgra_data_into_strided` render into a caller-supplied buffer using an
+  explicit row stride, so consumers with padded/row-aligned buffers (GPU
+  upload, `wgpu`) aren't forced into tight packing. The existing
+  `rgba_data_into` / `bgra_data_into` paths are unchanged.
+
+Everything else is internal: `MaybeUninit` scratch buffers for batched FFI
+calls, null-checked constructors, and consolidated retain/release wrappers.
+
 ## Migrating from 0.x to 1.0
 
 Version 1.0 introduced a complete API redesign with builder patterns, async support, and new macOS features.

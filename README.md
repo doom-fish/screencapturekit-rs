@@ -13,6 +13,8 @@
     <a href="https://github.com/doom-fish/screencapturekit-rs/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/doom-fish/screencapturekit-rs?style=for-the-badge&logo=starship&color=F5E0DC&logoColor=D9E0EE&labelColor=302D41" /></a>
 </p></div>
 
+> **💼 Looking for a hosted desktop recording API?** Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) — an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
+
 <https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d>
 
 ---
@@ -41,7 +43,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "6"
+screencapturekit = "7"
 ```
 
 Opt-in features (additive):
@@ -60,13 +62,14 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "6", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "7", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading a major version?** See [`docs/MIGRATION.md`](docs/MIGRATION.md)
-> for a per-version guide. The 3.0–6.0 line consolidated the Core Graphics /
-> Core Media foundation types onto the shared `apple-cf` crate; the most likely
-> source change is 5.0's nested `CGRect` layout (`rect.origin.x` /
+> for a per-version guide. Releases 3.0–6.0 consolidated the Core Graphics /
+> Core Media foundation types onto the shared `apple-cf` crate, and 7.0 hardens
+> the FFI boundary without touching the public types; across the whole line the
+> only likely source change is 5.0's nested `CGRect` layout (`rect.origin.x` /
 > `rect.size.width`).
 
 ## Quick Start
@@ -468,8 +471,13 @@ Highlights by major version:
   `rect.origin.x` / `rect.size.width` instead of flat `rect.x` / `rect.width`.
 - **6.0** — `CMSampleTimingInfo` and `CMClock` are now re-exported from
   `apple-cf` as well.
+- **7.0** — no source changes for typical users. FFI-hardening release that
+  adds strided pixel-render helpers (`CGImageExt::rgba_data_into_strided` /
+  `bgra_data_into_strided`) plus a locked `IOSurface` CPU view, and relaxes the
+  `AudioBufferRef::data()` slice lifetime so the returned slice is tied to the
+  wrapped buffer.
 
-If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–6.0
+If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–7.0
 upgrades are typically just the 5.0 `CGRect` field-access change.
 
 ## Contributing
