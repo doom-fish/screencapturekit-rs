@@ -167,8 +167,8 @@ fn test_async_stream_with_audio() {
     }
 }
 
-#[test]
-fn test_async_stream_start_stop_capture() {
+#[tokio::test]
+async fn test_async_stream_start_stop_capture() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
@@ -186,21 +186,21 @@ fn test_async_stream_start_stop_capture() {
             let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
 
             // Start capture
-            let start_result = stream.start_capture();
+            let start_result = stream.start_capture().await;
             assert!(start_result.is_ok(), "Should start capture");
 
             // Small delay to let capture initialize
             std::thread::sleep(std::time::Duration::from_millis(100));
 
             // Stop capture
-            let stop_result = stream.stop_capture();
+            let stop_result = stream.stop_capture().await;
             assert!(stop_result.is_ok(), "Should stop capture");
         }
     }
 }
 
-#[test]
-fn test_async_stream_update_configuration() {
+#[tokio::test]
+async fn test_async_stream_update_configuration() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
@@ -218,7 +218,7 @@ fn test_async_stream_update_configuration() {
             let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
 
             // Start capture first
-            let _ = stream.start_capture();
+            let _ = stream.start_capture().await;
             std::thread::sleep(std::time::Duration::from_millis(100));
 
             // Update configuration
@@ -226,17 +226,17 @@ fn test_async_stream_update_configuration() {
                 .with_width(200)
                 .with_height(200);
 
-            let update_result = stream.update_configuration(&new_config);
+            let update_result = stream.update_configuration(&new_config).await;
             // This may fail if stream is not running, that's ok
             let _ = update_result;
 
-            let _ = stream.stop_capture();
+            let _ = stream.stop_capture().await;
         }
     }
 }
 
-#[test]
-fn test_async_stream_update_content_filter() {
+#[tokio::test]
+async fn test_async_stream_update_content_filter() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
@@ -254,7 +254,7 @@ fn test_async_stream_update_content_filter() {
             let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
 
             // Start capture first
-            let _ = stream.start_capture();
+            let _ = stream.start_capture().await;
             std::thread::sleep(std::time::Duration::from_millis(100));
 
             // Update content filter
@@ -263,11 +263,11 @@ fn test_async_stream_update_content_filter() {
                 .with_excluding_windows(&[])
                 .build();
 
-            let update_result = stream.update_content_filter(&new_filter);
+            let update_result = stream.update_content_filter(&new_filter).await;
             // This may fail if stream is not running, that's ok
             let _ = update_result;
 
-            let _ = stream.stop_capture();
+            let _ = stream.stop_capture().await;
         }
     }
 }
@@ -308,6 +308,17 @@ fn test_async_stream_debug() {
 fn test_next_sample_debug() {
     fn assert_debug<T: std::fmt::Debug>() {}
     assert_debug::<NextSample<'_>>();
+}
+
+#[test]
+fn test_stream_control_future_is_send_and_debug() {
+    // The lifecycle control futures must be `Send` so they can be driven on
+    // multi-threaded executors and moved across `tokio::spawn` boundaries, and
+    // `Debug` for ergonomic logging. This is a compile-time guarantee.
+    fn assert_send<T: Send>() {}
+    fn assert_debug<T: std::fmt::Debug>() {}
+    assert_send::<StreamControlFuture>();
+    assert_debug::<StreamControlFuture>();
 }
 
 #[test]
@@ -464,7 +475,7 @@ mod capture_tests {
                 let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
 
                 // Start capture
-                if stream.start_capture().is_ok() {
+                if stream.inner().start_capture().is_ok() {
                     // Wait a bit for frames to arrive
                     std::thread::sleep(Duration::from_millis(300));
 
@@ -480,7 +491,7 @@ mod capture_tests {
                         assert!(!sample.is_valid() || sample.is_valid());
                     }
 
-                    let _ = stream.stop_capture();
+                    let _ = stream.inner().stop_capture();
                 }
             }
         }
@@ -503,14 +514,14 @@ mod capture_tests {
                 // Small buffer capacity
                 let stream = AsyncSCStream::new(&filter, &config, 2, SCStreamOutputType::Screen);
 
-                if stream.start_capture().is_ok() {
+                if stream.inner().start_capture().is_ok() {
                     // Wait for buffer to potentially fill
                     std::thread::sleep(Duration::from_millis(200));
 
                     // Buffer should not exceed capacity
                     assert!(stream.buffered_count() <= 2);
 
-                    let _ = stream.stop_capture();
+                    let _ = stream.inner().stop_capture();
                 }
             }
         }
@@ -532,14 +543,14 @@ mod capture_tests {
 
                 let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
 
-                if stream.start_capture().is_ok() {
+                if stream.inner().start_capture().is_ok() {
                     std::thread::sleep(Duration::from_millis(200));
 
                     // Clear the buffer
                     stream.clear_buffer();
                     assert_eq!(stream.buffered_count(), 0);
 
-                    let _ = stream.stop_capture();
+                    let _ = stream.inner().stop_capture();
                 }
             }
         }
@@ -562,10 +573,10 @@ mod capture_tests {
 
                 assert!(!stream.is_closed());
 
-                if stream.start_capture().is_ok() {
+                if stream.inner().start_capture().is_ok() {
                     assert!(!stream.is_closed());
 
-                    let _ = stream.stop_capture();
+                    let _ = stream.inner().stop_capture();
                     // Note: is_closed may or may not be true immediately after stop
                     // depending on implementation
                 }
@@ -589,7 +600,7 @@ mod capture_tests {
 
                 let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
 
-                if stream.start_capture().is_ok() {
+                if stream.inner().start_capture().is_ok() {
                     std::thread::sleep(Duration::from_millis(200));
 
                     // Try to get multiple frames
@@ -601,7 +612,7 @@ mod capture_tests {
                         }
                     }
 
-                    let _ = stream.stop_capture();
+                    let _ = stream.inner().stop_capture();
                 }
             }
         }
@@ -684,7 +695,7 @@ mod future_polling_tests {
 
                 let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
 
-                if stream.start_capture().is_ok() {
+                if stream.inner().start_capture().is_ok() {
                     // Wait for frames
                     std::thread::sleep(Duration::from_millis(200));
 
@@ -704,7 +715,7 @@ mod future_polling_tests {
                         Poll::Pending => (),
                     }
 
-                    let _ = stream.stop_capture();
+                    let _ = stream.inner().stop_capture();
                 }
             }
         }
@@ -725,8 +736,8 @@ mod future_polling_tests {
 
                 let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
 
-                if stream.start_capture().is_ok() {
-                    let _ = stream.stop_capture();
+                if stream.inner().start_capture().is_ok() {
+                    let _ = stream.inner().stop_capture();
 
                     // Clear any buffered data
                     stream.clear_buffer();
@@ -1029,7 +1040,7 @@ mod tokio_async_tests {
 
             let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
 
-            if stream.start_capture().is_ok() {
+            if stream.start_capture().await.is_ok() {
                 // Use tokio timeout to avoid hanging
                 let timeout_result =
                     tokio::time::timeout(std::time::Duration::from_millis(500), stream.next())
@@ -1047,7 +1058,7 @@ mod tokio_async_tests {
                     }
                 }
 
-                let _ = stream.stop_capture();
+                let _ = stream.stop_capture().await;
             }
         }
     }
@@ -1067,7 +1078,7 @@ mod tokio_async_tests {
 
             let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
 
-            if stream.start_capture().is_ok() {
+            if stream.start_capture().await.is_ok() {
                 // Try to get multiple frames with timeout
                 for _ in 0..3 {
                     let timeout_result =
@@ -1079,7 +1090,7 @@ mod tokio_async_tests {
                     }
                 }
 
-                let _ = stream.stop_capture();
+                let _ = stream.stop_capture().await;
             }
         }
     }
@@ -1202,7 +1213,7 @@ async fn test_async_frame_delivery_assertive() {
         .with_height(240);
 
     let stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen);
-    stream.start_capture().expect("start_capture failed");
+    stream.start_capture().await.expect("start_capture failed");
 
     // A real frame must be delivered within a reasonable window.
     let first = tokio::time::timeout(Duration::from_secs(5), stream.next())
@@ -1216,5 +1227,5 @@ async fn test_async_frame_delivery_assertive() {
         .expect("timed out waiting for the second frame");
     assert!(second.is_some(), "expected continuous frame delivery");
 
-    stream.stop_capture().expect("stop_capture failed");
+    stream.stop_capture().await.expect("stop_capture failed");
 }

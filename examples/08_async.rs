@@ -159,7 +159,9 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
 
         // Create async stream with 30-frame buffer
         let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
-        stream.start_capture()?;
+        // start/stop are truly async: awaiting parks the task via its Waker and
+        // resumes from the Swift completion callback — the executor is never blocked.
+        stream.start_capture().await?;
 
         println!("   Capturing frames asynchronously...");
 
@@ -174,7 +176,7 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        stream.stop_capture()?;
+        stream.stop_capture().await?;
         println!("   ✅ Captured {count} frames");
     } else {
         println!("   ⚠️  No displays available");

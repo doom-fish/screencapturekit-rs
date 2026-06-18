@@ -212,6 +212,39 @@ low-level changes:
 Everything else is internal: `MaybeUninit` scratch buffers for batched FFI
 calls, null-checked constructors, and consolidated retain/release wrappers.
 
+## Migrating to the next major version (unreleased)
+
+The `async` stream lifecycle methods are now genuinely asynchronous. Previously
+`AsyncSCStream::start_capture` / `stop_capture` / `update_configuration` /
+`update_content_filter` returned `Result<(), SCError>` and **blocked the calling
+thread** on a condition variable until ScreenCaptureKit acknowledged the
+operation — which stalls single-threaded / current-thread executors. They now
+return a `StreamControlFuture` you `.await`:
+
+```diff
+- stream.start_capture()?;
+- stream.stop_capture()?;
++ stream.start_capture().await?;
++ stream.stop_capture().await?;
+```
+
+```diff
+- stream.update_configuration(&config)?;
+- stream.update_content_filter(&filter)?;
++ stream.update_configuration(&config).await?;
++ stream.update_content_filter(&filter).await?;
+```
+
+Awaiting now parks the task via its `Waker` and resumes from the Swift
+completion callback, so it never blocks the executor — matching the rest of the
+`async_api` (content queries, screenshots, picker, frame iteration) and the
+underlying Swift `Task { try await … }` entry points. The returned
+`StreamControlFuture` is `Send`, so it can be moved across `tokio::spawn`.
+
+If you specifically want a **blocking** call (e.g. from synchronous code), reach
+through to the synchronous stream with `stream.inner().start_capture()` — the
+`SCStream` methods are unchanged.
+
 ## Migrating from 0.x to 1.0
 
 Version 1.0 introduced a complete API redesign with builder patterns, async support, and new macOS features.

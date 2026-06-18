@@ -52,7 +52,7 @@
 //! let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 //!
 //! let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
-//! stream.start_capture()?;
+//! stream.start_capture().await?;
 //!
 //! // Process frames asynchronously
 //! for _ in 0..100 {
@@ -61,7 +61,7 @@
 //!     }
 //! }
 //!
-//! stream.stop_capture()?;
+//! stream.stop_capture().await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -399,6 +399,67 @@ impl Future for NextSample<'_> {
 unsafe impl Send for AsyncSampleSender {}
 unsafe impl Sync for AsyncSampleSender {}
 
+// ----------------------------------------------------------------------------
+// Stream lifecycle control futures (start / stop / update)
+// ----------------------------------------------------------------------------
+
+/// FFI completion callback for [`AsyncSCStream`] lifecycle operations.
+///
+/// Translates the Swift `(context, success, message)` completion into the
+/// waker-based [`AsyncCompletion`] machinery, so awaiting a control future
+/// resumes the task via its [`Waker`] instead of parking a thread. This is the
+/// same primitive used by the content / screenshot / picker futures.
+extern "C" fn stream_control_callback(context: *mut c_void, success: bool, msg: *const i8) {
+    crate::utils::panic_safe::catch_user_panic("stream_control_callback", move || {
+        if success {
+            // SAFETY: `context` is the one-shot completion pointer from
+            // `AsyncCompletion::<()>::create()`; Swift invokes this callback
+            // exactly once, after which the pointer is consumed.
+            unsafe { AsyncCompletion::<()>::complete_ok(context, ()) };
+        } else {
+            let error = unsafe { error_from_cstr(msg) };
+            // SAFETY: see above — one-shot completion pointer, fired once.
+            unsafe { AsyncCompletion::<()>::complete_err(context, error) };
+        }
+    });
+}
+
+/// Future for an [`AsyncSCStream`] lifecycle operation — `start_capture`,
+/// `stop_capture`, `update_configuration`, or `update_content_filter`.
+///
+/// Resolves once `ScreenCaptureKit` acknowledges the operation. Awaiting it
+/// **never blocks the executor thread**: the task is parked via its [`Waker`]
+/// and resumed from the Swift completion callback. This mirrors the underlying
+/// Swift `Task { try await … }` entry points, keeping the async surface
+/// consistent end to end.
+///
+/// The operation is kicked off eagerly when the method is called (a "hot"
+/// future), matching the rest of this module — e.g.
+/// [`AsyncSCShareableContent::get`]. Dropping the future without awaiting is
+/// safe; it simply means success/failure is not observed.
+#[must_use = "the operation starts eagerly, but you must .await the future to observe success or failure"]
+pub struct StreamControlFuture {
+    inner: AsyncCompletionFuture<()>,
+    map_err: fn(String) -> SCError,
+}
+
+impl std::fmt::Debug for StreamControlFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamControlFuture").finish_non_exhaustive()
+    }
+}
+
+impl Future for StreamControlFuture {
+    type Output = Result<(), SCError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let map_err = self.map_err;
+        Pin::new(&mut self.inner)
+            .poll(cx)
+            .map(|r| r.map_err(map_err))
+    }
+}
+
 /// Async wrapper for `SCStream` with integrated frame iteration
 ///
 /// Provides async methods for stream lifecycle and frame iteration.
@@ -421,7 +482,7 @@ unsafe impl Sync for AsyncSampleSender {}
 ///     .with_height(1080);
 ///
 /// let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
-/// stream.start_capture()?;
+/// stream.start_capture().await?;
 ///
 /// // Process frames asynchronously
 /// while let Some(frame) = stream.next().await {
@@ -527,40 +588,113 @@ impl AsyncSCStream {
         }
     }
 
-    /// Start capture (synchronous - returns immediately)
+    /// Start capture asynchronously.
+    ///
+    /// Resolves when `ScreenCaptureKit` confirms the stream has started.
+    /// Unlike [`SCStream::start_capture`](crate::stream::SCStream::start_capture),
+    /// awaiting this **does not block the executor thread** — the task is parked
+    /// via its [`Waker`] and resumed from the Swift completion callback.
+    ///
+    /// The capture is initiated eagerly when this method is called; `.await`
+    /// observes the completion (or error).
     ///
     /// # Errors
     ///
-    /// Returns an error if capture fails to start.
-    pub fn start_capture(&self) -> Result<(), SCError> {
-        self.stream.start_capture()
+    /// The awaited result is `Err(SCError::CaptureStartFailed)` if the stream
+    /// fails to start.
+    pub fn start_capture(&self) -> StreamControlFuture {
+        let (future, context) = AsyncCompletion::<()>::create();
+        // SAFETY: `self.stream.as_ptr()` is a valid, live `SCStream` pointer for
+        // the duration of this call; `context` is the one-shot completion
+        // pointer from `AsyncCompletion::create()`, invoked exactly once.
+        unsafe {
+            crate::ffi::sc_stream_start_capture(
+                self.stream.as_ptr(),
+                context,
+                stream_control_callback,
+            );
+        }
+        StreamControlFuture {
+            inner: future,
+            map_err: SCError::CaptureStartFailed,
+        }
     }
 
-    /// Stop capture (synchronous - returns immediately)
+    /// Stop capture asynchronously.
+    ///
+    /// Resolves when `ScreenCaptureKit` confirms the stream has stopped. Awaiting
+    /// this **does not block the executor thread**.
     ///
     /// # Errors
     ///
-    /// Returns an error if capture fails to stop.
-    pub fn stop_capture(&self) -> Result<(), SCError> {
-        self.stream.stop_capture()
+    /// The awaited result is `Err(SCError::CaptureStopFailed)` if the stream
+    /// fails to stop.
+    pub fn stop_capture(&self) -> StreamControlFuture {
+        let (future, context) = AsyncCompletion::<()>::create();
+        // SAFETY: see `start_capture` — live stream pointer, one-shot context.
+        unsafe {
+            crate::ffi::sc_stream_stop_capture(
+                self.stream.as_ptr(),
+                context,
+                stream_control_callback,
+            );
+        }
+        StreamControlFuture {
+            inner: future,
+            map_err: SCError::CaptureStopFailed,
+        }
     }
 
-    /// Update stream configuration
+    /// Update stream configuration asynchronously.
+    ///
+    /// Resolves when the reconfiguration completes. Awaiting this **does not
+    /// block the executor thread**.
     ///
     /// # Errors
     ///
-    /// Returns an error if the update fails.
-    pub fn update_configuration(&self, config: &SCStreamConfiguration) -> Result<(), SCError> {
-        self.stream.update_configuration(config)
+    /// The awaited result is `Err(SCError::StreamError)` if the update fails.
+    pub fn update_configuration(&self, config: &SCStreamConfiguration) -> StreamControlFuture {
+        let (future, context) = AsyncCompletion::<()>::create();
+        // SAFETY: `self.stream.as_ptr()` and `config.as_ptr()` are valid for the
+        // duration of this call; `context` is the one-shot completion pointer.
+        unsafe {
+            crate::ffi::sc_stream_update_configuration(
+                self.stream.as_ptr(),
+                config.as_ptr(),
+                context,
+                stream_control_callback,
+            );
+        }
+        StreamControlFuture {
+            inner: future,
+            map_err: SCError::StreamError,
+        }
     }
 
-    /// Update content filter
+    /// Update content filter asynchronously.
+    ///
+    /// Resolves when the filter swap completes. Awaiting this **does not block
+    /// the executor thread**.
     ///
     /// # Errors
     ///
-    /// Returns an error if the update fails.
-    pub fn update_content_filter(&self, filter: &SCContentFilter) -> Result<(), SCError> {
-        self.stream.update_content_filter(filter)
+    /// The awaited result is `Err(SCError::StreamError)` if the update fails.
+    pub fn update_content_filter(&self, filter: &SCContentFilter) -> StreamControlFuture {
+        let (future, context) = AsyncCompletion::<()>::create();
+        // SAFETY: `self.stream.as_ptr()` and `filter.as_ptr()` are valid for the
+        // duration of this call; `context` is the one-shot completion pointer.
+        unsafe {
+            crate::ffi::sc_stream_update_content_filter(
+                self.stream.as_ptr(),
+                filter.as_ptr(),
+                context,
+                stream_control_callback,
+            );
+        }
+        StreamControlFuture {
+            inner: future,
+            map_err: SCError::StreamError,
+        }
     }
 
     /// Get a reference to the underlying stream

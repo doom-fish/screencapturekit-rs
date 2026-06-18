@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- [**breaking**] `AsyncSCStream::start_capture`, `stop_capture`, `update_configuration`,
+  and `update_content_filter` are now genuinely async: they return a
+  `StreamControlFuture` (resolving to `Result<(), SCError>`) that you `.await`,
+  instead of blocking the calling thread on a condition variable. Awaiting them
+  parks the task via its `Waker` and resumes from the Swift completion callback,
+  so they no longer stall single-threaded/current-thread executors. This makes
+  the async surface fully waker-based and consistent with the underlying Swift
+  `Task { try await … }` entry points.
+
+  Migration: add `.await` (e.g. `stream.start_capture().await?`). For a
+  blocking call, use the synchronous `SCStream` directly via
+  `stream.inner().start_capture()`.
+
+### Added
+
+- `async_api::StreamControlFuture` — the `Send` future returned by the
+  `AsyncSCStream` lifecycle methods.
+
 ## [7.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v7.0.0...v7.0.1) - 2026-06-06
 
 ### Fixed
