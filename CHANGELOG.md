@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v7.0.1...v8.0.0) - 2026-06-19
+
+### Added
+
+- *(async)* implement futures::Stream for AsyncSCStream and recording events
+- *(async)* multi-output AsyncSCStream (capture A/V from one stream)
+- *(async)* [**breaking**] propagate stop errors in AsyncSCStream; consolidate stop delegate
+- *(async)* [**breaking**] make AsyncSCStream lifecycle methods truly async
+
+### Fixed
+
+- *(stream)* surface failed output-handler registration instead of dropping it silently
+
+### Other
+
+- *(deps-dev)* raise bitflags cap to <2.14 (fixes fresh-resolve to 2.13.0)
+- *(readme)* update for v8 async API
+- *(examples)* add audio+video multi-output showcase; apply rustfmt
+- restore Recall.ai sponsor banner and update v6 references to v7
+
 ### Changed
 
 - [**breaking**] `AsyncSCStream::start_capture`, `stop_capture`, `update_configuration`,
