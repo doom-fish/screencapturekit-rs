@@ -24,7 +24,7 @@
 - 🎥 **Screen, window, and app capture** with a clean builder-pattern API
 - 🔊 **System audio** + **microphone** capture (macOS 13.0+ / 15.0+)
 - ⚡ **Real-time, zero-copy** frame delivery via `IOSurface` / Metal
-- 🔄 **Async** support that works with any executor (Tokio, async-std, smol, …)
+- 🔄 **Async** support that works with any executor (Tokio, async-std, smol, …) — fully waker-based, never blocks your runtime
 - 📸 **Screenshots** + **direct-to-file recording** (macOS 14.0+ / 15.0+)
 - 🖱️ **System content picker** UI (macOS 14.0+)
 - 🛡️ **Memory safe** — proper retain/release, leak-tested
@@ -43,7 +43,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "7"
+screencapturekit = "8"
 ```
 
 Opt-in features (additive):
@@ -62,15 +62,16 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "7", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "8", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading a major version?** See [`docs/MIGRATION.md`](docs/MIGRATION.md)
 > for a per-version guide. Releases 3.0–6.0 consolidated the Core Graphics /
-> Core Media foundation types onto the shared `apple-cf` crate, and 7.0 hardens
-> the FFI boundary without touching the public types; across the whole line the
-> only likely source change is 5.0's nested `CGRect` layout (`rect.origin.x` /
-> `rect.size.width`).
+> Core Media foundation types onto the shared `apple-cf` crate and 7.0 hardens
+> the FFI boundary; the only likely source change across that line is 5.0's
+> nested `CGRect` layout (`rect.origin.x` / `rect.size.width`). **8.0** makes the
+> `async` stream lifecycle methods real futures — add `.await` to
+> `AsyncSCStream::{start,stop}_capture` and `update_*` (see below).
 
 ## Quick Start
 
@@ -183,20 +184,66 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 30-frame ring buffer; oldest frames are dropped if the consumer can't keep up.
     let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
-    stream.start_capture()?;
+    // start/stop/update are real futures — awaiting parks the task via its
+    // Waker and never blocks the executor thread.
+    stream.start_capture().await?;
 
     while let Some(_frame) = stream.next().await {
         // process frame
         # break;
     }
 
-    stream.stop_capture()?;
+    stream.stop_capture().await?;
+    // Distinguish a normal end from an error stop (display gone, perms revoked, …):
+    if let Some(err) = stream.take_error() {
+        eprintln!("stream stopped with error: {err}");
+    }
     Ok(())
 }
 ```
 
 Requires the `async` feature. Works with Tokio, async-std, smol, or any
-custom executor — the binding does **not** spawn its own runtime.
+custom executor — the binding does **not** spawn its own runtime, and the
+lifecycle methods are waker-based so they never block the executor.
+</details>
+
+<details>
+<summary><strong>Async audio + video from one stream</strong></summary>
+
+```rust,ignore
+use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
+use screencapturekit::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let content = AsyncSCShareableContent::get().await?;
+    let display = &content.displays()[0];
+    let filter = SCContentFilter::create()
+        .with_display(display).with_excluding_windows(&[]).build();
+    // Enable audio in the configuration …
+    let config = SCStreamConfiguration::new()
+        .with_width(1920).with_height(1080)
+        .with_captures_audio(true);
+
+    let mut stream = AsyncSCStream::new(&filter, &config, 32, SCStreamOutputType::Screen);
+    // … then register audio as a second output type on the SAME stream.
+    stream.add_output_type(SCStreamOutputType::Audio);
+    stream.start_capture().await?;
+
+    // `next_typed()` yields each sample tagged with its output type.
+    while let Some((_sample, kind)) = stream.next_typed().await {
+        match kind {
+            SCStreamOutputType::Screen => { /* video frame */ }
+            SCStreamOutputType::Audio  => { /* system audio */ }
+            _ => {}
+        }
+        # break;
+    }
+
+    stream.stop_capture().await?;
+    Ok(())
+}
+```
 </details>
 
 <details>
@@ -476,9 +523,18 @@ Highlights by major version:
   `bgra_data_into_strided`) plus a locked `IOSurface` CPU view, and relaxes the
   `AudioBufferRef::data()` slice lifetime so the returned slice is tied to the
   wrapped buffer.
+- **8.0** — `async` only. `AsyncSCStream::{start_capture, stop_capture,
+  update_configuration, update_content_filter}` now return a waker-based future
+  instead of blocking — add `.await` (e.g. `stream.start_capture().await?`). The
+  stream engine now reports stops only through
+  `SCStreamDelegateTrait::did_stop_with_error` (the redundant `stream_did_stop`
+  is deprecated). New: `AsyncSCStream::{take_error, add_output_type, next_typed,
+  try_next_typed}` for error visibility and audio+video on one stream. The
+  synchronous `SCStream` API is unchanged.
 
 If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–7.0
-upgrades are typically just the 5.0 `CGRect` field-access change.
+upgrades are typically just the 5.0 `CGRect` field-access change, and 8.0 only
+affects you if you use the `async` API.
 
 ## Contributing
 
