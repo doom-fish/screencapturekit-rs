@@ -30,6 +30,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     async_stream_iteration().await?;
     println!();
     runtime_agnostic_demo().await?;
+    println!();
+    av_capture().await?;
 
     #[cfg(feature = "macos_14_0")]
     {
@@ -42,6 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n💡 Key Points:");
     println!("   • True async with callback-based Swift FFI");
     println!("   • No blocking - yields to executor while waiting");
+    println!("   • start/stop/update are real futures (waker-based, never block)");
+    println!("   • One stream can carry audio + video (next_typed)");
     println!("   • Works with ANY async runtime");
 
     Ok(())
@@ -218,7 +222,78 @@ async fn runtime_agnostic_demo() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // ============================================================================
-// Example 5: Async Content Picker (macOS 14.0+)
+// Example 5: Audio + Video from a single async stream (multi-output)
+// ============================================================================
+
+#[cfg(feature = "async")]
+async fn av_capture() -> Result<(), Box<dyn std::error::Error>> {
+    use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+    use screencapturekit::stream::output_type::SCStreamOutputType;
+    use std::time::Duration;
+
+    println!("🎬 5. Audio + Video From One Async Stream");
+    println!("   ─────────────────────────────────────");
+
+    let content = AsyncSCShareableContent::get().await?;
+    let displays = content.displays();
+    let Some(display) = displays.first() else {
+        println!("   ⚠️  No displays available");
+        return Ok(());
+    };
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+
+    // Enable system-audio capture in the configuration, create the stream for
+    // video, then register audio as a second output type so ONE stream carries
+    // both. `next_typed()` yields each sample together with its output type.
+    let config = SCStreamConfiguration::new()
+        .with_width(1280)
+        .with_height(720)
+        .with_captures_audio(true);
+
+    let mut stream = AsyncSCStream::new(&filter, &config, 32, SCStreamOutputType::Screen);
+    if stream.add_output_type(SCStreamOutputType::Audio) {
+        println!("   ✅ Registered audio + video on a single stream");
+    }
+
+    stream.start_capture().await?;
+    println!("   Capturing interleaved audio/video samples...");
+
+    let mut video = 0u32;
+    let mut audio = 0u32;
+    // Pull samples, dispatching on their output type. A per-sample timeout keeps
+    // the demo from blocking if the screen is static / system audio is silent.
+    for _ in 0..60 {
+        match tokio::time::timeout(Duration::from_millis(500), stream.next_typed()).await {
+            Ok(Some((_sample, SCStreamOutputType::Screen))) => video += 1,
+            Ok(Some((_sample, SCStreamOutputType::Audio))) => audio += 1,
+            Ok(Some((_sample, SCStreamOutputType::Microphone))) => {}
+            Ok(None) => break, // stream closed
+            Err(_) => {}       // no sample this round; keep polling
+        }
+        if video >= 10 && audio >= 1 {
+            break;
+        }
+    }
+
+    stream.stop_capture().await?;
+    println!("   ✅ Received {video} video + {audio} audio samples (one stream)");
+
+    // Surface an error stop, if any (next_typed() would have returned None).
+    if let Some(err) = stream.take_error() {
+        eprintln!("   ⚠️  Stream stopped with error: {err}");
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// Example 6: Async Content Picker (macOS 14.0+)
 // ============================================================================
 
 #[cfg(all(feature = "async", feature = "macos_14_0"))]
@@ -228,7 +303,7 @@ async fn async_content_picker() -> Result<(), Box<dyn std::error::Error>> {
         SCContentSharingPickerConfiguration, SCPickerOutcome,
     };
 
-    println!("🎯 5. Async Content Picker (macOS 14.0+)");
+    println!("🎯 6. Async Content Picker (macOS 14.0+)");
     println!("   ─────────────────────────────────────");
     println!("   The picker UI will appear - select content or cancel.");
     println!("   This is truly async - the executor is NOT blocked while waiting.\n");

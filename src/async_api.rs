@@ -521,7 +521,8 @@ pub struct StreamControlFuture {
 
 impl std::fmt::Debug for StreamControlFuture {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("StreamControlFuture").finish_non_exhaustive()
+        f.debug_struct("StreamControlFuture")
+            .finish_non_exhaustive()
     }
 }
 
@@ -684,7 +685,9 @@ impl AsyncSCStream {
         let sender = AsyncSampleSender {
             inner: Arc::clone(&self.iterator_state),
         };
-        self.stream.add_output_handler(sender, output_type).is_some()
+        self.stream
+            .add_output_handler(sender, output_type)
+            .is_some()
     }
 
     /// Try to get a sample without waiting

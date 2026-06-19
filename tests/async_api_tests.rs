@@ -354,7 +354,9 @@ fn test_async_stream_take_error_initially_none() {
                 .with_display(display)
                 .with_excluding_windows(&[])
                 .build();
-            let config = SCStreamConfiguration::new().with_width(100).with_height(100);
+            let config = SCStreamConfiguration::new()
+                .with_width(100)
+                .with_height(100);
             let stream = AsyncSCStream::new(&filter, &config, 4, SCStreamOutputType::Screen);
 
             // A freshly created stream is open and has no stop error.
