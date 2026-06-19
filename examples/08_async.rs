@@ -140,6 +140,7 @@ async fn concurrent_operations() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "async")]
 async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
+    use futures_util::StreamExt;
     use screencapturekit::async_api::{AsyncSCShareableContent, AsyncSCStream};
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
@@ -169,7 +170,7 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("   Capturing frames asynchronously...");
 
-        // Capture 10 frames using async iteration
+        // Style A — manual `next().await` loop:
         let mut count = 0;
         while count < 10 {
             if let Some(_frame) = stream.next().await {
@@ -180,8 +181,13 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
+        // Style B — `frames()` is a `futures::Stream`, so the whole StreamExt
+        // combinator ecosystem (take / map / collect / for_each / …) just works:
+        let batch: Vec<()> = stream.frames().map(|_frame| ()).take(5).collect().await;
+        println!("      StreamExt collected {} more frames", batch.len());
+
         stream.stop_capture().await?;
-        println!("   ✅ Captured {count} frames");
+        println!("   ✅ Captured {} frames", count + batch.len());
     } else {
         println!("   ⚠️  No displays available");
     }

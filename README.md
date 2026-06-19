@@ -28,7 +28,7 @@
 - 📸 **Screenshots** + **direct-to-file recording** (macOS 14.0+ / 15.0+)
 - 🖱️ **System content picker** UI (macOS 14.0+)
 - 🛡️ **Memory safe** — proper retain/release, leak-tested
-- 📦 **Minimal dependencies** — only the thin `apple-cf` / `apple-metal` binding crates (no heavy third-party runtime deps)
+- 📦 **Minimal dependencies** — only the thin `apple-cf` / `apple-metal` binding crates (plus trait-only `futures-core` when the `async` feature is on; no heavy third-party runtime deps)
 
 ## Table of Contents
 
@@ -204,7 +204,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Requires the `async` feature. Works with Tokio, async-std, smol, or any
 custom executor — the binding does **not** spawn its own runtime, and the
-lifecycle methods are waker-based so they never block the executor.
+lifecycle methods are waker-based so they never block the executor. `AsyncSCStream`
+also exposes `frames()` / `frames_typed()` as `futures::Stream`s, so you can use
+the `StreamExt` combinators (`take`, `map`, `filter`, `collect`, …):
+
+```rust,ignore
+use futures_util::StreamExt;
+let first_30: Vec<_> = stream.frames().take(30).collect().await;
+```
 </details>
 
 <details>

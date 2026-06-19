@@ -46,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AsyncSCStream::next_typed` / `try_next_typed` (plus the `NextSampleTyped`
   future) yield each sample together with its `SCStreamOutputType` so audio and
   video can be captured from one stream and told apart.
+- `futures::Stream` integration (enabled by the `async` feature, via a new
+  optional `futures-core` dependency): `AsyncSCStream::frames` /
+  `frames_typed` and `AsyncSCRecordingOutput::events` return
+  `futures_core::Stream`s (`SampleStream`, `TypedSampleStream`,
+  `RecordingEventStream`) so captures plug into the `StreamExt` combinator
+  ecosystem (`map`, `filter`, `take`, `for_each`, `collect`, …).
 
 ### Deprecated
 

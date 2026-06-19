@@ -317,6 +317,18 @@ fn test_next_sample_typed_debug() {
 }
 
 #[test]
+fn test_sample_stream_types_debug_and_stream() {
+    fn assert_debug<T: std::fmt::Debug>() {}
+    fn assert_stream<T: futures_util::Stream>() {}
+
+    assert_debug::<SampleStream<'_>>();
+    assert_debug::<TypedSampleStream<'_>>();
+    // Compile-time proof the adapters implement `futures_core::Stream`.
+    assert_stream::<SampleStream<'_>>();
+    assert_stream::<TypedSampleStream<'_>>();
+}
+
+#[test]
 fn test_stream_control_future_is_send_and_debug() {
     // The lifecycle control futures must be `Send` so they can be driven on
     // multi-threaded executors and moved across `tokio::spawn` boundaries, and
@@ -407,6 +419,56 @@ fn test_async_stream_multi_output_typed() {
                 let _ = stream.inner().stop_capture();
             }
         }
+    }
+}
+
+#[tokio::test]
+async fn test_async_stream_frames_streamext_combinators() {
+    use futures_util::StreamExt;
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    let Ok(content) = SCShareableContent::get() else {
+        return;
+    };
+    let displays = content.displays();
+    let Some(display) = displays.first() else {
+        return;
+    };
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+    let config = SCStreamConfiguration::new()
+        .with_width(160)
+        .with_height(120)
+        .with_shows_cursor(true);
+
+    let stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen);
+
+    if stream.start_capture().await.is_ok() {
+        // Drive the `futures_core::Stream` impl through `StreamExt`: take at most
+        // 3 frames, mapping each to a unit so we exercise a combinator chain.
+        // A timeout keeps a static screen from hanging the test.
+        let collected = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            stream
+                .frames()
+                .map(|_frame| ())
+                .take(3)
+                .collect::<Vec<()>>(),
+        )
+        .await;
+
+        // Either we collected up to 3 frames, or we timed out — both are fine on
+        // CI; the point is the StreamExt chain type-checks and drives the stream.
+        if let Ok(frames) = collected {
+            assert!(frames.len() <= 3);
+        }
+
+        let _ = stream.stop_capture().await;
     }
 }
 

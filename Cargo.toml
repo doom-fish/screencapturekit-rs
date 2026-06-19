@@ -43,7 +43,10 @@ default = []
 cargo-clippy = []
 
 # Async support (executor-agnostic, works with any async runtime)
-async = []
+# Pulls in `futures-core` only for its `Stream` trait so `AsyncSCStream` can
+# integrate with the `StreamExt` combinator ecosystem. `futures-core` is a tiny,
+# `no_std`, trait-only crate.
+async = ["dep:futures-core"]
 
 # macOS version feature flags
 # Enable features for specific macOS versions
@@ -67,6 +70,11 @@ macos_26_0 = ["macos_15_2"]
 apple-cf = { version = ">=0.6, <0.10", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
 apple-metal = { version = ">=0.6, <0.9", default-features = false }
 
+# Trait-only crate providing `futures_core::Stream`; enabled by the `async`
+# feature so `AsyncSCStream` / `AsyncSCRecordingOutput` can be consumed with the
+# standard `StreamExt` combinators. No-op unless `async` is enabled.
+futures-core = { version = "0.3", default-features = false, optional = true }
+
 [dev-dependencies]
 # Cap the transitive bitflags pulled in via the bevy dev-dependency: bitflags
 # 2.12.0 overflows the macro recursion limit while compiling dispatch2
@@ -80,6 +88,8 @@ apple-metal = { version = ">=0.6, <0.9", default-features = false }
 bitflags = ">=2.0, <2.14"
 png = "0.18"
 tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+# `StreamExt` combinators for exercising the `futures_core::Stream` impls.
+futures-util = { version = "0.3", default-features = false }
 winit = "0.30"
 raw-window-handle = "0.6"
 criterion = { version = "0.8", features = ["html_reports"] }

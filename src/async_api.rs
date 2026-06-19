@@ -351,6 +351,37 @@ impl Drop for AsyncSampleSender {
     }
 }
 
+/// Shared poll logic for the sample futures/streams: pop the next buffered
+/// `(buffer, type)` pair, resolve to `None` when closed, or register the waker.
+fn poll_next_sample(
+    state: &Arc<Mutex<AsyncSampleIteratorState>>,
+    cx: &Context<'_>,
+) -> Poll<Option<(crate::cm::CMSampleBuffer, SCStreamOutputType)>> {
+    let Ok(mut state) = state.lock() else {
+        return Poll::Ready(None);
+    };
+
+    if let Some(sample) = state.buffer.pop_front() {
+        return Poll::Ready(Some(sample));
+    }
+
+    if state.closed {
+        Poll::Ready(None)
+    } else {
+        // Avoid the lost-wakeup race: when the same future/stream is polled by
+        // a different task (e.g. moved between `tokio::select!` arms), the waker
+        // changes. `will_wake` skips the clone when the executor reuses the same
+        // waker; the explicit assignment guarantees the latest waker is the one
+        // a future sample arrival will wake.
+        let waker = cx.waker();
+        match state.waker {
+            Some(ref existing) if existing.will_wake(waker) => {}
+            _ => state.waker = Some(waker.clone()),
+        }
+        Poll::Pending
+    }
+}
+
 /// Future for getting the next sample buffer
 pub struct NextSample<'a> {
     state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
@@ -366,30 +397,7 @@ impl Future for NextSample<'_> {
     type Output = Option<crate::cm::CMSampleBuffer>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Ok(mut state) = self.state.lock() else {
-            return Poll::Ready(None);
-        };
-
-        if let Some((sample, _of_type)) = state.buffer.pop_front() {
-            return Poll::Ready(Some(sample));
-        }
-
-        if state.closed {
-            Poll::Ready(None)
-        } else {
-            // Avoid the lost-wakeup race: when the same future is polled by
-            // a different task (e.g. moved between tokio::select! arms),
-            // the waker changes. Using `will_wake` avoids needlessly cloning
-            // when the executor reuses the same waker, and the explicit
-            // assignment guarantees the latest waker is the one a future
-            // sample arrival will wake.
-            let waker = cx.waker();
-            match state.waker {
-                Some(ref existing) if existing.will_wake(waker) => {}
-                _ => state.waker = Some(waker.clone()),
-            }
-            Poll::Pending
-        }
+        poll_next_sample(self.state, cx).map(|opt| opt.map(|(buffer, _of_type)| buffer))
     }
 }
 
@@ -413,25 +421,62 @@ impl Future for NextSampleTyped<'_> {
     type Output = Option<(crate::cm::CMSampleBuffer, SCStreamOutputType)>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Ok(mut state) = self.state.lock() else {
-            return Poll::Ready(None);
-        };
+        poll_next_sample(self.state, cx)
+    }
+}
 
-        if let Some(sample) = state.buffer.pop_front() {
-            return Poll::Ready(Some(sample));
-        }
+/// A [`Stream`](futures_core::Stream) of captured sample buffers.
+///
+/// Yields `CMSampleBuffer`s and ends (`None`) when the stream closes. Returned
+/// by [`AsyncSCStream::frames`]; it borrows the stream and is `Unpin`, so it
+/// plugs straight into the `futures::StreamExt` combinators:
+///
+/// ```no_run
+/// # async fn example(stream: screencapturekit::async_api::AsyncSCStream) {
+/// use futures_util::StreamExt;
+/// let first_ten: Vec<_> = stream.frames().take(10).collect().await;
+/// # let _ = first_ten;
+/// # }
+/// ```
+pub struct SampleStream<'a> {
+    state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
+}
 
-        if state.closed {
-            Poll::Ready(None)
-        } else {
-            // See `NextSample::poll` for the lost-wakeup rationale.
-            let waker = cx.waker();
-            match state.waker {
-                Some(ref existing) if existing.will_wake(waker) => {}
-                _ => state.waker = Some(waker.clone()),
-            }
-            Poll::Pending
-        }
+impl std::fmt::Debug for SampleStream<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SampleStream").finish_non_exhaustive()
+    }
+}
+
+impl futures_core::Stream for SampleStream<'_> {
+    type Item = crate::cm::CMSampleBuffer;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        poll_next_sample(self.state, cx).map(|opt| opt.map(|(buffer, _of_type)| buffer))
+    }
+}
+
+/// A [`Stream`](futures_core::Stream) of captured sample buffers tagged with
+/// their [`SCStreamOutputType`].
+///
+/// Like [`SampleStream`] but yields `(CMSampleBuffer, SCStreamOutputType)` so a
+/// multi-output stream's audio and video can be told apart. Returned by
+/// [`AsyncSCStream::frames_typed`].
+pub struct TypedSampleStream<'a> {
+    state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
+}
+
+impl std::fmt::Debug for TypedSampleStream<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TypedSampleStream").finish_non_exhaustive()
+    }
+}
+
+impl futures_core::Stream for TypedSampleStream<'_> {
+    type Item = (crate::cm::CMSampleBuffer, SCStreamOutputType);
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        poll_next_sample(self.state, cx)
     }
 }
 
@@ -664,6 +709,59 @@ impl AsyncSCStream {
     /// the stream is closed.
     pub fn next_typed(&self) -> NextSampleTyped<'_> {
         NextSampleTyped {
+            state: &self.iterator_state,
+        }
+    }
+
+    /// Borrow the captured frames as a [`Stream`](futures_core::Stream) of
+    /// `CMSampleBuffer`s.
+    ///
+    /// This unlocks the `futures::StreamExt` combinator ecosystem
+    /// (`map`, `filter`, `take`, `for_each`, `zip`, …) for processing frames:
+    ///
+    /// ```no_run
+    /// # async fn example(stream: screencapturekit::async_api::AsyncSCStream) {
+    /// use futures_util::StreamExt;
+    ///
+    /// let frames: Vec<_> = stream.frames().take(30).collect().await;
+    /// # let _ = frames;
+    /// # }
+    /// ```
+    ///
+    /// The returned stream borrows `self`; for a multi-output stream use
+    /// [`frames_typed`](Self::frames_typed) to keep each sample's output type.
+    #[must_use]
+    pub fn frames(&self) -> SampleStream<'_> {
+        SampleStream {
+            state: &self.iterator_state,
+        }
+    }
+
+    /// Borrow the captured frames as a [`Stream`](futures_core::Stream) of
+    /// `(CMSampleBuffer, SCStreamOutputType)` pairs.
+    ///
+    /// Like [`frames`](Self::frames) but keeps each sample's output type, so a
+    /// stream carrying both audio and video (see
+    /// [`add_output_type`](Self::add_output_type)) can route samples with
+    /// `StreamExt` combinators:
+    ///
+    /// ```no_run
+    /// # async fn example(stream: screencapturekit::async_api::AsyncSCStream) {
+    /// use futures_util::StreamExt;
+    /// use screencapturekit::stream::output_type::SCStreamOutputType;
+    ///
+    /// let audio: Vec<_> = stream
+    ///     .frames_typed()
+    ///     .filter(|(_, kind)| std::future::ready(*kind == SCStreamOutputType::Audio))
+    ///     .take(10)
+    ///     .collect()
+    ///     .await;
+    /// # let _ = audio;
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn frames_typed(&self) -> TypedSampleStream<'_> {
+        TypedSampleStream {
             state: &self.iterator_state,
         }
     }
@@ -1522,25 +1620,61 @@ impl Future for NextRecordingEvent<'_> {
     type Output = Option<RecordingEvent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Ok(mut state) = self.state.lock() else {
-            return Poll::Ready(None);
-        };
+        poll_next_recording_event(self.state, cx)
+    }
+}
 
-        if let Some(event) = state.events.pop_front() {
-            return Poll::Ready(Some(event));
-        }
+/// Shared poll logic for the recording-event future/stream.
+#[cfg(feature = "macos_15_0")]
+fn poll_next_recording_event(
+    state: &Arc<Mutex<AsyncRecordingState>>,
+    cx: &Context<'_>,
+) -> Poll<Option<RecordingEvent>> {
+    let Ok(mut state) = state.lock() else {
+        return Poll::Ready(None);
+    };
 
-        if state.finished {
-            Poll::Ready(None)
-        } else {
-            // Avoid the lost-wakeup race — see NextSample::poll above.
-            let waker = cx.waker();
-            match state.waker {
-                Some(ref existing) if existing.will_wake(waker) => {}
-                _ => state.waker = Some(waker.clone()),
-            }
-            Poll::Pending
+    if let Some(event) = state.events.pop_front() {
+        return Poll::Ready(Some(event));
+    }
+
+    if state.finished {
+        Poll::Ready(None)
+    } else {
+        // Avoid the lost-wakeup race — see `poll_next_sample` above.
+        let waker = cx.waker();
+        match state.waker {
+            Some(ref existing) if existing.will_wake(waker) => {}
+            _ => state.waker = Some(waker.clone()),
         }
+        Poll::Pending
+    }
+}
+
+/// A [`Stream`](futures_core::Stream) of recording lifecycle [`RecordingEvent`]s.
+///
+/// Yields `Started` / `Finished` / `Failed(_)` and ends (`None`) once the
+/// recording finishes or fails. Returned by [`AsyncSCRecordingOutput::events`];
+/// integrates with the `futures::StreamExt` combinators.
+#[cfg(feature = "macos_15_0")]
+pub struct RecordingEventStream<'a> {
+    state: &'a Arc<Mutex<AsyncRecordingState>>,
+}
+
+#[cfg(feature = "macos_15_0")]
+impl std::fmt::Debug for RecordingEventStream<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RecordingEventStream")
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "macos_15_0")]
+impl futures_core::Stream for RecordingEventStream<'_> {
+    type Item = RecordingEvent;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        poll_next_recording_event(self.state, cx)
     }
 }
 
@@ -1640,6 +1774,31 @@ impl AsyncSCRecordingOutput {
     /// Returns `None` when the recording has finished or failed.
     pub fn next(&self) -> NextRecordingEvent<'_> {
         NextRecordingEvent { state: &self.state }
+    }
+
+    /// Borrow the recording events as a [`Stream`](futures_core::Stream) of
+    /// [`RecordingEvent`]s.
+    ///
+    /// Unlocks the `futures::StreamExt` combinators for the recording event
+    /// flow (`for_each`, `take_while`, …):
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "macos_15_0")]
+    /// # async fn example(recording: screencapturekit::async_api::AsyncSCRecordingOutput) {
+    /// use futures_util::StreamExt;
+    ///
+    /// recording
+    ///     .events()
+    ///     .for_each(|event| {
+    ///         println!("recording event: {event:?}");
+    ///         std::future::ready(())
+    ///     })
+    ///     .await;
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn events(&self) -> RecordingEventStream<'_> {
+        RecordingEventStream { state: &self.state }
     }
 
     /// Check if the recording has finished
