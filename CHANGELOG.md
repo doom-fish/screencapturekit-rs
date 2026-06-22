@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v8.0.0...v8.0.1) - 2026-06-22
+
+### Other
+
+- *(deps)* update bevy requirement from 0.18 to 0.19 ([#154](https://github.com/doom-fish/screencapturekit-rs/pull/154))
+
 ## [8.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v7.0.1...v8.0.0) - 2026-06-19
 
 ### Added
