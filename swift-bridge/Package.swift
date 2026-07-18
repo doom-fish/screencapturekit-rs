@@ -6,9 +6,9 @@ import PackageDescription
 //
 // Note: CoreGraphicsBridge / CoreVideoBridge / IOSurfaceBridge / DispatchBridge
 // targets that used to live here were extracted into apple-cf-rs's bridge.
-// CoreMediaBridge here keeps only the SCStreamFrameInfo attachment readers
-// and a few generic accessors with frame-info-specific signatures —
-// everything else comes from apple-cf's CoreMediaBridge target.
+// ScreenCaptureKitCoreMediaBridge keeps only the SCStreamFrameInfo attachment
+// readers and a few generic accessors with frame-info-specific signatures.
+// Generic CoreMedia bindings come from apple-cf's CoreMediaBridge target.
 
 let package = Package(
     name: "ScreenCaptureKitBridge",
@@ -25,14 +25,14 @@ let package = Package(
         // Main ScreenCaptureKit bindings.
         .target(
             name: "ScreenCaptureKitBridge",
-            dependencies: ["CoreMediaBridge", "MetalBridge"],
+            dependencies: ["ScreenCaptureKitCoreMediaBridge", "MetalBridge"],
             path: "Sources/ScreenCaptureKitBridge"),
         // CoreMedia bindings — only the SCStreamFrameInfo attachment readers
         // and SC-specific sample-buffer helpers. Generic CMSampleBuffer /
         // CMBlockBuffer / CMFormatDescription accessors come from
         // apple-cf-rs's CoreMediaBridge.
         .target(
-            name: "CoreMediaBridge",
+            name: "ScreenCaptureKitCoreMediaBridge",
             path: "Sources/CoreMedia"),
         // Metal framework bindings (MTLDevice, MTLTexture, etc.) — apple-cf
         // doesn't provide a metal module yet so this stays local.
