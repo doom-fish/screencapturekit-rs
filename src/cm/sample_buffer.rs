@@ -13,8 +13,7 @@
 
 use super::ffi;
 use super::{
-    AudioBuffer, AudioBufferList, AudioBufferListRaw, CMBlockBuffer, CMSampleTimingInfo, CMTime,
-    SCFrameStatus,
+    AudioBuffer, AudioBufferList, CMBlockBuffer, CMSampleTimingInfo, CMTime, SCFrameStatus,
 };
 use crate::cv::CVPixelBuffer;
 
@@ -40,6 +39,7 @@ impl FrameInfoFields {
     const BOUNDING_RECT: u32 = 1 << 5;
     const SCREEN_RECT: u32 = 1 << 6;
     const PRESENTER_OVERLAY_RECT: u32 = 1 << 7;
+    const DIRTY_RECTS: u32 = 1 << 8;
 }
 
 /// Snapshot of every `SCStreamFrameInfo` attachment on a sample buffer.
@@ -47,7 +47,10 @@ impl FrameInfoFields {
 /// Returned by [`CMSampleBufferSCExt::frame_info`]. Each field is `Some` when
 /// the underlying attachment was present (depends on macOS version, output
 /// type, and stream configuration); `None` indicates the attachment was
-/// missing.
+/// missing. Every key `ScreenCaptureKit` documents on `SCStreamFrameInfo` has
+/// a field here, so a `FrameInfo` is a faithful, complete representation of
+/// the attachment dictionary — there is no attachment you still have to reach
+/// for a single-key accessor to read.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct FrameInfo {
@@ -71,6 +74,10 @@ pub struct FrameInfo {
     /// `SCStreamFrameInfo.presenterOverlayContentRect` — Presenter Overlay
     /// bounding rect (macOS 14.2+).
     pub presenter_overlay_content_rect: Option<crate::cg::CGRect>,
+    /// `SCStreamFrameInfo.dirtyRects` — regions that changed since the
+    /// previous frame. `Some(vec)` is always non-empty; an attachment holding
+    /// zero usable rects reads back as `None`.
+    pub dirty_rects: Option<Vec<crate::cg::CGRect>>,
 }
 
 // ------------------------------------------------------------------
@@ -232,22 +239,7 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             if !ffi::cm_sample_buffer_get_dirty_rects(self.as_ptr(), &mut rects_ptr, &mut count) {
                 return None;
             }
-            if rects_ptr.is_null() || count == 0 {
-                return None;
-            }
-            let rects_typed = rects_ptr.cast::<f64>();
-            let mut rects = Vec::with_capacity(count);
-            for i in 0..count {
-                let base = rects_typed.add(i * 4);
-                rects.push(crate::cg::CGRect::new(
-                    *base,
-                    *base.add(1),
-                    *base.add(2),
-                    *base.add(3),
-                ));
-            }
-            ffi::cm_sample_buffer_free_dirty_rects(rects_ptr);
-            Some(rects)
+            take_dirty_rects(rects_ptr, count)
         }
     }
 
@@ -262,6 +254,8 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             let mut bounding_rect = [0.0_f64; 4];
             let mut screen_rect = [0.0_f64; 4];
             let mut presenter_overlay_rect = [0.0_f64; 4];
+            let mut dirty_rects_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+            let mut dirty_rects_count: usize = 0;
             if !ffi::cm_sample_buffer_get_frame_info(
                 self.as_ptr(),
                 &mut fields,
@@ -273,10 +267,22 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
                 bounding_rect.as_mut_ptr(),
                 screen_rect.as_mut_ptr(),
                 presenter_overlay_rect.as_mut_ptr(),
+                &mut dirty_rects_ptr,
+                &mut dirty_rects_count,
             ) {
+                // The bridge only allocates the dirty-rect array when it sets
+                // the DIRTY_RECTS bit, but free defensively so an unexpected
+                // false return can never leak it.
+                drop(take_dirty_rects(dirty_rects_ptr, dirty_rects_count));
                 return None;
             }
             let to_rect = |a: [f64; 4]| crate::cg::CGRect::new(a[0], a[1], a[2], a[3]);
+            let dirty_rects = if (fields & FrameInfoFields::DIRTY_RECTS) != 0 {
+                take_dirty_rects(dirty_rects_ptr, dirty_rects_count)
+            } else {
+                drop(take_dirty_rects(dirty_rects_ptr, dirty_rects_count));
+                None
+            };
             Some(FrameInfo {
                 frame_status: ((fields & FrameInfoFields::STATUS) != 0)
                     .then(|| SCFrameStatus::from_raw(status))
@@ -297,9 +303,41 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
                     & FrameInfoFields::PRESENTER_OVERLAY_RECT)
                     != 0)
                     .then(|| to_rect(presenter_overlay_rect)),
+                dirty_rects,
             })
         }
     }
+}
+
+/// Copy a bridge-allocated `[x, y, w, h] * count` array into owned
+/// [`CGRect`](crate::cg::CGRect)s and hand the allocation back to the bridge.
+///
+/// # Safety
+///
+/// `rects_ptr` must be null or a bridge-allocated array of `count * 4` `f64`s
+/// that has not been freed yet.
+unsafe fn take_dirty_rects(
+    rects_ptr: *mut std::ffi::c_void,
+    count: usize,
+) -> Option<Vec<crate::cg::CGRect>> {
+    if rects_ptr.is_null() {
+        return None;
+    }
+    let rects_typed = rects_ptr.cast::<f64>();
+    let mut rects = Vec::with_capacity(count);
+    for i in 0..count {
+        unsafe {
+            let base = rects_typed.add(i * 4);
+            rects.push(crate::cg::CGRect::new(
+                *base,
+                *base.add(1),
+                *base.add(2),
+                *base.add(3),
+            ));
+        }
+    }
+    unsafe { ffi::cm_sample_buffer_free_dirty_rects(rects_ptr) };
+    (!rects.is_empty()).then_some(rects)
 }
 
 // ------------------------------------------------------------------
@@ -439,18 +477,12 @@ impl CMSampleBufferExt for CMSampleBuffer {
                 &mut block_buffer_ptr,
             );
 
-            if num_buffers == 0 {
-                None
-            } else {
-                Some(AudioBufferList {
-                    inner: AudioBufferListRaw {
-                        num_buffers,
-                        buffers_ptr: buffers_ptr.cast::<AudioBuffer>(),
-                        buffers_len,
-                    },
-                    block_buffer_ptr,
-                })
-            }
+            AudioBufferList::from_bridge(
+                num_buffers,
+                buffers_ptr.cast::<AudioBuffer>(),
+                buffers_len,
+                block_buffer_ptr,
+            )
         }
     }
 

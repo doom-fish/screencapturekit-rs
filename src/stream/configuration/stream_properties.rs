@@ -3,6 +3,9 @@
 //! This module provides methods to configure stream identification and HDR capture settings.
 
 use super::internal::SCStreamConfiguration;
+#[cfg(feature = "macos_14_0")]
+use super::InteriorNulError;
+#[cfg(feature = "macos_14_0")]
 use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 
 /// Dynamic range mode for capture (macOS 15.0+)
@@ -24,6 +27,11 @@ impl SCStreamConfiguration {
     /// Assigns a name to the stream that can be used for debugging and identification
     /// purposes. The name appears in system logs and debugging tools.
     ///
+    /// Available on macOS 14.0+; on older systems the bridge ignores the
+    /// assignment. A name containing an interior NUL byte cannot cross the C
+    /// boundary and is ignored — use
+    /// [`try_set_stream_name`](Self::try_set_stream_name) to observe that.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -32,26 +40,37 @@ impl SCStreamConfiguration {
     /// let config = SCStreamConfiguration::new()
     ///     .with_stream_name(Some("MyApp-MainCapture"));
     /// ```
+    #[cfg(feature = "macos_14_0")]
     pub fn set_stream_name(&mut self, name: Option<&str>) -> &mut Self {
-        unsafe {
-            if let Some(stream_name) = name {
-                if let Ok(c_name) = std::ffi::CString::new(stream_name) {
-                    crate::ffi::sc_stream_configuration_set_stream_name(
-                        self.as_ptr(),
-                        c_name.as_ptr(),
-                    );
-                }
-            } else {
-                crate::ffi::sc_stream_configuration_set_stream_name(
-                    self.as_ptr(),
-                    std::ptr::null(),
-                );
-            }
-        }
+        let _ = self.try_set_stream_name(name);
         self
     }
 
+    /// Set the stream name, reporting names that cannot cross the C boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
+    /// `name` contains an interior NUL byte.
+    #[cfg(feature = "macos_14_0")]
+    pub fn try_set_stream_name(
+        &mut self,
+        name: Option<&str>,
+    ) -> Result<&mut Self, InteriorNulError> {
+        let c_name = name
+            .map(|stream_name| std::ffi::CString::new(stream_name).map_err(|_| InteriorNulError))
+            .transpose()?;
+        unsafe {
+            crate::ffi::sc_stream_configuration_set_stream_name(
+                self.as_ptr(),
+                c_name.as_ref().map_or(std::ptr::null(), |n| n.as_ptr()),
+            );
+        }
+        Ok(self)
+    }
+
     /// Set the stream name (builder pattern)
+    #[cfg(feature = "macos_14_0")]
     #[must_use]
     pub fn with_stream_name(mut self, name: Option<&str>) -> Self {
         self.set_stream_name(name);
@@ -61,6 +80,7 @@ impl SCStreamConfiguration {
     /// Get the configured stream name
     ///
     /// Returns the name assigned to this stream, if any.
+    #[cfg(feature = "macos_14_0")]
     pub fn stream_name(&self) -> Option<String> {
         unsafe {
             ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {

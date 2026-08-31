@@ -98,6 +98,100 @@ public func releaseStreamConfiguration(_ config: OpaquePointer) {
     release(config)
 }
 
+// Copy every property this bridge is able to set. Used as the fallback when
+// `SCStreamConfiguration` does not conform to `NSCopying` on the running OS.
+// The three side-channel values (backgroundColor / colorSpaceName /
+// colorMatrix) are replayed separately from `streamConfigurationStorage`,
+// which is the authoritative record of what the caller actually assigned.
+private func copyStreamConfigurationProperties(
+    from source: SCStreamConfiguration,
+    to copy: SCStreamConfiguration
+) {
+    copy.width = source.width
+    copy.height = source.height
+    copy.showsCursor = source.showsCursor
+    copy.scalesToFit = source.scalesToFit
+    copy.capturesAudio = source.capturesAudio
+    copy.sampleRate = source.sampleRate
+    copy.channelCount = source.channelCount
+    copy.queueDepth = source.queueDepth
+    copy.pixelFormat = source.pixelFormat
+    copy.minimumFrameInterval = source.minimumFrameInterval
+    copy.sourceRect = source.sourceRect
+    copy.destinationRect = source.destinationRect
+    // Read the same way the getters do; presets assign these directly, so
+    // relying only on the side-channel replay below would lose them.
+    copy.colorSpaceName = source.colorSpaceName
+    copy.colorMatrix = source.colorMatrix
+
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        if #available(macOS 14.0, *) {
+            copy.shouldBeOpaque = source.shouldBeOpaque
+            copy.preservesAspectRatio = source.preservesAspectRatio
+            copy.captureResolution = source.captureResolution
+            copy.ignoreShadowsDisplay = source.ignoreShadowsDisplay
+            copy.ignoreShadowsSingleWindow = source.ignoreShadowsSingleWindow
+            copy.ignoreGlobalClipDisplay = source.ignoreGlobalClipDisplay
+            copy.ignoreGlobalClipSingleWindow = source.ignoreGlobalClipSingleWindow
+            copy.presenterOverlayPrivacyAlertSetting = source.presenterOverlayPrivacyAlertSetting
+            copy.capturesShadowsOnly = source.capturesShadowsOnly
+            copy.streamName = source.streamName
+        }
+    #endif
+    #if SCREENCAPTUREKIT_HAS_MACOS14_2_SDK
+        if #available(macOS 14.2, *) {
+            copy.includeChildWindows = source.includeChildWindows
+        }
+    #endif
+    #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
+        if #available(macOS 15.0, *) {
+            copy.captureMicrophone = source.captureMicrophone
+            copy.excludesCurrentProcessAudio = source.excludesCurrentProcessAudio
+            copy.microphoneCaptureDeviceID = source.microphoneCaptureDeviceID
+            copy.showMouseClicks = source.showMouseClicks
+            copy.captureDynamicRange = source.captureDynamicRange
+        }
+    #endif
+}
+
+/// Produce an independent `SCStreamConfiguration` with the same settings.
+///
+/// `SCStreamConfiguration` is a mutable reference type, so handing Rust a
+/// retained pointer to the same instance makes `Clone` an alias: mutating one
+/// handle mutates every other, and two threads mutating separate "clones" race
+/// on the same non-atomic Objective-C properties. Rust's `Clone` therefore
+/// calls this instead of `retain`.
+@_cdecl("sc_stream_configuration_copy")
+public func copyStreamConfiguration(_ config: OpaquePointer) -> OpaquePointer {
+    let source: SCStreamConfiguration = unretained(config)
+
+    let copy: SCStreamConfiguration
+    if let copyable = source as? NSCopying,
+       let copied = copyable.copy(with: nil) as? SCStreamConfiguration
+    {
+        copy = copied
+    } else {
+        copy = SCStreamConfiguration()
+        copyStreamConfigurationProperties(from: source, to: copy)
+    }
+
+    retainStreamConfigurationState(for: copy)
+    if let values = streamConfigurationState(for: source) {
+        updateStreamConfigurationState(for: copy) { $0 = values }
+        if let backgroundColor = values.backgroundColor {
+            copy.backgroundColor = backgroundColor
+        }
+        if let colorSpaceName = values.colorSpaceName {
+            copy.colorSpaceName = colorSpaceName
+        }
+        if let colorMatrix = values.colorMatrix {
+            copy.colorMatrix = colorMatrix
+        }
+    }
+
+    return retain(copy)
+}
+
 @_cdecl("sc_stream_configuration_set_width")
 public func setStreamConfigurationWidth(_ config: OpaquePointer, _ width: Int) {
     let scConfig: SCStreamConfiguration = unretained(config)
@@ -288,50 +382,49 @@ public func setStreamConfigurationColorSpaceName(_ config: OpaquePointer, _ name
 public func getStreamConfigurationColorSpaceName(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
     let scConfig: SCStreamConfiguration = unretained(config)
     let colorSpaceName = (streamConfigurationState(for: scConfig)?.colorSpaceName as String?) ?? (scConfig.colorSpaceName as String)
-    guard bufferSize > 0 else {
-        return false
-    }
-    return colorSpaceName.withCString { cString in
-        guard strlen(cString) + 1 <= bufferSize else {
-            return false
-        }
-        strlcpy(buffer, cString, bufferSize)
-        return true
-    }
+    return writeCString(colorSpaceName, into: buffer, bufferSize: bufferSize)
 }
 
 @_cdecl("sc_stream_configuration_set_should_be_opaque")
 public func setStreamConfigurationShouldBeOpaque(_ config: OpaquePointer, _ shouldBeOpaque: Bool) {
-    let scConfig: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        scConfig.shouldBeOpaque = shouldBeOpaque
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let scConfig: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            scConfig.shouldBeOpaque = shouldBeOpaque
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_should_be_opaque")
 public func getStreamConfigurationShouldBeOpaque(_ config: OpaquePointer) -> Bool {
-    let scConfig: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        return scConfig.shouldBeOpaque
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let scConfig: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            return scConfig.shouldBeOpaque
+        }
+    #endif
     return false
 }
 
 // Shadow display configuration
 @_cdecl("sc_stream_configuration_set_ignores_shadow_display_configuration")
 public func setStreamConfigurationIgnoresShadowDisplayConfiguration(_ config: OpaquePointer, _ ignores: Bool) {
-    let scConfig: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        scConfig.ignoreShadowsDisplay = ignores
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let scConfig: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            scConfig.ignoreShadowsDisplay = ignores
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_ignores_shadow_display_configuration")
 public func getStreamConfigurationIgnoresShadowDisplayConfiguration(_ config: OpaquePointer) -> Bool {
-    let scConfig: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        return scConfig.ignoreShadowsDisplay
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let scConfig: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            return scConfig.ignoreShadowsDisplay
+        }
+    #endif
     return false
 }
 
@@ -371,18 +464,22 @@ public func getStreamConfigurationDestinationRect(_ config: OpaquePointer, _ x: 
 
 @_cdecl("sc_stream_configuration_set_preserves_aspect_ratio")
 public func setStreamConfigurationPreservesAspectRatio(_ config: OpaquePointer, _ preserves: Bool) {
-    let scConfig: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        scConfig.preservesAspectRatio = preserves
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let scConfig: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            scConfig.preservesAspectRatio = preserves
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_preserves_aspect_ratio")
 public func getStreamConfigurationPreservesAspectRatio(_ config: OpaquePointer) -> Bool {
-    let scConfig: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        return scConfig.preservesAspectRatio
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let scConfig: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            return scConfig.preservesAspectRatio
+        }
+    #endif
     return false
 }
 
@@ -402,28 +499,32 @@ public func getStreamConfigurationPreserveAspectRatio(_ config: OpaquePointer) -
 
 @_cdecl("sc_stream_configuration_set_capture_resolution_type")
 public func setStreamConfigurationCaptureResolutionType(_ config: OpaquePointer, _ resolution: Int32) {
-    if #available(macOS 14.0, *) {
-        let scConfig: SCStreamConfiguration = unretained(config)
-        switch resolution {
-        case 0: scConfig.captureResolution = .automatic
-        case 1: scConfig.captureResolution = .best
-        case 2: scConfig.captureResolution = .nominal
-        default: break
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        if #available(macOS 14.0, *) {
+            let scConfig: SCStreamConfiguration = unretained(config)
+            switch resolution {
+            case 0: scConfig.captureResolution = .automatic
+            case 1: scConfig.captureResolution = .best
+            case 2: scConfig.captureResolution = .nominal
+            default: break
+            }
         }
-    }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_capture_resolution_type")
 public func getStreamConfigurationCaptureResolutionType(_ config: OpaquePointer) -> Int32 {
-    if #available(macOS 14.0, *) {
-        let scConfig: SCStreamConfiguration = unretained(config)
-        switch scConfig.captureResolution {
-        case .automatic: return 0
-        case .best: return 1
-        case .nominal: return 2
-        @unknown default: return 0
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        if #available(macOS 14.0, *) {
+            let scConfig: SCStreamConfiguration = unretained(config)
+            switch scConfig.captureResolution {
+            case .automatic: return 0
+            case .best: return 1
+            case .nominal: return 2
+            @unknown default: return 0
+            }
         }
-    }
+    #endif
     return 0
 }
 
@@ -439,90 +540,100 @@ public func setStreamConfigurationColorMatrix(_ config: OpaquePointer, _ matrix:
 public func getStreamConfigurationColorMatrix(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
     let scConfig: SCStreamConfiguration = unretained(config)
     let matrix = (streamConfigurationState(for: scConfig)?.colorMatrix as String?) ?? (scConfig.colorMatrix as String)
-    return matrix.withCString { src in
-        guard strlen(src) + 1 <= bufferSize else {
-            return false
-        }
-        strlcpy(buffer, src, bufferSize)
-        return true
-    }
+    return writeCString(matrix, into: buffer, bufferSize: bufferSize)
 }
 
 @_cdecl("sc_stream_configuration_set_ignores_shadows_single_window")
 public func setStreamConfigurationIgnoresShadowsSingleWindow(_ config: OpaquePointer, _ ignoresShadows: Bool) {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        cfg.ignoreShadowsSingleWindow = ignoresShadows
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            cfg.ignoreShadowsSingleWindow = ignoresShadows
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_ignores_shadows_single_window")
 public func getStreamConfigurationIgnoresShadowsSingleWindow(_ config: OpaquePointer) -> Bool {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        return cfg.ignoreShadowsSingleWindow
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            return cfg.ignoreShadowsSingleWindow
+        }
+    #endif
     return false
 }
 
 @_cdecl("sc_stream_configuration_set_includes_child_windows")
 public func setStreamConfigurationIncludesChildWindows(_ config: OpaquePointer, _ includesChildWindows: Bool) {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.2, *) {
-        cfg.includeChildWindows = includesChildWindows
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_2_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.2, *) {
+            cfg.includeChildWindows = includesChildWindows
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_includes_child_windows")
 public func getStreamConfigurationIncludesChildWindows(_ config: OpaquePointer) -> Bool {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.2, *) {
-        return cfg.includeChildWindows
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_2_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.2, *) {
+            return cfg.includeChildWindows
+        }
+    #endif
     return false
 }
 
 @_cdecl("sc_stream_configuration_set_presenter_overlay_privacy_alert_setting")
 public func setStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer, _ setting: Int) {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        switch setting {
-        case 0: cfg.presenterOverlayPrivacyAlertSetting = .system
-        case 1: cfg.presenterOverlayPrivacyAlertSetting = .never
-        case 2: cfg.presenterOverlayPrivacyAlertSetting = .always
-        default: break
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            switch setting {
+            case 0: cfg.presenterOverlayPrivacyAlertSetting = .system
+            case 1: cfg.presenterOverlayPrivacyAlertSetting = .never
+            case 2: cfg.presenterOverlayPrivacyAlertSetting = .always
+            default: break
+            }
         }
-    }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_presenter_overlay_privacy_alert_setting")
 public func getStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer) -> Int {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        switch cfg.presenterOverlayPrivacyAlertSetting {
-        case .system: return 0
-        case .never: return 1
-        case .always: return 2
-        @unknown default: return 0
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            switch cfg.presenterOverlayPrivacyAlertSetting {
+            case .system: return 0
+            case .never: return 1
+            case .always: return 2
+            @unknown default: return 0
+            }
         }
-    }
+    #endif
     return 0
 }
 
 @_cdecl("sc_stream_configuration_set_captures_shadows_only")
 public func setStreamConfigurationCapturesShadowsOnly(_ config: OpaquePointer, _ value: Bool) {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        cfg.capturesShadowsOnly = value
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            cfg.capturesShadowsOnly = value
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_captures_shadows_only")
 public func getStreamConfigurationCapturesShadowsOnly(_ config: OpaquePointer) -> Bool {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        return cfg.capturesShadowsOnly
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            return cfg.capturesShadowsOnly
+        }
+    #endif
     return false
 }
 
@@ -590,11 +701,7 @@ public func getStreamConfigurationExcludesCurrentProcessAudio(_ config: OpaquePo
         let cfg: SCStreamConfiguration = unretained(config)
         if #available(macOS 15.0, *) {
             if let deviceId = cfg.microphoneCaptureDeviceID {
-                guard let cString = deviceId.cString(using: .utf8), cString.count < bufferSize else {
-                    return false
-                }
-                buffer.initialize(from: cString, count: min(cString.count, bufferSize))
-                return true
+                return writeCString(deviceId, into: buffer, bufferSize: bufferSize)
             }
         }
         return false
@@ -608,28 +715,28 @@ public func getStreamConfigurationExcludesCurrentProcessAudio(_ config: OpaquePo
 
 @_cdecl("sc_stream_configuration_set_stream_name")
 public func setStreamConfigurationStreamName(_ config: OpaquePointer, _ name: UnsafePointer<CChar>?) {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        if let name {
-            cfg.streamName = String(cString: name)
-        } else {
-            cfg.streamName = nil
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            if let name {
+                cfg.streamName = String(cString: name)
+            } else {
+                cfg.streamName = nil
+            }
         }
-    }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_stream_name")
 public func getStreamConfigurationStreamName(_ config: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        if let streamName = cfg.streamName {
-            guard let cString = streamName.cString(using: .utf8), cString.count < bufferSize else {
-                return false
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            if let streamName = cfg.streamName {
+                return writeCString(streamName, into: buffer, bufferSize: bufferSize)
             }
-            buffer.initialize(from: cString, count: min(cString.count, bufferSize))
-            return true
         }
-    }
+    #endif
     return false
 }
 
@@ -717,52 +824,64 @@ public func getStreamConfigurationStreamName(_ config: OpaquePointer, _ buffer: 
 
 @_cdecl("sc_stream_configuration_set_ignores_shadows_display")
 public func setStreamConfigurationIgnoresShadowsDisplay(_ config: OpaquePointer, _ value: Bool) {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        cfg.ignoreShadowsDisplay = value
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            cfg.ignoreShadowsDisplay = value
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_ignores_shadows_display")
 public func getStreamConfigurationIgnoresShadowsDisplay(_ config: OpaquePointer) -> Bool {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        return cfg.ignoreShadowsDisplay
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            return cfg.ignoreShadowsDisplay
+        }
+    #endif
     return false
 }
 
 @_cdecl("sc_stream_configuration_set_ignore_global_clip_display")
 public func setStreamConfigurationIgnoreGlobalClipDisplay(_ config: OpaquePointer, _ value: Bool) {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        cfg.ignoreGlobalClipDisplay = value
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            cfg.ignoreGlobalClipDisplay = value
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_ignore_global_clip_display")
 public func getStreamConfigurationIgnoreGlobalClipDisplay(_ config: OpaquePointer) -> Bool {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        return cfg.ignoreGlobalClipDisplay
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            return cfg.ignoreGlobalClipDisplay
+        }
+    #endif
     return false
 }
 
 @_cdecl("sc_stream_configuration_set_ignore_global_clip_single_window")
 public func setStreamConfigurationIgnoreGlobalClipSingleWindow(_ config: OpaquePointer, _ value: Bool) {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        cfg.ignoreGlobalClipSingleWindow = value
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            cfg.ignoreGlobalClipSingleWindow = value
+        }
+    #endif
 }
 
 @_cdecl("sc_stream_configuration_get_ignore_global_clip_single_window")
 public func getStreamConfigurationIgnoreGlobalClipSingleWindow(_ config: OpaquePointer) -> Bool {
-    let cfg: SCStreamConfiguration = unretained(config)
-    if #available(macOS 14.0, *) {
-        return cfg.ignoreGlobalClipSingleWindow
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let cfg: SCStreamConfiguration = unretained(config)
+        if #available(macOS 14.0, *) {
+            return cfg.ignoreGlobalClipSingleWindow
+        }
+    #endif
     return false
 }
 
@@ -803,6 +922,8 @@ public func getStreamConfigurationIgnoreGlobalClipSingleWindow(_ config: OpaqueP
 #else
     @_cdecl("sc_stream_configuration_create_with_preset")
     public func createStreamConfigurationWithPreset(_: Int32) -> OpaquePointer? {
-        retain(SCStreamConfiguration())
+        let config = SCStreamConfiguration()
+        retainStreamConfigurationState(for: config)
+        return retain(config)
     }
 #endif

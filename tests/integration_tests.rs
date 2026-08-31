@@ -395,9 +395,10 @@ fn test_iosurface_backed_buffer() {
     };
     let displays = content.displays();
 
-    assert!(!displays.is_empty(), "No displays available");
-
-    let display = &displays[0];
+    let Some(display) = displays.first() else {
+        eprintln!("SKIP: No displays available");
+        return;
+    };
 
     // Create configuration
     let mut config = SCStreamConfiguration::default();

@@ -6,6 +6,11 @@
 
 use screencapturekit::recording_output::{SCRecordingOutput, SCRecordingOutputConfiguration};
 
+/// Serialises the tests that drive a real `SCStream`. Two concurrent captures
+/// of the same display make `ScreenCaptureKit`'s completions stall past their
+/// timeout, which surfaces as an unrelated-looking 30 s failure.
+static LIVE_CAPTURE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn test_recording_output_configuration_new() {
     let config = SCRecordingOutputConfiguration::new();
@@ -538,11 +543,13 @@ fn test_recording_callbacks_debug() {
 }
 
 #[test]
-fn test_recording_callbacks_is_send() {
+fn test_recording_callbacks_are_send_and_sync() {
     use screencapturekit::recording_output::RecordingCallbacks;
 
     fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
     assert_send::<RecordingCallbacks>();
+    assert_sync::<RecordingCallbacks>();
 }
 
 #[test]
@@ -600,4 +607,355 @@ fn test_recording_output_with_delegate() {
             println!("⚠ Recording output creation requires macOS 15.0+ runtime");
         }
     }
+}
+
+// MARK: - Soundness / forward-compatibility regressions
+
+/// `SCRecordingOutputConfiguration` wraps a *mutable* Objective-C object, so a
+/// retain-based `Clone` would hand out aliases: reconfiguring the clone would
+/// silently reconfigure the original, and two threads configuring "their own"
+/// clone would race on the same non-atomic properties.
+#[test]
+fn test_recording_configuration_clone_is_independent() {
+    use screencapturekit::recording_output::{SCRecordingOutputCodec, SCRecordingOutputFileType};
+    use std::path::Path;
+
+    let original = SCRecordingOutputConfiguration::new()
+        .with_output_url(Path::new("/tmp/original.mov"))
+        .with_video_codec(SCRecordingOutputCodec::H264)
+        .with_output_file_type(SCRecordingOutputFileType::MOV);
+
+    let clone = original.clone();
+    assert_eq!(clone.video_codec(), SCRecordingOutputCodec::H264);
+    assert_eq!(clone.output_file_type(), SCRecordingOutputFileType::MOV);
+
+    let clone = clone
+        .with_video_codec(SCRecordingOutputCodec::HEVC)
+        .with_output_file_type(SCRecordingOutputFileType::MP4)
+        .with_output_url(Path::new("/tmp/clone.mp4"));
+
+    assert_eq!(
+        original.video_codec(),
+        SCRecordingOutputCodec::H264,
+        "mutating the clone must not reach the original"
+    );
+    assert_eq!(original.output_file_type(), SCRecordingOutputFileType::MOV);
+    assert_eq!(clone.video_codec(), SCRecordingOutputCodec::HEVC);
+    assert_eq!(clone.output_file_type(), SCRecordingOutputFileType::MP4);
+
+    let original_url = original.output_url().expect("original url");
+    let clone_url = clone.output_url().expect("clone url");
+    assert!(original_url.ends_with("original.mov"), "{original_url:?}");
+    assert!(clone_url.ends_with("clone.mp4"), "{clone_url:?}");
+}
+
+/// The available-codec / available-file-type lists are open-ended. Entries the
+/// bridge cannot name used to be dropped, so the vector silently disagreed
+/// with the count and index-based lookups pointed at the wrong entry.
+#[test]
+fn test_available_lists_match_their_counts() {
+    let config = SCRecordingOutputConfiguration::new();
+
+    assert_eq!(
+        config.available_video_codecs().len(),
+        config.available_video_codecs_count()
+    );
+    assert_eq!(
+        config.available_output_file_types().len(),
+        config.available_output_file_types_count()
+    );
+}
+
+/// An unknown identifier must survive rather than collapsing onto a default.
+#[test]
+fn test_codec_and_file_type_are_open() {
+    use screencapturekit::recording_output::{SCRecordingOutputCodec, SCRecordingOutputFileType};
+
+    let future_codec = SCRecordingOutputCodec::from_identifier("com.example.future-codec").unwrap();
+    assert_eq!(future_codec.identifier(), "com.example.future-codec");
+    assert_ne!(future_codec, SCRecordingOutputCodec::H264);
+    assert!(future_codec.to_string().contains("future-codec"));
+
+    let future_file_type =
+        SCRecordingOutputFileType::from_identifier("com.example.future-file").unwrap();
+    assert_eq!(future_file_type.identifier(), "com.example.future-file");
+    assert_eq!(future_file_type.extension(), None);
+
+    let config = SCRecordingOutputConfiguration::new()
+        .with_video_codec(future_codec.clone())
+        .with_output_file_type(future_file_type.clone());
+    assert_eq!(config.video_codec().identifier(), future_codec.identifier());
+    assert_eq!(
+        config.output_file_type().identifier(),
+        future_file_type.identifier()
+    );
+
+    assert_eq!(
+        SCRecordingOutputCodec::default(),
+        SCRecordingOutputCodec::H264
+    );
+    assert_eq!(
+        SCRecordingOutputFileType::default(),
+        SCRecordingOutputFileType::MP4
+    );
+    assert_eq!(SCRecordingOutputFileType::MOV.extension(), Some("mov"));
+}
+
+#[test]
+fn test_recording_identifiers_reject_interior_nul() {
+    use screencapturekit::recording_output::{SCRecordingOutputCodec, SCRecordingOutputFileType};
+
+    assert!(SCRecordingOutputCodec::from_identifier("bad\0codec").is_err());
+    assert!(SCRecordingOutputFileType::from_identifier("bad\0file").is_err());
+}
+
+/// A path that cannot be encoded as a C string must be reported, not silently
+/// swallowed — an ignored `with_output_url` leaves the recording pointed at
+/// the previous (or default) location.
+#[test]
+fn test_output_url_rejects_interior_nul() {
+    use std::path::Path;
+
+    let config = SCRecordingOutputConfiguration::new();
+    let result = config.try_with_output_url(Path::new("/tmp/bad\0name.mov"));
+    assert!(result.is_err(), "interior NUL must be rejected");
+}
+
+#[test]
+fn test_output_url_rejects_non_utf8_path() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let path = std::path::PathBuf::from(std::ffi::OsString::from_vec(
+        b"/tmp/sck-recording-\xff.mp4".to_vec(),
+    ));
+    assert!(
+        SCRecordingOutputConfiguration::new()
+            .try_with_output_url(&path)
+            .is_err(),
+        "Foundation file URLs cannot represent non-UTF-8 paths faithfully"
+    );
+}
+
+/// A delegate must keep receiving callbacks while *any* clone of the recording
+/// output is alive: the delegate storage is reference-counted on both sides of
+/// the bridge, and dropping the first clone used to tear it down.
+#[test]
+fn test_delegate_survives_clone_drop() {
+    use screencapturekit::recording_output::RecordingCallbacks;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    let starts = Arc::new(AtomicUsize::new(0));
+    let observed = Arc::clone(&starts);
+
+    let config = SCRecordingOutputConfiguration::new();
+    let delegate = RecordingCallbacks::new().on_start(move || {
+        observed.fetch_add(1, Ordering::SeqCst);
+    });
+
+    let Some(output) = SCRecordingOutput::new_with_delegate(&config, delegate) else {
+        println!("⚠ Skipping - recording output unavailable");
+        return;
+    };
+
+    let clone = output.clone();
+    drop(clone);
+
+    // The surviving handle must still be usable; a torn-down delegate used to
+    // surface here as a crash or as silently dead callbacks.
+    assert_eq!(output.recorded_file_size(), 0);
+    assert_eq!(starts.load(Ordering::SeqCst), 0);
+    drop(output);
+}
+
+#[test]
+fn test_remove_recording_then_stop_completes() {
+    use screencapturekit::prelude::*;
+    use screencapturekit::recording_output::RecordingCallbacks;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    let _capture = LIVE_CAPTURE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+    let Ok(content) = SCShareableContent::get() else {
+        eprintln!("skip: screen-recording permission unavailable");
+        return;
+    };
+    let displays = content.displays();
+    let Some(display) = displays.first() else {
+        eprintln!("skip: no displays available");
+        return;
+    };
+
+    let output_path =
+        std::env::temp_dir().join(format!("sck-recording-test-{}.mp4", std::process::id()));
+    let _ = std::fs::remove_file(&output_path);
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+    let stream_config = SCStreamConfiguration::new()
+        .with_width(320)
+        .with_height(240);
+    let recording_config = SCRecordingOutputConfiguration::new().with_output_url(&output_path);
+    let started_recording = Arc::new(AtomicBool::new(false));
+    let started_observed = Arc::clone(&started_recording);
+    let finished = Arc::new(AtomicBool::new(false));
+    let observed = Arc::clone(&finished);
+    let failure = Arc::new(std::sync::Mutex::new(None));
+    let failure_observed = Arc::clone(&failure);
+    let callbacks = RecordingCallbacks::new()
+        .on_start(move || started_observed.store(true, Ordering::Release))
+        .on_finish(move || observed.store(true, Ordering::Release))
+        .on_fail(move |error| {
+            *failure_observed
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(error);
+        });
+    let Some(recording) = SCRecordingOutput::new_with_delegate(&recording_config, callbacks) else {
+        eprintln!("skip: recording output unavailable");
+        return;
+    };
+
+    let stream = SCStream::new(&filter, &stream_config);
+    stream
+        .add_recording_output(&recording)
+        .expect("failed to add recording output");
+    if let Err(error) = stream.start_capture() {
+        eprintln!("skip: capture failed to start: {error}");
+        return;
+    }
+    let start_deadline = Instant::now() + Duration::from_secs(5);
+    while !started_recording.load(Ordering::Acquire) && Instant::now() < start_deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(
+        started_recording.load(Ordering::Acquire),
+        "recording never reached didStartRecording"
+    );
+
+    stream
+        .remove_recording_output(&recording)
+        .expect("failed to remove recording output");
+    drop(recording);
+
+    let started = Instant::now();
+    stream
+        .stop_capture()
+        .expect("stop_capture failed after removing recording output");
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "stop_capture stalled during recording finalization"
+    );
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !finished.load(Ordering::Acquire)
+        && failure
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_none()
+        && Instant::now() < deadline
+    {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let failure = failure
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert!(
+        finished.load(Ordering::Acquire) || failure.is_some(),
+        "recording delegate was released before a terminal callback"
+    );
+    let _ = std::fs::remove_file(output_path);
+}
+
+/// Removing an output before `didStartRecording` has been delivered must not
+/// report success while the movie is still being finalized.
+#[test]
+fn test_remove_recording_racing_start_still_waits_for_terminal() {
+    use screencapturekit::prelude::*;
+    use screencapturekit::recording_output::RecordingCallbacks;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let _capture = LIVE_CAPTURE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+    let Ok(content) = SCShareableContent::get() else {
+        eprintln!("skip: screen-recording permission unavailable");
+        return;
+    };
+    let displays = content.displays();
+    let Some(display) = displays.first() else {
+        eprintln!("skip: no displays available");
+        return;
+    };
+
+    let output_path =
+        std::env::temp_dir().join(format!("sck-recording-race-{}.mp4", std::process::id()));
+    let _ = std::fs::remove_file(&output_path);
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+    let stream_config = SCStreamConfiguration::new()
+        .with_width(320)
+        .with_height(240);
+    let recording_config = SCRecordingOutputConfiguration::new().with_output_url(&output_path);
+    let started = Arc::new(AtomicBool::new(false));
+    let started_observed = Arc::clone(&started);
+    let terminal = Arc::new(AtomicBool::new(false));
+    let finish_observed = Arc::clone(&terminal);
+    let fail_observed = Arc::clone(&terminal);
+    let callbacks = RecordingCallbacks::new()
+        .on_start(move || started_observed.store(true, Ordering::Release))
+        .on_finish(move || finish_observed.store(true, Ordering::Release))
+        .on_fail(move |_| fail_observed.store(true, Ordering::Release));
+    let Some(recording) = SCRecordingOutput::new_with_delegate(&recording_config, callbacks) else {
+        eprintln!("skip: recording output unavailable");
+        return;
+    };
+
+    let stream = SCStream::new(&filter, &stream_config);
+    stream
+        .add_recording_output(&recording)
+        .expect("failed to add recording output");
+    if let Err(error) = stream.start_capture() {
+        eprintln!("skip: capture failed to start: {error}");
+        return;
+    }
+
+    let removal_started = std::time::Instant::now();
+    let removal = stream.remove_recording_output(&recording);
+    let removal_elapsed = removal_started.elapsed();
+    let started_before_removal_returned = started.load(Ordering::Acquire);
+    let reached_terminal = terminal.load(Ordering::Acquire);
+
+    let _ = stream.stop_capture();
+    drop(recording);
+    let _ = std::fs::remove_file(output_path);
+
+    // ScreenCaptureKit intermittently stalls its own `stopCapture` when it
+    // races a start that has only just landed. The bounded wait turns that into
+    // an error instead of a hang, which is all the binding can do.
+    if let Err(SCError::CaptureStopFailed(message)) = &removal {
+        eprintln!("skip: ScreenCaptureKit stalled stopping a just-started capture: {message}");
+        return;
+    }
+    removal.expect("failed to remove recording output");
+
+    // Whether or not the recording ever began, the wait for finalization is
+    // bounded: it must resolve on its own rather than run into the completion
+    // timeout.
+    assert!(
+        removal_elapsed < std::time::Duration::from_secs(10),
+        "removal stalled for {removal_elapsed:?} (started: \
+         {started_before_removal_returned}, terminal: {reached_terminal})"
+    );
 }

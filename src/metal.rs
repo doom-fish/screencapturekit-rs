@@ -23,7 +23,7 @@
 //!
 //! ## Workflow
 //!
-//! 1. Get `IOSurface` from captured frame via [`CMSampleBuffer::image_buffer()`](crate::cm::CMSampleBuffer::image_buffer)
+//! 1. Get `IOSurface` from captured frame via [`CMSampleBufferExt::image_buffer()`](crate::cm::CMSampleBufferExt::image_buffer)
 //! 2. Create Metal textures with [`IOSurface::create_metal_textures()`](crate::cm::IOSurface::create_metal_textures)
 //! 3. Render using the built-in shaders or your own
 //!
@@ -69,6 +69,7 @@
 //! | `vertex_colored` / `fragment_colored` | UI overlay rendering |
 
 use std::ffi::{c_void, CStr};
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 use crate::cm::IOSurface;
@@ -736,8 +737,12 @@ impl MetalDevice {
     }
 
     /// Create a buffer
+    ///
+    /// Returns `None` if `length` exceeds `isize::MAX`: the Swift bridge takes
+    /// a signed `Int`, so such a length would arrive as a negative size.
     #[must_use]
     pub fn create_buffer(&self, length: usize, options: ResourceOptions) -> Option<MetalBuffer> {
+        let length = checked_swift_int(length)?;
         let ptr = unsafe { metal_device_create_buffer(self.ptr.as_ptr(), length, options.0) };
         NonNull::new(ptr).map(|ptr| MetalBuffer { ptr })
     }
@@ -790,17 +795,46 @@ impl MetalDevice {
         self.ptr.as_ptr()
     }
 
-    /// Wrap this device as an [`apple_metal::ManuallyDropDevice`] for
-    /// interop with the lightweight `apple-metal` crate. The returned
-    /// handle references the same `MTLDevice` instance and does not
-    /// release it on drop — keep this [`MetalDevice`] alive while the
-    /// borrowed handle is in use.
+    /// Borrow this device as an `apple_metal::MetalDevice` for interop with the
+    /// lightweight `apple-metal` crate.
     ///
-    /// Useful when handing this device to other `apple_metal` APIs from
-    /// code that already holds an SCK [`MetalDevice`].
+    /// The returned guard references the same `MTLDevice` instance and does
+    /// not release it on drop, so it must not outlive this [`MetalDevice`].
+    /// That is enforced by the borrow: `apple_metal::ManuallyDropDevice` has no
+    /// lifetime of its own, so returning it directly let callers keep a
+    /// dangling `MTLDevice` handle after the owner was dropped.
+    ///
+    /// Deref to reach the `apple_metal::MetalDevice` API.
     #[must_use]
-    pub fn as_apple_metal(&self) -> apple_metal::ManuallyDropDevice {
-        unsafe { apple_metal::MetalDevice::from_raw_borrowed(self.ptr.as_ptr()) }
+    pub fn as_apple_metal(&self) -> BorrowedAppleMetalDevice<'_> {
+        BorrowedAppleMetalDevice {
+            inner: unsafe { apple_metal::MetalDevice::from_raw_borrowed(self.ptr.as_ptr()) },
+            _owner: PhantomData,
+        }
+    }
+}
+
+/// An `apple_metal::MetalDevice` borrowed from an SCK [`MetalDevice`].
+///
+/// Returned by [`MetalDevice::as_apple_metal`]. Dereferences to
+/// [`apple_metal::MetalDevice`] and does not release the underlying
+/// `MTLDevice`; the borrow keeps the owning [`MetalDevice`] alive.
+pub struct BorrowedAppleMetalDevice<'a> {
+    inner: apple_metal::ManuallyDropDevice,
+    _owner: PhantomData<&'a MetalDevice>,
+}
+
+impl std::ops::Deref for BorrowedAppleMetalDevice<'_> {
+    type Target = apple_metal::MetalDevice;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::fmt::Debug for BorrowedAppleMetalDevice<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BorrowedAppleMetalDevice").finish()
     }
 }
 
@@ -1011,7 +1045,17 @@ impl MetalBuffer {
     }
 
     /// Notify that a range of the buffer was modified (for managed storage mode)
+    ///
+    /// The call is skipped when the range cannot be expressed as the Swift
+    /// bridge's signed `Int` pair — Swift reconstructs `start ..< end` and
+    /// traps on an overflowing or reversed range.
     pub fn did_modify_range(&self, range: std::ops::Range<usize>) {
+        if range.end < range.start
+            || checked_swift_int(range.start).is_none()
+            || checked_swift_int(range.end).is_none()
+        {
+            return;
+        }
         unsafe { metal_buffer_did_modify_range(self.ptr.as_ptr(), range.start, range.len()) }
     }
 
@@ -2003,6 +2047,11 @@ fn create_texture_for_plane(
     device: &MetalDevice,
     params: &TextureParams,
 ) -> Option<MetalTexture> {
+    // The Swift bridge takes `Int`; a plane/extent above `isize::MAX` would
+    // arrive negative and index out of bounds inside Metal.
+    checked_swift_int(params.plane)?;
+    checked_swift_int(params.width)?;
+    checked_swift_int(params.height)?;
     let ptr = unsafe {
         metal_create_texture_from_iosurface(
             device.as_ptr(),
@@ -2016,6 +2065,19 @@ fn create_texture_for_plane(
     NonNull::new(ptr).map(|ptr| MetalTexture { ptr })
 }
 
+/// Reject `usize` values the Swift bridge cannot represent.
+///
+/// Every size/index parameter crosses the boundary as Swift's signed `Int`.
+/// The two types are the same width, so anything above `isize::MAX` silently
+/// becomes a negative length or index on the Swift side.
+const fn checked_swift_int(value: usize) -> Option<usize> {
+    if value > isize::MAX as usize {
+        None
+    } else {
+        Some(value)
+    }
+}
+
 // MARK: - Autorelease Pool
 
 #[link(name = "Foundation", kind = "framework")]
@@ -2024,11 +2086,27 @@ extern "C" {
     fn objc_autoreleasePoolPop(pool: *mut c_void);
 }
 
+/// RAII guard that pops the pushed autorelease pool on drop, including while
+/// unwinding.
+struct AutoreleasePoolGuard {
+    pool: *mut c_void,
+}
+
+impl Drop for AutoreleasePoolGuard {
+    fn drop(&mut self) {
+        unsafe { objc_autoreleasePoolPop(self.pool) }
+    }
+}
+
 /// Execute a closure within an autorelease pool
 ///
 /// This is equivalent to `@autoreleasepool { ... }` in Objective-C/Swift.
 /// Use this when running code that creates temporary Objective-C objects
 /// that need to be released promptly.
+///
+/// The pool is popped by an RAII guard, so it is balanced even if `f` panics.
+/// Leaking the push would corrupt the thread's pool stack for every later
+/// pool on that thread, not just this one.
 ///
 /// # Example
 ///
@@ -2044,12 +2122,10 @@ pub fn autoreleasepool<F, R>(f: F) -> R
 where
     F: FnOnce() -> R,
 {
-    unsafe {
-        let pool = objc_autoreleasePoolPush();
-        let result = f();
-        objc_autoreleasePoolPop(pool);
-        result
-    }
+    let _guard = AutoreleasePoolGuard {
+        pool: unsafe { objc_autoreleasePoolPush() },
+    };
+    f()
 }
 
 // MARK: - NSView Helpers

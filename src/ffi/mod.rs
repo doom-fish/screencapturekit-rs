@@ -34,7 +34,7 @@ pub struct FFIWindowData {
     pub frame: FFIRect,
     pub title_offset: u32,
     pub title_length: u32,
-    pub owning_app_index: i32,
+    pub owning_app_process_id: i32,
     #[doc(hidden)]
     pub _padding: i32,
 }
@@ -89,7 +89,7 @@ const _: () = assert!(offset_of!(FFIWindowData, is_active) == 9);
 const _: () = assert!(offset_of!(FFIWindowData, frame) == 16);
 const _: () = assert!(offset_of!(FFIWindowData, title_offset) == 48);
 const _: () = assert!(offset_of!(FFIWindowData, title_length) == 52);
-const _: () = assert!(offset_of!(FFIWindowData, owning_app_index) == 56);
+const _: () = assert!(offset_of!(FFIWindowData, owning_app_process_id) == 56);
 const _: () = assert!(offset_of!(FFIWindowData, _padding) == 60);
 
 const _: () = assert!(size_of::<FFIApplicationData>() == 24);
@@ -155,6 +155,7 @@ extern "C" {
         callback: extern "C" fn(*const c_void, *const i8, *mut c_void),
         user_data: *mut c_void,
     );
+    pub fn sc_shareable_content_current_process_is_available() -> bool;
     pub fn sc_shareable_content_get_below_window(
         exclude_desktop_windows: bool,
         reference_window: *const c_void,
@@ -208,9 +209,6 @@ extern "C" {
         string_buffer: *mut i8,
         string_buffer_size: isize,
         string_buffer_used: *mut isize,
-        app_pointers: *mut *const c_void,
-        max_apps: isize,
-        app_count: *mut isize,
     ) -> isize;
 }
 
@@ -297,6 +295,7 @@ extern "C" {
 // MARK: - SCStreamConfiguration
 extern "C" {
     pub fn sc_stream_configuration_create() -> *const c_void;
+    pub fn sc_stream_configuration_copy(config: *const c_void) -> *const c_void;
     pub fn sc_stream_configuration_retain(config: *const c_void) -> *const c_void;
     pub fn sc_stream_configuration_release(config: *const c_void);
 
@@ -519,13 +518,6 @@ extern "C" {
     ) -> *const c_void;
     pub fn sc_content_filter_retain(filter: *const c_void) -> *const c_void;
     pub fn sc_content_filter_release(filter: *const c_void);
-    pub fn sc_content_filter_set_content_rect(
-        filter: *const c_void,
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-    );
     pub fn sc_content_filter_get_content_rect(
         filter: *const c_void,
         x: *mut f64,
@@ -561,6 +553,10 @@ extern "C" {
         dispatch_queue: *const c_void,
     ) -> bool;
     pub fn sc_stream_remove_stream_output(stream: *const c_void, output_type: i32) -> bool;
+    pub fn sc_stream_set_delegate_event_callback(
+        stream: *const c_void,
+        callback: extern "C" fn(*mut c_void, i32),
+    ) -> bool;
     pub fn sc_stream_start_capture(
         stream: *const c_void,
         context: *mut c_void,
@@ -659,6 +655,7 @@ extern "C" {
 
 // MARK: - SCContentSharingPicker (macOS 14.0+)
 extern "C" {
+    pub fn sc_content_sharing_picker_is_available() -> bool;
     pub fn sc_content_sharing_picker_configuration_create() -> *const c_void;
     pub fn sc_content_sharing_picker_configuration_set_allowed_picker_modes(
         config: *const c_void,
@@ -702,6 +699,7 @@ extern "C" {
         index: usize,
     ) -> u32;
     pub fn sc_content_sharing_picker_configuration_retain(config: *const c_void) -> *const c_void;
+    pub fn sc_content_sharing_picker_configuration_copy(config: *const c_void) -> *const c_void;
     pub fn sc_content_sharing_picker_configuration_release(config: *const c_void);
 
     // Picker maximum stream count
@@ -718,6 +716,37 @@ extern "C" {
     pub fn sc_content_sharing_picker_get_active() -> bool;
     /// Mark the shared content-sharing picker active or inactive.
     pub fn sc_content_sharing_picker_set_active(active: bool);
+
+    /// Assign the picker's process-wide `defaultConfiguration`.
+    pub fn sc_content_sharing_picker_set_default_configuration(config: *const c_void);
+    /// Assign (or clear, when `config` is null) the per-stream configuration.
+    pub fn sc_content_sharing_picker_set_configuration_for_stream(
+        config: *const c_void,
+        stream: *const c_void,
+    );
+
+    /// Register a repeating observer. Returns a non-zero token, or 0 on failure.
+    ///
+    /// `callback` receives `(event, result_ptr, message, user_data)` where the
+    /// event is 1 = updated (`result_ptr` non-null), 0 = cancelled, -1 = start
+    /// failed (message non-null). `context_release` is invoked exactly once,
+    /// after the observer is detached, so the Rust side can drop its context.
+    pub fn sc_content_sharing_picker_add_observer(
+        callback: extern "C" fn(i32, *const c_void, *const i8, *mut c_void),
+        context_release: extern "C" fn(*mut c_void),
+        user_data: *mut c_void,
+    ) -> i64;
+    /// Remove a repeating observer by token. Returns true if it was live.
+    pub fn sc_content_sharing_picker_remove_observer(token: i64) -> bool;
+    /// Remove every repeating observer; returns how many were removed.
+    pub fn sc_content_sharing_picker_remove_all_observers() -> usize;
+
+    /// Present the picker. `style` < 0 presents without a content-style hint.
+    pub fn sc_content_sharing_picker_present(style: i32);
+    /// Present the picker targeting an existing stream.
+    pub fn sc_content_sharing_picker_present_for_stream(stream: *const c_void, style: i32);
+    /// Deactivate the picker and undo any activation-policy promotion.
+    pub fn sc_content_sharing_picker_deactivate();
 
     pub fn sc_content_sharing_picker_show(
         config: *const c_void,
@@ -771,13 +800,18 @@ extern "C" {
 
 // MARK: - SCRecordingOutput (macOS 15.0+)
 extern "C" {
+    pub fn sc_recording_output_is_available() -> bool;
     pub fn sc_recording_output_configuration_create() -> *const c_void;
+    pub fn sc_recording_output_configuration_copy(config: *const c_void) -> *const c_void;
     pub fn sc_recording_output_configuration_set_output_url(config: *const c_void, path: *const i8);
     pub fn sc_recording_output_configuration_get_output_url(
         config: *const c_void,
         buffer: *mut i8,
         buffer_size: isize,
     ) -> bool;
+    pub fn sc_recording_output_configuration_get_output_path_owned(
+        config: *const c_void,
+    ) -> *mut i8;
     pub fn sc_recording_output_configuration_set_video_codec(config: *const c_void, codec: i32);
     pub fn sc_recording_output_configuration_retain(config: *const c_void) -> *const c_void;
     pub fn sc_recording_output_configuration_release(config: *const c_void);
@@ -905,6 +939,30 @@ extern "C" {
     );
     pub fn sc_screenshot_configuration_set_dynamic_range(config: *const c_void, dynamic_range: i32);
     pub fn sc_screenshot_configuration_set_file_url(config: *const c_void, path: *const i8);
+    pub fn sc_screenshot_configuration_clear_file_url(config: *const c_void);
+    pub fn sc_screenshot_configuration_get_width(config: *const c_void) -> isize;
+    pub fn sc_screenshot_configuration_get_height(config: *const c_void) -> isize;
+    pub fn sc_screenshot_configuration_get_shows_cursor(config: *const c_void) -> bool;
+    pub fn sc_screenshot_configuration_get_source_rect(
+        config: *const c_void,
+        x: *mut f64,
+        y: *mut f64,
+        width: *mut f64,
+        height: *mut f64,
+    );
+    pub fn sc_screenshot_configuration_get_destination_rect(
+        config: *const c_void,
+        x: *mut f64,
+        y: *mut f64,
+        width: *mut f64,
+        height: *mut f64,
+    );
+    pub fn sc_screenshot_configuration_get_ignore_shadows(config: *const c_void) -> bool;
+    pub fn sc_screenshot_configuration_get_ignore_clipping(config: *const c_void) -> bool;
+    pub fn sc_screenshot_configuration_get_include_child_windows(config: *const c_void) -> bool;
+    pub fn sc_screenshot_configuration_get_display_intent(config: *const c_void) -> i32;
+    pub fn sc_screenshot_configuration_get_dynamic_range(config: *const c_void) -> i32;
+    pub fn sc_screenshot_configuration_get_file_path_owned(config: *const c_void) -> *mut i8;
     pub fn sc_screenshot_configuration_release(config: *const c_void);
 
     // Content type support (macOS 26.0+)
@@ -934,6 +992,7 @@ extern "C" {
         buffer: *mut i8,
         buffer_size: isize,
     ) -> bool;
+    pub fn sc_screenshot_output_get_file_path_owned(output: *const c_void) -> *mut i8;
     pub fn sc_screenshot_output_release(output: *const c_void);
 
     pub fn sc_screenshot_manager_capture_screenshot(
@@ -1042,8 +1101,22 @@ extern "C" {
         config: *const c_void,
         file_type: i32,
     );
+    pub fn sc_recording_output_configuration_set_output_file_type_identifier(
+        config: *const c_void,
+        identifier: *const i8,
+    );
+    pub fn sc_recording_output_configuration_get_output_file_type_identifier_owned(
+        config: *const c_void,
+    ) -> *mut i8;
     pub fn sc_recording_output_configuration_get_output_file_type(config: *const c_void) -> i32;
     pub fn sc_recording_output_configuration_get_video_codec(config: *const c_void) -> i32;
+    pub fn sc_recording_output_configuration_set_video_codec_identifier(
+        config: *const c_void,
+        identifier: *const i8,
+    );
+    pub fn sc_recording_output_configuration_get_video_codec_identifier_owned(
+        config: *const c_void,
+    ) -> *mut i8;
     pub fn sc_recording_output_configuration_get_available_video_codecs_count(
         config: *const c_void,
     ) -> isize;
@@ -1051,6 +1124,10 @@ extern "C" {
         config: *const c_void,
         index: isize,
     ) -> i32;
+    pub fn sc_recording_output_configuration_get_available_video_codec_identifier_at_owned(
+        config: *const c_void,
+        index: isize,
+    ) -> *mut i8;
     pub fn sc_recording_output_configuration_get_available_output_file_types_count(
         config: *const c_void,
     ) -> isize;
@@ -1058,11 +1135,16 @@ extern "C" {
         config: *const c_void,
         index: isize,
     ) -> i32;
+    pub fn sc_recording_output_configuration_get_available_output_file_type_identifier_at_owned(
+        config: *const c_void,
+        index: isize,
+    ) -> *mut i8;
     pub fn sc_recording_output_create_with_delegate(
         config: *const c_void,
         started_callback: Option<extern "C" fn(*mut c_void)>,
         failed_callback: Option<extern "C" fn(*mut c_void, i32, *const i8)>,
         finished_callback: Option<extern "C" fn(*mut c_void)>,
+        context_release: Option<extern "C" fn(*mut c_void)>,
         context: *mut c_void,
     ) -> *const c_void;
     pub fn sc_recording_output_get_recorded_duration(
@@ -1071,10 +1153,32 @@ extern "C" {
         timescale: *mut i32,
     );
     pub fn sc_recording_output_get_recorded_file_size(output: *const c_void) -> i64;
+    pub fn sc_recording_output_wait_until_terminal(
+        output: *const c_void,
+        context: *mut c_void,
+        callback: extern "C" fn(*mut c_void, bool, *const i8),
+    );
 }
 
 // MARK: - Audio Input Devices (AVFoundation)
 extern "C" {
+    pub fn sc_audio_input_devices_snapshot_create() -> *const c_void;
+    pub fn sc_audio_input_devices_snapshot_release(snapshot: *const c_void);
+    pub fn sc_audio_input_devices_snapshot_count(snapshot: *const c_void) -> isize;
+    pub fn sc_audio_input_devices_snapshot_default_index(snapshot: *const c_void) -> isize;
+    pub fn sc_audio_input_devices_snapshot_id_owned(
+        snapshot: *const c_void,
+        index: isize,
+    ) -> *mut i8;
+    pub fn sc_audio_input_devices_snapshot_name_owned(
+        snapshot: *const c_void,
+        index: isize,
+    ) -> *mut i8;
+    pub fn sc_audio_input_devices_snapshot_is_default(
+        snapshot: *const c_void,
+        index: isize,
+    ) -> bool;
+
     /// Get the count of available audio input devices
     pub fn sc_audio_get_input_device_count() -> isize;
 

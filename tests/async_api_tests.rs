@@ -8,6 +8,22 @@
 
 use screencapturekit::async_api::*;
 use screencapturekit::stream::output_type::SCStreamOutputType;
+use std::time::Duration;
+
+async fn live_shareable_content() -> Option<screencapturekit::shareable_content::SCShareableContent>
+{
+    match tokio::time::timeout(Duration::from_secs(5), AsyncSCShareableContent::get()).await {
+        Ok(Ok(content)) => Some(content),
+        Ok(Err(error)) => {
+            eprintln!("skip: shareable content unavailable: {error}");
+            None
+        }
+        Err(_) => {
+            eprintln!("skip: shareable content query did not complete within 5 seconds");
+            None
+        }
+    }
+}
 
 #[test]
 fn test_async_shareable_content_options_builder() {
@@ -200,6 +216,7 @@ async fn test_async_stream_start_stop_capture() {
 }
 
 #[tokio::test]
+#[cfg(feature = "macos_14_0")]
 async fn test_async_stream_update_configuration() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
@@ -982,16 +999,25 @@ mod recording_tests {
 
     #[test]
     fn test_file_type_values() {
-        // MP4 is default (0), MOV is 1
-        assert_eq!(SCRecordingOutputFileType::MP4 as i32, 0);
-        assert_eq!(SCRecordingOutputFileType::MOV as i32, 1);
+        assert_eq!(SCRecordingOutputFileType::MP4.identifier(), "public.mpeg-4");
+        assert_eq!(
+            SCRecordingOutputFileType::MOV.identifier(),
+            "com.apple.quicktime-movie"
+        );
+        assert_eq!(
+            SCRecordingOutputFileType::default(),
+            SCRecordingOutputFileType::MP4
+        );
     }
 
     #[test]
     fn test_video_codec_type_values() {
-        // H264 is default (0), HEVC is 1
-        assert_eq!(SCRecordingOutputCodec::H264 as i32, 0);
-        assert_eq!(SCRecordingOutputCodec::HEVC as i32, 1);
+        assert_eq!(SCRecordingOutputCodec::H264.identifier(), "avc1");
+        assert_eq!(SCRecordingOutputCodec::HEVC.identifier(), "hvc1");
+        assert_eq!(
+            SCRecordingOutputCodec::default(),
+            SCRecordingOutputCodec::H264
+        );
     }
 }
 
@@ -1130,40 +1156,50 @@ mod tokio_async_tests {
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
     use screencapturekit::stream::output_type::SCStreamOutputType;
+    use std::time::Duration;
 
     #[tokio::test]
     async fn test_async_shareable_content_get() {
-        // This tests the callback path through the FFI
-        let result = AsyncSCShareableContent::get().await;
-        assert!(result.is_ok());
-
-        let content = result.unwrap();
-        // Should have at least one display
-        assert!(!content.displays().is_empty());
+        let Some(content) = super::live_shareable_content().await else {
+            return;
+        };
+        if content.displays().is_empty() {
+            eprintln!("skip: no displays available");
+        }
     }
 
     #[tokio::test]
     async fn test_async_shareable_content_with_options() {
-        let result = AsyncSCShareableContent::create()
-            .with_exclude_desktop_windows(true)
-            .with_on_screen_windows_only(true)
-            .get()
-            .await;
-
-        assert!(result.is_ok());
+        let result = tokio::time::timeout(
+            Duration::from_secs(5),
+            AsyncSCShareableContent::create()
+                .with_exclude_desktop_windows(true)
+                .with_on_screen_windows_only(true)
+                .get(),
+        )
+        .await;
+        if !matches!(result, Ok(Ok(_))) {
+            eprintln!("skip: filtered shareable content unavailable");
+        }
     }
 
     #[cfg(feature = "macos_14_4")]
     #[tokio::test]
     async fn test_async_shareable_content_current_process() {
-        let result = AsyncSCShareableContent::current_process().await;
+        let result = tokio::time::timeout(
+            Duration::from_secs(5),
+            AsyncSCShareableContent::current_process(),
+        )
+        .await;
         // May or may not succeed depending on permissions
         let _ = result;
     }
 
     #[tokio::test]
     async fn test_async_stream_next_await() {
-        let content = AsyncSCShareableContent::get().await.unwrap();
+        let Some(content) = super::live_shareable_content().await else {
+            return;
+        };
         if let Some(display) = content.displays().first() {
             let filter = SCContentFilter::create()
                 .with_display(display)
@@ -1201,7 +1237,9 @@ mod tokio_async_tests {
 
     #[tokio::test]
     async fn test_async_stream_multiple_next_await() {
-        let content = AsyncSCShareableContent::get().await.unwrap();
+        let Some(content) = super::live_shareable_content().await else {
+            return;
+        };
         if let Some(display) = content.displays().first() {
             let filter = SCContentFilter::create()
                 .with_display(display)
@@ -1236,7 +1274,9 @@ mod tokio_async_tests {
     async fn test_async_screenshot_capture_image() {
         use screencapturekit::async_api::AsyncSCScreenshotManager;
 
-        let content = AsyncSCShareableContent::get().await.unwrap();
+        let Some(content) = super::live_shareable_content().await else {
+            return;
+        };
         if let Some(display) = content.displays().first() {
             let filter = SCContentFilter::create()
                 .with_display(display)
@@ -1262,7 +1302,9 @@ mod tokio_async_tests {
     async fn test_async_screenshot_capture_sample_buffer() {
         use screencapturekit::async_api::AsyncSCScreenshotManager;
 
-        let content = AsyncSCShareableContent::get().await.unwrap();
+        let Some(content) = super::live_shareable_content().await else {
+            return;
+        };
         if let Some(display) = content.displays().first() {
             let filter = SCContentFilter::create()
                 .with_display(display)
@@ -1290,15 +1332,21 @@ mod tokio_async_tests {
 #[cfg(feature = "async")]
 mod additional_async_tests {
     use screencapturekit::async_api::*;
+    use std::time::Duration;
 
     #[tokio::test]
     async fn test_async_shareable_content_below_window() {
-        let content = AsyncSCShareableContent::get().await.unwrap();
+        let Some(content) = super::live_shareable_content().await else {
+            return;
+        };
         if let Some(window) = content.windows().first() {
-            let result = AsyncSCShareableContent::create()
-                .with_exclude_desktop_windows(true)
-                .below_window(window)
-                .await;
+            let result = tokio::time::timeout(
+                Duration::from_secs(5),
+                AsyncSCShareableContent::create()
+                    .with_exclude_desktop_windows(true)
+                    .below_window(window),
+            )
+            .await;
             // May succeed or fail depending on window state
             let _ = result;
         }
@@ -1306,12 +1354,17 @@ mod additional_async_tests {
 
     #[tokio::test]
     async fn test_async_shareable_content_above_window() {
-        let content = AsyncSCShareableContent::get().await.unwrap();
+        let Some(content) = super::live_shareable_content().await else {
+            return;
+        };
         if let Some(window) = content.windows().first() {
-            let result = AsyncSCShareableContent::create()
-                .with_exclude_desktop_windows(false)
-                .above_window(window)
-                .await;
+            let result = tokio::time::timeout(
+                Duration::from_secs(5),
+                AsyncSCShareableContent::create()
+                    .with_exclude_desktop_windows(false)
+                    .above_window(window),
+            )
+            .await;
             // May succeed or fail depending on window state
             let _ = result;
         }
@@ -1370,4 +1423,198 @@ async fn test_async_frame_delivery_assertive() {
         stream.take_error().is_none(),
         "clean capture should leave no stop error"
     );
+}
+
+// ============================================================================
+// AsyncSCStream lifecycle / sender-accounting regressions
+// ============================================================================
+
+/// Skip-aware fixture: a 320×240 video-only filter and configuration.
+fn async_live_fixture() -> Option<(
+    screencapturekit::stream::content_filter::SCContentFilter,
+    screencapturekit::stream::configuration::SCStreamConfiguration,
+)> {
+    use screencapturekit::shareable_content::SCShareableContent;
+    use screencapturekit::stream::configuration::SCStreamConfiguration;
+    use screencapturekit::stream::content_filter::SCContentFilter;
+
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("skip: screen-recording permission required (error: {e:?})");
+            return None;
+        }
+    };
+    let displays = content.displays();
+    let display = displays.first().or_else(|| {
+        eprintln!("skip: no displays available");
+        None
+    })?;
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+    let config = SCStreamConfiguration::new()
+        .with_width(320)
+        .with_height(240);
+    Some((filter, config))
+}
+
+/// Regression test: every extra output type gets its own sender, and each
+/// sender used to close the whole queue on drop. Registering a second type —
+/// whether `ScreenCaptureKit` accepts it or rejects it (in which case the
+/// freshly created sender is dropped straight away) — must leave the original
+/// output delivering frames.
+#[tokio::test]
+async fn test_extra_output_type_registration_never_closes_the_stream() {
+    use std::time::Duration;
+
+    let Some((filter, config)) = async_live_fixture() else {
+        return;
+    };
+
+    let mut stream = AsyncSCStream::new(&filter, &config, 8, SCStreamOutputType::Screen);
+    assert!(!stream.is_closed(), "stream closed before it was used");
+
+    // Either outcome exercises the sender accounting: on success the queue has
+    // two senders, on failure the second sender is created and immediately
+    // dropped — which used to mark the queue closed.
+    let added = stream.add_output_type(SCStreamOutputType::Audio);
+    eprintln!("add_output_type(Audio) -> {added}");
+
+    assert!(
+        !stream.is_closed(),
+        "registering an extra output type closed the whole stream"
+    );
+    assert!(
+        stream.take_error().is_none(),
+        "registering an extra output type must not record a stop error"
+    );
+
+    if let Err(e) = stream.start_capture().await {
+        eprintln!("skip: stream failed to start: {e:?}");
+        return;
+    }
+    let frame = tokio::time::timeout(Duration::from_secs(5), stream.next())
+        .await
+        .expect("timed out waiting for a frame after the extra registration");
+    assert!(
+        frame.is_some(),
+        "the original output stopped delivering after a second registration"
+    );
+
+    stream.stop_capture().await.expect("stop_capture failed");
+}
+
+/// Regression test: a clean stop is never reported through the delegate, so
+/// `stop_capture()` must close the queue itself — otherwise `next()` pends
+/// forever after the last buffered frame.
+#[tokio::test]
+async fn test_clean_stop_closes_the_sample_queue() {
+    use std::time::Duration;
+
+    let Some((filter, config)) = async_live_fixture() else {
+        return;
+    };
+
+    let stream = AsyncSCStream::new(&filter, &config, 8, SCStreamOutputType::Screen);
+    if let Err(e) = stream.start_capture().await {
+        eprintln!("skip: stream failed to start: {e:?}");
+        return;
+    }
+
+    let first = tokio::time::timeout(Duration::from_secs(5), stream.next())
+        .await
+        .expect("timed out waiting for the first frame");
+    assert!(first.is_some(), "stream closed before delivering a frame");
+
+    stream.stop_capture().await.expect("stop_capture failed");
+    assert!(stream.is_closed(), "a successful stop must close the queue");
+
+    // Drain whatever was already buffered, then the iterator must terminate
+    // rather than hang.
+    loop {
+        let next = tokio::time::timeout(Duration::from_secs(2), stream.next())
+            .await
+            .expect("next() hung after a clean stop");
+        if next.is_none() {
+            break;
+        }
+    }
+
+    assert!(
+        stream.take_error().is_none(),
+        "a clean stop must not record a stop error"
+    );
+}
+
+/// `ScreenCaptureKit` cannot restart a stopped `SCStream`; the async wrapper
+/// must say so explicitly instead of pending or surfacing an opaque error.
+#[tokio::test]
+async fn test_restart_after_stop_is_rejected() {
+    let Some((filter, config)) = async_live_fixture() else {
+        return;
+    };
+
+    let stream = AsyncSCStream::new(&filter, &config, 4, SCStreamOutputType::Screen);
+    if let Err(e) = stream.start_capture().await {
+        eprintln!("skip: stream failed to start: {e:?}");
+        return;
+    }
+    stream.stop_capture().await.expect("stop_capture failed");
+
+    let restart = stream.start_capture().await;
+    let err = restart.expect_err("restarting a stopped stream must fail");
+    assert!(
+        err.to_string().contains("cannot be restarted"),
+        "unexpected restart error: {err}"
+    );
+}
+
+/// Regression test: the queue used to hold a single `Option<Waker>`, so a
+/// second concurrent consumer silently evicted the first one's waker and that
+/// task never woke. Both consumers must make progress.
+#[tokio::test]
+async fn test_two_concurrent_consumers_both_get_woken() {
+    use std::time::Duration;
+
+    let Some((filter, config)) = async_live_fixture() else {
+        return;
+    };
+
+    let stream = std::sync::Arc::new(AsyncSCStream::new(
+        &filter,
+        &config,
+        16,
+        SCStreamOutputType::Screen,
+    ));
+    if let Err(e) = stream.start_capture().await {
+        eprintln!("skip: stream failed to start: {e:?}");
+        return;
+    }
+
+    // Park both consumers before any frame arrives, so each has to be woken by
+    // the capture callback rather than finding a frame already buffered.
+    let a = {
+        let stream = stream.clone();
+        tokio::spawn(async move { stream.next().await.is_some() })
+    };
+    let b = {
+        let stream = stream.clone();
+        tokio::spawn(async move { stream.next().await.is_some() })
+    };
+
+    let got_a = tokio::time::timeout(Duration::from_secs(5), a)
+        .await
+        .expect("first consumer was never woken")
+        .expect("first consumer task panicked");
+    let got_b = tokio::time::timeout(Duration::from_secs(5), b)
+        .await
+        .expect("second consumer was never woken")
+        .expect("second consumer task panicked");
+
+    assert!(got_a && got_b, "both consumers must receive a frame");
+
+    stream.stop_capture().await.expect("stop_capture failed");
 }

@@ -17,7 +17,8 @@
 //! | [`SCContentSharingPicker::show()`] | callback with [`SCPickerOutcome`] | Get filter + metadata (dimensions, picked content) |
 //! | [`SCContentSharingPicker::show_filter()`] | callback with [`SCPickerFilterOutcome`] | Just get the filter |
 //!
-//! For async/await, use [`AsyncSCContentSharingPicker`](crate::async_api::AsyncSCContentSharingPicker) from the `async_api` module.
+//! For async/await, use `AsyncSCContentSharingPicker` from the optional
+//! `async_api` module.
 //!
 //! # Examples
 //!
@@ -67,9 +68,12 @@
 //! config.set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"]);
 //! ```
 
-use crate::stream::content_filter::SCContentFilter;
+use crate::stream::content_filter::{SCContentFilter, SCShareableContentStyle};
+use std::any::Any;
+use std::collections::HashMap;
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Mutex, PoisonError};
 
 /// Represents the type of content selected in the picker
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,10 +113,23 @@ pub struct SCContentSharingPickerConfiguration {
 }
 
 impl SCContentSharingPickerConfiguration {
+    /// # Panics
+    ///
+    /// Panics when run on macOS older than 14.0. Use [`Self::try_new`] when
+    /// runtime availability is not already known.
     #[must_use]
     pub fn new() -> Self {
+        Self::try_new().expect("SCContentSharingPicker requires macOS 14.0 or later")
+    }
+
+    /// Create a configuration when the picker is available on this system.
+    #[must_use]
+    pub fn try_new() -> Option<Self> {
+        if !SCContentSharingPicker::is_available() {
+            return None;
+        }
         let ptr = unsafe { crate::ffi::sc_content_sharing_picker_configuration_create() };
-        Self { ptr }
+        (!ptr.is_null()).then_some(Self { ptr })
     }
 
     /// Construct a configuration initialised with the system's default values
@@ -125,6 +142,10 @@ impl SCContentSharingPickerConfiguration {
     /// any system-wide picker preferences the OS applies to fresh
     /// configurations (e.g. allowed picker modes, default exclusion lists).
     ///
+    /// # Panics
+    ///
+    /// Panics when run on macOS older than 14.0.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -136,6 +157,10 @@ impl SCContentSharingPickerConfiguration {
     /// ```
     #[must_use]
     pub fn default_from_system() -> Self {
+        assert!(
+            SCContentSharingPicker::is_available(),
+            "SCContentSharingPicker requires macOS 14.0 or later"
+        );
         let ptr = unsafe { crate::ffi::sc_content_sharing_picker_create_default_configuration() };
         Self { ptr }
     }
@@ -199,10 +224,19 @@ impl SCContentSharingPickerConfiguration {
     ///
     /// Applications with these bundle IDs will not appear in the picker.
     pub fn set_excluded_bundle_ids(&mut self, bundle_ids: &[&str]) {
-        let c_strings: Vec<std::ffi::CString> = bundle_ids
+        let c_strings: Vec<std::ffi::CString> = if let Ok(ids) = bundle_ids
             .iter()
-            .filter_map(|s| std::ffi::CString::new(*s).ok())
-            .collect();
+            .map(|id| std::ffi::CString::new(*id))
+            .collect()
+        {
+            ids
+        } else {
+            eprintln!(
+                "SCContentSharingPickerConfiguration: excluded bundle ID contains an \
+                 interior NUL byte; configuration was not changed"
+            );
+            return;
+        };
         let ptrs: Vec<*const i8> = c_strings.iter().map(|s| s.as_ptr()).collect();
         unsafe {
             crate::ffi::sc_content_sharing_picker_configuration_set_excluded_bundle_ids(
@@ -214,31 +248,43 @@ impl SCContentSharingPickerConfiguration {
     }
 
     /// Get the list of excluded bundle identifiers
+    ///
+    /// A bundle ID that does not fit in the transfer buffer is skipped rather
+    /// than returned truncated, so the result can be shorter than
+    /// [`excluded_bundle_ids_count`](Self::excluded_bundle_ids_count).
+    #[must_use]
     pub fn excluded_bundle_ids(&self) -> Vec<String> {
-        let count = unsafe {
-            crate::ffi::sc_content_sharing_picker_configuration_get_excluded_bundle_ids_count(
-                self.ptr,
-            )
-        };
+        let count = self.excluded_bundle_ids_count();
         let mut result = Vec::with_capacity(count);
         for i in 0..count {
-            let mut buffer = vec![0i8; 256];
-            let success = unsafe {
-                crate::ffi::sc_content_sharing_picker_configuration_get_excluded_bundle_id_at(
-                    self.ptr,
-                    i,
-                    buffer.as_mut_ptr(),
-                    buffer.len(),
+            let id = unsafe {
+                crate::utils::ffi_string::ffi_string_from_buffer(
+                    crate::utils::ffi_string::DEFAULT_BUFFER_SIZE,
+                    |buffer, len| {
+                        crate::ffi::sc_content_sharing_picker_configuration_get_excluded_bundle_id_at(
+                            self.ptr,
+                            i,
+                            buffer,
+                            usize::try_from(len).unwrap_or(0),
+                        )
+                    },
                 )
             };
-            if success {
-                let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
-                if let Ok(s) = c_str.to_str() {
-                    result.push(s.to_string());
-                }
+            if let Some(id) = id {
+                result.push(id);
             }
         }
         result
+    }
+
+    /// Number of excluded bundle identifiers configured.
+    #[must_use]
+    pub fn excluded_bundle_ids_count(&self) -> usize {
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_configuration_get_excluded_bundle_ids_count(
+                self.ptr,
+            )
+        }
     }
 
     /// Set window IDs to exclude from the picker
@@ -288,9 +334,25 @@ impl Default for SCContentSharingPickerConfiguration {
 crate::utils::retained::sc_retained!(
     SCContentSharingPickerConfiguration,
     field = ptr,
-    retain = crate::ffi::sc_content_sharing_picker_configuration_retain,
     release = crate::ffi::sc_content_sharing_picker_configuration_release,
 );
+
+impl Clone for SCContentSharingPickerConfiguration {
+    /// Produce an independent configuration with the same values.
+    ///
+    /// Deliberately **not** the retain-based clone the other wrappers in this
+    /// crate use. Those wrap immutable Objective-C objects, where sharing one
+    /// instance between handles is unobservable. This type is different: it
+    /// wraps a mutable Swift box and exposes `&mut self` setters, so a
+    /// refcount-only clone would let a `&mut` on one handle mutate state that
+    /// another handle observes through a shared `&` — and, with `Send + Sync`,
+    /// from another thread at the same time.
+    fn clone(&self) -> Self {
+        Self {
+            ptr: unsafe { crate::ffi::sc_content_sharing_picker_configuration_copy(self.ptr) },
+        }
+    }
+}
 
 impl std::fmt::Debug for SCContentSharingPickerConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -593,6 +655,20 @@ pub enum SCPickerOutcome {
 pub struct SCContentSharingPicker;
 
 impl SCContentSharingPicker {
+    fn available_or_log(operation: &str) -> bool {
+        let available = Self::is_available();
+        if !available {
+            eprintln!("{operation} requires macOS 14.0 or later");
+        }
+        available
+    }
+
+    /// Whether content-sharing picker APIs are available on this system.
+    #[must_use]
+    pub fn is_available() -> bool {
+        unsafe { crate::ffi::sc_content_sharing_picker_is_available() }
+    }
+
     /// Show the picker UI with a callback for the result
     ///
     /// This is non-blocking - the callback is invoked when the user makes a selection
@@ -771,6 +847,9 @@ impl SCContentSharingPicker {
     ///
     /// Pass 0 to allow unlimited streams.
     pub fn set_maximum_stream_count(count: usize) {
+        if !Self::available_or_log("SCContentSharingPicker::set_maximum_stream_count") {
+            return;
+        }
         unsafe {
             crate::ffi::sc_content_sharing_picker_set_maximum_stream_count(count);
         }
@@ -780,6 +859,9 @@ impl SCContentSharingPicker {
     ///
     /// Returns 0 if unlimited streams are allowed.
     pub fn maximum_stream_count() -> usize {
+        if !Self::is_available() {
+            return 0;
+        }
         unsafe { crate::ffi::sc_content_sharing_picker_get_maximum_stream_count() }
     }
 
@@ -797,6 +879,9 @@ impl SCContentSharingPicker {
     ///   visible to the user.
     #[must_use]
     pub fn is_active() -> bool {
+        if !Self::is_available() {
+            return false;
+        }
         unsafe { crate::ffi::sc_content_sharing_picker_get_active() }
     }
 
@@ -812,37 +897,479 @@ impl SCContentSharingPicker {
     /// manually only if you want to opt into the picker UI without
     /// immediately presenting it.
     pub fn set_active(active: bool) {
+        if !Self::available_or_log("SCContentSharingPicker::set_active") {
+            return;
+        }
         unsafe { crate::ffi::sc_content_sharing_picker_set_active(active) }
     }
+
+    /// Deactivate the picker and undo any activation-policy promotion the
+    /// bridge performed on behalf of a non-UI (`.prohibited`) host process.
+    ///
+    /// Presenting `SCContentSharingPicker` requires the process to be a
+    /// regular, Dock-visible app. Pure-Rust hosts usually are not, so the
+    /// bridge temporarily promotes them; the promotion is reference counted
+    /// and unwound automatically when each one-shot `show*()` resolves. Call
+    /// this after you are done with a *long-lived* observer session to drop
+    /// the promotion immediately and clear the Control Center "ready to
+    /// share" indicator.
+    ///
+    /// Registered observers are **not** removed — drop their
+    /// [`SCPickerSubscription`] for that.
+    pub fn deactivate() {
+        if !Self::is_available() {
+            return;
+        }
+        unsafe { crate::ffi::sc_content_sharing_picker_deactivate() }
+    }
+
+    // ------------------------------------------------------------------
+    // Standalone configuration operations
+    // ------------------------------------------------------------------
+
+    /// Read the picker's process-wide default configuration.
+    ///
+    /// Equivalent to Apple's `SCContentSharingPicker.shared.defaultConfiguration`.
+    /// This is the same value returned by
+    /// [`SCContentSharingPickerConfiguration::default_from_system`].
+    #[must_use]
+    pub fn default_configuration() -> SCContentSharingPickerConfiguration {
+        SCContentSharingPickerConfiguration::default_from_system()
+    }
+
+    /// Assign the picker's process-wide default configuration.
+    ///
+    /// Apple's `SCContentSharingPicker.defaultConfiguration` is read-write;
+    /// previously this crate could only set it as a side effect of calling a
+    /// `show*()` helper. Setting it explicitly is what you want when driving
+    /// the picker with a persistent observer plus [`Self::present`].
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::content_sharing_picker::*;
+    ///
+    /// let mut config = SCContentSharingPickerConfiguration::new();
+    /// config.set_allows_changing_selected_content(true);
+    /// SCContentSharingPicker::set_default_configuration(&config);
+    /// ```
+    pub fn set_default_configuration(config: &SCContentSharingPickerConfiguration) {
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_set_default_configuration(config.as_ptr());
+        }
+    }
+
+    /// Assign a picker configuration scoped to a single stream, mirroring
+    /// Apple's `setConfiguration(_:for:)`.
+    ///
+    /// Pass `None` to clear the stream-specific configuration and fall back to
+    /// the process-wide default.
+    pub fn set_configuration_for_stream(
+        config: Option<&SCContentSharingPickerConfiguration>,
+        stream: &crate::stream::SCStream,
+    ) {
+        if !Self::available_or_log("SCContentSharingPicker::set_configuration_for_stream") {
+            return;
+        }
+        let config_ptr = config.map_or(
+            std::ptr::null(),
+            SCContentSharingPickerConfiguration::as_ptr,
+        );
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_set_configuration_for_stream(
+                config_ptr,
+                stream.as_ptr(),
+            );
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Persistent observers
+    // ------------------------------------------------------------------
+
+    /// Register a **repeating** observer that receives every picker event for
+    /// as long as the returned subscription is alive.
+    ///
+    /// This is the API to use with
+    /// [`SCContentSharingPickerConfiguration::set_allows_changing_selected_content`]:
+    /// Apple re-invokes `contentSharingPicker(_:didUpdateWith:for:)` each time
+    /// the user re-picks during an active share, and the one-shot
+    /// [`Self::show`] family deliberately latches after the first event.
+    ///
+    /// The subscription unregisters on drop, so bind it to a variable that
+    /// lives as long as you want events (use [`SCPickerSubscription::detach`]
+    /// to keep it for the remainder of the process).
+    ///
+    /// Pair this with [`Self::present`] / [`Self::present_for_stream`] to
+    /// surface the UI.
+    ///
+    /// Apple marks `SCContentSharingPicker` as `@MainActor`. Call this on the
+    /// process main thread, or while an `AppKit` main run loop is active so the
+    /// bridge can synchronously hop to it. Otherwise registration fails and
+    /// the returned subscription is inactive.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use screencapturekit::content_sharing_picker::*;
+    ///
+    /// let mut config = SCContentSharingPickerConfiguration::new();
+    /// config.set_allows_changing_selected_content(true);
+    /// SCContentSharingPicker::set_default_configuration(&config);
+    ///
+    /// let subscription = SCContentSharingPicker::add_observer(|event| match event {
+    ///     SCPickerEvent::Updated(result) => {
+    ///         // Fires again every time the user changes their selection.
+    ///         let _filter = result.filter();
+    ///     }
+    ///     SCPickerEvent::Cancelled => println!("cancelled"),
+    ///     SCPickerEvent::Failed(err) => eprintln!("picker failed: {err}"),
+    /// });
+    ///
+    /// SCContentSharingPicker::present();
+    /// // ... keep `subscription` alive for as long as you want updates ...
+    /// drop(subscription);
+    /// ```
+    #[must_use = "the observer is removed as soon as the subscription is dropped"]
+    pub fn add_observer<F>(handler: F) -> SCPickerSubscription
+    where
+        F: Fn(SCPickerEvent) + Send + Sync + 'static,
+    {
+        if !Self::available_or_log("SCContentSharingPicker::add_observer") {
+            return SCPickerSubscription { token: 0 };
+        }
+        let context = SCPickerObserverContext::into_raw(handler);
+        let token = unsafe {
+            crate::ffi::sc_content_sharing_picker_add_observer(
+                observer_trampoline,
+                observer_context_release,
+                context,
+            )
+        };
+
+        if token == 0 {
+            eprintln!(
+                "SCContentSharingPicker::add_observer must run on the main thread or while an \
+                 AppKit main run loop is active"
+            );
+            observer_context_release(context);
+        }
+
+        SCPickerSubscription { token }
+    }
+
+    /// Remove every repeating observer registered through
+    /// [`Self::add_observer`], regardless of which subscriptions are still
+    /// alive. Returns how many were removed.
+    ///
+    /// Dropping the corresponding [`SCPickerSubscription`] afterwards is
+    /// harmless — removal is idempotent.
+    pub fn remove_all_observers() -> usize {
+        if !Self::is_available() {
+            return 0;
+        }
+        unsafe { crate::ffi::sc_content_sharing_picker_remove_all_observers() }
+    }
+
+    // ------------------------------------------------------------------
+    // Standalone presentation
+    // ------------------------------------------------------------------
+
+    /// Present the picker without a content-style hint.
+    ///
+    /// Use with [`Self::add_observer`]; the one-shot [`Self::show`] family
+    /// presents for you.
+    pub fn present() {
+        if !Self::available_or_log("SCContentSharingPicker::present") {
+            return;
+        }
+        unsafe { crate::ffi::sc_content_sharing_picker_present(-1) }
+    }
+
+    /// Present the picker preselecting a content style.
+    pub fn present_using_style(style: SCShareableContentStyle) {
+        if !Self::available_or_log("SCContentSharingPicker::present_using_style") {
+            return;
+        }
+        unsafe { crate::ffi::sc_content_sharing_picker_present(style as i32) }
+    }
+
+    /// Present the picker targeting an existing stream, so the user can swap
+    /// the shared source mid-capture.
+    pub fn present_for_stream(stream: &crate::stream::SCStream) {
+        if !Self::available_or_log("SCContentSharingPicker::present_for_stream") {
+            return;
+        }
+        unsafe { crate::ffi::sc_content_sharing_picker_present_for_stream(stream.as_ptr(), -1) }
+    }
+
+    /// Present the picker targeting an existing stream, preselecting a style.
+    pub fn present_for_stream_using_style(
+        stream: &crate::stream::SCStream,
+        style: SCShareableContentStyle,
+    ) {
+        if !Self::available_or_log("SCContentSharingPicker::present_for_stream_using_style") {
+            return;
+        }
+        unsafe {
+            crate::ffi::sc_content_sharing_picker_present_for_stream(stream.as_ptr(), style as i32);
+        }
+    }
+}
+
+// ============================================================================
+// Persistent observer: events, subscription handle, context, trampoline
+// ============================================================================
+
+/// A single event delivered to a repeating observer registered with
+/// [`SCContentSharingPicker::add_observer`].
+///
+/// Unlike [`SCPickerOutcome`], which resolves a one-shot `show*()` call,
+/// these arrive as many times as the user interacts with the picker.
+#[derive(Debug)]
+pub enum SCPickerEvent {
+    /// The user selected (or re-selected) content. Mirrors Apple's
+    /// `contentSharingPicker(_:didUpdateWith:for:)`.
+    Updated(SCPickerResult),
+    /// The user dismissed the picker. Mirrors
+    /// `contentSharingPicker(_:didCancelFor:)`.
+    Cancelled,
+    /// The picker failed to start. Mirrors
+    /// `contentSharingPickerStartDidFailWithError(_:)`.
+    Failed(String),
+}
+
+/// Handle representing a live repeating-observer registration.
+///
+/// The observer is removed when this value is dropped. Call
+/// [`Self::detach`] to keep the observer alive for the rest of the process.
+#[derive(Debug)]
+#[must_use = "the observer is removed as soon as the subscription is dropped"]
+pub struct SCPickerSubscription {
+    token: i64,
+}
+
+impl SCPickerSubscription {
+    /// Opaque identifier for this registration. Non-zero when registration
+    /// succeeded.
+    #[must_use]
+    pub const fn token(&self) -> i64 {
+        self.token
+    }
+
+    /// Whether this subscription refers to a live registration.
+    #[must_use]
+    pub const fn is_active(&self) -> bool {
+        self.token != 0
+    }
+
+    /// Remove the observer now instead of waiting for the drop.
+    ///
+    /// Returns `true` if a live observer was removed.
+    pub fn unsubscribe(mut self) -> bool {
+        let removed = self.remove();
+        std::mem::forget(self);
+        removed
+    }
+
+    /// Give up ownership without removing the observer, keeping it registered
+    /// for the remainder of the process.
+    ///
+    /// Useful for "install once at startup" wiring where there is no natural
+    /// owner for the handle. The registration can still be torn down with
+    /// [`SCContentSharingPicker::remove_all_observers`].
+    pub fn detach(self) {
+        std::mem::forget(self);
+    }
+
+    fn remove(&mut self) -> bool {
+        if self.token == 0 {
+            return false;
+        }
+        let removed = unsafe { crate::ffi::sc_content_sharing_picker_remove_observer(self.token) };
+        self.token = 0;
+        removed
+    }
+}
+
+impl Drop for SCPickerSubscription {
+    fn drop(&mut self) {
+        self.remove();
+    }
+}
+
+struct SCPickerObserverContext {
+    /// Cleared on unsubscribe so a callback already in flight is dropped
+    /// rather than delivered after the user asked to stop listening.
+    active: AtomicBool,
+    handler: Box<dyn Fn(SCPickerEvent) + Send + Sync>,
+}
+
+impl SCPickerObserverContext {
+    fn into_raw<F>(handler: F) -> *mut c_void
+    where
+        F: Fn(SCPickerEvent) + Send + Sync + 'static,
+    {
+        let context = std::sync::Arc::new(Self {
+            active: AtomicBool::new(true),
+            handler: Box::new(handler),
+        });
+        let mut registry = PICKER_OBSERVER_CONTEXTS
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let contexts = registry.get_or_insert_with(HashMap::new);
+        let id = loop {
+            let id = NEXT_PICKER_OBSERVER_CONTEXT_ID.fetch_add(1, Ordering::Relaxed);
+            if id != 0 && !contexts.contains_key(&id) {
+                break id;
+            }
+        };
+        contexts.insert(id, context);
+        drop(registry);
+        id as *mut c_void
+    }
+}
+
+static NEXT_PICKER_OBSERVER_CONTEXT_ID: AtomicUsize = AtomicUsize::new(1);
+static PICKER_OBSERVER_CONTEXTS: Mutex<
+    Option<HashMap<usize, std::sync::Arc<SCPickerObserverContext>>>,
+> = Mutex::new(None);
+
+fn picker_observer_context(
+    context: *mut c_void,
+) -> Option<std::sync::Arc<SCPickerObserverContext>> {
+    let id = context as usize;
+    if id == 0 {
+        return None;
+    }
+    PICKER_OBSERVER_CONTEXTS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .as_ref()?
+        .get(&id)
+        .cloned()
+}
+
+extern "C" fn observer_context_release(context: *mut c_void) {
+    crate::utils::panic_safe::catch_user_panic("picker observer context release", || {
+        let id = context as usize;
+        if id == 0 {
+            return;
+        }
+        let removed = {
+            let mut contexts = PICKER_OBSERVER_CONTEXTS
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            contexts.as_mut().and_then(|contexts| contexts.remove(&id))
+        };
+        if let Some(context) = removed {
+            context.active.store(false, Ordering::Release);
+        }
+    });
+}
+
+/// Trampoline for every repeating-observer event.
+///
+/// `event` follows the Swift bridge contract: 1 = updated (with a result
+/// pointer), 0 = cancelled, anything else = start failure (with a message).
+extern "C" fn observer_trampoline(
+    event: i32,
+    result_ptr: *const c_void,
+    message: *const i8,
+    context: *mut c_void,
+) {
+    // The whole body sits inside the barrier: the registry lookup and the
+    // message decoding both allocate, and an unwind out of an `extern "C"`
+    // function is undefined behaviour on this crate's MSRV.
+    crate::utils::panic_safe::catch_user_panic("picker observer callback", move || {
+        let Some(context) = picker_observer_context(context) else {
+            if !result_ptr.is_null() {
+                unsafe { crate::ffi::sc_picker_result_release(result_ptr) };
+            }
+            return;
+        };
+
+        if !context.active.load(Ordering::Acquire) {
+            // Unsubscribed while this callback was in flight; drop the result
+            // rather than delivering it. Release the retained result first.
+            if !result_ptr.is_null() {
+                unsafe { crate::ffi::sc_picker_result_release(result_ptr) };
+            }
+            return;
+        }
+
+        let decoded = match event {
+            1 if !result_ptr.is_null() => {
+                SCPickerEvent::Updated(SCPickerResult { ptr: result_ptr })
+            }
+            1 => SCPickerEvent::Failed("picker delivered an update without a result".to_string()),
+            0 => SCPickerEvent::Cancelled,
+            _ => {
+                let text = if message.is_null() {
+                    "Content sharing picker failed to start".to_string()
+                } else {
+                    // SAFETY: Swift passes a NUL-terminated UTF-8 buffer that is
+                    // valid for the duration of this call.
+                    unsafe { std::ffi::CStr::from_ptr(message) }
+                        .to_string_lossy()
+                        .into_owned()
+                };
+                SCPickerEvent::Failed(text)
+            }
+        };
+
+        (context.handler)(decoded);
+    });
 }
 
 // ============================================================================
 // One-shot callback context + trampoline (shared by all `show*()` methods)
 // ============================================================================
 
-/// Heap context handed to the Swift bridge as the opaque `user_data` pointer.
-///
-/// It owns the user's closure plus a `consumed` guard. Centralising the
-/// `Box::into_raw` / `Box::from_raw` lifecycle here means the one-shot
-/// reclaim happens in exactly one place ([`picker_trampoline`]) instead of
-/// being duplicated across every `show*()` method, and the `consumed` flag
-/// makes a (mis-behaving) double fire from Swift safe: the second invocation
-/// observes `true` and returns without a second `Box::from_raw`.
+/// Context owned by the one-shot callback registry.
 struct PickerCallbackContext<O> {
-    consumed: AtomicBool,
     closure: Box<dyn FnOnce(O) + Send>,
 }
 
-/// Box a user closure into the opaque `*mut c_void` context handed to Swift.
+static NEXT_PICKER_CALLBACK_ID: AtomicUsize = AtomicUsize::new(1);
+static PICKER_CALLBACKS: Mutex<Option<HashMap<usize, Box<dyn Any + Send>>>> = Mutex::new(None);
+
+/// Store a user closure and hand Swift a token that is never dereferenced.
+#[allow(clippy::significant_drop_tightening)]
 fn into_callback_context<O, F>(callback: F) -> *mut c_void
 where
+    O: 'static,
     F: FnOnce(O) + Send + 'static,
 {
     let context = Box::new(PickerCallbackContext {
-        consumed: AtomicBool::new(false),
         closure: Box::new(callback),
     });
-    Box::into_raw(context).cast::<c_void>()
+    let mut callbacks = PICKER_CALLBACKS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    let callbacks = callbacks.get_or_insert_with(HashMap::new);
+    loop {
+        let id = NEXT_PICKER_CALLBACK_ID.fetch_add(1, Ordering::Relaxed);
+        if id != 0 && !callbacks.contains_key(&id) {
+            callbacks.insert(id, context);
+            return id as *mut c_void;
+        }
+    }
+}
+
+fn take_callback_context<O: 'static>(
+    context: *mut c_void,
+) -> Option<Box<PickerCallbackContext<O>>> {
+    let id = context as usize;
+    if id == 0 {
+        return None;
+    }
+    let entry = PICKER_CALLBACKS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .as_mut()?
+        .remove(&id)?;
+    entry.downcast::<PickerCallbackContext<O>>().ok()
 }
 
 /// Decodes the `(code, ptr)` pair from the Swift bridge into a typed outcome.
@@ -851,8 +1378,9 @@ where
 /// serve both the result-bearing and filter-only APIs while keeping the FFI
 /// signature identical.
 trait PickerDecode {
-    type Outcome;
+    type Outcome: 'static;
     fn decode(code: i32, ptr: *const c_void) -> Self::Outcome;
+    unsafe fn release(ptr: *const c_void);
 }
 
 struct ResultDecoder;
@@ -863,6 +1391,12 @@ impl PickerDecode for ResultDecoder {
             1 if !ptr.is_null() => SCPickerOutcome::Picked(SCPickerResult { ptr }),
             0 => SCPickerOutcome::Cancelled,
             _ => SCPickerOutcome::Error("Picker failed".to_string()),
+        }
+    }
+
+    unsafe fn release(ptr: *const c_void) {
+        if !ptr.is_null() {
+            unsafe { crate::ffi::sc_picker_result_release(ptr) };
         }
     }
 }
@@ -879,6 +1413,12 @@ impl PickerDecode for FilterDecoder {
             _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
         }
     }
+
+    unsafe fn release(ptr: *const c_void) {
+        if !ptr.is_null() {
+            unsafe { crate::ffi::sc_content_filter_release(ptr) };
+        }
+    }
 }
 
 /// Single trampoline for every picker `show*()` callback.
@@ -889,41 +1429,67 @@ impl PickerDecode for FilterDecoder {
 /// `show*()`, so a replaced picker resolves as `Cancelled` rather than
 /// leaking its context.
 ///
-/// The boxed closure is reclaimed here exactly once; a duplicate fire on the
-/// same still-live context is rejected by the atomic `consumed` guard.
+/// The registry entry is removed exactly once. Duplicate or late callbacks
+/// find no entry, so they cannot dereference freed memory.
 extern "C" fn picker_trampoline<D: PickerDecode>(
     code: i32,
     ptr: *const c_void,
     context: *mut c_void,
 ) {
-    if context.is_null() {
-        return;
-    }
-
-    // SAFETY: `context` is a live `PickerCallbackContext<D::Outcome>` created
-    // by `into_callback_context`. We only read `consumed` here without taking
-    // ownership; ownership is taken below only by the winner of the swap.
-    let consumed = unsafe { &(*context.cast::<PickerCallbackContext<D::Outcome>>()).consumed };
-    if consumed.swap(true, Ordering::AcqRel) {
-        return;
-    }
-
-    // SAFETY: we won the `consumed` swap, so this is the unique reclaim of the
-    // box created in `into_callback_context`.
-    let context = unsafe { Box::from_raw(context.cast::<PickerCallbackContext<D::Outcome>>()) };
-    let outcome = D::decode(code, ptr);
     crate::utils::panic_safe::catch_user_panic("picker callback", move || {
+        let Some(context) = take_callback_context::<D::Outcome>(context) else {
+            unsafe { D::release(ptr) };
+            return;
+        };
+        let outcome = D::decode(code, ptr);
         (context.closure)(outcome);
     });
 }
 
-// Safety: Configuration wraps an Objective-C object that is thread-safe
-// SAFETY: `SCContentSharingPickerConfiguration` wraps an Objective-C object
-// whose reference counting is atomic; it is safe to send between and share
-// across threads.
+// SAFETY: the wrapper owns its Swift box exclusively — `Clone` copies the box
+// rather than retaining it, and no constructor hands out a second handle to the
+// same allocation. Mutation therefore only happens through `&mut self`, which
+// Rust already makes exclusive, and the `&self` methods are pure getters. The
+// box itself is a Swift class, so the refcount traffic that `Drop` performs is
+// atomic.
 unsafe impl Send for SCContentSharingPickerConfiguration {}
 unsafe impl Sync for SCContentSharingPickerConfiguration {}
 // SAFETY: `SCPickerResult` holds retained Objective-C objects whose reference
 // counting is atomic; it is safe to send between and share across threads.
 unsafe impl Send for SCPickerResult {}
 unsafe impl Sync for SCPickerResult {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    #[test]
+    fn duplicate_one_shot_callback_is_ignored_after_context_drop() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&calls);
+        let context = into_callback_context::<SCPickerFilterOutcome, _>(move |_| {
+            observed.fetch_add(1, Ordering::SeqCst);
+        });
+
+        picker_trampoline::<FilterDecoder>(0, std::ptr::null(), context);
+        picker_trampoline::<FilterDecoder>(0, std::ptr::null(), context);
+
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn released_repeating_observer_ignores_late_callback() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&calls);
+        let context = SCPickerObserverContext::into_raw(move |_| {
+            observed.fetch_add(1, Ordering::SeqCst);
+        });
+
+        observer_context_release(context);
+        observer_trampoline(0, std::ptr::null(), std::ptr::null(), context);
+
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
+}

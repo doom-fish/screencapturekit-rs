@@ -31,9 +31,9 @@ pub fn take_screenshot(
 
         match SCScreenshotManager::capture_screenshot(filter, &config) {
             Ok(output) => {
-                if let Some(url) = output.file_url() {
-                    println!("✅ Screenshot saved to {url}");
-                    let _ = std::process::Command::new("open").arg(&url).spawn();
+                if let Some(saved) = output.file_path() {
+                    println!("✅ Screenshot saved to {}", saved.display());
+                    let _ = std::process::Command::new("open").arg(&saved).spawn();
                 } else if let Some(image) = output.sdr_image() {
                     println!(
                         "✅ Screenshot captured: {}x{}",

@@ -71,12 +71,58 @@ use crate::shareable_content::SCShareableContent;
 use crate::stream::configuration::SCStreamConfiguration;
 use crate::stream::content_filter::SCContentFilter;
 use crate::stream::output_type::SCStreamOutputType;
-use crate::utils::completion::{error_from_cstr, AsyncCompletion, AsyncCompletionFuture};
+use crate::utils::completion::{
+    error_from_cstr, is_timeout_error, AsyncCompletion, AsyncCompletionFuture,
+};
 use std::ffi::c_void;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
+
+struct RegisteredWaker {
+    token: Arc<()>,
+    waker: Waker,
+}
+
+fn register_waker(
+    waiters: &mut Vec<RegisteredWaker>,
+    token: &Arc<()>,
+    waker: Waker,
+) -> Option<Waker> {
+    if let Some(waiter) = waiters
+        .iter_mut()
+        .find(|waiter| Arc::ptr_eq(&waiter.token, token))
+    {
+        return Some(if waiter.waker.will_wake(&waker) {
+            waker
+        } else {
+            std::mem::replace(&mut waiter.waker, waker)
+        });
+    }
+
+    waiters.push(RegisteredWaker {
+        token: Arc::clone(token),
+        waker,
+    });
+    None
+}
+
+fn unregister_waker(
+    waiters: &mut Vec<RegisteredWaker>,
+    token: &Arc<()>,
+) -> Option<RegisteredWaker> {
+    waiters
+        .iter()
+        .position(|waiter| Arc::ptr_eq(&waiter.token, token))
+        .map(|index| waiters.swap_remove(index))
+}
+
+fn wake_all(waiters: Vec<RegisteredWaker>) {
+    for waiter in waiters {
+        waiter.waker.wake();
+    }
+}
 
 // ============================================================================
 // AsyncSCShareableContent - True async with callback-based FFI
@@ -306,15 +352,41 @@ impl AsyncSCShareableContent {
 /// frames rather than blocking the capture callback.
 struct AsyncSampleIteratorState {
     buffer: std::collections::VecDeque<(crate::cm::CMSampleBuffer, SCStreamOutputType)>,
-    waker: Option<Waker>,
+    /// Every task currently parked on this queue.
+    ///
+    /// A single `Option<Waker>` would lose wakeups as soon as two consumers
+    /// exist (e.g. `frames()` in one task and `next_typed()` in another): the
+    /// second `poll` would overwrite the first task's waker and that task would
+    /// never be woken. `AsyncSCStream` hands out `&self` borrows, so multiple
+    /// concurrent consumers are perfectly legal — we wake all of them and let
+    /// the losers see an empty queue and re-park.
+    waiters: Vec<RegisteredWaker>,
     closed: bool,
+    /// Set once `stop_capture()` succeeds. `ScreenCaptureKit` cannot restart a
+    /// stopped `SCStream`, so this makes the refusal explicit instead of
+    /// letting `start_capture()` fail with an opaque Apple error.
+    stopped: bool,
     capacity: usize,
+    /// Live `AsyncSampleSender`s. The queue closes when the last one drops, not
+    /// the first — a multi-output stream has one sender per output type.
+    senders: usize,
     stop_error: Option<SCError>,
 }
 
 /// Internal sender for async sample iterator
 struct AsyncSampleSender {
     inner: Arc<Mutex<AsyncSampleIteratorState>>,
+}
+
+impl AsyncSampleSender {
+    fn new(state: &Arc<Mutex<AsyncSampleIteratorState>>) -> Self {
+        if let Ok(mut s) = state.lock() {
+            s.senders += 1;
+        }
+        Self {
+            inner: Arc::clone(state),
+        }
+    }
 }
 
 impl crate::stream::output_trait::SCStreamOutputTrait for AsyncSampleSender {
@@ -327,27 +399,39 @@ impl crate::stream::output_trait::SCStreamOutputTrait for AsyncSampleSender {
             return;
         };
 
-        // Drop oldest if at capacity
-        if state.buffer.len() >= state.capacity {
-            state.buffer.pop_front();
-        }
+        // Drop oldest if at capacity. The evicted buffer is released *after*
+        // the lock, because dropping a CMSampleBuffer calls into CoreMedia.
+        let evicted = if state.buffer.len() >= state.capacity {
+            state.buffer.pop_front()
+        } else {
+            None
+        };
 
         state.buffer.push_back((sample_buffer, of_type));
 
-        if let Some(waker) = state.waker.take() {
-            waker.wake();
-        }
+        let waiters = std::mem::take(&mut state.waiters);
+        drop(state);
+
+        drop(evicted);
+        // Waking outside the lock: a waker may poll the future inline (single
+        // threaded executors do), which would re-enter `lock()` and deadlock.
+        wake_all(waiters);
     }
 }
 
 impl Drop for AsyncSampleSender {
     fn drop(&mut self) {
-        if let Ok(mut state) = self.inner.lock() {
-            state.closed = true;
-            if let Some(waker) = state.waker.take() {
-                waker.wake();
-            }
+        let Ok(mut state) = self.inner.lock() else {
+            return;
+        };
+        state.senders = state.senders.saturating_sub(1);
+        if state.senders > 0 {
+            return;
         }
+        state.closed = true;
+        let waiters = std::mem::take(&mut state.waiters);
+        drop(state);
+        wake_all(waiters);
     }
 }
 
@@ -355,29 +439,32 @@ impl Drop for AsyncSampleSender {
 /// `(buffer, type)` pair, resolve to `None` when closed, or register the waker.
 fn poll_next_sample(
     state: &Arc<Mutex<AsyncSampleIteratorState>>,
+    waiter: &Arc<()>,
     cx: &Context<'_>,
 ) -> Poll<Option<(crate::cm::CMSampleBuffer, SCStreamOutputType)>> {
+    let waker = cx.waker().clone();
     let Ok(mut state) = state.lock() else {
         return Poll::Ready(None);
     };
 
     if let Some(sample) = state.buffer.pop_front() {
+        let removed = unregister_waker(&mut state.waiters, waiter);
+        drop(state);
+        drop(removed);
+        drop(waker);
         return Poll::Ready(Some(sample));
     }
 
     if state.closed {
+        let removed = unregister_waker(&mut state.waiters, waiter);
+        drop(state);
+        drop(removed);
+        drop(waker);
         Poll::Ready(None)
     } else {
-        // Avoid the lost-wakeup race: when the same future/stream is polled by
-        // a different task (e.g. moved between `tokio::select!` arms), the waker
-        // changes. `will_wake` skips the clone when the executor reuses the same
-        // waker; the explicit assignment guarantees the latest waker is the one
-        // a future sample arrival will wake.
-        let waker = cx.waker();
-        match state.waker {
-            Some(ref existing) if existing.will_wake(waker) => {}
-            _ => state.waker = Some(waker.clone()),
-        }
+        let replaced = register_waker(&mut state.waiters, waiter, waker);
+        drop(state);
+        drop(replaced);
         Poll::Pending
     }
 }
@@ -385,6 +472,7 @@ fn poll_next_sample(
 /// Future for getting the next sample buffer
 pub struct NextSample<'a> {
     state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
+    waiter: Arc<()>,
 }
 
 impl std::fmt::Debug for NextSample<'_> {
@@ -397,7 +485,19 @@ impl Future for NextSample<'_> {
     type Output = Option<crate::cm::CMSampleBuffer>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        poll_next_sample(self.state, cx).map(|opt| opt.map(|(buffer, _of_type)| buffer))
+        poll_next_sample(self.state, &self.waiter, cx)
+            .map(|opt| opt.map(|(buffer, _of_type)| buffer))
+    }
+}
+
+impl Drop for NextSample<'_> {
+    fn drop(&mut self) {
+        let removed = self
+            .state
+            .lock()
+            .ok()
+            .and_then(|mut state| unregister_waker(&mut state.waiters, &self.waiter));
+        drop(removed);
     }
 }
 
@@ -409,6 +509,7 @@ impl Future for NextSample<'_> {
 /// [`AsyncSCStream::next_typed`].
 pub struct NextSampleTyped<'a> {
     state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
+    waiter: Arc<()>,
 }
 
 impl std::fmt::Debug for NextSampleTyped<'_> {
@@ -421,7 +522,18 @@ impl Future for NextSampleTyped<'_> {
     type Output = Option<(crate::cm::CMSampleBuffer, SCStreamOutputType)>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        poll_next_sample(self.state, cx)
+        poll_next_sample(self.state, &self.waiter, cx)
+    }
+}
+
+impl Drop for NextSampleTyped<'_> {
+    fn drop(&mut self) {
+        let removed = self
+            .state
+            .lock()
+            .ok()
+            .and_then(|mut state| unregister_waker(&mut state.waiters, &self.waiter));
+        drop(removed);
     }
 }
 
@@ -440,6 +552,7 @@ impl Future for NextSampleTyped<'_> {
 /// ```
 pub struct SampleStream<'a> {
     state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
+    waiter: Arc<()>,
 }
 
 impl std::fmt::Debug for SampleStream<'_> {
@@ -452,7 +565,19 @@ impl futures_core::Stream for SampleStream<'_> {
     type Item = crate::cm::CMSampleBuffer;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        poll_next_sample(self.state, cx).map(|opt| opt.map(|(buffer, _of_type)| buffer))
+        poll_next_sample(self.state, &self.waiter, cx)
+            .map(|opt| opt.map(|(buffer, _of_type)| buffer))
+    }
+}
+
+impl Drop for SampleStream<'_> {
+    fn drop(&mut self) {
+        let removed = self
+            .state
+            .lock()
+            .ok()
+            .and_then(|mut state| unregister_waker(&mut state.waiters, &self.waiter));
+        drop(removed);
     }
 }
 
@@ -464,6 +589,7 @@ impl futures_core::Stream for SampleStream<'_> {
 /// [`AsyncSCStream::frames_typed`].
 pub struct TypedSampleStream<'a> {
     state: &'a Arc<Mutex<AsyncSampleIteratorState>>,
+    waiter: Arc<()>,
 }
 
 impl std::fmt::Debug for TypedSampleStream<'_> {
@@ -476,13 +602,24 @@ impl futures_core::Stream for TypedSampleStream<'_> {
     type Item = (crate::cm::CMSampleBuffer, SCStreamOutputType);
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        poll_next_sample(self.state, cx)
+        poll_next_sample(self.state, &self.waiter, cx)
+    }
+}
+
+impl Drop for TypedSampleStream<'_> {
+    fn drop(&mut self) {
+        let removed = self
+            .state
+            .lock()
+            .ok()
+            .and_then(|mut state| unregister_waker(&mut state.waiters, &self.waiter));
+        drop(removed);
     }
 }
 
 // SAFETY: `AsyncSampleSender` holds `Arc<Mutex<AsyncSampleIteratorState>>`.
 // `AsyncSampleIteratorState` buffers `(CMSampleBuffer, SCStreamOutputType)`
-// pairs plus an `Option<Waker>` and `Option<SCError>`; `CMSampleBuffer` has its
+// pairs plus registered wakers and `Option<SCError>`; `CMSampleBuffer` has its
 // own `unsafe impl Send` (it is an Apple-owned handle safe to transfer across
 // threads) and the rest are `Send + Sync`, so the whole `Arc<Mutex<...>>` is
 // safe to send and share across threads.
@@ -504,14 +641,50 @@ struct AsyncStreamDelegate {
 
 impl crate::stream::delegate_trait::SCStreamDelegateTrait for AsyncStreamDelegate {
     fn did_stop_with_error(&self, error: SCError) {
-        if let Ok(mut state) = self.state.lock() {
-            state.stop_error = Some(error);
-            state.closed = true;
-            if let Some(waker) = state.waker.take() {
-                waker.wake();
-            }
-        }
+        close_sample_state(&self.state, Some(error), false);
     }
+}
+
+/// Close the sample queue, optionally recording why, and wake every parked
+/// consumer once the lock is released.
+fn close_sample_state(
+    state: &Arc<Mutex<AsyncSampleIteratorState>>,
+    error: Option<SCError>,
+    stopped: bool,
+) {
+    let Ok(mut state) = state.lock() else {
+        return;
+    };
+    if let Some(error) = error {
+        state.stop_error = Some(error);
+    }
+    state.stopped |= stopped;
+    state.closed = true;
+    let waiters = std::mem::take(&mut state.waiters);
+    drop(state);
+    wake_all(waiters);
+}
+
+/// Reopen a queue that a failed `start_capture` closed, so the retry that
+/// failure permits can deliver frames.
+///
+/// The start-failure hook deliberately re-arms `capture_state` (a start that
+/// never began capturing has not stopped the stream), but `closed` is
+/// otherwise write-once. Without this the retry would hand the consumer
+/// whatever is still buffered and then report end-of-stream on a capture that
+/// is genuinely running.
+///
+/// No-op once `stop_capture` has succeeded: `ScreenCaptureKit` cannot restart
+/// a stopped `SCStream`.
+fn reopen_sample_state(state: &Arc<Mutex<AsyncSampleIteratorState>>) {
+    let Ok(mut state) = state.lock() else {
+        return;
+    };
+    if state.stopped {
+        return;
+    }
+    state.closed = false;
+    state.stop_error = None;
 }
 
 // SAFETY: mirrors `AsyncSampleSender` — `AsyncStreamDelegate` holds the same
@@ -564,6 +737,25 @@ pub struct StreamControlFuture {
     map_err: fn(String) -> SCError,
 }
 
+impl StreamControlFuture {
+    fn succeeded(map_err: fn(String) -> SCError) -> Self {
+        let (inner, context) = AsyncCompletion::<()>::create();
+        // SAFETY: this completion context has not been shared with FFI.
+        unsafe { AsyncCompletion::<()>::complete_ok(context, ()) };
+        Self { inner, map_err }
+    }
+
+    /// A future that is already resolved with `error`, for operations rejected
+    /// before they reach `ScreenCaptureKit`.
+    fn failed(map_err: fn(String) -> SCError, error: String) -> Self {
+        let (inner, context) = AsyncCompletion::<()>::create();
+        // SAFETY: `context` is the one-shot completion pointer we just created
+        // and have not handed to FFI, so this is its only completion.
+        unsafe { AsyncCompletion::<()>::complete_err(context, error) };
+        Self { inner, map_err }
+    }
+}
+
 impl std::fmt::Debug for StreamControlFuture {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StreamControlFuture")
@@ -576,9 +768,11 @@ impl Future for StreamControlFuture {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let map_err = self.map_err;
-        Pin::new(&mut self.inner)
-            .poll(cx)
-            .map(|r| r.map_err(map_err))
+        let Poll::Ready(result) = Pin::new(&mut self.inner).poll(cx) else {
+            return Poll::Pending;
+        };
+
+        Poll::Ready(result.map_err(map_err))
     }
 }
 
@@ -647,7 +841,9 @@ impl AsyncSCStream {
     ///
     /// * `filter` - Content filter specifying what to capture
     /// * `config` - Stream configuration
-    /// * `buffer_capacity` - Max frames to buffer (oldest dropped when full)
+    /// * `buffer_capacity` - Max frames to buffer (oldest dropped when full);
+    ///   `0` is treated as `1`, since the queue must hold the sample it is
+    ///   about to hand to the consumer
     /// * `output_type` - Type of output (Screen, Audio, Microphone)
     #[must_use]
     pub fn new(
@@ -658,15 +854,15 @@ impl AsyncSCStream {
     ) -> Self {
         let state = Arc::new(Mutex::new(AsyncSampleIteratorState {
             buffer: std::collections::VecDeque::with_capacity(buffer_capacity),
-            waker: None,
+            waiters: Vec::new(),
             closed: false,
-            capacity: buffer_capacity,
+            stopped: false,
+            capacity: buffer_capacity.max(1),
+            senders: 0,
             stop_error: None,
         }));
 
-        let sender = AsyncSampleSender {
-            inner: Arc::clone(&state),
-        };
+        let sender = AsyncSampleSender::new(&state);
 
         let delegate = AsyncStreamDelegate {
             state: Arc::clone(&state),
@@ -674,10 +870,10 @@ impl AsyncSCStream {
 
         let mut stream = crate::stream::SCStream::new_with_delegate(filter, config, delegate);
         if stream.add_output_handler(sender, output_type).is_none() {
-            // Registration failed: close the iterator immediately so `next()`
-            // resolves to `None` instead of pending forever, and record why.
+            // Registration failed and the sender was dropped with it, which
+            // already closed the queue (it was the only one). Record why, so
+            // `take_error()` explains the immediate `None` from `next()`.
             if let Ok(mut s) = state.lock() {
-                s.closed = true;
                 s.stop_error = Some(SCError::StreamError(
                     "failed to register stream output handler".to_string(),
                 ));
@@ -699,6 +895,7 @@ impl AsyncSCStream {
     pub fn next(&self) -> NextSample<'_> {
         NextSample {
             state: &self.iterator_state,
+            waiter: Arc::new(()),
         }
     }
 
@@ -710,6 +907,7 @@ impl AsyncSCStream {
     pub fn next_typed(&self) -> NextSampleTyped<'_> {
         NextSampleTyped {
             state: &self.iterator_state,
+            waiter: Arc::new(()),
         }
     }
 
@@ -734,6 +932,7 @@ impl AsyncSCStream {
     pub fn frames(&self) -> SampleStream<'_> {
         SampleStream {
             state: &self.iterator_state,
+            waiter: Arc::new(()),
         }
     }
 
@@ -763,6 +962,7 @@ impl AsyncSCStream {
     pub fn frames_typed(&self) -> TypedSampleStream<'_> {
         TypedSampleStream {
             state: &self.iterator_state,
+            waiter: Arc::new(()),
         }
     }
 
@@ -778,11 +978,10 @@ impl AsyncSCStream {
     ///
     /// Returns `true` if the output type was registered. Registration can fail
     /// if the stream configuration does not enable that type (e.g. audio
-    /// capture was not configured).
+    /// capture was not configured); on failure the already-registered types
+    /// keep flowing and the queue stays open.
     pub fn add_output_type(&mut self, output_type: SCStreamOutputType) -> bool {
-        let sender = AsyncSampleSender {
-            inner: Arc::clone(&self.iterator_state),
-        };
+        let sender = AsyncSampleSender::new(&self.iterator_state);
         self.stream
             .add_output_handler(sender, output_type)
             .is_some()
@@ -807,9 +1006,12 @@ impl AsyncSCStream {
 
     /// Check if the stream has been closed
     ///
-    /// Returns `true` once the stream has stopped — either because this
-    /// `AsyncSCStream` was dropped or because `ScreenCaptureKit` stopped it
-    /// with an error (see [`take_error`](Self::take_error)).
+    /// Returns `true` once the sample queue has been closed — because
+    /// [`stop_capture`](Self::stop_capture) succeeded, because this
+    /// `AsyncSCStream`'s handlers were dropped, or because `ScreenCaptureKit`
+    /// stopped the stream with an error (see [`take_error`](Self::take_error)).
+    /// Buffered frames still drain through [`next`](Self::next) after this
+    /// turns `true`.
     #[must_use]
     pub fn is_closed(&self) -> bool {
         self.iterator_state.lock().map_or(true, |s| s.closed)
@@ -849,9 +1051,14 @@ impl AsyncSCStream {
 
     /// Clear all buffered samples
     pub fn clear_buffer(&self) {
-        if let Ok(mut state) = self.iterator_state.lock() {
-            state.buffer.clear();
-        }
+        let Ok(mut state) = self.iterator_state.lock() else {
+            return;
+        };
+        // Dropping a CMSampleBuffer calls into CoreMedia, so hand the samples
+        // out of the guard and release them unlocked.
+        let discarded = std::mem::take(&mut state.buffer);
+        drop(state);
+        drop(discarded);
     }
 
     /// Start capture asynchronously.
@@ -862,14 +1069,55 @@ impl AsyncSCStream {
     /// via its [`Waker`] and resumed from the Swift completion callback.
     ///
     /// The capture is initiated eagerly when this method is called; `.await`
-    /// observes the completion (or error).
+    /// observes the completion (or error). If starting fails, the sample queue
+    /// is closed so [`next`](Self::next) resolves to `None` rather than pending
+    /// forever on a stream that never ran.
+    ///
+    /// # Restarting is not supported
+    ///
+    /// `ScreenCaptureKit` cannot restart a stopped `SCStream`. Once
+    /// [`stop_capture`](Self::stop_capture) has succeeded, this resolves to
+    /// `Err` without touching the native stream; create a new `AsyncSCStream`
+    /// to capture again.
     ///
     /// # Errors
     ///
     /// The awaited result is `Err(SCError::CaptureStartFailed)` if the stream
-    /// fails to start.
+    /// fails to start or has already been stopped.
     pub fn start_capture(&self) -> StreamControlFuture {
-        let (future, context) = AsyncCompletion::<()>::create();
+        if self.iterator_state.lock().is_ok_and(|s| s.stopped) {
+            return StreamControlFuture::failed(
+                SCError::CaptureStartFailed,
+                "an SCStream cannot be restarted after stop_capture(); create a new AsyncSCStream"
+                    .to_string(),
+            );
+        }
+
+        let capture_state = self.stream.capture_state();
+        let start_unconfirmed = self.stream.start_unconfirmed_state();
+        if !crate::stream::sc_stream::claim_start(&capture_state, &start_unconfirmed) {
+            return StreamControlFuture::succeeded(SCError::CaptureStartFailed);
+        }
+        reopen_sample_state(&self.iterator_state);
+        let iterator_state = Arc::clone(&self.iterator_state);
+        let (future, context) =
+            AsyncCompletion::<()>::create_with_hook(move |result| match result {
+                Ok(()) => capture_state.store(true, std::sync::atomic::Ordering::Release),
+                // The native start is still outstanding: clearing
+                // `capture_state` would let a retry double-start, so record
+                // the unconfirmed outcome and let the next start reissue.
+                Err(message) if is_timeout_error(message) => {
+                    start_unconfirmed.store(true, std::sync::atomic::Ordering::Release);
+                }
+                Err(message) => {
+                    capture_state.store(false, std::sync::atomic::Ordering::Release);
+                    close_sample_state(
+                        &iterator_state,
+                        Some(SCError::CaptureStartFailed(message.clone())),
+                        false,
+                    );
+                }
+            });
         // SAFETY: `self.stream.as_ptr()` is a valid, live `SCStream` pointer for
         // the duration of this call; `context` is the one-shot completion
         // pointer from `AsyncCompletion::create()`, invoked exactly once.
@@ -891,12 +1139,25 @@ impl AsyncSCStream {
     /// Resolves when `ScreenCaptureKit` confirms the stream has stopped. Awaiting
     /// this **does not block the executor thread**.
     ///
+    /// A clean stop is never reported to the delegate, so awaiting a successful
+    /// stop also closes the sample queue: [`next`](Self::next) resolves to
+    /// `None` once the already-buffered frames drain, and
+    /// [`take_error`](Self::take_error) stays `None`. The stream cannot be
+    /// restarted afterwards — see [`start_capture`](Self::start_capture).
+    ///
     /// # Errors
     ///
     /// The awaited result is `Err(SCError::CaptureStopFailed)` if the stream
     /// fails to stop.
     pub fn stop_capture(&self) -> StreamControlFuture {
-        let (future, context) = AsyncCompletion::<()>::create();
+        let capture_state = self.stream.capture_state();
+        let iterator_state = Arc::clone(&self.iterator_state);
+        let (future, context) = AsyncCompletion::<()>::create_with_hook(move |result| {
+            if result.is_ok() {
+                capture_state.store(false, std::sync::atomic::Ordering::Release);
+                close_sample_state(&iterator_state, None, true);
+            }
+        });
         // SAFETY: see `start_capture` — live stream pointer, one-shot context.
         unsafe {
             crate::ffi::sc_stream_stop_capture(
@@ -919,6 +1180,7 @@ impl AsyncSCStream {
     /// # Errors
     ///
     /// The awaited result is `Err(SCError::StreamError)` if the update fails.
+    #[cfg(feature = "macos_14_0")]
     pub fn update_configuration(&self, config: &SCStreamConfiguration) -> StreamControlFuture {
         let (future, context) = AsyncCompletion::<()>::create();
         // SAFETY: `self.stream.as_ptr()` and `config.as_ptr()` are valid for the
@@ -1081,12 +1343,12 @@ extern "C" fn screenshot_buffer_callback(
 
 /// Future for async screenshot capture
 #[cfg(feature = "macos_14_0")]
-pub struct AsyncScreenshotFuture<T> {
+pub struct AsyncScreenshotFuture<T: Send + 'static> {
     inner: AsyncCompletionFuture<T>,
 }
 
 #[cfg(feature = "macos_14_0")]
-impl<T> std::fmt::Debug for AsyncScreenshotFuture<T> {
+impl<T: Send + 'static> std::fmt::Debug for AsyncScreenshotFuture<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AsyncScreenshotFuture")
             .finish_non_exhaustive()
@@ -1094,7 +1356,7 @@ impl<T> std::fmt::Debug for AsyncScreenshotFuture<T> {
 }
 
 #[cfg(feature = "macos_14_0")]
-impl<T> Future for AsyncScreenshotFuture<T> {
+impl<T: Send + 'static> Future for AsyncScreenshotFuture<T> {
     type Output = Result<T, SCError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -1295,6 +1557,36 @@ extern "C" fn screenshot_output_callback(
 struct AsyncPickerCallbackResult {
     code: i32,
     ptr: *const c_void,
+    ownership: AsyncPickerOwnership,
+}
+
+#[cfg(feature = "macos_14_0")]
+#[derive(Clone, Copy)]
+enum AsyncPickerOwnership {
+    Result,
+    Filter,
+}
+
+#[cfg(feature = "macos_14_0")]
+impl AsyncPickerCallbackResult {
+    fn take_ptr(&mut self) -> *const c_void {
+        std::mem::replace(&mut self.ptr, std::ptr::null())
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
+impl Drop for AsyncPickerCallbackResult {
+    fn drop(&mut self) {
+        if self.ptr.is_null() {
+            return;
+        }
+        unsafe {
+            match self.ownership {
+                AsyncPickerOwnership::Result => crate::ffi::sc_picker_result_release(self.ptr),
+                AsyncPickerOwnership::Filter => crate::ffi::sc_content_filter_release(self.ptr),
+            }
+        }
+    }
 }
 
 #[cfg(feature = "macos_14_0")]
@@ -1304,17 +1596,40 @@ struct AsyncPickerCallbackResult {
 // so sending this pointer to another thread is sound.
 unsafe impl Send for AsyncPickerCallbackResult {}
 
-/// Callback for async picker
 #[cfg(feature = "macos_14_0")]
-extern "C" fn async_picker_callback(result_code: i32, ptr: *const c_void, user_data: *mut c_void) {
+fn complete_async_picker(
+    result_code: i32,
+    ptr: *const c_void,
+    ownership: AsyncPickerOwnership,
+    user_data: *mut c_void,
+) {
     crate::utils::panic_safe::catch_user_panic("async_picker_callback", move || {
         let result = AsyncPickerCallbackResult {
             code: result_code,
             ptr,
+            ownership,
         };
         // SAFETY: `user_data` is the one-shot completion context from `AsyncCompletion::create()`.
         unsafe { AsyncCompletion::complete_ok(user_data, result) };
     });
+}
+
+#[cfg(feature = "macos_14_0")]
+extern "C" fn async_picker_result_callback(
+    result_code: i32,
+    ptr: *const c_void,
+    user_data: *mut c_void,
+) {
+    complete_async_picker(result_code, ptr, AsyncPickerOwnership::Result, user_data);
+}
+
+#[cfg(feature = "macos_14_0")]
+extern "C" fn async_picker_filter_callback(
+    result_code: i32,
+    ptr: *const c_void,
+    user_data: *mut c_void,
+) {
+    complete_async_picker(result_code, ptr, AsyncPickerOwnership::Filter, user_data);
 }
 
 /// Future for async picker with full result
@@ -1339,10 +1654,10 @@ impl Future for AsyncPickerFuture {
 
         match Pin::new(&mut self.inner).poll(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(result)) => {
+            Poll::Ready(Ok(mut result)) => {
                 let outcome = match result.code {
                     1 if !result.ptr.is_null() => {
-                        SCPickerOutcome::Picked(SCPickerResult::from_ptr(result.ptr))
+                        SCPickerOutcome::Picked(SCPickerResult::from_ptr(result.take_ptr()))
                     }
                     0 => SCPickerOutcome::Cancelled,
                     _ => SCPickerOutcome::Error("Picker failed".to_string()),
@@ -1377,11 +1692,11 @@ impl Future for AsyncPickerFilterFuture {
 
         match Pin::new(&mut self.inner).poll(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(result)) => {
+            Poll::Ready(Ok(mut result)) => {
                 let outcome = match result.code {
-                    1 if !result.ptr.is_null() => {
-                        SCPickerFilterOutcome::Filter(SCContentFilter::from_picker_ptr(result.ptr))
-                    }
+                    1 if !result.ptr.is_null() => SCPickerFilterOutcome::Filter(
+                        SCContentFilter::from_picker_ptr(result.take_ptr()),
+                    ),
                     0 => SCPickerFilterOutcome::Cancelled,
                     _ => SCPickerFilterOutcome::Error("Picker failed".to_string()),
                 };
@@ -1396,6 +1711,12 @@ impl Future for AsyncPickerFilterFuture {
 ///
 /// Provides async methods to show the system content sharing picker UI.
 /// **Executor-agnostic** - works with any async runtime.
+///
+/// Picker futures intentionally have no built-in deadline because completion
+/// depends on a human choice. Callers that impose their own timeout may safely
+/// drop the future; call
+/// [`SCContentSharingPicker::deactivate`](crate::content_sharing_picker::SCContentSharingPicker::deactivate)
+/// as well when the picker UI should be dismissed.
 ///
 /// # Examples
 ///
@@ -1444,13 +1765,13 @@ impl AsyncSCContentSharingPicker {
     pub fn show(
         config: &crate::content_sharing_picker::SCContentSharingPickerConfiguration,
     ) -> AsyncPickerFuture {
-        let (future, context) = AsyncCompletion::create();
+        let (future, context) = AsyncCompletion::create_unbounded();
 
         // SAFETY: `config.as_ptr()` returns a valid non-null pointer for the duration of this call. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_with_result(
                 config.as_ptr(),
-                async_picker_callback,
+                async_picker_result_callback,
                 context,
             );
         }
@@ -1477,13 +1798,13 @@ impl AsyncSCContentSharingPicker {
     pub fn show_filter(
         config: &crate::content_sharing_picker::SCContentSharingPickerConfiguration,
     ) -> AsyncPickerFilterFuture {
-        let (future, context) = AsyncCompletion::create();
+        let (future, context) = AsyncCompletion::create_unbounded();
 
         // SAFETY: `config.as_ptr()` returns a valid non-null pointer for the duration of this call. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_content_sharing_picker_show(
                 config.as_ptr(),
-                async_picker_callback,
+                async_picker_filter_callback,
                 context,
             );
         }
@@ -1526,14 +1847,14 @@ impl AsyncSCContentSharingPicker {
         config: &crate::content_sharing_picker::SCContentSharingPickerConfiguration,
         stream: &crate::stream::SCStream,
     ) -> AsyncPickerFuture {
-        let (future, context) = AsyncCompletion::create();
+        let (future, context) = AsyncCompletion::create_unbounded();
 
         // SAFETY: `config.as_ptr()` and `stream.as_ptr()` return valid non-null pointers for the duration of this call. `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
         unsafe {
             crate::ffi::sc_content_sharing_picker_show_for_stream(
                 config.as_ptr(),
                 stream.as_ptr(),
-                async_picker_callback,
+                async_picker_result_callback,
                 context,
             );
         }
@@ -1561,7 +1882,10 @@ pub enum RecordingEvent {
 #[cfg(feature = "macos_15_0")]
 struct AsyncRecordingState {
     events: std::collections::VecDeque<RecordingEvent>,
-    waker: Option<Waker>,
+    /// Every task parked on this event queue — see
+    /// [`AsyncSampleIteratorState::waiters`] for why this is not a single
+    /// `Option<Waker>`.
+    waiters: Vec<RegisteredWaker>,
     finished: bool,
 }
 
@@ -1570,35 +1894,47 @@ struct AsyncRecordingDelegate {
     state: Arc<Mutex<AsyncRecordingState>>,
 }
 
+/// Push `event` onto the recording queue, mark the queue finished when the
+/// event is terminal, and wake parked consumers **after** releasing the lock.
+#[cfg(feature = "macos_15_0")]
+fn push_recording_event(state: &Arc<Mutex<AsyncRecordingState>>, event: Option<RecordingEvent>) {
+    let Ok(mut guard) = state.lock() else {
+        return;
+    };
+    match event {
+        Some(event) => {
+            guard.finished |= matches!(event, RecordingEvent::Finished | RecordingEvent::Failed(_));
+            guard.events.push_back(event);
+        }
+        None => guard.finished = true,
+    }
+    let waiters = std::mem::take(&mut guard.waiters);
+    drop(guard);
+    wake_all(waiters);
+}
+
 #[cfg(feature = "macos_15_0")]
 impl crate::recording_output::SCRecordingOutputDelegate for AsyncRecordingDelegate {
     fn recording_did_start(&self) {
-        if let Ok(mut state) = self.state.lock() {
-            state.events.push_back(RecordingEvent::Started);
-            if let Some(waker) = state.waker.take() {
-                waker.wake();
-            }
-        }
+        push_recording_event(&self.state, Some(RecordingEvent::Started));
     }
 
     fn recording_did_fail(&self, error: String) {
-        if let Ok(mut state) = self.state.lock() {
-            state.events.push_back(RecordingEvent::Failed(error));
-            state.finished = true;
-            if let Some(waker) = state.waker.take() {
-                waker.wake();
-            }
-        }
+        push_recording_event(&self.state, Some(RecordingEvent::Failed(error)));
     }
 
     fn recording_did_finish(&self) {
-        if let Ok(mut state) = self.state.lock() {
-            state.events.push_back(RecordingEvent::Finished);
-            state.finished = true;
-            if let Some(waker) = state.waker.take() {
-                waker.wake();
-            }
-        }
+        push_recording_event(&self.state, Some(RecordingEvent::Finished));
+    }
+}
+
+#[cfg(feature = "macos_15_0")]
+impl Drop for AsyncRecordingDelegate {
+    /// Close the event queue when the `SCRecordingOutput` (and with it this
+    /// delegate) goes away without a terminal event — otherwise a caller
+    /// awaiting [`AsyncSCRecordingOutput::next`] would park forever.
+    fn drop(&mut self) {
+        push_recording_event(&self.state, None);
     }
 }
 
@@ -1606,6 +1942,7 @@ impl crate::recording_output::SCRecordingOutputDelegate for AsyncRecordingDelega
 #[cfg(feature = "macos_15_0")]
 pub struct NextRecordingEvent<'a> {
     state: &'a Arc<Mutex<AsyncRecordingState>>,
+    waiter: Arc<()>,
 }
 
 #[cfg(feature = "macos_15_0")]
@@ -1620,7 +1957,19 @@ impl Future for NextRecordingEvent<'_> {
     type Output = Option<RecordingEvent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        poll_next_recording_event(self.state, cx)
+        poll_next_recording_event(self.state, &self.waiter, cx)
+    }
+}
+
+#[cfg(feature = "macos_15_0")]
+impl Drop for NextRecordingEvent<'_> {
+    fn drop(&mut self) {
+        let removed = self
+            .state
+            .lock()
+            .ok()
+            .and_then(|mut state| unregister_waker(&mut state.waiters, &self.waiter));
+        drop(removed);
     }
 }
 
@@ -1628,25 +1977,32 @@ impl Future for NextRecordingEvent<'_> {
 #[cfg(feature = "macos_15_0")]
 fn poll_next_recording_event(
     state: &Arc<Mutex<AsyncRecordingState>>,
+    waiter: &Arc<()>,
     cx: &Context<'_>,
 ) -> Poll<Option<RecordingEvent>> {
+    let waker = cx.waker().clone();
     let Ok(mut state) = state.lock() else {
         return Poll::Ready(None);
     };
 
     if let Some(event) = state.events.pop_front() {
+        let removed = unregister_waker(&mut state.waiters, waiter);
+        drop(state);
+        drop(removed);
+        drop(waker);
         return Poll::Ready(Some(event));
     }
 
     if state.finished {
+        let removed = unregister_waker(&mut state.waiters, waiter);
+        drop(state);
+        drop(removed);
+        drop(waker);
         Poll::Ready(None)
     } else {
-        // Avoid the lost-wakeup race — see `poll_next_sample` above.
-        let waker = cx.waker();
-        match state.waker {
-            Some(ref existing) if existing.will_wake(waker) => {}
-            _ => state.waker = Some(waker.clone()),
-        }
+        let replaced = register_waker(&mut state.waiters, waiter, waker);
+        drop(state);
+        drop(replaced);
         Poll::Pending
     }
 }
@@ -1659,6 +2015,7 @@ fn poll_next_recording_event(
 #[cfg(feature = "macos_15_0")]
 pub struct RecordingEventStream<'a> {
     state: &'a Arc<Mutex<AsyncRecordingState>>,
+    waiter: Arc<()>,
 }
 
 #[cfg(feature = "macos_15_0")]
@@ -1674,7 +2031,19 @@ impl futures_core::Stream for RecordingEventStream<'_> {
     type Item = RecordingEvent;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        poll_next_recording_event(self.state, cx)
+        poll_next_recording_event(self.state, &self.waiter, cx)
+    }
+}
+
+#[cfg(feature = "macos_15_0")]
+impl Drop for RecordingEventStream<'_> {
+    fn drop(&mut self) {
+        let removed = self
+            .state
+            .lock()
+            .ok()
+            .and_then(|mut state| unregister_waker(&mut state.waiters, &self.waiter));
+        drop(removed);
     }
 }
 
@@ -1755,7 +2124,7 @@ impl AsyncSCRecordingOutput {
     ) -> Option<(crate::recording_output::SCRecordingOutput, Self)> {
         let state = Arc::new(Mutex::new(AsyncRecordingState {
             events: std::collections::VecDeque::new(),
-            waker: None,
+            waiters: Vec::new(),
             finished: false,
         }));
 
@@ -1773,7 +2142,10 @@ impl AsyncSCRecordingOutput {
     ///
     /// Returns `None` when the recording has finished or failed.
     pub fn next(&self) -> NextRecordingEvent<'_> {
-        NextRecordingEvent { state: &self.state }
+        NextRecordingEvent {
+            state: &self.state,
+            waiter: Arc::new(()),
+        }
     }
 
     /// Borrow the recording events as a [`Stream`](futures_core::Stream) of
@@ -1798,7 +2170,10 @@ impl AsyncSCRecordingOutput {
     /// ```
     #[must_use]
     pub fn events(&self) -> RecordingEventStream<'_> {
-        RecordingEventStream { state: &self.state }
+        RecordingEventStream {
+            state: &self.state,
+            waiter: Arc::new(()),
+        }
     }
 
     /// Check if the recording has finished
@@ -1811,5 +2186,77 @@ impl AsyncSCRecordingOutput {
     #[must_use]
     pub fn try_next(&self) -> Option<RecordingEvent> {
         self.state.lock().ok()?.events.pop_front()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dropped_sample_future_unregisters_its_waker() {
+        let state = Arc::new(Mutex::new(AsyncSampleIteratorState {
+            buffer: std::collections::VecDeque::new(),
+            waiters: Vec::new(),
+            closed: false,
+            stopped: false,
+            capacity: 1,
+            senders: 1,
+            stop_error: None,
+        }));
+        let mut future = Box::pin(NextSample {
+            state: &state,
+            waiter: Arc::new(()),
+        });
+        let waker = Waker::noop();
+        let mut context = Context::from_waker(waker);
+
+        assert!(future.as_mut().poll(&mut context).is_pending());
+        assert_eq!(state.lock().unwrap().waiters.len(), 1);
+        drop(future);
+        assert!(state.lock().unwrap().waiters.is_empty());
+    }
+
+    fn idle_state() -> Arc<Mutex<AsyncSampleIteratorState>> {
+        Arc::new(Mutex::new(AsyncSampleIteratorState {
+            buffer: std::collections::VecDeque::new(),
+            waiters: Vec::new(),
+            closed: false,
+            stopped: false,
+            capacity: 1,
+            senders: 1,
+            stop_error: None,
+        }))
+    }
+
+    #[test]
+    fn failed_start_closes_the_queue_but_a_retry_reopens_it() {
+        let state = idle_state();
+        close_sample_state(
+            &state,
+            Some(SCError::CaptureStartFailed("denied".to_string())),
+            false,
+        );
+        assert!(state.lock().unwrap().closed);
+
+        reopen_sample_state(&state);
+
+        let (closed, stale_error) = {
+            let state = state.lock().unwrap();
+            (state.closed, state.stop_error.is_some())
+        };
+        assert!(!closed, "a retry must not see a permanently closed queue");
+        assert!(!stale_error, "the stale error must not survive");
+    }
+
+    #[test]
+    fn reopen_refuses_once_stop_capture_has_succeeded() {
+        let state = idle_state();
+        close_sample_state(&state, None, true);
+
+        reopen_sample_state(&state);
+
+        let closed = state.lock().unwrap().closed;
+        assert!(closed, "a stopped SCStream cannot be restarted");
     }
 }

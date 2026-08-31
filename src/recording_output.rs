@@ -52,14 +52,14 @@
 //! # }
 //! ```
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use crate::cm::CMTime;
-use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 
 /// Global registry for recording delegates - maps unique ID to delegate entry
 static RECORDING_DELEGATE_REGISTRY: Mutex<Option<HashMap<usize, RecordingDelegateEntry>>> =
@@ -68,98 +68,337 @@ static RECORDING_DELEGATE_REGISTRY: Mutex<Option<HashMap<usize, RecordingDelegat
 /// Counter for generating unique delegate IDs
 static NEXT_DELEGATE_ID: AtomicUsize = AtomicUsize::new(1);
 
+/// A registry entry.
+///
+/// The delegate lives behind `Arc` rather than inline in the map so a callback
+/// can clone the handle, release the global registry lock, and then run user
+/// code without any crate lock held.
 struct RecordingDelegateEntry {
-    delegate: Box<dyn SCRecordingOutputDelegate>,
-    ref_count: usize,
+    delegate: Arc<dyn SCRecordingOutputDelegate>,
 }
 
-/// Video codec for recording
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum SCRecordingOutputCodec {
-    /// H.264 codec
-    #[default]
-    H264 = 0,
-    /// H.265/HEVC codec
-    HEVC = 1,
+/// Look up a delegate handle and release the registry lock before returning.
+fn lookup_delegate(key: usize) -> Option<Arc<dyn SCRecordingOutputDelegate>> {
+    let registry = RECORDING_DELEGATE_REGISTRY
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    registry
+        .as_ref()?
+        .get(&key)
+        .map(|entry| Arc::clone(&entry.delegate))
 }
 
-/// Output file type for recording
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum SCRecordingOutputFileType {
-    /// MPEG-4 file (.mp4)
-    #[default]
-    MP4 = 0,
-    /// `QuickTime` movie (.mov)
-    MOV = 1,
+fn remove_delegate(key: usize) -> Option<RecordingDelegateEntry> {
+    let mut registry = RECORDING_DELEGATE_REGISTRY
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    registry
+        .as_mut()
+        .and_then(|delegates| delegates.remove(&key))
 }
+
+/// An `AVVideoCodecType` identifier used for recording.
+///
+/// The identifier is open-ended: values introduced by future macOS releases
+/// remain distinct and can be passed back to the framework.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SCRecordingOutputCodec(Cow<'static, str>);
+
+impl SCRecordingOutputCodec {
+    /// H.264 (`AVVideoCodecType.h264`)
+    pub const H264: Self = Self(Cow::Borrowed("avc1"));
+    /// H.265 / HEVC (`AVVideoCodecType.hevc`)
+    pub const HEVC: Self = Self(Cow::Borrowed("hvc1"));
+    /// Motion JPEG (`AVVideoCodecType.jpeg`)
+    pub const JPEG: Self = Self(Cow::Borrowed("jpeg"));
+    /// Apple `ProRes` 422 (`AVVideoCodecType.proRes422`)
+    pub const PRO_RES_422: Self = Self(Cow::Borrowed("apcn"));
+    /// Apple `ProRes` 4444 (`AVVideoCodecType.proRes4444`)
+    pub const PRO_RES_4444: Self = Self(Cow::Borrowed("ap4h"));
+    /// HEVC with an alpha channel (`AVVideoCodecType.hevcWithAlpha`)
+    pub const HEVC_WITH_ALPHA: Self = Self(Cow::Borrowed("muxa"));
+    /// Apple `ProRes` 422 HQ (`AVVideoCodecType.proRes422HQ`)
+    pub const PRO_RES_422_HQ: Self = Self(Cow::Borrowed("apch"));
+    /// Apple `ProRes` 422 LT (`AVVideoCodecType.proRes422LT`)
+    pub const PRO_RES_422_LT: Self = Self(Cow::Borrowed("apcs"));
+    /// Apple `ProRes` 422 Proxy (`AVVideoCodecType.proRes422Proxy`)
+    pub const PRO_RES_422_PROXY: Self = Self(Cow::Borrowed("apco"));
+
+    /// Construct an arbitrary codec identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidRecordingIdentifier`] when the identifier contains an
+    /// interior NUL byte.
+    pub fn from_identifier(
+        identifier: impl Into<String>,
+    ) -> Result<Self, InvalidRecordingIdentifier> {
+        let identifier = identifier.into();
+        if identifier.as_bytes().contains(&0) {
+            Err(InvalidRecordingIdentifier)
+        } else {
+            Ok(Self(Cow::Owned(identifier)))
+        }
+    }
+
+    /// The underlying `AVVideoCodecType.rawValue`.
+    #[must_use]
+    pub fn identifier(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl Default for SCRecordingOutputCodec {
+    fn default() -> Self {
+        Self::H264
+    }
+}
+
+impl std::fmt::Display for SCRecordingOutputCodec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.identifier() {
+            "avc1" => f.write_str("H.264"),
+            "hvc1" => f.write_str("HEVC"),
+            "jpeg" => f.write_str("JPEG"),
+            "apcn" => f.write_str("ProRes 422"),
+            "ap4h" => f.write_str("ProRes 4444"),
+            "muxa" => f.write_str("HEVC with alpha"),
+            "apch" => f.write_str("ProRes 422 HQ"),
+            "apcs" => f.write_str("ProRes 422 LT"),
+            "apco" => f.write_str("ProRes 422 Proxy"),
+            other => write!(f, "codec {other}"),
+        }
+    }
+}
+
+/// An `AVFileType` identifier used for recording output.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SCRecordingOutputFileType(Cow<'static, str>);
+
+impl SCRecordingOutputFileType {
+    /// MPEG-4 file (`.mp4`)
+    pub const MP4: Self = Self(Cow::Borrowed("public.mpeg-4"));
+    /// `QuickTime` movie (`.mov`)
+    pub const MOV: Self = Self(Cow::Borrowed("com.apple.quicktime-movie"));
+    /// iTunes video (`.m4v`)
+    pub const M4V: Self = Self(Cow::Borrowed("com.apple.m4v-video"));
+    /// iTunes audio (`.m4a`)
+    pub const M4A: Self = Self(Cow::Borrowed("com.apple.m4a-audio"));
+    /// 3GPP file (`.3gp`)
+    pub const MOBILE_3GPP: Self = Self(Cow::Borrowed("public.3gpp"));
+
+    /// Construct an arbitrary file type identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidRecordingIdentifier`] when the identifier contains an
+    /// interior NUL byte.
+    pub fn from_identifier(
+        identifier: impl Into<String>,
+    ) -> Result<Self, InvalidRecordingIdentifier> {
+        let identifier = identifier.into();
+        if identifier.as_bytes().contains(&0) {
+            Err(InvalidRecordingIdentifier)
+        } else {
+            Ok(Self(Cow::Owned(identifier)))
+        }
+    }
+
+    /// The underlying `AVFileType.rawValue`.
+    #[must_use]
+    pub fn identifier(&self) -> &str {
+        self.0.as_ref()
+    }
+
+    /// Conventional file extension, when this crate knows the file type.
+    #[must_use]
+    pub fn extension(&self) -> Option<&'static str> {
+        match self.identifier() {
+            "public.mpeg-4" => Some("mp4"),
+            "com.apple.quicktime-movie" => Some("mov"),
+            "com.apple.m4v-video" => Some("m4v"),
+            "com.apple.m4a-audio" => Some("m4a"),
+            "public.3gpp" => Some("3gp"),
+            _ => None,
+        }
+    }
+}
+
+impl Default for SCRecordingOutputFileType {
+    fn default() -> Self {
+        Self::MP4
+    }
+}
+
+impl std::fmt::Display for SCRecordingOutputFileType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.identifier() {
+            "public.mpeg-4" => f.write_str("MP4"),
+            "com.apple.quicktime-movie" => f.write_str("MOV"),
+            "com.apple.m4v-video" => f.write_str("M4V"),
+            "com.apple.m4a-audio" => f.write_str("M4A"),
+            "public.3gpp" => f.write_str("3GPP"),
+            other => write!(f, "file type {other}"),
+        }
+    }
+}
+
+/// A recording codec or file-type identifier contained an interior NUL byte.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InvalidRecordingIdentifier;
+
+impl std::fmt::Display for InvalidRecordingIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("recording identifier contains an interior NUL byte")
+    }
+}
+
+impl std::error::Error for InvalidRecordingIdentifier {}
 
 /// Configuration for recording output
 pub struct SCRecordingOutputConfiguration {
     ptr: *const c_void,
 }
 
+/// Why a path could not be handed to `SCRecordingOutputConfiguration`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InvalidOutputPath {
+    /// Foundation file URLs require a valid UTF-8 path.
+    NotUtf8,
+    /// The path contains an interior NUL byte, which would truncate it.
+    InteriorNul,
+}
+
+impl std::fmt::Display for InvalidOutputPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotUtf8 => f.write_str("output path is not valid UTF-8"),
+            Self::InteriorNul => f.write_str("output path contains an interior NUL byte"),
+        }
+    }
+}
+
+impl std::error::Error for InvalidOutputPath {}
+
 impl SCRecordingOutputConfiguration {
     /// Create a new recording output configuration
+    ///
+    /// # Panics
+    ///
+    /// Panics when run on macOS older than 15.0. Use [`Self::try_new`] when
+    /// runtime availability is not already known.
     #[must_use]
     pub fn new() -> Self {
+        Self::try_new().expect("SCRecordingOutput requires macOS 15.0 or later")
+    }
+
+    /// Create a recording configuration when recording output is available.
+    #[must_use]
+    pub fn try_new() -> Option<Self> {
+        if !SCRecordingOutput::is_available() {
+            return None;
+        }
         let ptr = unsafe { crate::ffi::sc_recording_output_configuration_create() };
-        Self { ptr }
+        (!ptr.is_null()).then_some(Self { ptr })
     }
 
     /// Set the output file URL.
+    ///
+    /// Paths that are not valid UTF-8 or contain an interior NUL byte are
+    /// ignored. Use
+    /// [`try_with_output_url`](Self::try_with_output_url) to observe rejection.
     #[must_use]
     pub fn with_output_url(self, path: &Path) -> Self {
-        if let Some(path_str) = path.to_str() {
-            if let Ok(c_path) = std::ffi::CString::new(path_str) {
-                unsafe {
-                    crate::ffi::sc_recording_output_configuration_set_output_url(
-                        self.ptr,
-                        c_path.as_ptr(),
-                    );
-                }
+        match self.try_with_output_url(path) {
+            Ok(config) => config,
+            Err((config, error)) => {
+                eprintln!("SCRecordingOutputConfiguration: {error}; output URL was not changed");
+                config
             }
         }
-        self
+    }
+
+    /// Set the output file URL, reporting paths that cannot cross the C
+    /// boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns the unchanged configuration together with an
+    /// [`InvalidOutputPath`] when `path` is not valid UTF-8 or contains an
+    /// interior NUL byte.
+    pub fn try_with_output_url(self, path: &Path) -> Result<Self, (Self, InvalidOutputPath)> {
+        let Some(path) = path.to_str() else {
+            return Err((self, InvalidOutputPath::NotUtf8));
+        };
+        let Ok(c_path) = std::ffi::CString::new(path) else {
+            return Err((self, InvalidOutputPath::InteriorNul));
+        };
+        unsafe {
+            crate::ffi::sc_recording_output_configuration_set_output_url(self.ptr, c_path.as_ptr());
+        }
+        Ok(self)
     }
 
     /// Get the configured output file URL.
     pub fn output_url(&self) -> Option<PathBuf> {
+        use std::os::unix::ffi::OsStringExt;
+
         unsafe {
-            ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {
-                crate::ffi::sc_recording_output_configuration_get_output_url(self.ptr, buf, len)
-            })
-            .map(PathBuf::from)
+            let path =
+                crate::ffi::sc_recording_output_configuration_get_output_path_owned(self.ptr);
+            if path.is_null() {
+                return None;
+            }
+            let bytes = std::ffi::CStr::from_ptr(path).to_bytes().to_vec();
+            crate::ffi::sc_free_string(path);
+            Some(PathBuf::from(std::ffi::OsString::from_vec(bytes)))
         }
     }
 
     /// Set the video codec
     #[must_use]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn with_video_codec(self, codec: SCRecordingOutputCodec) -> Self {
+        // SAFETY: the type's private field can only be created by constants or
+        // `from_identifier`, which rejects interior NUL bytes.
+        let codec = unsafe {
+            std::ffi::CString::from_vec_unchecked(codec.identifier().as_bytes().to_vec())
+        };
         unsafe {
-            crate::ffi::sc_recording_output_configuration_set_video_codec(self.ptr, codec as i32);
+            crate::ffi::sc_recording_output_configuration_set_video_codec_identifier(
+                self.ptr,
+                codec.as_ptr(),
+            );
         }
         self
     }
 
     /// Get the video codec
     pub fn video_codec(&self) -> SCRecordingOutputCodec {
-        let value =
-            unsafe { crate::ffi::sc_recording_output_configuration_get_video_codec(self.ptr) };
-        match value {
-            1 => SCRecordingOutputCodec::HEVC,
-            _ => SCRecordingOutputCodec::H264,
+        let identifier = unsafe {
+            crate::utils::ffi_string::ffi_string_owned(|| {
+                crate::ffi::sc_recording_output_configuration_get_video_codec_identifier_owned(
+                    self.ptr,
+                )
+            })
         }
+        .unwrap_or_else(|| SCRecordingOutputCodec::H264.identifier().to_string());
+        SCRecordingOutputCodec(Cow::Owned(identifier))
     }
 
     /// Set the output file type
     #[must_use]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn with_output_file_type(self, file_type: SCRecordingOutputFileType) -> Self {
+        // SAFETY: the type's private field can only be created by constants or
+        // `from_identifier`, which rejects interior NUL bytes.
+        let file_type = unsafe {
+            std::ffi::CString::from_vec_unchecked(file_type.identifier().as_bytes().to_vec())
+        };
         unsafe {
-            crate::ffi::sc_recording_output_configuration_set_output_file_type(
+            crate::ffi::sc_recording_output_configuration_set_output_file_type_identifier(
                 self.ptr,
-                file_type as i32,
+                file_type.as_ptr(),
             );
         }
         self
@@ -167,12 +406,15 @@ impl SCRecordingOutputConfiguration {
 
     /// Get the output file type
     pub fn output_file_type(&self) -> SCRecordingOutputFileType {
-        let value =
-            unsafe { crate::ffi::sc_recording_output_configuration_get_output_file_type(self.ptr) };
-        match value {
-            1 => SCRecordingOutputFileType::MOV,
-            _ => SCRecordingOutputFileType::MP4,
+        let identifier = unsafe {
+            crate::utils::ffi_string::ffi_string_owned(|| {
+                crate::ffi::sc_recording_output_configuration_get_output_file_type_identifier_owned(
+                    self.ptr,
+                )
+            })
         }
+        .unwrap_or_else(|| SCRecordingOutputFileType::MP4.identifier().to_string());
+        SCRecordingOutputFileType(Cow::Owned(identifier))
     }
 
     /// Get the number of available video codecs
@@ -180,31 +422,30 @@ impl SCRecordingOutputConfiguration {
         let count = unsafe {
             crate::ffi::sc_recording_output_configuration_get_available_video_codecs_count(self.ptr)
         };
-        #[allow(clippy::cast_sign_loss)]
-        if count > 0 {
-            count as usize
-        } else {
-            0
-        }
+        usize::try_from(count).unwrap_or(0)
     }
 
     /// Get all available video codecs
     ///
     /// Returns a vector of all video codecs that can be used for recording.
+    /// The length always matches
+    /// [`available_video_codecs_count`](Self::available_video_codecs_count):
+    /// a codec this crate has no constant for is preserved by identifier.
     pub fn available_video_codecs(&self) -> Vec<SCRecordingOutputCodec> {
         let count = self.available_video_codecs_count();
         let mut codecs = Vec::with_capacity(count);
         for i in 0..count {
-            #[allow(clippy::cast_possible_wrap)]
-            let codec_value = unsafe {
-                crate::ffi::sc_recording_output_configuration_get_available_video_codec_at(
-                    self.ptr, i as isize,
-                )
+            let Ok(index) = isize::try_from(i) else { break };
+            let identifier = unsafe {
+                crate::utils::ffi_string::ffi_string_owned(|| {
+                    crate::ffi::sc_recording_output_configuration_get_available_video_codec_identifier_at_owned(
+                        self.ptr,
+                        index,
+                    )
+                })
             };
-            match codec_value {
-                0 => codecs.push(SCRecordingOutputCodec::H264),
-                1 => codecs.push(SCRecordingOutputCodec::HEVC),
-                _ => {}
+            if let Some(identifier) = identifier {
+                codecs.push(SCRecordingOutputCodec(Cow::Owned(identifier)));
             }
         }
         codecs
@@ -217,31 +458,29 @@ impl SCRecordingOutputConfiguration {
                 self.ptr,
             )
         };
-        #[allow(clippy::cast_sign_loss)]
-        if count > 0 {
-            count as usize
-        } else {
-            0
-        }
+        usize::try_from(count).unwrap_or(0)
     }
 
     /// Get all available output file types
     ///
-    /// Returns a vector of all file types that can be used for recording output.
+    /// Returns a vector of all file types that can be used for recording
+    /// output. The length always matches
+    /// [`available_output_file_types_count`](Self::available_output_file_types_count).
     pub fn available_output_file_types(&self) -> Vec<SCRecordingOutputFileType> {
         let count = self.available_output_file_types_count();
         let mut file_types = Vec::with_capacity(count);
         for i in 0..count {
-            #[allow(clippy::cast_possible_wrap)]
-            let file_type_value = unsafe {
-                crate::ffi::sc_recording_output_configuration_get_available_output_file_type_at(
-                    self.ptr, i as isize,
-                )
+            let Ok(index) = isize::try_from(i) else { break };
+            let identifier = unsafe {
+                crate::utils::ffi_string::ffi_string_owned(|| {
+                    crate::ffi::sc_recording_output_configuration_get_available_output_file_type_identifier_at_owned(
+                        self.ptr,
+                        index,
+                    )
+                })
             };
-            match file_type_value {
-                0 => file_types.push(SCRecordingOutputFileType::MP4),
-                1 => file_types.push(SCRecordingOutputFileType::MOV),
-                _ => {}
+            if let Some(identifier) = identifier {
+                file_types.push(SCRecordingOutputFileType(Cow::Owned(identifier)));
             }
         }
         file_types
@@ -262,15 +501,29 @@ impl Default for SCRecordingOutputConfiguration {
 crate::utils::retained::sc_retained!(
     SCRecordingOutputConfiguration,
     field = ptr,
-    retain = crate::ffi::sc_recording_output_configuration_retain,
     release = crate::ffi::sc_recording_output_configuration_release,
 );
+
+impl Clone for SCRecordingOutputConfiguration {
+    /// Deep-copies the underlying `SCRecordingOutputConfiguration`.
+    ///
+    /// The native object is a mutable class. Retaining it would make every
+    /// clone an alias — reconfiguring one handle would silently reconfigure
+    /// the others, and two threads configuring "their own" clone would race on
+    /// the same non-atomic properties, which `Send`/`Sync` on this type
+    /// promises cannot happen.
+    fn clone(&self) -> Self {
+        Self {
+            ptr: unsafe { crate::ffi::sc_recording_output_configuration_copy(self.ptr) },
+        }
+    }
+}
 
 impl std::fmt::Debug for SCRecordingOutputConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SCRecordingOutputConfiguration")
-            .field("video_codec", &self.video_codec())
-            .field("file_type", &self.output_file_type())
+            .field("video_codec", &format_args!("{}", self.video_codec()))
+            .field("file_type", &format_args!("{}", self.output_file_type()))
             .finish()
     }
 }
@@ -278,6 +531,8 @@ impl std::fmt::Debug for SCRecordingOutputConfiguration {
 /// Delegate for recording output events
 ///
 /// Implement this trait to receive notifications about recording lifecycle events.
+/// Callbacks may arrive on different system threads, so implementations must
+/// synchronize shared mutable state internally.
 ///
 /// # Examples
 ///
@@ -321,7 +576,7 @@ impl std::fmt::Debug for SCRecordingOutputConfiguration {
 ///
 /// let recording = SCRecordingOutput::new_with_delegate(&config, delegate);
 /// ```
-pub trait SCRecordingOutputDelegate: Send + 'static {
+pub trait SCRecordingOutputDelegate: Send + Sync + 'static {
     /// Called when recording starts successfully
     fn recording_did_start(&self) {}
     /// Called when recording fails with an error
@@ -360,9 +615,9 @@ pub trait SCRecordingOutputDelegate: Send + 'static {
 /// ```
 #[allow(clippy::struct_field_names)]
 pub struct RecordingCallbacks {
-    on_start: Option<Box<dyn Fn() + Send + 'static>>,
-    on_fail: Option<Box<dyn Fn(String) + Send + 'static>>,
-    on_finish: Option<Box<dyn Fn() + Send + 'static>>,
+    on_start: Option<Box<dyn Fn() + Send + Sync + 'static>>,
+    on_fail: Option<Box<dyn Fn(String) + Send + Sync + 'static>>,
+    on_finish: Option<Box<dyn Fn() + Send + Sync + 'static>>,
 }
 
 impl RecordingCallbacks {
@@ -380,7 +635,7 @@ impl RecordingCallbacks {
     #[must_use]
     pub fn on_start<F>(mut self, f: F) -> Self
     where
-        F: Fn() + Send + 'static,
+        F: Fn() + Send + Sync + 'static,
     {
         self.on_start = Some(Box::new(f));
         self
@@ -390,7 +645,7 @@ impl RecordingCallbacks {
     #[must_use]
     pub fn on_fail<F>(mut self, f: F) -> Self
     where
-        F: Fn(String) + Send + 'static,
+        F: Fn(String) + Send + Sync + 'static,
     {
         self.on_fail = Some(Box::new(f));
         self
@@ -400,7 +655,7 @@ impl RecordingCallbacks {
     #[must_use]
     pub fn on_finish<F>(mut self, f: F) -> Self
     where
-        F: Fn() + Send + 'static,
+        F: Fn() + Send + Sync + 'static,
     {
         self.on_finish = Some(Box::new(f));
         self
@@ -452,73 +707,84 @@ pub struct SCRecordingOutput {
     delegate_id: Option<usize>,
 }
 
-// C callback trampolines for delegate - ctx is the recording ptr as usize
+// C callback trampolines for delegate - ctx is the delegate registry id as usize.
+//
+// Each body is fully enclosed in a panic barrier: a panic escaping an
+// `extern "C"` function is undefined behaviour, and the registry lookup itself
+// can panic (allocation, poisoned-lock recovery) before user code even runs.
+// The registry lock is always released before the user delegate is invoked —
+// see `RecordingDelegateEntry`.
 extern "C" fn recording_started_callback(ctx: *mut c_void) {
-    let key = ctx as usize;
-    if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
-        if let Some(ref delegates) = *registry {
-            if let Some(entry) = delegates.get(&key) {
-                crate::utils::panic_safe::catch_user_panic(
-                    "SCRecordingOutputDelegate::recording_did_start",
-                    || entry.delegate.recording_did_start(),
-                );
+    crate::utils::panic_safe::catch_user_panic(
+        "SCRecordingOutputDelegate::recording_did_start",
+        || {
+            if let Some(delegate) = lookup_delegate(ctx as usize) {
+                delegate.recording_did_start();
             }
-        }
-    }
+        },
+    );
 }
 
 extern "C" fn recording_failed_callback(ctx: *mut c_void, error_code: i32, error: *const i8) {
-    let key = ctx as usize;
-    let error_str = if error.is_null() {
-        String::from("Unknown error")
-    } else {
-        unsafe { std::ffi::CStr::from_ptr(error) }
-            .to_string_lossy()
-            .into_owned()
-    };
+    crate::utils::panic_safe::catch_user_panic(
+        "SCRecordingOutputDelegate::recording_did_fail",
+        || {
+            let error_str = if error.is_null() {
+                String::from("Unknown error")
+            } else {
+                unsafe { std::ffi::CStr::from_ptr(error) }
+                    .to_string_lossy()
+                    .into_owned()
+            };
 
-    // Include error code in the message if it's a known SCStreamError
-    let full_error = if error_code != 0 {
-        crate::error::SCStreamErrorCode::from_raw(error_code).map_or_else(
-            || format!("{error_str} (code: {error_code})"),
-            |code| format!("{error_str} ({code})"),
-        )
-    } else {
-        error_str
-    };
-
-    if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
-        if let Some(ref delegates) = *registry {
-            if let Some(entry) = delegates.get(&key) {
-                crate::utils::panic_safe::catch_user_panic(
-                    "SCRecordingOutputDelegate::recording_did_fail",
-                    || entry.delegate.recording_did_fail(full_error),
-                );
+            // Include error code in the message if it's a known SCStreamError
+            let full_error = if error_code == 0 {
+                error_str
+            } else {
+                crate::error::SCStreamErrorCode::from_raw(error_code).map_or_else(
+                    || format!("{error_str} (code: {error_code})"),
+                    |code| format!("{error_str} ({code})"),
+                )
+            };
+            if let Some(delegate) = lookup_delegate(ctx as usize) {
+                delegate.recording_did_fail(full_error);
             }
-        }
-    }
+        },
+    );
 }
 
 extern "C" fn recording_finished_callback(ctx: *mut c_void) {
-    let key = ctx as usize;
-    if let Ok(registry) = RECORDING_DELEGATE_REGISTRY.lock() {
-        if let Some(ref delegates) = *registry {
-            if let Some(entry) = delegates.get(&key) {
-                crate::utils::panic_safe::catch_user_panic(
-                    "SCRecordingOutputDelegate::recording_did_finish",
-                    || entry.delegate.recording_did_finish(),
-                );
+    crate::utils::panic_safe::catch_user_panic(
+        "SCRecordingOutputDelegate::recording_did_finish",
+        || {
+            if let Some(delegate) = lookup_delegate(ctx as usize) {
+                delegate.recording_did_finish();
             }
-        }
-    }
+        },
+    );
+}
+
+extern "C" fn recording_context_release_callback(ctx: *mut c_void) {
+    crate::utils::panic_safe::catch_user_panic("SCRecordingOutputDelegate::release", || {
+        drop(remove_delegate(ctx as usize));
+    });
 }
 
 impl SCRecordingOutput {
+    /// Whether recording-output APIs are available on this system.
+    #[must_use]
+    pub fn is_available() -> bool {
+        unsafe { crate::ffi::sc_recording_output_is_available() }
+    }
+
     /// Create a new recording output with configuration
     ///
     /// # Errors
     /// Returns None if the system is not macOS 15.0+ or creation fails
     pub fn new(config: &SCRecordingOutputConfiguration) -> Option<Self> {
+        if !Self::is_available() {
+            return None;
+        }
         let ptr = unsafe { crate::ffi::sc_recording_output_create(config.as_ptr()) };
         if ptr.is_null() {
             None
@@ -543,27 +809,26 @@ impl SCRecordingOutput {
         config: &SCRecordingOutputConfiguration,
         delegate: D,
     ) -> Option<Self> {
-        // Generate a unique ID for this delegate
-        let delegate_id = NEXT_DELEGATE_ID.fetch_add(1, Ordering::Relaxed);
-
-        // Store delegate in registry before creating recording output
-        {
+        if !Self::is_available() {
+            return None;
+        }
+        let entry = RecordingDelegateEntry {
+            delegate: Arc::new(delegate),
+        };
+        let delegate_id = {
             let mut registry = RECORDING_DELEGATE_REGISTRY
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if registry.is_none() {
-                *registry = Some(HashMap::new());
+                .unwrap_or_else(PoisonError::into_inner);
+            let delegates = registry.get_or_insert_with(HashMap::new);
+            loop {
+                let id = NEXT_DELEGATE_ID.fetch_add(1, Ordering::Relaxed);
+                if id != 0 && !delegates.contains_key(&id) {
+                    delegates.insert(id, entry);
+                    drop(registry);
+                    break id;
+                }
             }
-            if let Some(ref mut delegates) = *registry {
-                delegates.insert(
-                    delegate_id,
-                    RecordingDelegateEntry {
-                        delegate: Box::new(delegate),
-                        ref_count: 1,
-                    },
-                );
-            }
-        }
+        };
 
         // Use delegate_id as context
         let ctx = delegate_id as *mut c_void;
@@ -574,20 +839,13 @@ impl SCRecordingOutput {
                 Some(recording_started_callback),
                 Some(recording_failed_callback),
                 Some(recording_finished_callback),
+                Some(recording_context_release_callback),
                 ctx,
             )
         };
 
         if ptr.is_null() {
-            // Clean up delegate from registry on failure (poison-tolerant).
-            {
-                let mut registry = RECORDING_DELEGATE_REGISTRY
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if let Some(ref mut delegates) = *registry {
-                    delegates.remove(&delegate_id);
-                }
-            }
+            drop(remove_delegate(delegate_id));
             None
         } else {
             Some(Self {
@@ -624,17 +882,6 @@ impl SCRecordingOutput {
 
 impl Clone for SCRecordingOutput {
     fn clone(&self) -> Self {
-        // Increment delegate ref count if one exists for this recording
-        if let Some(delegate_id) = self.delegate_id {
-            if let Ok(mut registry) = RECORDING_DELEGATE_REGISTRY.lock() {
-                if let Some(ref mut delegates) = *registry {
-                    if let Some(entry) = delegates.get_mut(&delegate_id) {
-                        entry.ref_count += 1;
-                    }
-                }
-            }
-        }
-
         unsafe {
             Self {
                 ptr: crate::ffi::sc_recording_output_retain(self.ptr),
@@ -656,24 +903,6 @@ impl std::fmt::Debug for SCRecordingOutput {
 
 impl Drop for SCRecordingOutput {
     fn drop(&mut self) {
-        // Decrement delegate ref count and clean up if this is the last reference
-        if let Some(delegate_id) = self.delegate_id {
-            let mut should_remove = false;
-            if let Ok(mut registry) = RECORDING_DELEGATE_REGISTRY.lock() {
-                if let Some(ref mut delegates) = *registry {
-                    if let Some(entry) = delegates.get_mut(&delegate_id) {
-                        entry.ref_count -= 1;
-                        if entry.ref_count == 0 {
-                            should_remove = true;
-                        }
-                    }
-                    if should_remove {
-                        delegates.remove(&delegate_id);
-                    }
-                }
-            }
-        }
-
         if !self.ptr.is_null() {
             unsafe {
                 crate::ffi::sc_recording_output_release(self.ptr);

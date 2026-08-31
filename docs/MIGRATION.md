@@ -2,9 +2,27 @@
 
 This guide helps you migrate between major versions of `screencapturekit-rs`.
 
-> **Note:** The current release line is **7.x**. The sections below document
+> **Note:** The current release line is **8.x**. The sections below document
 > historical major-version migrations (the FFI-hardening work that started in
 > 2.0). For changes in recent releases, see [`CHANGELOG.md`](../CHANGELOG.md).
+
+## Migrating from 7.x to 8.0
+
+- The minimum supported macOS version is 13.0.
+- `AsyncSCStream` lifecycle methods now return futures; add `.await`, or use
+  the synchronous `SCStream` methods for blocking calls.
+- Recording codecs and file types are open string identifiers rather than
+  integer enums. Existing constants such as `H264`, `HEVC`, `MP4`, and `MOV`
+  remain available but are no longer `Copy`.
+- `SCRecordingOutputDelegate` now requires `Send + Sync`.
+- `SCContentFilter` is immutable after construction. Set `includeMenuBar`
+  through `SCContentFilterBuilder::with_include_menu_bar`, and crop through
+  `SCStreamConfiguration::with_source_rect`; the nonfunctional content-rect
+  setters were removed.
+- `SCScreenshotOutput::file_url()` was replaced by `file_path()`.
+- Build-SDK stubs are no longer supported. Enabling a `macos_*` feature whose
+  API is absent from the selected SDK fails during `build.rs`; select a matching
+  Xcode or remove the feature.
 
 ## Migrating from 1.x to 2.0
 

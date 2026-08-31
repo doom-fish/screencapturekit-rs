@@ -111,6 +111,7 @@ fn test_stream_send_sync() {
 }
 
 #[test]
+#[cfg(feature = "macos_14_0")]
 fn test_stream_update_configuration() {
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");

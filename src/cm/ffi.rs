@@ -71,6 +71,10 @@ extern "C" {
     /// layout. Replaces the per-attribute accessors above for the hot path
     /// (one attachment-array fetch + one CF→Swift bridge cast vs. one per
     /// field), measured at ~4× faster when reading multiple fields per frame.
+    ///
+    /// When the `DIRTY_RECTS` bit is set, `out_dirty_rects` receives a
+    /// bridge-allocated `[x, y, w, h] * out_dirty_rects_count` array that the
+    /// caller must hand back via `cm_sample_buffer_free_dirty_rects`.
     pub fn cm_sample_buffer_get_frame_info(
         sample_buffer: *mut std::ffi::c_void,
         out_fields: *mut u32,
@@ -82,6 +86,8 @@ extern "C" {
         out_bounding_rect: *mut f64,          // [4]
         out_screen_rect: *mut f64,            // [4]
         out_presenter_overlay_rect: *mut f64, // [4]
+        out_dirty_rects: *mut *mut std::ffi::c_void,
+        out_dirty_rects_count: *mut usize,
     ) -> bool;
 
     pub fn cm_sample_buffer_get_presentation_timestamp(
@@ -109,6 +115,7 @@ extern "C" {
         out_buffers_len: *mut usize,
         out_block_buffer: *mut *mut std::ffi::c_void,
     );
+    pub fn cm_audio_buffer_bridge_array_free(buffers: *mut std::ffi::c_void);
     pub fn cm_block_buffer_release(block_buffer: *mut std::ffi::c_void);
     pub fn cm_block_buffer_retain(block_buffer: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
     pub fn cm_block_buffer_get_data_length(block_buffer: *mut std::ffi::c_void) -> usize;

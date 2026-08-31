@@ -1586,3 +1586,94 @@ mod ycbcr_tests {
         }
     }
 }
+
+// MARK: - Autorelease pool / interop regressions
+
+/// The pool must be popped even when the closure unwinds. Leaking the push
+/// would leave the thread's pool stack unbalanced for every *later* pool on
+/// that thread, so the damage outlives the failing call.
+#[test]
+fn test_autoreleasepool_pops_on_panic() {
+    use screencapturekit::metal::autoreleasepool;
+
+    let outcome = std::panic::catch_unwind(|| {
+        autoreleasepool(|| panic!("boom"));
+    });
+    assert!(outcome.is_err());
+
+    // A leaked push would desynchronise this pool's pop; if the stack is
+    // balanced, nesting and returning still works normally.
+    let value = autoreleasepool(|| autoreleasepool(|| 42));
+    assert_eq!(value, 42);
+}
+
+#[test]
+fn test_autoreleasepool_returns_value() {
+    use screencapturekit::metal::autoreleasepool;
+
+    assert_eq!(autoreleasepool(|| "ok"), "ok");
+}
+
+/// Sizes above `isize::MAX` become negative `Int`s on the Swift side, so they
+/// must be rejected before the call rather than reaching Metal.
+#[test]
+fn test_create_buffer_rejects_oversized_length() {
+    use screencapturekit::metal::{MetalDevice, ResourceOptions};
+
+    let Some(device) = MetalDevice::system_default() else {
+        println!("⚠ Skipping - no Metal device");
+        return;
+    };
+
+    assert!(device
+        .create_buffer(usize::MAX, ResourceOptions::STORAGE_MODE_SHARED)
+        .is_none());
+    assert!(device
+        .create_buffer(
+            (isize::MAX as usize) + 1,
+            ResourceOptions::STORAGE_MODE_SHARED
+        )
+        .is_none());
+}
+
+/// A reversed or unrepresentable range must be dropped instead of trapping
+/// inside Swift's `location ..< location + length`.
+#[test]
+fn test_did_modify_range_ignores_invalid_ranges() {
+    use screencapturekit::metal::{MetalDevice, ResourceOptions};
+
+    let Some(device) = MetalDevice::system_default() else {
+        println!("⚠ Skipping - no Metal device");
+        return;
+    };
+    let Some(buffer) = device.create_buffer(256, ResourceOptions::STORAGE_MODE_MANAGED) else {
+        println!("⚠ Skipping - buffer allocation failed");
+        return;
+    };
+
+    #[allow(clippy::reversed_empty_ranges)]
+    buffer.did_modify_range(16..0);
+    buffer.did_modify_range(0..usize::MAX);
+    buffer.did_modify_range(0..64);
+}
+
+/// `as_apple_metal` borrows the device; the guard derefs to the `apple_metal`
+/// type and cannot outlive its owner (that is a compile-time property, so this
+/// test just exercises the runtime path).
+#[test]
+fn test_as_apple_metal_borrow_is_usable() {
+    use screencapturekit::metal::MetalDevice;
+
+    let Some(device) = MetalDevice::system_default() else {
+        println!("⚠ Skipping - no Metal device");
+        return;
+    };
+
+    let borrowed = device.as_apple_metal();
+    let name = borrowed.name();
+    assert!(!name.is_empty());
+    drop(borrowed);
+
+    // The owner is unaffected by the borrow being dropped.
+    assert!(!device.name().is_empty());
+}

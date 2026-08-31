@@ -482,6 +482,18 @@ impl SCShareableContentOptions {
 }
 
 impl SCShareableContent {
+    /// Whether [`SCShareableContent::current_process`] is usable on this
+    /// machine: the crate must have been compiled against a macOS 14.4+ SDK
+    /// **and** be running on macOS 14.4 or later.
+    ///
+    /// Use this to gate UI or pick a fallback strategy before paying for the
+    /// call.
+    #[cfg(feature = "macos_14_4")]
+    #[must_use]
+    pub fn current_process_is_available() -> bool {
+        unsafe { crate::ffi::sc_shareable_content_current_process_is_available() }
+    }
+
     /// Get shareable content for the current process only (macOS 14.4+)
     ///
     /// This retrieves content that the current process can capture without
@@ -489,9 +501,22 @@ impl SCShareableContent {
     ///
     /// # Errors
     ///
-    /// Returns an error if retrieval fails.
+    /// Returns [`SCError::FeatureNotAvailable`] when running on macOS older
+    /// than 14.4, or when the crate was built against an SDK that predates the
+    /// API. There is deliberately no fallback to the system-wide content query:
+    /// that requires screen-recording consent and returns every window on the
+    /// machine, which callers of this method are specifically trying to avoid.
+    ///
+    /// Otherwise returns an error if retrieval fails.
     #[cfg(feature = "macos_14_4")]
     pub fn current_process() -> Result<Self, SCError> {
+        if !Self::current_process_is_available() {
+            return Err(SCError::feature_not_available(
+                "SCShareableContent::current_process",
+                "14.4",
+            ));
+        }
+
         let (completion, context) = SyncCompletion::<Self>::new();
 
         unsafe {

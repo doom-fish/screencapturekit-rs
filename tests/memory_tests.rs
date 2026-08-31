@@ -326,6 +326,7 @@ fn test_window_filter_memory() {
 
 /// Test that audio configuration doesn't leak
 #[test]
+#[cfg(feature = "macos_15_0")]
 fn test_audio_config_memory() {
     for _ in 0..100 {
         let config = SCStreamConfiguration::new()

@@ -26,9 +26,15 @@ fn main() -> ExampleResult {
         displays,
         applications,
         windows,
+        truncation,
+        ..
     } = content
         .snapshot()
         .ok_or("Could not collect shareable content snapshot")?;
+
+    if truncation.any() {
+        println!("⚠️  Snapshot buffers saturated: {truncation:?}\n");
+    }
 
     print_displays(&content, &displays);
     print_windows(&applications, &windows);

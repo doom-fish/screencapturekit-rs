@@ -745,6 +745,49 @@ impl SCScreenshotManager {
 // SCScreenshotConfiguration (macOS 26.0+)
 // ============================================================================
 
+/// `UTType` identifiers are reverse-DNS strings; 256 bytes is comfortably
+/// above the longest identifier Apple ships and the bridge reports overflow as
+/// failure rather than truncating.
+#[cfg(feature = "macos_26_0")]
+const UTTYPE_IDENTIFIER_BUFFER: usize = crate::utils::ffi_string::SMALL_BUFFER_SIZE;
+
+/// Decode a bridge-owned C string into a `PathBuf` without going through
+/// `String`: file system paths are arbitrary non-NUL bytes on Darwin, and
+/// lossy UTF-8 conversion would silently rename them.
+#[cfg(feature = "macos_26_0")]
+fn owned_path<F: FnOnce() -> *mut i8>(ffi_call: F) -> Option<std::path::PathBuf> {
+    use std::os::unix::ffi::OsStrExt;
+
+    let ptr = ffi_call();
+    if ptr.is_null() {
+        return None;
+    }
+    // SAFETY: the bridge returns a `strdup`-allocated NUL-terminated buffer
+    // that ownership of transfers to us here.
+    let bytes = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_bytes().to_vec();
+    unsafe { crate::ffi::sc_free_string(ptr) };
+    if bytes.is_empty() {
+        return None;
+    }
+    Some(std::path::PathBuf::from(std::ffi::OsStr::from_bytes(
+        &bytes,
+    )))
+}
+
+/// Drive one of the bridge's four-out-param rect getters.
+#[cfg(feature = "macos_26_0")]
+fn read_rect<F>(ffi_call: F) -> crate::cg::CGRect
+where
+    F: FnOnce(*mut f64, *mut f64, *mut f64, *mut f64),
+{
+    let mut x = 0.0;
+    let mut y = 0.0;
+    let mut width = 0.0;
+    let mut height = 0.0;
+    ffi_call(&mut x, &mut y, &mut width, &mut height);
+    crate::cg::CGRect::new(x, y, width, height)
+}
+
 /// Display intent for screenshot rendering (macOS 26.0+)
 #[cfg(feature = "macos_26_0")]
 #[repr(i32)]
@@ -770,6 +813,29 @@ pub enum SCScreenshotDynamicRange {
     /// Both SDR and HDR output
     BothSDRAndHDR = 2,
 }
+
+/// Why a screenshot file path could not be represented by Foundation.
+#[cfg(feature = "macos_26_0")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InvalidScreenshotPath {
+    /// Foundation file URLs require a valid UTF-8 path.
+    NotUtf8,
+    /// C strings cannot contain an interior NUL byte.
+    InteriorNul,
+}
+
+#[cfg(feature = "macos_26_0")]
+impl std::fmt::Display for InvalidScreenshotPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotUtf8 => f.write_str("screenshot path is not valid UTF-8"),
+            Self::InteriorNul => f.write_str("screenshot path contains an interior NUL byte"),
+        }
+    }
+}
+
+#[cfg(feature = "macos_26_0")]
+impl std::error::Error for InvalidScreenshotPath {}
 
 /// Configuration for advanced screenshot capture (macOS 26.0+)
 ///
@@ -922,19 +988,152 @@ impl SCScreenshotConfiguration {
         self
     }
 
-    /// Set the output file URL
+    /// Set the output file path.
     ///
-    /// If `path` contains an interior NUL byte it cannot be converted to a C
-    /// string and the call is silently ignored (the configuration is left
-    /// unchanged). Valid file paths never contain NUL bytes.
-    #[must_use]
-    pub fn with_file_path(self, path: &str) -> Self {
-        if let Ok(c_path) = std::ffi::CString::new(path) {
-            unsafe {
-                crate::ffi::sc_screenshot_configuration_set_file_url(self.ptr, c_path.as_ptr());
-            }
+    /// Accepts anything path-like (`&str`, `String`, `&Path`, `PathBuf`).
+    /// Paths that are not valid UTF-8 or contain an interior NUL byte are
+    /// ignored. Use [`try_set_file_path`](Self::try_set_file_path) to observe
+    /// rejection.
+    pub fn set_file_path(&mut self, path: impl AsRef<std::path::Path>) -> &mut Self {
+        if let Err(error) = self.try_set_file_path(path) {
+            eprintln!("SCScreenshotConfiguration: {error}; file path was not changed");
         }
         self
+    }
+
+    /// Set the output file path, reporting paths that cannot cross the C
+    /// boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidScreenshotPath`] and leaves the configuration unchanged
+    /// if Foundation cannot represent the path.
+    pub fn try_set_file_path(
+        &mut self,
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<&mut Self, InvalidScreenshotPath> {
+        let path = path
+            .as_ref()
+            .to_str()
+            .ok_or(InvalidScreenshotPath::NotUtf8)?;
+        let c_path =
+            std::ffi::CString::new(path).map_err(|_| InvalidScreenshotPath::InteriorNul)?;
+        unsafe {
+            crate::ffi::sc_screenshot_configuration_set_file_url(self.ptr, c_path.as_ptr());
+        }
+        Ok(self)
+    }
+
+    /// Set the output file path (builder pattern).
+    ///
+    /// See [`set_file_path`](Self::set_file_path) for how invalid paths are
+    /// handled.
+    #[must_use]
+    pub fn with_file_path(mut self, path: impl AsRef<std::path::Path>) -> Self {
+        self.set_file_path(path);
+        self
+    }
+
+    /// Clear any previously configured output file path.
+    #[must_use]
+    pub fn without_file_path(self) -> Self {
+        unsafe { crate::ffi::sc_screenshot_configuration_clear_file_url(self.ptr) };
+        self
+    }
+
+    /// Clear any previously configured output file path.
+    pub fn clear_file_path(&mut self) -> &mut Self {
+        unsafe { crate::ffi::sc_screenshot_configuration_clear_file_url(self.ptr) };
+        self
+    }
+
+    /// Get the configured output file path, if one was set.
+    #[must_use]
+    pub fn file_path(&self) -> Option<std::path::PathBuf> {
+        owned_path(|| unsafe {
+            crate::ffi::sc_screenshot_configuration_get_file_path_owned(self.ptr)
+        })
+    }
+
+    /// Get the configured output width in pixels.
+    #[must_use]
+    pub fn width(&self) -> usize {
+        let width = unsafe { crate::ffi::sc_screenshot_configuration_get_width(self.ptr) };
+        usize::try_from(width).unwrap_or(0)
+    }
+
+    /// Get the configured output height in pixels.
+    #[must_use]
+    pub fn height(&self) -> usize {
+        let height = unsafe { crate::ffi::sc_screenshot_configuration_get_height(self.ptr) };
+        usize::try_from(height).unwrap_or(0)
+    }
+
+    /// Whether the cursor will be drawn into the screenshot.
+    #[must_use]
+    pub fn shows_cursor(&self) -> bool {
+        unsafe { crate::ffi::sc_screenshot_configuration_get_shows_cursor(self.ptr) }
+    }
+
+    /// Get the source rectangle (the subset of the capture area to read).
+    #[must_use]
+    pub fn source_rect(&self) -> crate::cg::CGRect {
+        read_rect(|x, y, w, h| unsafe {
+            crate::ffi::sc_screenshot_configuration_get_source_rect(self.ptr, x, y, w, h);
+        })
+    }
+
+    /// Get the destination rectangle (where the source is drawn in the output).
+    #[must_use]
+    pub fn destination_rect(&self) -> crate::cg::CGRect {
+        read_rect(|x, y, w, h| unsafe {
+            crate::ffi::sc_screenshot_configuration_get_destination_rect(self.ptr, x, y, w, h);
+        })
+    }
+
+    /// Whether window shadows are excluded from the screenshot.
+    #[must_use]
+    pub fn ignore_shadows(&self) -> bool {
+        unsafe { crate::ffi::sc_screenshot_configuration_get_ignore_shadows(self.ptr) }
+    }
+
+    /// Whether clipping to the window bounds is ignored.
+    #[must_use]
+    pub fn ignore_clipping(&self) -> bool {
+        unsafe { crate::ffi::sc_screenshot_configuration_get_ignore_clipping(self.ptr) }
+    }
+
+    /// Whether child windows are included in the screenshot.
+    #[must_use]
+    pub fn include_child_windows(&self) -> bool {
+        unsafe { crate::ffi::sc_screenshot_configuration_get_include_child_windows(self.ptr) }
+    }
+
+    /// Get the display intent.
+    ///
+    /// Returns `None` if the framework reported an intent this crate does not
+    /// know about (a newer macOS adding a case).
+    #[must_use]
+    pub fn display_intent(&self) -> Option<SCScreenshotDisplayIntent> {
+        match unsafe { crate::ffi::sc_screenshot_configuration_get_display_intent(self.ptr) } {
+            0 => Some(SCScreenshotDisplayIntent::Canonical),
+            1 => Some(SCScreenshotDisplayIntent::Local),
+            _ => None,
+        }
+    }
+
+    /// Get the dynamic range.
+    ///
+    /// Returns `None` if the framework reported a range this crate does not
+    /// know about (a newer macOS adding a case).
+    #[must_use]
+    pub fn dynamic_range(&self) -> Option<SCScreenshotDynamicRange> {
+        match unsafe { crate::ffi::sc_screenshot_configuration_get_dynamic_range(self.ptr) } {
+            0 => Some(SCScreenshotDynamicRange::SDR),
+            1 => Some(SCScreenshotDynamicRange::HDR),
+            2 => Some(SCScreenshotDynamicRange::BothSDRAndHDR),
+            _ => None,
+        }
     }
 
     /// Set the content type (output format) using `UTType` identifier
@@ -957,25 +1156,33 @@ impl SCScreenshotConfiguration {
             unsafe {
                 crate::ffi::sc_screenshot_configuration_set_content_type(self.ptr, c_id.as_ptr());
             }
+        } else {
+            eprintln!(
+                "SCScreenshotConfiguration: content type contains an interior NUL byte; \
+                 content type was not changed"
+            );
         }
         self
     }
 
     /// Get the current content type as `UTType` identifier
+    ///
+    /// Returns `None` when no content type is set or the identifier does not
+    /// fit in the transfer buffer; the bridge reports overflow as failure
+    /// rather than handing back a truncated identifier.
+    #[must_use]
     pub fn content_type(&self) -> Option<String> {
-        let mut buffer = vec![0i8; 256];
-        let success = unsafe {
-            crate::ffi::sc_screenshot_configuration_get_content_type(
-                self.ptr,
-                buffer.as_mut_ptr(),
-                buffer.len(),
+        unsafe {
+            crate::utils::ffi_string::ffi_string_from_buffer(
+                UTTYPE_IDENTIFIER_BUFFER,
+                |buffer, len| {
+                    crate::ffi::sc_screenshot_configuration_get_content_type(
+                        self.ptr,
+                        buffer,
+                        usize::try_from(len).unwrap_or(0),
+                    )
+                },
             )
-        };
-        if success {
-            let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
-            c_str.to_str().ok().map(ToString::to_string)
-        } else {
-            None
         }
     }
 
@@ -988,27 +1195,24 @@ impl SCScreenshotConfiguration {
     /// - `"public.png"` - PNG format
     /// - `"public.jpeg"` - JPEG format
     /// - `"public.heic"` - HEIC format
+    #[must_use]
     pub fn supported_content_types() -> Vec<String> {
         let count =
             unsafe { crate::ffi::sc_screenshot_configuration_get_supported_content_types_count() };
-        let mut result = Vec::with_capacity(count);
-        for i in 0..count {
-            let mut buffer = vec![0i8; 256];
-            let success = unsafe {
-                crate::ffi::sc_screenshot_configuration_get_supported_content_type_at(
-                    i,
-                    buffer.as_mut_ptr(),
-                    buffer.len(),
+        (0..count)
+            .filter_map(|i| unsafe {
+                crate::utils::ffi_string::ffi_string_from_buffer(
+                    UTTYPE_IDENTIFIER_BUFFER,
+                    |buffer, len| {
+                        crate::ffi::sc_screenshot_configuration_get_supported_content_type_at(
+                            i,
+                            buffer,
+                            usize::try_from(len).unwrap_or(0),
+                        )
+                    },
                 )
-            };
-            if success {
-                let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
-                if let Ok(s) = c_str.to_str() {
-                    result.push(s.to_string());
-                }
-            }
-        }
-        result
+            })
+            .collect()
     }
 
     #[must_use]
@@ -1040,9 +1244,12 @@ crate::utils::retained::sc_retained!(
     release = crate::ffi::sc_screenshot_configuration_release,
 );
 
-// SAFETY: `SCScreenshotConfiguration` wraps an Objective-C ScreenCaptureKit
-// object whose reference counting is atomic; it is safe to send between and
-// share across threads.
+// SAFETY: `SCScreenshotConfiguration` wraps a mutable Objective-C object, but
+// the wrapper owns it exclusively: there is no `Clone` and no constructor that
+// hands out a second handle to the same instance. Mutation is therefore
+// confined to `&mut self` / by-value builder methods, which Rust already makes
+// exclusive, and the `&self` methods are pure getters. Objective-C reference
+// counting is atomic, so `Drop` is safe from any thread.
 #[cfg(feature = "macos_26_0")]
 unsafe impl Send for SCScreenshotConfiguration {}
 #[cfg(feature = "macos_26_0")]
@@ -1089,14 +1296,14 @@ impl SCScreenshotOutput {
         }
     }
 
-    /// Get the file URL where the image was saved, if applicable
+    /// Get the path the image was written to, if the configuration asked for
+    /// file output.
+    ///
+    /// Read as an owned path from the bridge, so there is no fixed-size buffer
+    /// to truncate long values.
     #[must_use]
-    pub fn file_url(&self) -> Option<String> {
-        unsafe {
-            crate::utils::ffi_string::ffi_string_from_buffer(4096, |buffer, len| {
-                crate::ffi::sc_screenshot_output_get_file_url(self.ptr, buffer, len)
-            })
-        }
+    pub fn file_path(&self) -> Option<std::path::PathBuf> {
+        owned_path(|| unsafe { crate::ffi::sc_screenshot_output_get_file_path_owned(self.ptr) })
     }
 }
 
@@ -1112,7 +1319,7 @@ impl std::fmt::Debug for SCScreenshotOutput {
                 "hdr_image",
                 &self.hdr_image().map(|i| (i.width(), i.height())),
             )
-            .field("file_url", &self.file_url())
+            .field("file_path", &self.file_path())
             .finish()
     }
 }

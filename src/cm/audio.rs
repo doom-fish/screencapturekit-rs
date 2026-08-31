@@ -14,13 +14,16 @@ use std::fmt;
 /// Raw audio buffer containing sample data
 ///
 /// An `AudioBuffer` represents a single channel or interleaved audio data.
-/// Access the raw bytes via [`data()`](Self::data) or [`data_mut()`](Self::data_mut).
+/// Access the raw bytes via [`data()`](Self::data).
+///
+/// The fields are private: they are populated by the Swift bridge and are
+/// load-bearing for the `data_ptr`/`data_bytes_size` pair used to build a
+/// slice. Letting callers assign them would make [`data()`](Self::data)
+/// construct an out-of-bounds slice from safe code.
 #[repr(C)]
 pub struct AudioBuffer {
-    /// Number of audio channels in this buffer
-    pub number_channels: u32,
-    /// Size of the audio data in bytes
-    pub data_bytes_size: u32,
+    number_channels: u32,
+    data_bytes_size: u32,
     data_ptr: *mut std::ffi::c_void,
 }
 
@@ -53,6 +56,12 @@ impl fmt::Display for AudioBuffer {
 }
 
 impl AudioBuffer {
+    /// Number of audio channels interleaved in this buffer.
+    #[must_use]
+    pub const fn number_channels(&self) -> u32 {
+        self.number_channels
+    }
+
     /// Get the raw audio data as a byte slice
     pub fn data(&self) -> &[u8] {
         if self.data_ptr.is_null() || self.data_bytes_size == 0 {
@@ -67,18 +76,22 @@ impl AudioBuffer {
         }
     }
 
-    /// Get the raw audio data as a mutable byte slice
+    /// Get the raw audio data as a mutable byte slice.
     ///
-    /// # Warning
+    /// # Safety
     ///
-    /// This returns a `&mut [u8]` that points directly into the `CoreMedia` block
-    /// buffer backing the captured sample. That memory may be **aliased** with the
-    /// still-live source `CMSampleBuffer` (and any other copies of the underlying
-    /// `CMBlockBuffer`), so mutating it can race with or corrupt data observed
-    /// elsewhere. Only mutate this slice if you are certain no other reader holds a
-    /// view into the same block buffer, and never mutate it concurrently. Prefer
-    /// copying the bytes out via [`data()`](Self::data) when in doubt.
-    pub fn data_mut(&mut self) -> &mut [u8] {
+    /// The returned `&mut [u8]` points directly into the `CoreMedia` block
+    /// buffer backing the captured sample. That memory is **aliased** with the
+    /// still-live source `CMSampleBuffer` (and any other copy of the underlying
+    /// `CMBlockBuffer`, including ones held by `ScreenCaptureKit` itself), so
+    /// handing out a `&mut` from safe code would violate Rust's aliasing rules
+    /// even before any write happens.
+    ///
+    /// The caller must guarantee that, for the entire lifetime of the returned
+    /// slice, no other `&[u8]`/`&mut [u8]` view of the same block-buffer range
+    /// exists and no other thread or framework reads or writes it. Prefer
+    /// copying the bytes out via [`data()`](Self::data) instead.
+    pub unsafe fn data_mut(&mut self) -> &mut [u8] {
         if self.data_ptr.is_null() || self.data_bytes_size == 0 {
             &mut []
         } else {
@@ -106,6 +119,12 @@ impl<'a> AudioBufferRef<'a> {
     /// Get the size of the data in bytes
     pub fn data_byte_size(&self) -> usize {
         self.buffer.data_byte_size()
+    }
+
+    /// Number of audio channels interleaved in the wrapped buffer.
+    #[must_use]
+    pub const fn number_channels(&self) -> u32 {
+        self.buffer.number_channels
     }
 
     /// Get the raw audio data as a byte slice
@@ -137,7 +156,11 @@ impl std::fmt::Debug for AudioBuffer {
     }
 }
 
-/// List of audio buffers from an audio sample
+/// Raw view of the buffer array handed over by the Swift bridge.
+///
+/// Every field is crate-private and only ever written by
+/// `AudioBufferList::from_bridge`, which rejects inconsistent values. The
+/// type stays public because it is named in the module's re-export list.
 #[repr(C)]
 #[derive(Debug)]
 pub struct AudioBufferListRaw {
@@ -157,6 +180,63 @@ pub struct AudioBufferList {
 }
 
 impl AudioBufferList {
+    /// Adopt the buffer array produced by `cm_sample_buffer_get_audio_buffer_list`.
+    ///
+    /// Returns `None` — after releasing anything the bridge already handed
+    /// over — when the reported shape is not self-consistent. Every later
+    /// accessor builds slices from these numbers, so validating once here is
+    /// what makes [`AudioBuffer::data`] safe.
+    ///
+    /// # Safety
+    ///
+    /// `buffers_ptr` must be either null or a Swift-allocated array of
+    /// exactly `buffers_len` [`AudioBuffer`]s, and `block_buffer_ptr` must be
+    /// either null or a `+1`-retained `CMBlockBuffer` that owns the sample
+    /// memory the buffers point into.
+    pub(crate) unsafe fn from_bridge(
+        num_buffers: u32,
+        buffers_ptr: *mut AudioBuffer,
+        buffers_len: usize,
+        block_buffer_ptr: *mut std::ffi::c_void,
+    ) -> Option<Self> {
+        let consistent = num_buffers != 0
+            && !buffers_ptr.is_null()
+            && usize::try_from(num_buffers).is_ok_and(|n| n == buffers_len);
+
+        if !consistent {
+            unsafe { Self::release_bridge_allocations(buffers_ptr, buffers_len, block_buffer_ptr) };
+            return None;
+        }
+
+        Some(Self {
+            inner: AudioBufferListRaw {
+                num_buffers,
+                buffers_ptr,
+                buffers_len,
+            },
+            block_buffer_ptr,
+        })
+    }
+
+    /// Free the buffers array allocated in Swift via
+    /// `UnsafeMutablePointer.allocate()` and drop the retained block buffer.
+    ///
+    /// The array is returned to the Swift allocator that created it.
+    unsafe fn release_bridge_allocations(
+        buffers_ptr: *mut AudioBuffer,
+        buffers_len: usize,
+        block_buffer_ptr: *mut std::ffi::c_void,
+    ) {
+        if !buffers_ptr.is_null() && buffers_len != 0 {
+            unsafe { ffi::cm_audio_buffer_bridge_array_free(buffers_ptr.cast()) };
+        }
+        if !block_buffer_ptr.is_null() {
+            unsafe {
+                ffi::cm_block_buffer_release(block_buffer_ptr);
+            }
+        }
+    }
+
     /// Get the number of buffers in the list
     pub fn num_buffers(&self) -> usize {
         self.inner.num_buffers as usize
@@ -196,24 +276,12 @@ impl AudioBufferList {
 
 impl Drop for AudioBufferList {
     fn drop(&mut self) {
-        // Free the buffers array allocated in Swift via UnsafeMutablePointer.allocate().
-        // Must use the system allocator (not Rust's global allocator) because Swift
-        // allocates with the system malloc. Using Vec::from_raw_parts here would route
-        // through the global allocator, which crashes when a custom allocator like
-        // mimalloc is active.
-        if !self.inner.buffers_ptr.is_null() {
-            unsafe {
-                use std::alloc::{GlobalAlloc, Layout, System};
-                let layout = Layout::array::<AudioBuffer>(self.inner.buffers_len)
-                    .expect("AudioBufferList layout overflow");
-                System.dealloc(self.inner.buffers_ptr.cast::<u8>(), layout);
-            }
-        }
-        // Release the block buffer that owns the audio data
-        if !self.block_buffer_ptr.is_null() {
-            unsafe {
-                ffi::cm_block_buffer_release(self.block_buffer_ptr);
-            }
+        unsafe {
+            Self::release_bridge_allocations(
+                self.inner.buffers_ptr,
+                self.inner.buffers_len,
+                self.block_buffer_ptr,
+            );
         }
     }
 }

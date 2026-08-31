@@ -56,4 +56,7 @@ pub use output_trait::SCStreamOutputTrait as SCStreamOutput;
 pub use sc_stream::SCStream;
 
 #[cfg(feature = "macos_14_0")]
-pub use content_filter::{SCShareableContentStyle, SCStreamType};
+pub use content_filter::SCShareableContentStyle;
+#[cfg(feature = "macos_14_0")]
+#[allow(deprecated)]
+pub use content_filter::SCStreamType;

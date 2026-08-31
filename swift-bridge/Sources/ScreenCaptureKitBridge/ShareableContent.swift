@@ -88,18 +88,16 @@ public func getShareableContentSync(
     let timeout = semaphore.wait(timeout: .now() + 5.0)
 
     if timeout == .timedOut {
-        "Timeout waiting for shareable content".withCString { ptr in
-            strncpy(errorBuffer, ptr, errorBufferSize - 1)
-            errorBuffer[errorBufferSize - 1] = 0
-        }
+        _ = writeCString(
+            "Timeout waiting for shareable content",
+            into: errorBuffer,
+            bufferSize: errorBufferSize
+        )
         return nil
     }
 
     if let error = holder.error {
-        error.withCString { ptr in
-            strncpy(errorBuffer, ptr, errorBufferSize - 1)
-            errorBuffer[errorBufferSize - 1] = 0
-        }
+        _ = writeCString(error, into: errorBuffer, bufferSize: errorBufferSize)
         return nil
     }
 
@@ -107,10 +105,7 @@ public func getShareableContentSync(
         return retain(content)
     }
 
-    "Unknown error".withCString { ptr in
-        strncpy(errorBuffer, ptr, errorBufferSize - 1)
-        errorBuffer[errorBufferSize - 1] = 0
-    }
+    _ = writeCString("Unknown error", into: errorBuffer, bufferSize: errorBufferSize)
     return nil
 }
 
@@ -225,7 +220,36 @@ public func getShareableContentAboveWindow(
     }
 }
 
-#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
+/// The message reported when `SCShareableContent.getCurrentProcessShareableContent`
+/// is unavailable. Callers map this to a `FeatureNotAvailable` error.
+///
+/// There is deliberately **no fallback** to the system-wide
+/// `SCShareableContent.excludingDesktopWindows(...)`: that returns every
+/// display and window on the machine and requires screen-recording consent,
+/// which is the exact opposite of what the current-process API promises
+/// (this process's own content, no TCC prompt). Silently widening the scope
+/// would hand callers content they never asked for and cannot distinguish
+/// from the real thing.
+private let currentProcessUnavailableMessage =
+    "SCShareableContent.getCurrentProcessShareableContent requires macOS 14.4+"
+
+/// Whether `SCShareableContent.getCurrentProcessShareableContent` can actually
+/// run here: compiled against a 14.4+ SDK *and* running on 14.4+. Lets callers
+/// report "feature not available" up front instead of inferring it from an
+/// error string.
+@_cdecl("sc_shareable_content_current_process_is_available")
+public func shareableContentCurrentProcessIsAvailable() -> Bool {
+    #if SCREENCAPTUREKIT_HAS_MACOS14_4_SDK
+        if #available(macOS 14.4, *) {
+            return true
+        }
+        return false
+    #else
+        return false
+    #endif
+}
+
+#if SCREENCAPTUREKIT_HAS_MACOS14_4_SDK
     /// Gets shareable content for the current process (macOS 14.4+)
     /// - Parameters:
     ///   - callback: Called with content pointer or error message
@@ -246,45 +270,18 @@ public func getShareableContentAboveWindow(
                 }
             }
         } else {
-            // Fallback for older macOS
-            Task {
-                do {
-                    let content = try await SCShareableContent.excludingDesktopWindows(
-                        false,
-                        onScreenWindowsOnly: true
-                    )
-                    callback(retain(content), nil, userDataValue)
-                } catch {
-                    let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-                    bridgeError.description.withCString { callback(nil, $0, userDataValue) }
-                }
-            }
+            currentProcessUnavailableMessage.withCString { callback(nil, $0, userDataValue) }
         }
     }
 #else
-    /// Gets shareable content for the current process (fallback for older compilers)
-    /// - Parameters:
-    ///   - callback: Called with content pointer or error message
-    ///   - userData: User data passed through to callback
+    /// Gets shareable content for the current process — stub for SDKs older
+    /// than 14.4, where the symbol does not exist to link against.
     @_cdecl("sc_shareable_content_get_current_process_displays")
     public func getShareableContentCurrentProcessDisplays(
         callback: @escaping @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
         userData: UnsafeMutableRawPointer?
     ) {
-        // Fallback for older compilers (macOS < 14.4 SDK)
-        let userDataValue = userData
-        Task {
-            do {
-                let content = try await SCShareableContent.excludingDesktopWindows(
-                    false,
-                    onScreenWindowsOnly: true
-                )
-                callback(retain(content), nil, userDataValue)
-            } catch {
-                let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-                bridgeError.description.withCString { callback(nil, $0, userDataValue) }
-            }
-        }
+        currentProcessUnavailableMessage.withCString { callback(nil, $0, userData) }
     }
 #endif
 
@@ -401,12 +398,10 @@ public func getWindowId(_ window: OpaquePointer) -> UInt32 {
 @_cdecl("sc_window_get_title")
 public func getWindowTitle(_ window: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
     let w: SCWindow = unretained(window)
-    guard let title = w.title, let cString = title.cString(using: .utf8) else {
+    guard let title = w.title else {
         return false
     }
-    strncpy(buffer, cString, bufferSize - 1)
-    buffer[bufferSize - 1] = 0
-    return true
+    return writeCString(title, into: buffer, bufferSize: bufferSize)
 }
 
 @_cdecl("sc_window_get_frame")
@@ -427,8 +422,11 @@ public func getWindowIsOnScreen(_ window: OpaquePointer) -> Bool {
 
 @_cdecl("sc_window_is_active")
 public func getWindowIsActive(_ window: OpaquePointer) -> Bool {
-    let w: SCWindow = unretained(window)
-    if #available(macOS 13.1, *) { return w.isActive } else { return false }
+    #if SCREENCAPTUREKIT_HAS_MACOS13_1_SDK
+        let w: SCWindow = unretained(window)
+        if #available(macOS 13.1, *) { return w.isActive }
+    #endif
+    return false
 }
 
 @_cdecl("sc_window_get_window_layer")
@@ -466,27 +464,18 @@ public func getRunningApplicationProcessId(_ app: OpaquePointer) -> Int32 {
 @_cdecl("sc_running_application_get_bundle_identifier")
 public func getRunningApplicationBundleIdentifier(_ app: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
     let a: SCRunningApplication = unretained(app)
-    let bundleId = a.bundleIdentifier; guard let cString = bundleId.cString(using: .utf8) else {
-        return false
-    }
-    strncpy(buffer, cString, bufferSize - 1)
-    buffer[bufferSize - 1] = 0
-    return true
+    return writeCString(a.bundleIdentifier, into: buffer, bufferSize: bufferSize)
 }
 
 @_cdecl("sc_running_application_get_application_name")
 public func getRunningApplicationName(_ app: OpaquePointer, _ buffer: UnsafeMutablePointer<CChar>, _ bufferSize: Int) -> Bool {
     let a: SCRunningApplication = unretained(app)
-    let name = a.applicationName; guard let cString = name.cString(using: .utf8) else {
-        return false
-    }
-    strncpy(buffer, cString, bufferSize - 1)
-    buffer[bufferSize - 1] = 0
-    return true
+    return writeCString(a.applicationName, into: buffer, bufferSize: bufferSize)
 }
 
 // MARK: - SCShareableContentInfo (macOS 14.0+)
 
+#if SCREENCAPTUREKIT_HAS_MACOS14_SDK
 @_cdecl("sc_shareable_content_info_for_filter")
 public func getShareableContentInfoForFilter(_ filter: OpaquePointer) -> OpaquePointer? {
     let f: SCContentFilter = unretained(filter)
@@ -562,6 +551,36 @@ public func retainShareableContentInfo(_ info: OpaquePointer) -> OpaquePointer {
 public func releaseShareableContentInfo(_ info: OpaquePointer) {
     release(info)
 }
+#else
+    @_cdecl("sc_shareable_content_info_for_filter")
+    public func getShareableContentInfoForFilter(_: OpaquePointer) -> OpaquePointer? { nil }
+
+    @_cdecl("sc_shareable_content_info_get_style")
+    public func getShareableContentInfoStyle(_: OpaquePointer) -> Int32 { 0 }
+
+    @_cdecl("sc_shareable_content_info_get_point_pixel_scale")
+    public func getShareableContentInfoPointPixelScale(_: OpaquePointer) -> Float { 1.0 }
+
+    @_cdecl("sc_shareable_content_info_get_content_rect")
+    public func getShareableContentInfoContentRect(
+        _: OpaquePointer,
+        _ x: UnsafeMutablePointer<Double>,
+        _ y: UnsafeMutablePointer<Double>,
+        _ width: UnsafeMutablePointer<Double>,
+        _ height: UnsafeMutablePointer<Double>
+    ) {
+        x.pointee = 0
+        y.pointee = 0
+        width.pointee = 0
+        height.pointee = 0
+    }
+
+    @_cdecl("sc_shareable_content_info_retain")
+    public func retainShareableContentInfo(_ info: OpaquePointer) -> OpaquePointer { info }
+
+    @_cdecl("sc_shareable_content_info_release")
+    public func releaseShareableContentInfo(_: OpaquePointer) {}
+#endif
 
 // MARK: - Batch Data Retrieval (Optimized FFI)
 
@@ -644,8 +663,7 @@ public func getApplicationsBatch(
     return count
 }
 
-/// Get all windows as packed data with strings in a separate buffer
-/// Also provides application pointers for ownership lookup
+/// Get all windows as packed data with strings in a separate buffer.
 @_cdecl("sc_shareable_content_get_windows_batch")
 public func getWindowsBatch(
     _ content: OpaquePointer,
@@ -653,26 +671,13 @@ public func getWindowsBatch(
     _ maxWindows: Int,
     _ stringBuffer: UnsafeMutablePointer<CChar>,
     _ stringBufferSize: Int,
-    _ stringBufferUsed: UnsafeMutablePointer<Int>,
-    _ appPointers: UnsafeMutablePointer<OpaquePointer?>,
-    _ maxApps: Int,
-    _ appCount: UnsafeMutablePointer<Int>
+    _ stringBufferUsed: UnsafeMutablePointer<Int>
 ) -> Int {
     let buffer = rawBuffer.assumingMemoryBound(to: FFIWindowData.self)
     let sc: SCShareableContent = unretained(content)
     let windows = sc.windows
-    let apps = sc.applications
     let count = min(windows.count, maxWindows)
     var stringOffset: UInt32 = 0
-
-    // Build app lookup map and populate app pointers
-    var appIndexMap: [ObjectIdentifier: Int32] = [:]
-    let actualAppCount = min(apps.count, maxApps)
-    for i in 0 ..< actualAppCount {
-        appIndexMap[ObjectIdentifier(apps[i])] = Int32(i)
-        appPointers[i] = retain(apps[i])
-    }
-    appCount.pointee = actualAppCount
 
     for i in 0 ..< count {
         let w = windows[i]
@@ -690,16 +695,14 @@ public func getWindowsBatch(
             titleLen = 0
         }
 
-        // Find owning app index
-        var owningAppIndex: Int32 = -1
-        if let owningApp = w.owningApplication {
-            owningAppIndex = appIndexMap[ObjectIdentifier(owningApp)] ?? -1
-        }
+        let owningAppProcessID = w.owningApplication?.processID ?? -1
 
         var isActive = false
-        if #available(macOS 13.1, *) {
-            isActive = w.isActive
-        }
+        #if SCREENCAPTUREKIT_HAS_MACOS13_1_SDK
+            if #available(macOS 13.1, *) {
+                isActive = w.isActive
+            }
+        #endif
 
         buffer[i] = FFIWindowData(
             windowId: w.windowID,
@@ -709,7 +712,7 @@ public func getWindowsBatch(
             frame: FFIRect(w.frame),
             titleOffset: titleStart,
             titleLength: titleLen,
-            owningAppIndex: owningAppIndex,
+            owningAppProcessID: owningAppProcessID,
             _padding: 0
         )
     }
@@ -764,19 +767,21 @@ public func getContentFilterContentRectPacked(
     _ outW: UnsafeMutablePointer<Double>,
     _ outH: UnsafeMutablePointer<Double>
 ) {
-    if #available(macOS 14.0, *) {
-        let f: SCContentFilter = unretained(filter)
-        let rect = f.contentRect
-        outX.pointee = rect.origin.x
-        outY.pointee = rect.origin.y
-        outW.pointee = rect.size.width
-        outH.pointee = rect.size.height
-    } else {
-        outX.pointee = 0
-        outY.pointee = 0
-        outW.pointee = 0
-        outH.pointee = 0
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        if #available(macOS 14.0, *) {
+            let f: SCContentFilter = unretained(filter)
+            let rect = f.contentRect
+            outX.pointee = rect.origin.x
+            outY.pointee = rect.origin.y
+            outW.pointee = rect.size.width
+            outH.pointee = rect.size.height
+            return
+        }
+    #endif
+    outX.pointee = 0
+    outY.pointee = 0
+    outW.pointee = 0
+    outH.pointee = 0
 }
 
 /// Get shareable content info rect as packed struct
@@ -788,19 +793,21 @@ public func getShareableContentInfoContentRectPacked(
     _ outW: UnsafeMutablePointer<Double>,
     _ outH: UnsafeMutablePointer<Double>
 ) {
-    if #available(macOS 14.0, *) {
-        let i: SCShareableContentInfo = unretained(info)
-        let rect = i.contentRect
-        outX.pointee = rect.origin.x
-        outY.pointee = rect.origin.y
-        outW.pointee = rect.size.width
-        outH.pointee = rect.size.height
-    } else {
-        outX.pointee = 0
-        outY.pointee = 0
-        outW.pointee = 0
-        outH.pointee = 0
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        if #available(macOS 14.0, *) {
+            let i: SCShareableContentInfo = unretained(info)
+            let rect = i.contentRect
+            outX.pointee = rect.origin.x
+            outY.pointee = rect.origin.y
+            outW.pointee = rect.size.width
+            outH.pointee = rect.size.height
+            return
+        }
+    #endif
+    outX.pointee = 0
+    outY.pointee = 0
+    outW.pointee = 0
+    outH.pointee = 0
 }
 
 // MARK: - Owned String Returns

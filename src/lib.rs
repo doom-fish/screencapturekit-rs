@@ -6,7 +6,7 @@
 //!
 //! Safe, idiomatic Rust bindings for Apple's [ScreenCaptureKit] framework.
 //!
-//! Capture screen content, windows, and applications with high performance on macOS 12.3+.
+//! Capture screen content, windows, and applications with high performance on macOS 13.0+.
 //!
 //! [ScreenCaptureKit]: https://developer.apple.com/documentation/screencapturekit
 //!
@@ -579,7 +579,9 @@
 //!
 //! ## Platform Requirements
 //!
-//! - **macOS 12.3+** (Monterey) - Base `ScreenCaptureKit` support
+//! - **macOS 13.0+** (Ventura) - `ScreenCaptureKit` itself starts at 12.3, but
+//!   this crate's Swift bridge is built with a 13.0 deployment target and uses
+//!   the macOS 13 audio APIs unconditionally
 //! - **Screen Recording Permission** - Must be granted by user in System Preferences
 //! - **Hardened Runtime** - Required for notarized apps
 //!
