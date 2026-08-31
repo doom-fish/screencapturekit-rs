@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v9.0.0...v9.0.1) - 2026-08-31
+
+The first published v9 release. 9.0.0 was tagged but never reached crates.io,
+so everything listed under 9.0.0 below ships here — upgrade from 8.0.1 by
+reading that section.
+
+### Fixed
+
+- The crate-level "Dynamic Stream Updates" doctest no longer fails to compile
+  under default features. It calls `SCStream::update_configuration`, which 9.0.0
+  gated behind `macos_14_0`.
+
 ## [9.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v8.0.1...v9.0.0) - 2026-08-31
 
 ### Added
