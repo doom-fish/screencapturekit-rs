@@ -312,12 +312,15 @@
 //!
 //! ## Dynamic Stream Updates
 //!
-//! Update configuration or content filter while streaming:
+//! Update configuration or content filter while streaming.
+//! `update_configuration` needs the `macos_14_0` feature;
+//! `update_content_filter` is part of the baseline.
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "macos_14_0")]
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use screencapturekit::prelude::*;
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let content = SCShareableContent::get()?;
 //! # let display = content.displays().into_iter().next().unwrap();
 //! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
@@ -349,6 +352,8 @@
 //! stream.stop_capture()?;
 //! # Ok(())
 //! # }
+//! # #[cfg(not(feature = "macos_14_0"))]
+//! # fn main() {}
 //! ```
 //!
 //! ## Error Handling with Delegates

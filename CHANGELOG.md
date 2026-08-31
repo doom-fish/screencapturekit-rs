@@ -92,6 +92,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   previous form handed out a second owner of a device the stream configuration
   still holds.
 
+- [**breaking**] `SCStream::update_configuration` now requires the
+  `macos_14_0` feature. Apple's `SCStream.updateConfiguration(_:)` is macOS
+  14.0+, and the ungated method compiled into a call that could only ever
+  return an error on an older host.
+
 - `SCStreamConfiguration::clone` and `SCContentSharingPickerConfiguration::clone`
   now produce independent configurations instead of retaining the shared Swift
   box. The old clones aliased one mutable box between handles, so a `&mut self`

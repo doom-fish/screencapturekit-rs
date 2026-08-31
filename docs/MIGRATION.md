@@ -2,27 +2,52 @@
 
 This guide helps you migrate between major versions of `screencapturekit-rs`.
 
-> **Note:** The current release line is **8.x**. The sections below document
+> **Note:** The current release line is **9.x**. The sections below document
 > historical major-version migrations (the FFI-hardening work that started in
 > 2.0). For changes in recent releases, see [`CHANGELOG.md`](../CHANGELOG.md).
 
-## Migrating from 7.x to 8.0
+## Migrating from 8.x to 9.0
 
-- The minimum supported macOS version is 13.0.
-- `AsyncSCStream` lifecycle methods now return futures; add `.await`, or use
-  the synchronous `SCStream` methods for blocking calls.
+- The documented minimum macOS version is 13.0, matching the Swift package's
+  deployment target. Earlier releases advertised ScreenCaptureKit's own 12.3
+  floor, which the bridge never actually supported.
 - Recording codecs and file types are open string identifiers rather than
   integer enums. Existing constants such as `H264`, `HEVC`, `MP4`, and `MOV`
-  remain available but are no longer `Copy`.
+  remain available but are no longer `Copy`; use `identifier()` and
+  `from_identifier()` for values added by newer macOS releases.
 - `SCRecordingOutputDelegate` now requires `Send + Sync`.
 - `SCContentFilter` is immutable after construction. Set `includeMenuBar`
   through `SCContentFilterBuilder::with_include_menu_bar`, and crop through
   `SCStreamConfiguration::with_source_rect`; the nonfunctional content-rect
   setters were removed.
-- `SCScreenshotOutput::file_url()` was replaced by `file_path()`.
+- `SCScreenshotOutput::file_url() -> Option<String>` was replaced by
+  `file_path() -> Option<PathBuf>`, and
+  `SCScreenshotConfiguration::with_file_path` now takes `impl AsRef<Path>`
+  (`&str` call sites are unchanged). Use `try_set_file_path` to detect
+  non-UTF-8 paths or interior NUL bytes instead of silently targeting a
+  different path.
+- `AudioBuffer`'s fields are private and read through accessors that validate
+  the descriptor. Mutable access is now `unsafe fn data_mut`: the caller must
+  guarantee the sample buffer outlives the slice and that no other alias
+  exists.
+- `MetalDevice::as_apple_metal` returns a lifetime-bound
+  `BorrowedAppleMetalDevice<'_>` rather than an owned `apple-metal` device.
+- `SCShareableContent::current_process` returns `SCError::FeatureNotAvailable`
+  below macOS 14.4 instead of falling back to a system-wide content query. Gate
+  on `SCShareableContent::current_process_is_available()` if you need to branch.
+- `SCStream::update_configuration` now requires the `macos_14_0` feature,
+  matching Apple's availability. `update_content_filter` is unchanged.
 - Build-SDK stubs are no longer supported. Enabling a `macos_*` feature whose
   API is absent from the selected SDK fails during `build.rs`; select a matching
   Xcode or remove the feature.
+
+## Migrating from 7.x to 8.0
+
+- `AsyncSCStream` lifecycle methods now return futures; add `.await`, or use
+  the synchronous `SCStream` methods for blocking calls.
+- Stream stops are reported only through
+  `SCStreamDelegateTrait::did_stop_with_error`. The redundant `stream_did_stop`
+  callback is deprecated.
 
 ## Migrating from 1.x to 2.0
 

@@ -69,9 +69,8 @@ screencapturekit = { version = "9", features = ["async", "macos_15_0"] }
 > for a per-version guide. Releases 3.0–6.0 consolidated the Core Graphics /
 > Core Media foundation types onto the shared `apple-cf` crate and 7.0 hardens
 > the FFI boundary; the only likely source change across that line is 5.0's
-> nested `CGRect` layout (`rect.origin.x` / `rect.size.width`). **8.0** makes the
-> `async` stream lifecycle methods real futures — add `.await` to
-> `AsyncSCStream::{start,stop}_capture` and `update_*` (see below).
+> nested `CGRect` layout (`rect.origin.x` / `rect.size.width`). **9.0** tightens
+> memory safety and the stream/picker lifecycle — see the migration notes below.
 
 ## Quick Start
 
@@ -540,21 +539,30 @@ Highlights by major version:
   is deprecated). New: `AsyncSCStream::{take_error, add_output_type, next_typed,
   try_next_typed}` for error visibility and audio+video on one stream. The
   synchronous `SCStream` API is unchanged.
-
-  Also in 8.0:
+- **9.0** — memory-safety and lifecycle hardening.
   `SCScreenshotOutput::file_url() -> Option<String>` became
   `file_path() -> Option<PathBuf>`, and
-  `SCScreenshotConfiguration::with_file_path` now takes `impl AsRef<Path>`
-  (`&str` still works). `SCShareableContent::current_process` returns
-  `SCError::FeatureNotAvailable` below macOS 14.4 instead of quietly falling
-  back to system-wide content. New: repeating picker observers
+  `SCScreenshotConfiguration::with_file_path` takes `impl AsRef<Path>` (`&str`
+  still works). Recording codecs and file types are open, string-backed
+  identifiers rather than integer enums, and recording delegates now require
+  `Sync`. `SCContentFilter` is immutable once built: the nonfunctional
+  content-rect setters are gone (crop with
+  `SCStreamConfiguration::with_source_rect`) and `includeMenuBar` is set while
+  building via `SCContentFilterBuilder::with_include_menu_bar`. `AudioBuffer`'s
+  fields are private, with mutable access behind `unsafe fn data_mut`, and
+  `MetalDevice::as_apple_metal` hands out a borrow instead of a second owner.
+  `SCShareableContent::current_process` returns `SCError::FeatureNotAvailable`
+  below macOS 14.4 instead of quietly falling back to system-wide content, and
+  `SCStream::update_configuration` now requires the `macos_14_0` feature.
+  Build-SDK stub mode was removed. New: repeating picker observers
   (`SCContentSharingPicker::add_observer`) so
   `allows_changing_selected_content` actually delivers re-selections.
 
 If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–7.0
 upgrades are typically just the 5.0 `CGRect` field-access change. 8.0 affects
-you if you use the `async` API, the macOS 26 screenshot configuration, or
-`SCShareableContent::current_process`.
+you if you use the `async` API; 9.0 affects you if you write screenshots to
+disk, configure recording outputs, crop through the content filter, read
+`AudioBuffer` fields, or call `SCShareableContent::current_process`.
 
 ## Contributing
 
