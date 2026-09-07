@@ -11,6 +11,8 @@ use screencapturekit::{
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+static LIVE_CAPTURE_TEST_LOCK: Mutex<()> = Mutex::new(());
+
 /// Test output handler that collects video samples
 struct VideoTestOutput {
     samples: Arc<Mutex<Vec<CMSampleBuffer>>>,
@@ -47,6 +49,10 @@ impl SCStreamOutputTrait for AudioTestOutput {
 
 #[test]
 fn test_video_capture() {
+    let _capture_guard = LIVE_CAPTURE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
     // Get shareable content
     let content = match SCShareableContent::get() {
         Ok(c) => c,
@@ -128,6 +134,10 @@ fn test_video_capture() {
 
 #[test]
 fn test_audio_capture() {
+    let _capture_guard = LIVE_CAPTURE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
     // Get shareable content
     let content = match SCShareableContent::get() {
         Ok(c) => c,
@@ -211,6 +221,10 @@ fn test_audio_capture() {
 
 #[test]
 fn test_video_and_audio_capture() {
+    let _capture_guard = LIVE_CAPTURE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
     // Get shareable content
     let content = match SCShareableContent::get() {
         Ok(c) => c,
@@ -286,6 +300,10 @@ fn test_video_and_audio_capture() {
 
 #[test]
 fn test_pixel_buffer_locking() {
+    let _capture_guard = LIVE_CAPTURE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
     // Get shareable content
     let content = match SCShareableContent::get() {
         Ok(c) => c,
@@ -384,6 +402,10 @@ fn test_pixel_buffer_locking() {
 
 #[test]
 fn test_iosurface_backed_buffer() {
+    let _capture_guard = LIVE_CAPTURE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
     // Get shareable content
     let content = match SCShareableContent::get() {
         Ok(c) => c,
