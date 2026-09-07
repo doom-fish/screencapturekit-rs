@@ -241,15 +241,13 @@ private struct FrameInfoFieldBits {
 
 // Decode the `SCStreamFrameInfoDirtyRects` attachment into a freshly allocated
 // `[x, y, w, h] * count` array owned by the caller.
-private func copyDirtyRects(_ value: Any?) -> (UnsafeMutableRawPointer, UInt)? {
+func copyDirtyRects(_ value: Any?) -> (UnsafeMutableRawPointer, UInt)? {
     guard let dirtyRects = value as? [Any] else { return nil }
 
     var rects: [CGRect] = []
     for item in dirtyRects {
-        if let rectDict = item as? [String: Any],
-           let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
-        {
-            rects.append(rect)
+        if let value = item as? NSValue {
+            rects.append(value.rectValue)
         }
     }
     guard !rects.isEmpty else { return nil }
@@ -262,6 +260,33 @@ private func copyDirtyRects(_ value: Any?) -> (UnsafeMutableRawPointer, UInt)? {
         rectsPtr[index * 4 + 3] = rect.size.height
     }
     return (UnsafeMutableRawPointer(rectsPtr), UInt(rects.count))
+}
+
+@_cdecl("cm_test_copy_nsvalue_dirty_rects")
+public func cm_test_copy_nsvalue_dirty_rects(
+    _ values: UnsafePointer<Float64>,
+    _ count: UInt,
+    _ outRects: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outCount: UnsafeMutablePointer<UInt>
+) -> Bool {
+    outRects.pointee = nil
+    outCount.pointee = 0
+    guard count > 0, count <= UInt(Int.max / 4) else { return false }
+
+    var boxed: [NSValue] = []
+    boxed.reserveCapacity(Int(count))
+    for index in 0 ..< Int(count) {
+        boxed.append(NSValue(rect: CGRect(
+            x: values[index * 4],
+            y: values[index * 4 + 1],
+            width: values[index * 4 + 2],
+            height: values[index * 4 + 3]
+        )))
+    }
+    guard let (rects, decodedCount) = copyDirtyRects(boxed) else { return false }
+    outRects.pointee = rects
+    outCount.pointee = decodedCount
+    return true
 }
 
 // Single-call frame info fetch.
@@ -639,16 +664,30 @@ public func cm_sample_buffer_create_for_image_buffer(
     _ imageBuffer: UnsafeMutableRawPointer,
     _ presentationTimeValue: Int64,
     _ presentationTimeScale: Int32,
+    _ presentationTimeFlags: UInt32,
+    _ presentationTimeEpoch: Int64,
     _ durationValue: Int64,
     _ durationScale: Int32,
+    _ durationFlags: UInt32,
+    _ durationEpoch: Int64,
     _ sampleBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
 ) -> Int32 {
     let pixelBuffer = Unmanaged<CVPixelBuffer>.fromOpaque(imageBuffer).takeUnretainedValue()
 
     var sampleBuffer: CMSampleBuffer?
     var timingInfo = CMSampleTimingInfo(
-        duration: CMTime(value: CMTimeValue(durationValue), timescale: durationScale, flags: .valid, epoch: 0),
-        presentationTimeStamp: CMTime(value: CMTimeValue(presentationTimeValue), timescale: presentationTimeScale, flags: .valid, epoch: 0),
+        duration: CMTime(
+            value: CMTimeValue(durationValue),
+            timescale: durationScale,
+            flags: CMTimeFlags(rawValue: durationFlags),
+            epoch: durationEpoch
+        ),
+        presentationTimeStamp: CMTime(
+            value: CMTimeValue(presentationTimeValue),
+            timescale: presentationTimeScale,
+            flags: CMTimeFlags(rawValue: presentationTimeFlags),
+            epoch: presentationTimeEpoch
+        ),
         decodeTimeStamp: .invalid
     )
 

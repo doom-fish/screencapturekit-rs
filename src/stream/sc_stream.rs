@@ -9,6 +9,7 @@
 
 use std::ffi::{c_void, CStr};
 use std::fmt;
+use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -383,6 +384,27 @@ extern "C" fn sample_handler(context: *mut c_void, sample_buffer: *const c_void,
 /// # Ok(())
 /// # }
 /// ```
+/// Stable, non-owning identity for an [`SCStream`].
+///
+/// This is the address of the underlying native stream, stored as an opaque
+/// value. It does not keep the stream alive and must never be dereferenced.
+/// Compare it with [`SCStream::identity`] while the stream is still live.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StreamIdentity(NonZeroUsize);
+
+impl StreamIdentity {
+    #[cfg(feature = "macos_14_0")]
+    pub(crate) fn from_ptr(ptr: *const c_void) -> Option<Self> {
+        NonZeroUsize::new(ptr as usize).map(Self)
+    }
+
+    /// Whether this identity belongs to `stream`.
+    #[must_use]
+    pub fn matches(self, stream: &SCStream) -> bool {
+        self == stream.identity()
+    }
+}
+
 pub struct SCStream {
     ptr: *const c_void,
     /// Per-stream context holding handlers and delegate (ref-counted).
@@ -944,9 +966,11 @@ impl SCStream {
     #[cfg(feature = "macos_13_0")]
     pub fn synchronization_clock(&self) -> Option<crate::cm::CMClock> {
         let ptr = unsafe { ffi::sc_stream_get_synchronization_clock(self.ptr) };
-        // SAFETY: the Swift thunk returns a +0 (unretained) reference and
-        // CMClock::from_raw retains it, so ownership is balanced (no leak).
-        crate::cm::CMClock::from_raw(ptr)
+        // SAFETY: the Swift thunk transfers a +1 retained clock reference.
+        #[allow(unused_unsafe)]
+        unsafe {
+            crate::cm::CMClock::from_raw(ptr)
+        }
     }
 
     /// Add a recording output to the stream (macOS 15.0+)
@@ -1043,6 +1067,13 @@ impl SCStream {
     #[allow(dead_code)]
     pub(crate) fn as_ptr(&self) -> *const c_void {
         self.ptr
+    }
+
+    /// Return a stable, non-owning identity for this stream.
+    #[must_use]
+    pub fn identity(&self) -> StreamIdentity {
+        // SAFETY: every SCStream constructor rejects a null native pointer.
+        StreamIdentity(unsafe { NonZeroUsize::new_unchecked(self.ptr as usize) })
     }
 
     #[cfg(feature = "async")]

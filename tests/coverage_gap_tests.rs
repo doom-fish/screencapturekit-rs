@@ -138,7 +138,7 @@ fn test_yuv_420v_pixel_format_capture() {
 
     // Some samples are status-only (no image buffer attached, e.g. an
     // idle frame). Skip those — we want a real pixel-buffer-bearing one.
-    let Some(image_buffer) = sample.image_buffer() else {
+    let Some(image_buffer) = sample.pixel_buffer() else {
         eprintln!("SKIP: first sample had no image buffer (likely idle frame); test inconclusive");
         return;
     };

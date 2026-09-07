@@ -109,7 +109,7 @@ impl SCStreamOutputTrait for CaptureHandler {
         match output_type {
             SCStreamOutputType::Screen => {
                 self.state.frame_count.fetch_add(1, Ordering::Relaxed);
-                if let Some(pixel_buffer) = sample.image_buffer() {
+                if let Some(pixel_buffer) = sample.pixel_buffer() {
                     if pixel_buffer.is_backed_by_io_surface() {
                         if let Some(surface) = pixel_buffer.io_surface() {
                             // Update surface info on first frame or format change

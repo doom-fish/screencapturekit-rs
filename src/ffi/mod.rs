@@ -718,21 +718,24 @@ extern "C" {
     pub fn sc_content_sharing_picker_set_active(active: bool);
 
     /// Assign the picker's process-wide `defaultConfiguration`.
-    pub fn sc_content_sharing_picker_set_default_configuration(config: *const c_void);
+    /// Returns false without enqueueing work when called off the main thread.
+    pub fn sc_content_sharing_picker_set_default_configuration(config: *const c_void) -> bool;
     /// Assign (or clear, when `config` is null) the per-stream configuration.
+    /// Returns false without enqueueing work when called off the main thread.
     pub fn sc_content_sharing_picker_set_configuration_for_stream(
         config: *const c_void,
         stream: *const c_void,
-    );
+    ) -> bool;
 
     /// Register a repeating observer. Returns a non-zero token, or 0 on failure.
     ///
-    /// `callback` receives `(event, result_ptr, message, user_data)` where the
-    /// event is 1 = updated (`result_ptr` non-null), 0 = cancelled, -1 = start
-    /// failed (message non-null). `context_release` is invoked exactly once,
-    /// after the observer is detached, so the Rust side can drop its context.
+    /// `callback` receives `(event, result_ptr, message, stream, user_data)`
+    /// where the event is 1 = updated (`result_ptr` non-null), 0 = cancelled,
+    /// -1 = start failed (message non-null). `stream` is a non-owning identity
+    /// pointer when the event targets an existing stream. `context_release` is
+    /// invoked exactly once after detachment.
     pub fn sc_content_sharing_picker_add_observer(
-        callback: extern "C" fn(i32, *const c_void, *const i8, *mut c_void),
+        callback: extern "C" fn(i32, *const c_void, *const i8, *const c_void, *mut c_void),
         context_release: extern "C" fn(*mut c_void),
         user_data: *mut c_void,
     ) -> i64;

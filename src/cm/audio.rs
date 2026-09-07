@@ -76,34 +76,6 @@ impl AudioBuffer {
         }
     }
 
-    /// Get the raw audio data as a mutable byte slice.
-    ///
-    /// # Safety
-    ///
-    /// The returned `&mut [u8]` points directly into the `CoreMedia` block
-    /// buffer backing the captured sample. That memory is **aliased** with the
-    /// still-live source `CMSampleBuffer` (and any other copy of the underlying
-    /// `CMBlockBuffer`, including ones held by `ScreenCaptureKit` itself), so
-    /// handing out a `&mut` from safe code would violate Rust's aliasing rules
-    /// even before any write happens.
-    ///
-    /// The caller must guarantee that, for the entire lifetime of the returned
-    /// slice, no other `&[u8]`/`&mut [u8]` view of the same block-buffer range
-    /// exists and no other thread or framework reads or writes it. Prefer
-    /// copying the bytes out via [`data()`](Self::data) instead.
-    pub unsafe fn data_mut(&mut self) -> &mut [u8] {
-        if self.data_ptr.is_null() || self.data_bytes_size == 0 {
-            &mut []
-        } else {
-            unsafe {
-                std::slice::from_raw_parts_mut(
-                    self.data_ptr.cast::<u8>(),
-                    self.data_bytes_size as usize,
-                )
-            }
-        }
-    }
-
     /// Get the size of the data in bytes
     pub fn data_byte_size(&self) -> usize {
         self.data_bytes_size as usize
@@ -173,6 +145,18 @@ pub struct AudioBufferListRaw {
 ///
 /// Contains one or more [`AudioBuffer`]s, typically one per audio channel.
 /// Use [`iter()`](Self::iter) to iterate over the buffers.
+///
+/// Whole descriptors are intentionally immutable. Allowing two independent
+/// lists to yield `&mut AudioBuffer` would let safe code swap descriptors
+/// between different backing block buffers:
+///
+/// ```compile_fail
+/// use screencapturekit::cm::AudioBufferList;
+///
+/// fn swap_descriptors(mut first: AudioBufferList, mut second: AudioBufferList) {
+///     std::mem::swap(first.get_mut(0).unwrap(), second.get_mut(0).unwrap());
+/// }
+/// ```
 pub struct AudioBufferList {
     pub(crate) inner: AudioBufferListRaw,
     /// Block buffer that owns the audio data - must be kept alive
@@ -256,12 +240,32 @@ impl AudioBufferList {
         self.get(index).map(|buffer| AudioBufferRef { buffer })
     }
 
-    /// Get a mutable buffer by index
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut AudioBuffer> {
+    /// Get the raw audio data for one buffer as a mutable byte slice.
+    ///
+    /// The returned slice is tied to this list, so safe code cannot move or
+    /// swap the descriptor away from the block buffer that owns its bytes.
+    ///
+    /// # Safety
+    ///
+    /// The bytes are also visible through the source `CMSampleBuffer`, other
+    /// lists created from that sample, and framework-internal references. For
+    /// the returned slice's entire lifetime, the caller must ensure no other
+    /// reader or writer can access the same block-buffer range.
+    pub unsafe fn data_mut(&mut self, index: usize) -> Option<&mut [u8]> {
         if index >= self.num_buffers() {
             None
         } else {
-            unsafe { Some(&mut *self.inner.buffers_ptr.add(index)) }
+            let buffer = unsafe { &*self.inner.buffers_ptr.add(index) };
+            if buffer.data_ptr.is_null() || buffer.data_bytes_size == 0 {
+                Some(&mut [])
+            } else {
+                Some(unsafe {
+                    std::slice::from_raw_parts_mut(
+                        buffer.data_ptr.cast::<u8>(),
+                        buffer.data_bytes_size as usize,
+                    )
+                })
+            }
         }
     }
 

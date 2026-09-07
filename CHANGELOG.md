@@ -5,7 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [10.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v9.0.1...v10.0.0) - 2026-09-07
+
+### Changed (breaking)
+
+- [**breaking**] Audio descriptors are immutable: `AudioBufferList::get_mut`
+  and `AudioBuffer::data_mut` were replaced by owner-tied
+  `unsafe AudioBufferList::data_mut(index)`.
+- [**breaking**] Safe Metal uploads now take initialized byte slices through
+  `create_buffer_with_bytes`; generic `create_buffer_with_data` is `unsafe`.
+  Indexed setters and command/encoder lifecycle operations return
+  `Result<_, MetalError>`.
+- [**breaking**] Repeating picker events carry
+  `Option<StreamIdentity>`. Picker configuration setters return
+  `Result<(), SCPickerConfigurationError>`, require the process main thread,
+  and never enqueue a mutation after reporting failure.
+- [**breaking**] Finalized apple-cf contracts are integrated:
+  `CMSampleBufferExt::pixel_buffer()` returns the specific lockable
+  `CVPixelBuffer`, raw adoption and locked byte views use explicit unsafe
+  contracts, byte views return `Option`, and `CVPixelBufferLockFlags::bits()`
+  exposes native-width flags.
+- Raised in-family requirements to `apple-cf >=0.10, <0.11` and
+  `apple-metal >=0.9, <0.10`.
+
+### Fixed
+
+- Snapshot picker configurations before deferred presentation, preserve
+  stream identity in repeating callbacks, invalidate subscription activity
+  during bulk removal, and avoid deactivating a newly registered observer
+  session during stale cleanup.
+- Validate Metal descriptor and encoder indices on both sides of the Swift
+  boundary, share lifecycle state across retained command/encoder clones, and
+  automatically end the final dropped encoder.
+- Decode dirty rectangles from their documented `NSValue` representation,
+  preserve all `CMTime` fields when constructing image samples, and normalize
+  video-range chroma across 16...240 in the built-in YCbCr shader.
+- Transfer synchronization clocks with an owned retain before adopting them
+  through `apple-cf`.
 
 ## [9.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v9.0.0...v9.0.1) - 2026-08-31
 

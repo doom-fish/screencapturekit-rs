@@ -293,6 +293,21 @@ fn remove_all_observers_sweeps_detached_registrations() {
 }
 
 #[test]
+fn remove_all_observers_invalidates_live_subscriptions() {
+    use screencapturekit::content_sharing_picker::SCContentSharingPicker;
+
+    let _guard = exclusive_registry();
+
+    let first = SCContentSharingPicker::add_observer(|_event| {});
+    let second = SCContentSharingPicker::add_observer(|_event| {});
+    let expected = usize::from(first.is_active()) + usize::from(second.is_active());
+
+    assert_eq!(SCContentSharingPicker::remove_all_observers(), expected);
+    assert!(!first.is_active());
+    assert!(!second.is_active());
+}
+
+#[test]
 fn observer_registration_does_not_leak_across_many_cycles() {
     use screencapturekit::content_sharing_picker::SCContentSharingPicker;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -329,17 +344,66 @@ fn observer_registration_does_not_leak_across_many_cycles() {
 #[test]
 fn set_default_configuration_is_reflected_by_default_configuration() {
     use screencapturekit::content_sharing_picker::{
-        SCContentSharingPicker, SCContentSharingPickerConfiguration,
+        SCContentSharingPicker, SCContentSharingPickerConfiguration, SCPickerConfigurationError,
     };
 
+    if !SCContentSharingPicker::is_available() {
+        return;
+    }
     let mut config = SCContentSharingPickerConfiguration::new();
     config.set_allows_changing_selected_content(true);
     config.set_excluded_bundle_ids(&["com.example.picker-test"]);
 
-    SCContentSharingPicker::set_default_configuration(&config);
+    match SCContentSharingPicker::set_default_configuration(&config) {
+        Ok(()) => {}
+        Err(SCPickerConfigurationError::MainThreadRequired) => return,
+        Err(error) => panic!("unexpected configuration error: {error}"),
+    }
 
     let read_back = SCContentSharingPicker::default_configuration();
-    assert!(!read_back.as_ptr().is_null());
+    assert!(read_back.allows_changing_selected_content());
+    assert_eq!(read_back.excluded_bundle_ids(), ["com.example.picker-test"]);
+}
+
+#[test]
+fn configuration_setter_rejects_worker_thread() {
+    use screencapturekit::content_sharing_picker::{
+        SCContentSharingPicker, SCContentSharingPickerConfiguration, SCPickerConfigurationError,
+    };
+
+    if !SCContentSharingPicker::is_available() {
+        return;
+    }
+    let config = SCContentSharingPickerConfiguration::new();
+    let result =
+        std::thread::spawn(move || SCContentSharingPicker::set_default_configuration(&config))
+            .join()
+            .expect("worker thread panicked");
+
+    assert_eq!(result, Err(SCPickerConfigurationError::MainThreadRequired));
+}
+
+#[test]
+fn configuration_setters_never_dispatch_source_contract() {
+    let source =
+        include_str!("../swift-bridge/Sources/ScreenCaptureKitBridge/ContentSharingPicker.swift");
+    let section = source
+        .split("// MARK: - Standalone configuration operations")
+        .nth(1)
+        .expect("configuration section")
+        .split("// MARK: - Standalone present operations")
+        .next()
+        .expect("configuration section end");
+
+    assert_eq!(
+        section
+            .matches("guard Thread.isMainThread else { return false }")
+            .count(),
+        2
+    );
+    assert!(!section.contains("CFRunLoopCopyCurrentMode"));
+    assert!(!section.contains("DispatchQueue.main"));
+    assert!(!section.contains("performOnMainSynchronously"));
 }
 
 #[test]

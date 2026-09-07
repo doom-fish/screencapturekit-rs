@@ -2,9 +2,38 @@
 
 This guide helps you migrate between major versions of `screencapturekit-rs`.
 
-> **Note:** The current release line is **9.x**. The sections below document
-> historical major-version migrations (the FFI-hardening work that started in
-> 2.0). For changes in recent releases, see [`CHANGELOG.md`](../CHANGELOG.md).
+> **Note:** The current release line is **10.x**. The sections below document
+> historical major-version migrations.
+> For changes in recent releases, see [`CHANGELOG.md`](../CHANGELOG.md).
+
+## Migrating from 9.x to 10.0
+
+- `AudioBufferList::get_mut` and `AudioBuffer::data_mut` were removed.
+  Mutable sample bytes are available through
+  `unsafe AudioBufferList::data_mut(index)`, which keeps the descriptor tied
+  to its owning block buffer.
+- Prefer `MetalDevice::create_buffer_with_bytes` with initialized bytes.
+  `create_buffer_with_data` is now `unsafe`; `Uniforms::to_bytes` provides the
+  safe encoding used by the examples.
+- Indexed Metal descriptor/encoder setters and command/encoder lifecycle
+  methods now return `Result<(), MetalError>`. Handle invalid indices,
+  repeated commit/end calls, and active encoders explicitly.
+- `SCPickerEvent::Updated` and `Cancelled` now carry
+  `stream: Option<StreamIdentity>`. `None` identifies a new selection;
+  `Some(identity)` can be compared with `SCStream::identity()`.
+- Picker configuration setters return
+  `Result<(), SCPickerConfigurationError>`, require the process main thread,
+  and complete their mutation before returning.
+- `CMSampleBufferExt::pixel_buffer()` replaces method-call uses of
+  `image_buffer()`. apple-cf now owns an inherent `image_buffer()` method that
+  returns the generic `CVImageBuffer`; use `pixel_buffer()` when a lockable
+  `CVPixelBuffer` is required.
+- Raw apple-cf adoption constructors such as `from_raw` and
+  `from_raw_borrowed` are unsafe. Locked pixel-buffer and IOSurface byte, row,
+  plane, and cursor views are also unsafe and return `Option`; handle a missing
+  address or unrepresentable length explicitly.
+- `CVPixelBufferLockFlags` now stores native-width `u64` flags. Use `bits()`
+  instead of `as_u32()`.
 
 ## Migrating from 8.x to 9.0
 
@@ -27,9 +56,11 @@ This guide helps you migrate between major versions of `screencapturekit-rs`.
   non-UTF-8 paths or interior NUL bytes instead of silently targeting a
   different path.
 - `AudioBuffer`'s fields are private and read through accessors that validate
-  the descriptor. Mutable access is now `unsafe fn data_mut`: the caller must
-  guarantee the sample buffer outlives the slice and that no other alias
-  exists.
+  the descriptor. In 9.x, mutable access is
+  `unsafe AudioBuffer::data_mut()` on a buffer obtained from
+  `AudioBufferList::get_mut(index)`; the caller must guarantee the sample
+  buffer outlives the slice and that no other alias exists. Version 10 removes
+  both methods in favor of the owner-tied API described above.
 - `MetalDevice::as_apple_metal` returns a lifetime-bound
   `BorrowedAppleMetalDevice<'_>` rather than an owned `apple-metal` device.
 - `SCShareableContent::current_process` returns `SCError::FeatureNotAvailable`
@@ -189,7 +220,7 @@ them:
 
 ```rust,ignore
 use screencapturekit::cm::{CMSampleBufferExt, CMSampleBufferSCExt};
-// now `sample.image_buffer()`, `sample.frame_status()`, … resolve
+// now `sample.pixel_buffer()`, `sample.frame_status()`, … resolve
 ```
 
 The prelude already re-exports both traits, so `use screencapturekit::prelude::*;`
@@ -515,7 +546,7 @@ sample.get_format_description()
 
 **After:**
 ```rust
-sample.image_buffer()
+sample.pixel_buffer()
 sample.format_description()
 ```
 

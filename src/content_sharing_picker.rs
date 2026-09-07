@@ -69,6 +69,7 @@
 //! ```
 
 use crate::stream::content_filter::{SCContentFilter, SCShareableContentStyle};
+pub use crate::stream::StreamIdentity;
 use std::any::Any;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -609,6 +610,29 @@ pub enum SCPickerOutcome {
     Error(String),
 }
 
+/// Error returned when applying a picker configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SCPickerConfigurationError {
+    /// The picker API is unavailable on this system.
+    Unavailable,
+    /// Picker configuration properties must be assigned on the process main
+    /// thread.
+    MainThreadRequired,
+}
+
+impl std::fmt::Display for SCPickerConfigurationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unavailable => f.write_str("content sharing picker is unavailable"),
+            Self::MainThreadRequired => {
+                f.write_str("content sharing picker configuration requires the main thread")
+            }
+        }
+    }
+}
+
+impl std::error::Error for SCPickerConfigurationError {}
+
 // ============================================================================
 // SCContentSharingPicker
 // ============================================================================
@@ -951,11 +975,31 @@ impl SCContentSharingPicker {
     ///
     /// let mut config = SCContentSharingPickerConfiguration::new();
     /// config.set_allows_changing_selected_content(true);
-    /// SCContentSharingPicker::set_default_configuration(&config);
+    /// SCContentSharingPicker::set_default_configuration(&config)
+    ///     .expect("call from the process main thread");
     /// ```
-    pub fn set_default_configuration(config: &SCContentSharingPickerConfiguration) {
-        unsafe {
-            crate::ffi::sc_content_sharing_picker_set_default_configuration(config.as_ptr());
+    ///
+    /// The assignment is complete when this method returns, so an immediate
+    /// call to [`Self::default_configuration`] observes the new value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SCPickerConfigurationError::Unavailable`] when the API is
+    /// unavailable, or [`SCPickerConfigurationError::MainThreadRequired`]
+    /// when called from any other thread. Failed calls do not enqueue a later
+    /// mutation.
+    pub fn set_default_configuration(
+        config: &SCContentSharingPickerConfiguration,
+    ) -> Result<(), SCPickerConfigurationError> {
+        if !Self::is_available() {
+            return Err(SCPickerConfigurationError::Unavailable);
+        }
+        if unsafe {
+            crate::ffi::sc_content_sharing_picker_set_default_configuration(config.as_ptr())
+        } {
+            Ok(())
+        } else {
+            Err(SCPickerConfigurationError::MainThreadRequired)
         }
     }
 
@@ -964,22 +1008,35 @@ impl SCContentSharingPicker {
     ///
     /// Pass `None` to clear the stream-specific configuration and fall back to
     /// the process-wide default.
+    ///
+    /// The assignment is complete when this method returns.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SCPickerConfigurationError::Unavailable`] when the API is
+    /// unavailable, or [`SCPickerConfigurationError::MainThreadRequired`]
+    /// when called from any other thread. Failed calls do not enqueue a later
+    /// mutation.
     pub fn set_configuration_for_stream(
         config: Option<&SCContentSharingPickerConfiguration>,
         stream: &crate::stream::SCStream,
-    ) {
-        if !Self::available_or_log("SCContentSharingPicker::set_configuration_for_stream") {
-            return;
+    ) -> Result<(), SCPickerConfigurationError> {
+        if !Self::is_available() {
+            return Err(SCPickerConfigurationError::Unavailable);
         }
         let config_ptr = config.map_or(
             std::ptr::null(),
             SCContentSharingPickerConfiguration::as_ptr,
         );
-        unsafe {
+        if unsafe {
             crate::ffi::sc_content_sharing_picker_set_configuration_for_stream(
                 config_ptr,
                 stream.as_ptr(),
-            );
+            )
+        } {
+            Ok(())
+        } else {
+            Err(SCPickerConfigurationError::MainThreadRequired)
         }
     }
 
@@ -1015,14 +1072,16 @@ impl SCContentSharingPicker {
     ///
     /// let mut config = SCContentSharingPickerConfiguration::new();
     /// config.set_allows_changing_selected_content(true);
-    /// SCContentSharingPicker::set_default_configuration(&config);
+    /// SCContentSharingPicker::set_default_configuration(&config)
+    ///     .expect("call from the process main thread");
     ///
     /// let subscription = SCContentSharingPicker::add_observer(|event| match event {
-    ///     SCPickerEvent::Updated(result) => {
+    ///     SCPickerEvent::Updated { result, stream } => {
     ///         // Fires again every time the user changes their selection.
     ///         let _filter = result.filter();
+    ///         let _existing_stream = stream;
     ///     }
-    ///     SCPickerEvent::Cancelled => println!("cancelled"),
+    ///     SCPickerEvent::Cancelled { .. } => println!("cancelled"),
     ///     SCPickerEvent::Failed(err) => eprintln!("picker failed: {err}"),
     /// });
     ///
@@ -1036,9 +1095,9 @@ impl SCContentSharingPicker {
         F: Fn(SCPickerEvent) + Send + Sync + 'static,
     {
         if !Self::available_or_log("SCContentSharingPicker::add_observer") {
-            return SCPickerSubscription { token: 0 };
+            return SCPickerSubscription::inactive();
         }
-        let context = SCPickerObserverContext::into_raw(handler);
+        let (context, active) = SCPickerObserverContext::into_raw(handler);
         let token = unsafe {
             crate::ffi::sc_content_sharing_picker_add_observer(
                 observer_trampoline,
@@ -1055,7 +1114,7 @@ impl SCContentSharingPicker {
             observer_context_release(context);
         }
 
-        SCPickerSubscription { token }
+        SCPickerSubscription { token, active }
     }
 
     /// Remove every repeating observer registered through
@@ -1129,11 +1188,21 @@ impl SCContentSharingPicker {
 #[derive(Debug)]
 pub enum SCPickerEvent {
     /// The user selected (or re-selected) content. Mirrors Apple's
-    /// `contentSharingPicker(_:didUpdateWith:for:)`.
-    Updated(SCPickerResult),
+    /// `contentSharingPicker(_:didUpdateWith:for:)`. `stream` identifies an
+    /// existing stream being updated; `None` means the user made a new
+    /// selection rather than replacing a stream's source.
+    Updated {
+        /// Selected filter and metadata.
+        result: SCPickerResult,
+        /// Non-owning identity of the stream being updated.
+        stream: Option<StreamIdentity>,
+    },
     /// The user dismissed the picker. Mirrors
     /// `contentSharingPicker(_:didCancelFor:)`.
-    Cancelled,
+    Cancelled {
+        /// Non-owning identity of the stream whose update was cancelled.
+        stream: Option<StreamIdentity>,
+    },
     /// The picker failed to start. Mirrors
     /// `contentSharingPickerStartDidFailWithError(_:)`.
     Failed(String),
@@ -1147,9 +1216,17 @@ pub enum SCPickerEvent {
 #[must_use = "the observer is removed as soon as the subscription is dropped"]
 pub struct SCPickerSubscription {
     token: i64,
+    active: std::sync::Arc<AtomicBool>,
 }
 
 impl SCPickerSubscription {
+    fn inactive() -> Self {
+        Self {
+            token: 0,
+            active: std::sync::Arc::new(AtomicBool::new(false)),
+        }
+    }
+
     /// Opaque identifier for this registration. Non-zero when registration
     /// succeeded.
     #[must_use]
@@ -1159,17 +1236,15 @@ impl SCPickerSubscription {
 
     /// Whether this subscription refers to a live registration.
     #[must_use]
-    pub const fn is_active(&self) -> bool {
-        self.token != 0
+    pub fn is_active(&self) -> bool {
+        self.active.load(Ordering::Acquire)
     }
 
     /// Remove the observer now instead of waiting for the drop.
     ///
     /// Returns `true` if a live observer was removed.
     pub fn unsubscribe(mut self) -> bool {
-        let removed = self.remove();
-        std::mem::forget(self);
-        removed
+        self.remove()
     }
 
     /// Give up ownership without removing the observer, keeping it registered
@@ -1178,16 +1253,20 @@ impl SCPickerSubscription {
     /// Useful for "install once at startup" wiring where there is no natural
     /// owner for the handle. The registration can still be torn down with
     /// [`SCContentSharingPicker::remove_all_observers`].
-    pub fn detach(self) {
-        std::mem::forget(self);
+    pub fn detach(mut self) {
+        self.token = 0;
     }
 
     fn remove(&mut self) -> bool {
-        if self.token == 0 {
+        if self.token == 0 || !self.is_active() {
+            self.token = 0;
             return false;
         }
         let removed = unsafe { crate::ffi::sc_content_sharing_picker_remove_observer(self.token) };
         self.token = 0;
+        if !removed {
+            self.active.store(false, Ordering::Release);
+        }
         removed
     }
 }
@@ -1201,17 +1280,18 @@ impl Drop for SCPickerSubscription {
 struct SCPickerObserverContext {
     /// Cleared on unsubscribe so a callback already in flight is dropped
     /// rather than delivered after the user asked to stop listening.
-    active: AtomicBool,
+    active: std::sync::Arc<AtomicBool>,
     handler: Box<dyn Fn(SCPickerEvent) + Send + Sync>,
 }
 
 impl SCPickerObserverContext {
-    fn into_raw<F>(handler: F) -> *mut c_void
+    fn into_raw<F>(handler: F) -> (*mut c_void, std::sync::Arc<AtomicBool>)
     where
         F: Fn(SCPickerEvent) + Send + Sync + 'static,
     {
+        let active = std::sync::Arc::new(AtomicBool::new(true));
         let context = std::sync::Arc::new(Self {
-            active: AtomicBool::new(true),
+            active: std::sync::Arc::clone(&active),
             handler: Box::new(handler),
         });
         let mut registry = PICKER_OBSERVER_CONTEXTS
@@ -1226,7 +1306,7 @@ impl SCPickerObserverContext {
         };
         contexts.insert(id, context);
         drop(registry);
-        id as *mut c_void
+        (id as *mut c_void, active)
     }
 }
 
@@ -1276,6 +1356,7 @@ extern "C" fn observer_trampoline(
     event: i32,
     result_ptr: *const c_void,
     message: *const i8,
+    stream_ptr: *const c_void,
     context: *mut c_void,
 ) {
     // The whole body sits inside the barrier: the registry lookup and the
@@ -1298,12 +1379,14 @@ extern "C" fn observer_trampoline(
             return;
         }
 
+        let stream = StreamIdentity::from_ptr(stream_ptr);
         let decoded = match event {
-            1 if !result_ptr.is_null() => {
-                SCPickerEvent::Updated(SCPickerResult { ptr: result_ptr })
-            }
+            1 if !result_ptr.is_null() => SCPickerEvent::Updated {
+                result: SCPickerResult { ptr: result_ptr },
+                stream,
+            },
             1 => SCPickerEvent::Failed("picker delivered an update without a result".to_string()),
-            0 => SCPickerEvent::Cancelled,
+            0 => SCPickerEvent::Cancelled { stream },
             _ => {
                 let text = if message.is_null() {
                     "Content sharing picker failed to start".to_string()
@@ -1483,13 +1566,42 @@ mod tests {
     fn released_repeating_observer_ignores_late_callback() {
         let calls = Arc::new(AtomicUsize::new(0));
         let observed = Arc::clone(&calls);
-        let context = SCPickerObserverContext::into_raw(move |_| {
+        let (context, active) = SCPickerObserverContext::into_raw(move |_| {
             observed.fetch_add(1, Ordering::SeqCst);
         });
 
         observer_context_release(context);
-        observer_trampoline(0, std::ptr::null(), std::ptr::null(), context);
+        observer_trampoline(
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+            context,
+        );
 
         assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert!(!active.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn repeating_observer_preserves_stream_identity() {
+        let observed = Arc::new(Mutex::new(None));
+        let output = Arc::clone(&observed);
+        let (context, _) = SCPickerObserverContext::into_raw(move |event| {
+            if let SCPickerEvent::Cancelled { stream } = event {
+                *output.lock().unwrap_or_else(PoisonError::into_inner) = stream;
+            }
+        });
+        let stream_ptr = std::ptr::NonNull::<c_void>::dangling()
+            .as_ptr()
+            .cast_const();
+
+        observer_trampoline(0, std::ptr::null(), std::ptr::null(), stream_ptr, context);
+        observer_context_release(context);
+
+        assert_eq!(
+            *observed.lock().unwrap_or_else(PoisonError::into_inner),
+            StreamIdentity::from_ptr(stream_ptr)
+        );
     }
 }

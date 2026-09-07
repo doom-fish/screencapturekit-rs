@@ -192,15 +192,15 @@
 //! use std::io::{Read, Seek, SeekFrom};
 //!
 //! # fn handle(sample: CMSampleBuffer) {
-//! if let Some(buffer) = sample.image_buffer() {
+//! if let Some(buffer) = sample.pixel_buffer() {
 //!     if let Ok(guard) = buffer.lock(CVPixelBufferLockFlags::READ_ONLY) {
 //!         // Method 1: Direct slice access (fast)
-//!         let pixels = guard.as_slice();
+//!         let Some(pixels) = (unsafe { guard.as_slice() }) else { return };
 //!         let width = guard.width();
 //!         let height = guard.height();
 //!
 //!         // Method 2: Use cursor for reading specific pixels
-//!         let mut cursor = guard.cursor();
+//!         let Some(mut cursor) = (unsafe { guard.cursor() }) else { return };
 //!         
 //!         // Read first pixel (BGRA)
 //!         if let Ok(pixel) = cursor.read_pixel() {
@@ -230,7 +230,7 @@
 //! use screencapturekit::cv::PixelBufferCursorExt;
 //!
 //! # fn handle(sample: CMSampleBuffer) {
-//! if let Some(buffer) = sample.image_buffer() {
+//! if let Some(buffer) = sample.pixel_buffer() {
 //!     // Check if IOSurface-backed (usually true for ScreenCaptureKit)
 //!     if buffer.is_backed_by_io_surface() {
 //!         if let Some(surface) = buffer.io_surface() {
@@ -241,7 +241,7 @@
 //!
 //!             // Lock for CPU access to IOSurface data
 //!             if let Ok(guard) = surface.lock(IOSurfaceLockOptions::READ_ONLY) {
-//!                 let mut cursor = guard.cursor();
+//!                 let Some(mut cursor) = (unsafe { guard.cursor() }) else { return };
 //!                 if let Ok(pixel) = cursor.read_pixel() {
 //!                     println!("First pixel: {:?}", pixel);
 //!                 }
@@ -818,7 +818,7 @@ pub mod prelude {
         delegate_trait::SCStreamDelegateTrait,
         output_trait::SCStreamOutputTrait,
         output_type::SCStreamOutputType,
-        sc_stream::SCStream,
+        sc_stream::{SCStream, StreamIdentity},
         ErrorHandler,
     };
 }

@@ -1,6 +1,6 @@
 //! `AudioBuffer` and `AudioBufferList` tests
 
-use screencapturekit::cm::AudioBuffer;
+use screencapturekit::cm::{AudioBuffer, AudioBufferList};
 
 #[test]
 fn test_audio_buffer_display() {
@@ -43,13 +43,12 @@ fn test_audio_buffer_exposes_read_only_accessors() {
     let _ = accessors;
 }
 
-/// `data_mut` hands out a `&mut [u8]` aliasing memory that is still owned by
-/// the source `CMSampleBuffer`, so it must be `unsafe` rather than callable
-/// from safe code.
+/// Mutable bytes stay tied to the owning list and remain unsafe because the
+/// source sample and independently-created lists may alias the same memory.
 #[test]
-fn test_audio_buffer_data_mut_is_unsafe() {
-    fn mutate(buffer: &mut AudioBuffer) -> usize {
-        unsafe { buffer.data_mut() }.len()
+fn test_audio_buffer_list_data_mut_is_owner_tied_and_unsafe() {
+    fn mutate(list: &mut AudioBufferList, index: usize) -> Option<usize> {
+        unsafe { list.data_mut(index) }.map(|bytes| bytes.len())
     }
     let _ = mutate;
 }

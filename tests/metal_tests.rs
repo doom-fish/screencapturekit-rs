@@ -51,6 +51,22 @@ fn test_uniforms_default() {
 }
 
 #[test]
+fn test_uniforms_to_bytes_is_fully_initialized() {
+    let uniforms = Uniforms::new(1920.0, 1080.0, 1280.0, 720.0)
+        .with_time(1.5)
+        .with_pixel_format(pixel_format::YCBCR_420V);
+    let bytes = uniforms.to_bytes();
+
+    assert_eq!(bytes.len(), Uniforms::BYTE_LEN);
+    let viewport_width = f32::from_ne_bytes(bytes[0..4].try_into().unwrap());
+    assert!((viewport_width - uniforms.viewport_size[0]).abs() < f32::EPSILON);
+    assert_eq!(
+        u32::from_ne_bytes(bytes[20..24].try_into().unwrap()),
+        uniforms.pixel_format
+    );
+}
+
+#[test]
 fn test_uniforms_with_pixel_format_raw_u32() {
     let uniforms = Uniforms::new(100.0, 100.0, 100.0, 100.0).with_pixel_format(0x42475241_u32);
     assert_eq!(uniforms.pixel_format, 0x42475241);
@@ -61,6 +77,25 @@ fn test_pixel_format_full_range() {
     assert!(pixel_format::is_full_range(pixel_format::YCBCR_420F));
     assert!(!pixel_format::is_full_range(pixel_format::YCBCR_420V));
     assert!(!pixel_format::is_full_range(pixel_format::BGRA));
+}
+
+#[test]
+fn test_video_range_chroma_normalization_reference_values() {
+    fn normalize_chroma(value: f32, full_range: bool) -> f32 {
+        if full_range {
+            value - 0.5
+        } else {
+            (value - 16.0 / 255.0).mul_add(255.0 / 224.0, -0.5)
+        }
+    }
+
+    let epsilon = 1.0e-6;
+    assert!((normalize_chroma(16.0 / 255.0, false) + 0.5).abs() < epsilon);
+    assert!(normalize_chroma(128.0 / 255.0, false).abs() < epsilon);
+    assert!((normalize_chroma(240.0 / 255.0, false) - 0.5).abs() < epsilon);
+    assert!((normalize_chroma(0.0, true) + 0.5).abs() < epsilon);
+    assert!((normalize_chroma(1.0, true) - 0.5).abs() < epsilon);
+    assert!(screencapturekit::metal::SHADER_SOURCE.contains("255.0/224.0"));
 }
 
 #[test]
@@ -214,7 +249,7 @@ fn test_shader_source_exists() {
 
 mod metal_device_tests {
 
-    use screencapturekit::metal::MetalDevice;
+    use screencapturekit::metal::{MetalDevice, MetalError};
 
     #[test]
     fn test_metal_device_system_default() {
@@ -331,7 +366,18 @@ mod metal_device_tests {
         let buffer = queue.command_buffer().expect("No command buffer");
 
         // Commit should not panic
-        buffer.commit();
+        let clone = buffer.clone();
+        buffer.commit().unwrap();
+        assert_eq!(
+            clone.commit(),
+            Err(MetalError::CommandBufferAlreadyCommitted)
+        );
+
+        let render_pass = screencapturekit::metal::MetalRenderPassDescriptor::new();
+        assert_eq!(
+            clone.render_command_encoder(&render_pass).unwrap_err(),
+            MetalError::CommandBufferAlreadyCommitted
+        );
     }
 }
 
@@ -509,7 +555,8 @@ mod metal_texture_tests {
 mod metal_pipeline_tests {
 
     use screencapturekit::metal::{
-        MTLPixelFormat, MetalDevice, MetalRenderPipelineDescriptor, SHADER_SOURCE,
+        MTLBlendFactor, MTLBlendOperation, MTLPixelFormat, MetalDevice, MetalError,
+        MetalRenderPipelineDescriptor, SHADER_SOURCE,
     };
 
     #[test]
@@ -558,7 +605,8 @@ mod metal_pipeline_tests {
         let desc = MetalRenderPipelineDescriptor::new();
         desc.set_vertex_function(&vertex_fn);
         desc.set_fragment_function(&fragment_fn);
-        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+            .unwrap();
 
         let pipeline = device.create_render_pipeline_state(&desc);
         assert!(pipeline.is_some(), "Should create pipeline state");
@@ -581,13 +629,41 @@ mod metal_pipeline_tests {
         let desc = MetalRenderPipelineDescriptor::new();
         desc.set_vertex_function(&vertex_fn);
         desc.set_fragment_function(&fragment_fn);
-        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+            .unwrap();
 
         let pipeline = device
             .create_render_pipeline_state(&desc)
             .expect("No pipeline");
         let debug_str = format!("{pipeline:?}");
         assert!(debug_str.contains("MetalRenderPipelineState"));
+    }
+
+    #[test]
+    fn test_render_pipeline_descriptor_rejects_invalid_attachment_indices() {
+        let desc = MetalRenderPipelineDescriptor::new();
+        assert!(matches!(
+            desc.set_color_attachment_pixel_format(8, MTLPixelFormat::BGRA8Unorm),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            desc.set_blending_enabled(8, true),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            desc.set_blend_operations(8, MTLBlendOperation::Add, MTLBlendOperation::Add),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            desc.set_blend_factors(
+                usize::MAX,
+                MTLBlendFactor::One,
+                MTLBlendFactor::Zero,
+                MTLBlendFactor::One,
+                MTLBlendFactor::Zero,
+            ),
+            Err(MetalError::SwiftIntOverflow { .. })
+        ));
     }
 }
 
@@ -656,7 +732,7 @@ mod metal_render_pass_tests {
     use screencapturekit::cm::IOSurface;
     use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{
-        MTLLoadAction, MTLStoreAction, MetalDevice, MetalRenderPassDescriptor,
+        MTLLoadAction, MTLStoreAction, MetalDevice, MetalError, MetalRenderPassDescriptor,
     };
 
     #[test]
@@ -676,23 +752,47 @@ mod metal_render_pass_tests {
     #[test]
     fn test_render_pass_set_load_action() {
         let desc = MetalRenderPassDescriptor::new();
-        desc.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        desc.set_color_attachment_load_action(0, MTLLoadAction::Load);
-        desc.set_color_attachment_load_action(0, MTLLoadAction::DontCare);
+        desc.set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        desc.set_color_attachment_load_action(0, MTLLoadAction::Load)
+            .unwrap();
+        desc.set_color_attachment_load_action(0, MTLLoadAction::DontCare)
+            .unwrap();
     }
 
     #[test]
     fn test_render_pass_set_store_action() {
         let desc = MetalRenderPassDescriptor::new();
-        desc.set_color_attachment_store_action(0, MTLStoreAction::Store);
-        desc.set_color_attachment_store_action(0, MTLStoreAction::DontCare);
+        desc.set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
+        desc.set_color_attachment_store_action(0, MTLStoreAction::DontCare)
+            .unwrap();
     }
 
     #[test]
     fn test_render_pass_set_clear_color() {
         let desc = MetalRenderPassDescriptor::new();
-        desc.set_color_attachment_clear_color(0, 0.0, 0.0, 0.0, 1.0);
-        desc.set_color_attachment_clear_color(0, 1.0, 0.5, 0.25, 0.75);
+        desc.set_color_attachment_clear_color(0, 0.0, 0.0, 0.0, 1.0)
+            .unwrap();
+        desc.set_color_attachment_clear_color(0, 1.0, 0.5, 0.25, 0.75)
+            .unwrap();
+    }
+
+    #[test]
+    fn test_render_pass_rejects_invalid_attachment_indices() {
+        let desc = MetalRenderPassDescriptor::new();
+        assert!(matches!(
+            desc.set_color_attachment_load_action(8, MTLLoadAction::Clear),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            desc.set_color_attachment_store_action(8, MTLStoreAction::Store),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            desc.set_color_attachment_clear_color(usize::MAX, 0.0, 0.0, 0.0, 1.0),
+            Err(MetalError::SwiftIntOverflow { .. })
+        ));
     }
 
     #[test]
@@ -705,10 +805,18 @@ mod metal_render_pass_tests {
             .expect("Failed to create textures");
 
         let desc = MetalRenderPassDescriptor::new();
-        desc.set_color_attachment_texture(0, &textures.plane0);
-        desc.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        desc.set_color_attachment_store_action(0, MTLStoreAction::Store);
-        desc.set_color_attachment_clear_color(0, 0.0, 0.0, 0.0, 1.0);
+        desc.set_color_attachment_texture(0, &textures.plane0)
+            .unwrap();
+        desc.set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        desc.set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
+        desc.set_color_attachment_clear_color(0, 0.0, 0.0, 0.0, 1.0)
+            .unwrap();
+        assert!(matches!(
+            desc.set_color_attachment_texture(8, &textures.plane0),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
     }
 }
 
@@ -816,14 +924,23 @@ mod metal_buffer_tests {
     }
 
     #[test]
-    fn test_create_buffer_with_data() {
+    fn test_create_buffer_with_bytes() {
         use screencapturekit::metal::Uniforms;
 
         let device = MetalDevice::system_default().expect("No Metal device");
         let uniforms = Uniforms::new(1920.0, 1080.0, 1920.0, 1080.0);
-        let buffer = device.create_buffer_with_data(&uniforms);
+        let bytes = uniforms.to_bytes();
+        let buffer = device.create_buffer_with_bytes(&bytes);
         assert!(buffer.is_some());
         assert!(buffer.unwrap().length() >= std::mem::size_of::<Uniforms>());
+    }
+
+    #[test]
+    fn test_create_buffer_with_data_has_explicit_unsafe_contract() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let data = [1_u8, 2, 3, 4];
+        let buffer = unsafe { device.create_buffer_with_data(&data) };
+        assert_eq!(buffer.expect("buffer").length(), data.len());
     }
 
     #[test]
@@ -917,7 +1034,8 @@ mod metal_command_tests {
         let desc = MetalRenderPipelineDescriptor::new();
         desc.set_vertex_function(&vertex_fn);
         desc.set_fragment_function(&fragment_fn);
-        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+        desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+            .unwrap();
 
         let pipeline = device
             .create_render_pipeline_state(&desc)
@@ -933,7 +1051,9 @@ mod metal_command_tests {
 
 mod metal_vertex_descriptor_tests {
 
-    use screencapturekit::metal::{MTLVertexFormat, MTLVertexStepFunction, MetalVertexDescriptor};
+    use screencapturekit::metal::{
+        MTLVertexFormat, MTLVertexStepFunction, MetalError, MetalVertexDescriptor,
+    };
 
     #[test]
     fn test_vertex_descriptor_creation() {
@@ -953,18 +1073,22 @@ mod metal_vertex_descriptor_tests {
     fn test_vertex_descriptor_set_attribute() {
         let desc = MetalVertexDescriptor::new();
         // Set position attribute: Float4 at offset 0, buffer 0
-        desc.set_attribute(0, MTLVertexFormat::Float4, 0, 0);
+        desc.set_attribute(0, MTLVertexFormat::Float4, 0, 0)
+            .unwrap();
         // Set texcoord attribute: Float2 at offset 16, buffer 0
-        desc.set_attribute(1, MTLVertexFormat::Float2, 16, 0);
+        desc.set_attribute(1, MTLVertexFormat::Float2, 16, 0)
+            .unwrap();
     }
 
     #[test]
     fn test_vertex_descriptor_set_layout() {
         let desc = MetalVertexDescriptor::new();
         // Set buffer 0 layout: stride 24, per-vertex
-        desc.set_layout(0, 24, MTLVertexStepFunction::PerVertex);
+        desc.set_layout(0, 24, MTLVertexStepFunction::PerVertex)
+            .unwrap();
         // Set buffer 1 layout: stride 64, per-instance
-        desc.set_layout(1, 64, MTLVertexStepFunction::PerInstance);
+        desc.set_layout(1, 64, MTLVertexStepFunction::PerInstance)
+            .unwrap();
     }
 
     #[test]
@@ -972,17 +1096,46 @@ mod metal_vertex_descriptor_tests {
         let desc = MetalVertexDescriptor::new();
 
         // Position (Float4) at attribute 0
-        desc.set_attribute(0, MTLVertexFormat::Float4, 0, 0);
+        desc.set_attribute(0, MTLVertexFormat::Float4, 0, 0)
+            .unwrap();
         // Color (Float4) at attribute 1
-        desc.set_attribute(1, MTLVertexFormat::Float4, 16, 0);
+        desc.set_attribute(1, MTLVertexFormat::Float4, 16, 0)
+            .unwrap();
         // TexCoord (Float2) at attribute 2
-        desc.set_attribute(2, MTLVertexFormat::Float2, 32, 0);
+        desc.set_attribute(2, MTLVertexFormat::Float2, 32, 0)
+            .unwrap();
 
         // Layout for buffer 0
-        desc.set_layout(0, 40, MTLVertexStepFunction::PerVertex);
+        desc.set_layout(0, 40, MTLVertexStepFunction::PerVertex)
+            .unwrap();
 
         let ptr = desc.as_ptr();
         assert!(!ptr.is_null());
+    }
+
+    #[test]
+    fn test_vertex_descriptor_rejects_invalid_indices_and_swift_ints() {
+        let desc = MetalVertexDescriptor::new();
+        assert!(matches!(
+            desc.set_attribute(31, MTLVertexFormat::Float4, 0, 0),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            desc.set_attribute(0, MTLVertexFormat::Float4, 0, 31),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            desc.set_attribute(0, MTLVertexFormat::Float4, usize::MAX, 0),
+            Err(MetalError::SwiftIntOverflow { .. })
+        ));
+        assert!(matches!(
+            desc.set_layout(31, 16, MTLVertexStepFunction::PerVertex),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            desc.set_layout(0, usize::MAX, MTLVertexStepFunction::PerVertex),
+            Err(MetalError::SwiftIntOverflow { .. })
+        ));
     }
 }
 
@@ -993,9 +1146,9 @@ mod metal_vertex_descriptor_tests {
 mod metal_render_encoder_tests {
     use screencapturekit::metal::IOSurfaceMetalExt;
     use screencapturekit::metal::{
-        MTLLoadAction, MTLPixelFormat, MTLPrimitiveType, MTLStoreAction, MetalDevice, MetalLayer,
-        MetalRenderPassDescriptor, MetalRenderPipelineDescriptor, ResourceOptions, Uniforms,
-        SHADER_SOURCE,
+        MTLLoadAction, MTLPixelFormat, MTLPrimitiveType, MTLStoreAction, MetalDevice, MetalError,
+        MetalLayer, MetalRenderPassDescriptor, MetalRenderPipelineDescriptor, ResourceOptions,
+        Uniforms, SHADER_SOURCE,
     };
 
     #[test]
@@ -1032,16 +1185,132 @@ mod metal_render_encoder_tests {
         let cmd_buffer = queue.command_buffer().expect("No command buffer");
 
         let render_pass = MetalRenderPassDescriptor::new();
-        render_pass.set_color_attachment_texture(0, &texture);
-        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
-        render_pass.set_color_attachment_clear_color(0, 0.0, 0.0, 0.0, 1.0);
+        render_pass
+            .set_color_attachment_texture(0, &texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
+        render_pass
+            .set_color_attachment_clear_color(0, 0.0, 0.0, 0.0, 1.0)
+            .unwrap();
 
         let encoder = cmd_buffer.render_command_encoder(&render_pass);
-        assert!(encoder.is_some(), "Should create render encoder");
+        assert!(encoder.is_ok(), "Should create render encoder");
 
         let encoder = encoder.unwrap();
-        encoder.end_encoding();
+        encoder.end_encoding().unwrap();
+    }
+
+    #[test]
+    fn test_command_and_encoder_lifecycle_is_shared_across_clones() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(64.0, 64.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let texture = drawable.texture();
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass
+            .set_color_attachment_texture(0, &texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
+
+        let queue = device.create_command_queue().expect("No queue");
+        let command = queue.command_buffer().expect("No command buffer");
+        let command_clone = command.clone();
+        let encoder = command.render_command_encoder(&render_pass).unwrap();
+        let encoder_clone = encoder.clone();
+
+        assert_eq!(
+            command.render_command_encoder(&render_pass).unwrap_err(),
+            MetalError::RenderEncoderAlreadyActive
+        );
+        assert_eq!(
+            command_clone.commit(),
+            Err(MetalError::CommandBufferHasActiveEncoder)
+        );
+
+        let buffer = device
+            .create_buffer(16, ResourceOptions::CPU_CACHE_MODE_DEFAULT_CACHE)
+            .unwrap();
+        assert!(matches!(
+            encoder.set_vertex_buffer(&buffer, 0, 31),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            encoder.set_fragment_buffer(&buffer, usize::MAX, 0),
+            Err(MetalError::SwiftIntOverflow { .. })
+        ));
+        assert!(matches!(
+            encoder.set_fragment_texture(&texture, 128),
+            Err(MetalError::IndexOutOfRange { .. })
+        ));
+        assert!(matches!(
+            encoder.draw_primitives(MTLPrimitiveType::Triangle, usize::MAX, 3),
+            Err(MetalError::SwiftIntOverflow { .. })
+        ));
+
+        encoder_clone.end_encoding().unwrap();
+        assert_eq!(
+            encoder.set_vertex_buffer(&buffer, 0, 0),
+            Err(MetalError::RenderEncoderEnded)
+        );
+        assert_eq!(encoder.end_encoding(), Err(MetalError::RenderEncoderEnded));
+
+        command.commit().unwrap();
+        assert_eq!(
+            command_clone.commit(),
+            Err(MetalError::CommandBufferAlreadyCommitted)
+        );
+        assert_eq!(
+            command_clone.present_drawable(&drawable),
+            Err(MetalError::CommandBufferAlreadyCommitted)
+        );
+    }
+
+    #[test]
+    fn test_final_encoder_drop_ends_encoding() {
+        let device = MetalDevice::system_default().expect("No Metal device");
+        let layer = MetalLayer::new();
+        layer.set_device(&device);
+        layer.set_pixel_format(MTLPixelFormat::BGRA8Unorm);
+        layer.set_drawable_size(64.0, 64.0);
+
+        let drawable = layer.next_drawable().expect("No drawable");
+        let texture = drawable.texture();
+        let render_pass = MetalRenderPassDescriptor::new();
+        render_pass
+            .set_color_attachment_texture(0, &texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
+
+        let queue = device.create_command_queue().expect("No queue");
+        let command = queue.command_buffer().expect("No command buffer");
+        let encoder = command.render_command_encoder(&render_pass).unwrap();
+        let clone = encoder.clone();
+        drop(encoder);
+        assert_eq!(
+            command.commit(),
+            Err(MetalError::CommandBufferHasActiveEncoder)
+        );
+        drop(clone);
+        command.commit().unwrap();
     }
 
     #[test]
@@ -1065,7 +1334,9 @@ mod metal_render_encoder_tests {
         let pipeline_desc = MetalRenderPipelineDescriptor::new();
         pipeline_desc.set_vertex_function(&vertex_fn);
         pipeline_desc.set_fragment_function(&fragment_fn);
-        pipeline_desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+        pipeline_desc
+            .set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+            .unwrap();
 
         let pipeline = device
             .create_render_pipeline_state(&pipeline_desc)
@@ -1076,17 +1347,23 @@ mod metal_render_encoder_tests {
         let cmd_buffer = queue.command_buffer().expect("No buffer");
 
         let render_pass = MetalRenderPassDescriptor::new();
-        render_pass.set_color_attachment_texture(0, &texture);
-        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+        render_pass
+            .set_color_attachment_texture(0, &texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
 
         let encoder = cmd_buffer
             .render_command_encoder(&render_pass)
             .expect("No encoder");
-        encoder.set_render_pipeline_state(&pipeline);
-        encoder.end_encoding();
+        encoder.set_render_pipeline_state(&pipeline).unwrap();
+        encoder.end_encoding().unwrap();
 
-        cmd_buffer.commit();
+        cmd_buffer.commit().unwrap();
     }
 
     #[test]
@@ -1102,8 +1379,9 @@ mod metal_render_encoder_tests {
 
         // Create buffers
         let uniforms = Uniforms::new(64.0, 64.0, 64.0, 64.0);
+        let uniform_bytes = uniforms.to_bytes();
         let uniform_buffer = device
-            .create_buffer_with_data(&uniforms)
+            .create_buffer_with_bytes(&uniform_bytes)
             .expect("No buffer");
 
         let vertex_data = [0.0f32; 24]; // 6 vertices * 4 floats
@@ -1119,19 +1397,25 @@ mod metal_render_encoder_tests {
         let cmd_buffer = queue.command_buffer().expect("No buffer");
 
         let render_pass = MetalRenderPassDescriptor::new();
-        render_pass.set_color_attachment_texture(0, &texture);
-        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+        render_pass
+            .set_color_attachment_texture(0, &texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
 
         let encoder = cmd_buffer
             .render_command_encoder(&render_pass)
             .expect("No encoder");
 
-        encoder.set_vertex_buffer(&vertex_buffer, 0, 0);
-        encoder.set_fragment_buffer(&uniform_buffer, 0, 0);
-        encoder.end_encoding();
+        encoder.set_vertex_buffer(&vertex_buffer, 0, 0).unwrap();
+        encoder.set_fragment_buffer(&uniform_buffer, 0, 0).unwrap();
+        encoder.end_encoding().unwrap();
 
-        cmd_buffer.commit();
+        cmd_buffer.commit().unwrap();
     }
 
     #[test]
@@ -1156,18 +1440,26 @@ mod metal_render_encoder_tests {
         let cmd_buffer = queue.command_buffer().expect("No buffer");
 
         let render_pass = MetalRenderPassDescriptor::new();
-        render_pass.set_color_attachment_texture(0, &target_texture);
-        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+        render_pass
+            .set_color_attachment_texture(0, &target_texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
 
         let encoder = cmd_buffer
             .render_command_encoder(&render_pass)
             .expect("No encoder");
 
-        encoder.set_fragment_texture(&source_textures.plane0, 0);
-        encoder.end_encoding();
+        encoder
+            .set_fragment_texture(&source_textures.plane0, 0)
+            .unwrap();
+        encoder.end_encoding().unwrap();
 
-        cmd_buffer.commit();
+        cmd_buffer.commit().unwrap();
     }
 
     #[test]
@@ -1191,7 +1483,9 @@ mod metal_render_encoder_tests {
         let pipeline_desc = MetalRenderPipelineDescriptor::new();
         pipeline_desc.set_vertex_function(&vertex_fn);
         pipeline_desc.set_fragment_function(&fragment_fn);
-        pipeline_desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+        pipeline_desc
+            .set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+            .unwrap();
 
         let pipeline = device
             .create_render_pipeline_state(&pipeline_desc)
@@ -1202,19 +1496,27 @@ mod metal_render_encoder_tests {
         let cmd_buffer = queue.command_buffer().expect("No buffer");
 
         let render_pass = MetalRenderPassDescriptor::new();
-        render_pass.set_color_attachment_texture(0, &texture);
-        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+        render_pass
+            .set_color_attachment_texture(0, &texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
 
         let encoder = cmd_buffer
             .render_command_encoder(&render_pass)
             .expect("No encoder");
 
-        encoder.set_render_pipeline_state(&pipeline);
-        encoder.draw_primitives(MTLPrimitiveType::Triangle, 0, 6);
-        encoder.end_encoding();
+        encoder.set_render_pipeline_state(&pipeline).unwrap();
+        encoder
+            .draw_primitives(MTLPrimitiveType::Triangle, 0, 6)
+            .unwrap();
+        encoder.end_encoding().unwrap();
 
-        cmd_buffer.commit();
+        cmd_buffer.commit().unwrap();
     }
 
     #[test]
@@ -1245,9 +1547,15 @@ mod metal_render_encoder_tests {
         let cmd_buffer = queue.command_buffer().expect("No buffer");
 
         let render_pass = MetalRenderPassDescriptor::new();
-        render_pass.set_color_attachment_texture(0, &texture);
-        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+        render_pass
+            .set_color_attachment_texture(0, &texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
 
         let encoder = cmd_buffer
             .render_command_encoder(&render_pass)
@@ -1256,7 +1564,7 @@ mod metal_render_encoder_tests {
         let debug_str = format!("{encoder:?}");
         assert!(debug_str.contains("MetalRenderCommandEncoder"));
 
-        encoder.end_encoding();
+        encoder.end_encoding().unwrap();
     }
 
     #[test]
@@ -1274,9 +1582,15 @@ mod metal_render_encoder_tests {
         let cmd_buffer = queue.command_buffer().expect("No buffer");
 
         let render_pass = MetalRenderPassDescriptor::new();
-        render_pass.set_color_attachment_texture(0, &texture);
-        render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-        render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+        render_pass
+            .set_color_attachment_texture(0, &texture)
+            .unwrap();
+        render_pass
+            .set_color_attachment_load_action(0, MTLLoadAction::Clear)
+            .unwrap();
+        render_pass
+            .set_color_attachment_store_action(0, MTLStoreAction::Store)
+            .unwrap();
 
         let encoder = cmd_buffer
             .render_command_encoder(&render_pass)
@@ -1285,7 +1599,7 @@ mod metal_render_encoder_tests {
         let ptr = encoder.as_ptr();
         assert!(!ptr.is_null());
 
-        encoder.end_encoding();
+        encoder.end_encoding().unwrap();
     }
 }
 

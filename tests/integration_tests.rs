@@ -113,7 +113,7 @@ fn test_video_capture() {
 
     // Verify sample properties
     if let Some(sample) = collected_samples.first() {
-        if let Some(image_buffer) = sample.image_buffer() {
+        if let Some(image_buffer) = sample.pixel_buffer() {
             let width = image_buffer.width();
             let height = image_buffer.height();
 
@@ -336,7 +336,7 @@ fn test_pixel_buffer_locking() {
     // Test pixel buffer locking
     let collected_samples = samples.lock().unwrap();
     if let Some(sample) = collected_samples.first() {
-        let Some(pixel_buffer) = sample.image_buffer() else {
+        let Some(pixel_buffer) = sample.pixel_buffer() else {
             eprintln!("SKIP: First sample has no image buffer (may be idle frame)");
             return;
         };
@@ -431,7 +431,7 @@ fn test_iosurface_backed_buffer() {
     // Test IOSurface backing
     let collected_samples = samples.lock().unwrap();
     if let Some(sample) = collected_samples.first() {
-        let Some(pixel_buffer) = sample.image_buffer() else {
+        let Some(pixel_buffer) = sample.pixel_buffer() else {
             eprintln!("SKIP: First sample has no image buffer (may be idle frame)");
             return;
         };

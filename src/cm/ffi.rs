@@ -4,9 +4,6 @@
 #![allow(missing_docs)]
 
 extern "C" {
-    pub fn cm_sample_buffer_get_image_buffer(
-        sample_buffer: *mut std::ffi::c_void,
-    ) -> *mut std::ffi::c_void;
     pub fn cm_sample_buffer_get_frame_status(sample_buffer: *mut std::ffi::c_void) -> i32;
 
     /// Build a retained `CGImage` from the sample buffer's image buffer via
@@ -353,8 +350,12 @@ extern "C" {
         image_buffer: *mut std::ffi::c_void,
         presentation_time_value: i64,
         presentation_time_scale: i32,
+        presentation_time_flags: u32,
+        presentation_time_epoch: i64,
         duration_value: i64,
         duration_scale: i32,
+        duration_flags: u32,
+        duration_epoch: i64,
         sample_buffer_out: *mut *mut std::ffi::c_void,
     ) -> i32;
 

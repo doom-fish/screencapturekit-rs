@@ -8,8 +8,8 @@
 //! `ScreenCaptureKit` attachments.
 //!
 //! Bring [`CMSampleBufferExt`] into scope for the
-//! `image_buffer()`/`audio_buffer_list()`/`make_data_ready()` accessors
-//! that are pending an apple-cf v0.2 API addition.
+//! `pixel_buffer()`/`audio_buffer_list()`/`make_data_ready()` convenience
+//! accessors.
 
 use super::ffi;
 use super::{
@@ -341,12 +341,11 @@ unsafe fn take_dirty_rects(
 }
 
 // ------------------------------------------------------------------
-// CMSampleBufferExt — generic accessors not yet in apple-cf.
+// CMSampleBufferExt — crate-specific convenience accessors.
 // ------------------------------------------------------------------
 
-/// Extension trait carrying generic `CMSampleBuffer` accessors that aren't
-/// available on [`apple_cf::cm::CMSampleBuffer`] yet (planned for an
-/// `apple-cf` v0.2 release).
+/// Extension trait carrying `CMSampleBuffer` convenience accessors used by
+/// this crate.
 pub trait CMSampleBufferExt {
     /// Construct a sample buffer wrapping a `CVPixelBuffer`.
     ///
@@ -362,8 +361,18 @@ pub trait CMSampleBufferExt {
     where
         Self: Sized;
 
-    /// Borrow the attached `CVPixelBuffer`, if any.
-    fn image_buffer(&self) -> Option<CVPixelBuffer>;
+    /// Return an owned `CVPixelBuffer` for the attached image buffer, if any.
+    fn pixel_buffer(&self) -> Option<CVPixelBuffer>;
+
+    /// Return an owned `CVPixelBuffer` for the attached image buffer, if any.
+    ///
+    /// Use [`Self::pixel_buffer`] for method-call syntax. apple-cf now has an
+    /// inherent `CMSampleBuffer::image_buffer` returning `CVImageBuffer`, so
+    /// this compatibility method is only reachable with UFCS.
+    #[deprecated(note = "use CMSampleBufferExt::pixel_buffer")]
+    fn image_buffer(&self) -> Option<CVPixelBuffer> {
+        self.pixel_buffer()
+    }
 
     /// Read the audio sample buffer's underlying `AudioBufferList`, if any.
     fn audio_buffer_list(&self) -> Option<AudioBufferList>;
@@ -440,26 +449,27 @@ impl CMSampleBufferExt for CMSampleBuffer {
                 image_buffer.as_ptr(),
                 presentation_time.value,
                 presentation_time.timescale,
+                presentation_time.flags,
+                presentation_time.epoch,
                 duration.value,
                 duration.timescale,
+                duration.flags,
+                duration.epoch,
                 &mut sample_buffer_ptr,
             );
             if status == 0 && !sample_buffer_ptr.is_null() {
-                Self::from_raw(sample_buffer_ptr).ok_or(status)
+                Ok(Self::from_ptr(sample_buffer_ptr))
             } else {
                 Err(status)
             }
         }
     }
 
-    fn image_buffer(&self) -> Option<CVPixelBuffer> {
-        unsafe {
-            // SAFETY: cm_sample_buffer_get_image_buffer returns a +1
-            // (passRetained) CVImageBuffer; CVPixelBuffer::from_raw adopts that
-            // +1 reference, so ownership is balanced (released on drop).
-            let ptr = ffi::cm_sample_buffer_get_image_buffer(self.as_ptr());
-            CVPixelBuffer::from_raw(ptr)
-        }
+    fn pixel_buffer(&self) -> Option<CVPixelBuffer> {
+        let ptr = self.image_buffer_ptr_borrowed();
+        // SAFETY: the pointer is borrowed from `self` and remains live for the
+        // duration of the retain performed by `from_raw_borrowed`.
+        unsafe { CVPixelBuffer::from_raw_borrowed(ptr) }
     }
 
     fn audio_buffer_list(&self) -> Option<AudioBufferList> {
@@ -642,11 +652,11 @@ impl CMSampleBufferDataBufferExt for CMSampleBuffer {
                 return None;
             }
             // `CMSampleBufferGetDataBuffer` returns a +0 (unretained) reference.
-            // `CMBlockBuffer::from_raw` adopts a +1 reference and releases on
+            // `CMBlockBuffer::from_ptr` adopts a +1 reference and releases on
             // drop, so we must retain first to keep the refcount balanced.
             // (Mirrors apple-cf's own `CMSampleBuffer::data_buffer`.)
             let retained = ffi::cm_block_buffer_retain(ptr);
-            CMBlockBuffer::from_raw(retained)
+            (!retained.is_null()).then(|| CMBlockBuffer::from_ptr(retained))
         }
     }
 }

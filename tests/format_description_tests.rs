@@ -50,7 +50,7 @@ fn test_codec_type_display() {
 
 #[test]
 fn test_format_description_from_raw_null() {
-    let desc = CMFormatDescription::from_raw(std::ptr::null_mut());
+    let desc = unsafe { CMFormatDescription::from_raw(std::ptr::null_mut()) };
     assert!(desc.is_none());
 }
 

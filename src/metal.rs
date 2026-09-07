@@ -23,7 +23,7 @@
 //!
 //! ## Workflow
 //!
-//! 1. Get `IOSurface` from captured frame via [`CMSampleBufferExt::image_buffer()`](crate::cm::CMSampleBufferExt::image_buffer)
+//! 1. Get `IOSurface` from captured frame via [`CMSampleBufferExt::pixel_buffer()`](crate::cm::CMSampleBufferExt::pixel_buffer)
 //! 2. Create Metal textures with [`IOSurface::create_metal_textures()`](crate::cm::IOSurface::create_metal_textures)
 //! 3. Render using the built-in shaders or your own
 //!
@@ -38,7 +38,7 @@
 //!
 //! // In your frame handler
 //! fn handle_frame(sample: &CMSampleBuffer, device: &MetalDevice) {
-//!     if let Some(pixel_buffer) = sample.image_buffer() {
+//!     if let Some(pixel_buffer) = sample.pixel_buffer() {
 //!         if let Some(surface) = pixel_buffer.io_surface() {
 //!             // Create textures directly - no closures or factories needed
 //!             if let Some(textures) = surface.create_metal_textures(device) {
@@ -71,6 +71,7 @@
 use std::ffi::{c_void, CStr};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use crate::cm::IOSurface;
 use crate::FourCharCode;
@@ -284,8 +285,11 @@ fragment float4 fragment_textured(TexturedVertexOut in [[stage_in]], texture2d<f
 // YCbCr to RGB conversion (BT.709 matrix for HD video)
 float4 ycbcr_to_rgb(float y, float2 cbcr, bool full_range) {
     float y_adj = full_range ? y : (y - 16.0/255.0) * (255.0/219.0);
-    float cb = cbcr.x - 0.5;
-    float cr = cbcr.y - 0.5;
+    float2 cbcr_adj = full_range
+        ? cbcr - 0.5
+        : (cbcr - 16.0/255.0) * (255.0/224.0) - 0.5;
+    float cb = cbcr_adj.x;
+    float cr = cbcr_adj.y;
     // BT.709 conversion matrix
     float r = y_adj + 1.5748 * cr;
     float g = y_adj - 0.1873 * cb - 0.4681 * cr;
@@ -352,6 +356,9 @@ pub struct Uniforms {
 }
 
 impl Uniforms {
+    /// Encoded size of one uniforms value.
+    pub const BYTE_LEN: usize = 32;
+
     /// Create uniforms for a given viewport and texture size
     #[must_use]
     pub fn new(
@@ -422,7 +429,95 @@ impl Uniforms {
         self.time = time;
         self
     }
+
+    /// Encode this value as initialized native-endian GPU bytes.
+    #[must_use]
+    #[allow(clippy::used_underscore_binding)]
+    pub fn to_bytes(self) -> [u8; Self::BYTE_LEN] {
+        let words = [
+            self.viewport_size[0].to_bits(),
+            self.viewport_size[1].to_bits(),
+            self.texture_size[0].to_bits(),
+            self.texture_size[1].to_bits(),
+            self.time.to_bits(),
+            self.pixel_format,
+            self._padding[0].to_bits(),
+            self._padding[1].to_bits(),
+        ];
+        let mut bytes = [0_u8; Self::BYTE_LEN];
+        for (chunk, word) in bytes.chunks_exact_mut(4).zip(words) {
+            chunk.copy_from_slice(&word.to_ne_bytes());
+        }
+        bytes
+    }
 }
+
+/// Errors raised before an invalid Metal operation reaches the native API.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MetalError {
+    /// A Rust `usize` cannot be represented by Swift's signed `Int`.
+    SwiftIntOverflow {
+        /// Argument name.
+        argument: &'static str,
+        /// Rejected value.
+        value: usize,
+    },
+    /// A binding index exceeds the native slot count.
+    IndexOutOfRange {
+        /// Argument name.
+        argument: &'static str,
+        /// Rejected index.
+        index: usize,
+        /// Exclusive upper bound.
+        max_exclusive: usize,
+    },
+    /// The Swift bridge rejected an operation after defensive validation.
+    NativeCallRejected {
+        /// Operation name.
+        operation: &'static str,
+    },
+    /// The command buffer was already committed.
+    CommandBufferAlreadyCommitted,
+    /// A command encoder is still active on the command buffer.
+    CommandBufferHasActiveEncoder,
+    /// The command buffer already has an active render encoder.
+    RenderEncoderAlreadyActive,
+    /// Native render-encoder creation failed.
+    RenderEncoderCreationFailed,
+    /// The render encoder has already ended.
+    RenderEncoderEnded,
+}
+
+impl std::fmt::Display for MetalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SwiftIntOverflow { argument, value } => {
+                write!(f, "{argument} value {value} exceeds Swift Int")
+            }
+            Self::IndexOutOfRange {
+                argument,
+                index,
+                max_exclusive,
+            } => write!(f, "{argument} index {index} is outside 0..{max_exclusive}"),
+            Self::NativeCallRejected { operation } => {
+                write!(f, "native Metal rejected {operation}")
+            }
+            Self::CommandBufferAlreadyCommitted => f.write_str("command buffer already committed"),
+            Self::CommandBufferHasActiveEncoder => {
+                f.write_str("command buffer has an active encoder")
+            }
+            Self::RenderEncoderAlreadyActive => {
+                f.write_str("command buffer already has an active render encoder")
+            }
+            Self::RenderEncoderCreationFailed => {
+                f.write_str("native render command encoder creation failed")
+            }
+            Self::RenderEncoderEnded => f.write_str("render command encoder already ended"),
+        }
+    }
+}
+
+impl std::error::Error for MetalError {}
 
 // MARK: - FFI Declarations
 
@@ -500,6 +595,7 @@ extern "C" {
     // Command Buffer
     fn metal_command_buffer_present_drawable(cmd_buffer: *mut c_void, drawable: *mut c_void);
     fn metal_command_buffer_commit(cmd_buffer: *mut c_void);
+    fn metal_command_buffer_retain(cmd_buffer: *mut c_void) -> *mut c_void;
     fn metal_command_buffer_release(cmd_buffer: *mut c_void);
 
     // Render Pass
@@ -508,17 +604,17 @@ extern "C" {
         desc: *mut c_void,
         index: usize,
         texture: *mut c_void,
-    );
+    ) -> bool;
     fn metal_render_pass_set_color_attachment_load_action(
         desc: *mut c_void,
         index: usize,
         action: u64,
-    );
+    ) -> bool;
     fn metal_render_pass_set_color_attachment_store_action(
         desc: *mut c_void,
         index: usize,
         action: u64,
-    );
+    ) -> bool;
     fn metal_render_pass_set_color_attachment_clear_color(
         desc: *mut c_void,
         index: usize,
@@ -526,7 +622,7 @@ extern "C" {
         g: f64,
         b: f64,
         a: f64,
-    );
+    ) -> bool;
     fn metal_render_pass_descriptor_release(desc: *mut c_void);
 
     // Vertex Descriptor
@@ -537,13 +633,13 @@ extern "C" {
         format: u64,
         offset: usize,
         buffer_index: usize,
-    );
+    ) -> bool;
     fn metal_vertex_descriptor_set_layout(
         desc: *mut c_void,
         buffer_index: usize,
         stride: usize,
         step_function: u64,
-    );
+    ) -> bool;
     fn metal_vertex_descriptor_release(desc: *mut c_void);
 
     // Render Pipeline Descriptor
@@ -564,18 +660,18 @@ extern "C" {
         desc: *mut c_void,
         index: usize,
         format: u64,
-    );
+    ) -> bool;
     fn metal_render_pipeline_descriptor_set_blending_enabled(
         desc: *mut c_void,
         index: usize,
         enabled: bool,
-    );
+    ) -> bool;
     fn metal_render_pipeline_descriptor_set_blend_operations(
         desc: *mut c_void,
         index: usize,
         rgb_op: u64,
         alpha_op: u64,
-    );
+    ) -> bool;
     fn metal_render_pipeline_descriptor_set_blend_factors(
         desc: *mut c_void,
         index: usize,
@@ -583,7 +679,7 @@ extern "C" {
         dst_rgb: u64,
         src_alpha: u64,
         dst_alpha: u64,
-    );
+    ) -> bool;
     fn metal_render_pipeline_descriptor_release(desc: *mut c_void);
     fn metal_render_pipeline_state_release(state: *mut c_void);
 
@@ -598,25 +694,26 @@ extern "C" {
         buffer: *mut c_void,
         offset: usize,
         index: usize,
-    );
+    ) -> bool;
     fn metal_render_encoder_set_fragment_buffer(
         encoder: *mut c_void,
         buffer: *mut c_void,
         offset: usize,
         index: usize,
-    );
+    ) -> bool;
     fn metal_render_encoder_set_fragment_texture(
         encoder: *mut c_void,
         texture: *mut c_void,
         index: usize,
-    );
+    ) -> bool;
     fn metal_render_encoder_draw_primitives(
         encoder: *mut c_void,
         primitive_type: u64,
         vertex_start: usize,
         vertex_count: usize,
-    );
+    ) -> bool;
     fn metal_render_encoder_end_encoding(encoder: *mut c_void);
+    fn metal_render_encoder_retain(encoder: *mut c_void) -> *mut c_void;
     fn metal_render_encoder_release(encoder: *mut c_void);
 
     // NSView helpers
@@ -747,34 +844,48 @@ impl MetalDevice {
         NonNull::new(ptr).map(|ptr| MetalBuffer { ptr })
     }
 
-    /// Create a buffer and populate it with the given data
+    /// Create a buffer and populate it with initialized bytes.
     ///
-    /// This is a convenience method that creates a buffer, copies the data,
-    /// and returns the buffer. Useful for uniform buffers or vertex data.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
+    /// ```
     /// use screencapturekit::metal::{MetalDevice, Uniforms};
     ///
-    /// fn example() {
-    ///     let device = MetalDevice::system_default().expect("No Metal device");
-    ///     let uniforms = Uniforms::new(1920.0, 1080.0, 1920.0, 1080.0);
-    ///     let buffer = device.create_buffer_with_data(&uniforms);
-    /// }
+    /// let device = MetalDevice::system_default().expect("Metal device");
+    /// let bytes = Uniforms::new(1920.0, 1080.0, 1280.0, 720.0).to_bytes();
+    /// let buffer = device.create_buffer_with_bytes(&bytes).expect("buffer");
+    /// assert_eq!(buffer.length(), Uniforms::BYTE_LEN);
     /// ```
+    ///
     #[must_use]
-    pub fn create_buffer_with_data<T>(&self, data: &T) -> Option<MetalBuffer> {
-        let size = std::mem::size_of::<T>();
-        let buffer = self.create_buffer(size, ResourceOptions::CPU_CACHE_MODE_DEFAULT_CACHE)?;
+    pub fn create_buffer_with_bytes(&self, data: &[u8]) -> Option<MetalBuffer> {
+        let buffer =
+            self.create_buffer(data.len(), ResourceOptions::CPU_CACHE_MODE_DEFAULT_CACHE)?;
+        if data.is_empty() {
+            return Some(buffer);
+        }
+        let destination = NonNull::new(buffer.contents().cast::<u8>())?;
         unsafe {
-            std::ptr::copy_nonoverlapping(
-                std::ptr::addr_of!(*data).cast::<u8>(),
-                buffer.contents().cast(),
-                size,
-            );
+            std::ptr::copy_nonoverlapping(data.as_ptr(), destination.as_ptr(), data.len());
         }
         Some(buffer)
+    }
+
+    /// Create a buffer by copying the object representation of `data`.
+    ///
+    /// Prefer [`Self::create_buffer_with_bytes`] and an explicit encoder such
+    /// as [`Uniforms::to_bytes`].
+    ///
+    /// # Safety
+    ///
+    /// Every byte in `T`, including padding, must be initialized. Its layout
+    /// and native-endian representation must match the GPU consumer, and it
+    /// must not contain references, pointers, or ownership-bearing handles
+    /// that the GPU could interpret or outlive.
+    #[must_use]
+    pub unsafe fn create_buffer_with_data<T: Copy>(&self, data: &T) -> Option<MetalBuffer> {
+        let size = std::mem::size_of::<T>();
+        let bytes =
+            unsafe { std::slice::from_raw_parts(std::ptr::from_ref(data).cast::<u8>(), size) };
+        self.create_buffer_with_bytes(bytes)
     }
 
     /// Create a render pipeline state from a descriptor
@@ -926,7 +1037,10 @@ impl MetalCommandQueue {
     #[must_use]
     pub fn command_buffer(&self) -> Option<MetalCommandBuffer> {
         let ptr = unsafe { metal_command_queue_command_buffer(self.ptr.as_ptr()) };
-        NonNull::new(ptr).map(|ptr| MetalCommandBuffer { ptr })
+        NonNull::new(ptr).map(|ptr| MetalCommandBuffer {
+            ptr,
+            state: Arc::new(Mutex::new(CommandBufferState::default())),
+        })
     }
 
     /// Get the raw pointer to the underlying `MTLCommandQueue`
@@ -1186,39 +1300,100 @@ impl Drop for MetalDrawable {
 
 // MARK: - Command Buffer
 
+#[derive(Debug, Default)]
+struct CommandBufferState {
+    committed: bool,
+    encoder_active: bool,
+}
+
 /// A Metal command buffer
 #[derive(Debug)]
 pub struct MetalCommandBuffer {
     ptr: NonNull<c_void>,
+    state: Arc<Mutex<CommandBufferState>>,
 }
 
 impl MetalCommandBuffer {
     /// Create a render command encoder
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error after commit, while another encoder is active, or
+    /// when native encoder creation fails.
     pub fn render_command_encoder(
         &self,
         render_pass: &MetalRenderPassDescriptor,
-    ) -> Option<MetalRenderCommandEncoder> {
+    ) -> Result<MetalRenderCommandEncoder, MetalError> {
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if state.committed {
+            return Err(MetalError::CommandBufferAlreadyCommitted);
+        }
+        if state.encoder_active {
+            return Err(MetalError::RenderEncoderAlreadyActive);
+        }
         let ptr = unsafe {
             metal_command_buffer_render_command_encoder(self.ptr.as_ptr(), render_pass.as_ptr())
         };
-        NonNull::new(ptr).map(|ptr| MetalRenderCommandEncoder { ptr })
+        let ptr = NonNull::new(ptr).ok_or(MetalError::RenderEncoderCreationFailed)?;
+        state.encoder_active = true;
+        drop(state);
+        Ok(MetalRenderCommandEncoder {
+            ptr,
+            state: Arc::new(RenderEncoderState {
+                ended: Mutex::new(false),
+                command: Arc::clone(&self.state),
+            }),
+        })
     }
 
     /// Present a drawable
-    pub fn present_drawable(&self, drawable: &MetalDrawable) {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command buffer was already committed.
+    pub fn present_drawable(&self, drawable: &MetalDrawable) -> Result<(), MetalError> {
+        let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if state.committed {
+            return Err(MetalError::CommandBufferAlreadyCommitted);
+        }
         unsafe { metal_command_buffer_present_drawable(self.ptr.as_ptr(), drawable.as_ptr()) }
+        drop(state);
+        Ok(())
     }
 
     /// Commit the command buffer
-    pub fn commit(&self) {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if it was already committed or an encoder is active.
+    pub fn commit(&self) -> Result<(), MetalError> {
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if state.committed {
+            return Err(MetalError::CommandBufferAlreadyCommitted);
+        }
+        if state.encoder_active {
+            return Err(MetalError::CommandBufferHasActiveEncoder);
+        }
         unsafe { metal_command_buffer_commit(self.ptr.as_ptr()) }
+        state.committed = true;
+        drop(state);
+        Ok(())
     }
 
     /// Get the raw pointer
     #[must_use]
     pub fn as_ptr(&self) -> *mut c_void {
         self.ptr.as_ptr()
+    }
+}
+
+impl Clone for MetalCommandBuffer {
+    fn clone(&self) -> Self {
+        let ptr = unsafe { metal_command_buffer_retain(self.ptr.as_ptr()) };
+        Self {
+            ptr: NonNull::new(ptr).unwrap_or(self.ptr),
+            state: Arc::clone(&self.state),
+        }
     }
 }
 
@@ -1412,50 +1587,86 @@ impl MetalRenderPassDescriptor {
     }
 
     /// Set the texture for a color attachment
-    pub fn set_color_attachment_texture(&self, index: usize, texture: &MetalTexture) {
-        unsafe {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `index` is not a native color-attachment slot.
+    pub fn set_color_attachment_texture(
+        &self,
+        index: usize,
+        texture: &MetalTexture,
+    ) -> Result<(), MetalError> {
+        let index = checked_slot("color attachment", index, MAX_COLOR_ATTACHMENTS)?;
+        let accepted = unsafe {
             metal_render_pass_set_color_attachment_texture(
                 self.ptr.as_ptr(),
                 index,
                 texture.as_ptr(),
-            );
-        }
+            )
+        };
+        bridge_result(accepted, "set render-pass color texture")
     }
 
     /// Set the load action for a color attachment
-    pub fn set_color_attachment_load_action(&self, index: usize, action: MTLLoadAction) {
-        unsafe {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `index` is not a native color-attachment slot.
+    pub fn set_color_attachment_load_action(
+        &self,
+        index: usize,
+        action: MTLLoadAction,
+    ) -> Result<(), MetalError> {
+        let index = checked_slot("color attachment", index, MAX_COLOR_ATTACHMENTS)?;
+        let accepted = unsafe {
             metal_render_pass_set_color_attachment_load_action(
                 self.ptr.as_ptr(),
                 index,
                 action as u64,
-            );
-        }
+            )
+        };
+        bridge_result(accepted, "set render-pass load action")
     }
 
     /// Set the store action for a color attachment
-    pub fn set_color_attachment_store_action(&self, index: usize, action: MTLStoreAction) {
-        unsafe {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `index` is not a native color-attachment slot.
+    pub fn set_color_attachment_store_action(
+        &self,
+        index: usize,
+        action: MTLStoreAction,
+    ) -> Result<(), MetalError> {
+        let index = checked_slot("color attachment", index, MAX_COLOR_ATTACHMENTS)?;
+        let accepted = unsafe {
             metal_render_pass_set_color_attachment_store_action(
                 self.ptr.as_ptr(),
                 index,
                 action as u64,
-            );
-        }
+            )
+        };
+        bridge_result(accepted, "set render-pass store action")
     }
 
     /// Set the clear color for a color attachment
-    pub fn set_color_attachment_clear_color(&self, index: usize, r: f64, g: f64, b: f64, a: f64) {
-        unsafe {
-            metal_render_pass_set_color_attachment_clear_color(
-                self.ptr.as_ptr(),
-                index,
-                r,
-                g,
-                b,
-                a,
-            );
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `index` is not a native color-attachment slot.
+    pub fn set_color_attachment_clear_color(
+        &self,
+        index: usize,
+        r: f64,
+        g: f64,
+        b: f64,
+        a: f64,
+    ) -> Result<(), MetalError> {
+        let index = checked_slot("color attachment", index, MAX_COLOR_ATTACHMENTS)?;
+        let accepted = unsafe {
+            metal_render_pass_set_color_attachment_clear_color(self.ptr.as_ptr(), index, r, g, b, a)
+        };
+        bridge_result(accepted, "set render-pass clear color")
     }
 
     /// Get the raw pointer
@@ -1499,39 +1710,56 @@ impl MetalVertexDescriptor {
     }
 
     /// Set an attribute's format, offset, and buffer index
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid attribute/buffer slot or an offset that
+    /// cannot be represented by Swift's `Int`.
     pub fn set_attribute(
         &self,
         index: usize,
         format: MTLVertexFormat,
         offset: usize,
         buffer_index: usize,
-    ) {
-        unsafe {
+    ) -> Result<(), MetalError> {
+        let index = checked_slot("vertex attribute", index, MAX_VERTEX_ATTRIBUTES)?;
+        let offset = checked_swift_value("vertex attribute offset", offset)?;
+        let buffer_index = checked_slot("vertex buffer", buffer_index, MAX_BUFFER_BINDINGS)?;
+        let accepted = unsafe {
             metal_vertex_descriptor_set_attribute(
                 self.ptr.as_ptr(),
                 index,
                 format.raw(),
                 offset,
                 buffer_index,
-            );
-        }
+            )
+        };
+        bridge_result(accepted, "set vertex attribute")
     }
 
     /// Set a buffer layout's stride and step function
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid buffer slot or a stride that cannot be
+    /// represented by Swift's `Int`.
     pub fn set_layout(
         &self,
         buffer_index: usize,
         stride: usize,
         step_function: MTLVertexStepFunction,
-    ) {
-        unsafe {
+    ) -> Result<(), MetalError> {
+        let buffer_index = checked_slot("vertex buffer", buffer_index, MAX_BUFFER_BINDINGS)?;
+        let stride = checked_swift_value("vertex stride", stride)?;
+        let accepted = unsafe {
             metal_vertex_descriptor_set_layout(
                 self.ptr.as_ptr(),
                 buffer_index,
                 stride,
                 step_function.raw(),
-            );
-        }
+            )
+        };
+        bridge_result(accepted, "set vertex layout")
     }
 
     /// Get the raw pointer
@@ -1605,45 +1833,67 @@ impl MetalRenderPipelineDescriptor {
     }
 
     /// Set color attachment pixel format
-    pub fn set_color_attachment_pixel_format(&self, index: usize, format: MTLPixelFormat) {
-        unsafe {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `index` is not a native color-attachment slot.
+    pub fn set_color_attachment_pixel_format(
+        &self,
+        index: usize,
+        format: MTLPixelFormat,
+    ) -> Result<(), MetalError> {
+        let index = checked_slot("color attachment", index, MAX_COLOR_ATTACHMENTS)?;
+        let accepted = unsafe {
             metal_render_pipeline_descriptor_set_color_attachment_pixel_format(
                 self.ptr.as_ptr(),
                 index,
                 format.raw(),
-            );
-        }
+            )
+        };
+        bridge_result(accepted, "set pipeline color format")
     }
 
     /// Set blending enabled for a color attachment
-    pub fn set_blending_enabled(&self, index: usize, enabled: bool) {
-        unsafe {
-            metal_render_pipeline_descriptor_set_blending_enabled(
-                self.ptr.as_ptr(),
-                index,
-                enabled,
-            );
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `index` is not a native color-attachment slot.
+    pub fn set_blending_enabled(&self, index: usize, enabled: bool) -> Result<(), MetalError> {
+        let index = checked_slot("color attachment", index, MAX_COLOR_ATTACHMENTS)?;
+        let accepted = unsafe {
+            metal_render_pipeline_descriptor_set_blending_enabled(self.ptr.as_ptr(), index, enabled)
+        };
+        bridge_result(accepted, "set pipeline blending")
     }
 
     /// Set blend operations
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `index` is not a native color-attachment slot.
     pub fn set_blend_operations(
         &self,
         index: usize,
         rgb_op: MTLBlendOperation,
         alpha_op: MTLBlendOperation,
-    ) {
-        unsafe {
+    ) -> Result<(), MetalError> {
+        let index = checked_slot("color attachment", index, MAX_COLOR_ATTACHMENTS)?;
+        let accepted = unsafe {
             metal_render_pipeline_descriptor_set_blend_operations(
                 self.ptr.as_ptr(),
                 index,
                 rgb_op as u64,
                 alpha_op as u64,
-            );
-        }
+            )
+        };
+        bridge_result(accepted, "set pipeline blend operations")
     }
 
     /// Set blend factors
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `index` is not a native color-attachment slot.
     pub fn set_blend_factors(
         &self,
         index: usize,
@@ -1651,8 +1901,9 @@ impl MetalRenderPipelineDescriptor {
         dst_rgb: MTLBlendFactor,
         src_alpha: MTLBlendFactor,
         dst_alpha: MTLBlendFactor,
-    ) {
-        unsafe {
+    ) -> Result<(), MetalError> {
+        let index = checked_slot("color attachment", index, MAX_COLOR_ATTACHMENTS)?;
+        let accepted = unsafe {
             metal_render_pipeline_descriptor_set_blend_factors(
                 self.ptr.as_ptr(),
                 index,
@@ -1660,8 +1911,9 @@ impl MetalRenderPipelineDescriptor {
                 dst_rgb as u64,
                 src_alpha as u64,
                 dst_alpha as u64,
-            );
-        }
+            )
+        };
+        bridge_result(accepted, "set pipeline blend factors")
     }
 
     /// Get the raw pointer
@@ -1712,69 +1964,195 @@ unsafe impl Sync for MetalRenderPipelineState {}
 
 // MARK: - Render Command Encoder
 
+#[derive(Debug)]
+struct RenderEncoderState {
+    ended: Mutex<bool>,
+    command: Arc<Mutex<CommandBufferState>>,
+}
+
+impl RenderEncoderState {
+    fn with_active(
+        &self,
+        operation: impl FnOnce() -> Result<(), MetalError>,
+    ) -> Result<(), MetalError> {
+        let ended = self.ended.lock().unwrap_or_else(PoisonError::into_inner);
+        if *ended {
+            return Err(MetalError::RenderEncoderEnded);
+        }
+        let result = operation();
+        drop(ended);
+        result
+    }
+
+    fn end(&self, encoder: NonNull<c_void>) -> Result<(), MetalError> {
+        let mut ended = self.ended.lock().unwrap_or_else(PoisonError::into_inner);
+        if *ended {
+            return Err(MetalError::RenderEncoderEnded);
+        }
+        unsafe { metal_render_encoder_end_encoding(encoder.as_ptr()) }
+        *ended = true;
+        drop(ended);
+        let mut command = self.command.lock().unwrap_or_else(PoisonError::into_inner);
+        command.encoder_active = false;
+        drop(command);
+        Ok(())
+    }
+
+    fn end_on_drop(&self, encoder: NonNull<c_void>) {
+        let mut ended = self.ended.lock().unwrap_or_else(PoisonError::into_inner);
+        if *ended {
+            return;
+        }
+        unsafe { metal_render_encoder_end_encoding(encoder.as_ptr()) }
+        *ended = true;
+        drop(ended);
+        let mut command = self.command.lock().unwrap_or_else(PoisonError::into_inner);
+        command.encoder_active = false;
+        drop(command);
+    }
+}
+
 /// A render command encoder
+///
+/// Dropping the final retained handle ends encoding automatically so the
+/// parent command buffer cannot be left permanently uncommittable.
 #[derive(Debug)]
 pub struct MetalRenderCommandEncoder {
     ptr: NonNull<c_void>,
+    state: Arc<RenderEncoderState>,
 }
 
 impl MetalRenderCommandEncoder {
     /// Set the render pipeline state
-    pub fn set_render_pipeline_state(&self, state: &MetalRenderPipelineState) {
-        unsafe { metal_render_encoder_set_pipeline_state(self.ptr.as_ptr(), state.as_ptr()) }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error after encoding has ended.
+    pub fn set_render_pipeline_state(
+        &self,
+        pipeline: &MetalRenderPipelineState,
+    ) -> Result<(), MetalError> {
+        self.state.with_active(|| {
+            unsafe {
+                metal_render_encoder_set_pipeline_state(self.ptr.as_ptr(), pipeline.as_ptr());
+            }
+            Ok(())
+        })
     }
 
     /// Set a vertex buffer
-    pub fn set_vertex_buffer(&self, buffer: &MetalBuffer, offset: usize, index: usize) {
-        unsafe {
-            metal_render_encoder_set_vertex_buffer(
-                self.ptr.as_ptr(),
-                buffer.as_ptr(),
-                offset,
-                index,
-            );
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error after encoding has ended or for an invalid offset or
+    /// buffer binding index.
+    pub fn set_vertex_buffer(
+        &self,
+        buffer: &MetalBuffer,
+        offset: usize,
+        index: usize,
+    ) -> Result<(), MetalError> {
+        self.state.with_active(|| {
+            let offset = checked_swift_value("vertex buffer offset", offset)?;
+            let index = checked_slot("vertex buffer", index, MAX_BUFFER_BINDINGS)?;
+            let accepted = unsafe {
+                metal_render_encoder_set_vertex_buffer(
+                    self.ptr.as_ptr(),
+                    buffer.as_ptr(),
+                    offset,
+                    index,
+                )
+            };
+            bridge_result(accepted, "set vertex buffer")
+        })
     }
 
     /// Set a fragment buffer
-    pub fn set_fragment_buffer(&self, buffer: &MetalBuffer, offset: usize, index: usize) {
-        unsafe {
-            metal_render_encoder_set_fragment_buffer(
-                self.ptr.as_ptr(),
-                buffer.as_ptr(),
-                offset,
-                index,
-            );
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error after encoding has ended or for an invalid offset or
+    /// buffer binding index.
+    pub fn set_fragment_buffer(
+        &self,
+        buffer: &MetalBuffer,
+        offset: usize,
+        index: usize,
+    ) -> Result<(), MetalError> {
+        self.state.with_active(|| {
+            let offset = checked_swift_value("fragment buffer offset", offset)?;
+            let index = checked_slot("fragment buffer", index, MAX_BUFFER_BINDINGS)?;
+            let accepted = unsafe {
+                metal_render_encoder_set_fragment_buffer(
+                    self.ptr.as_ptr(),
+                    buffer.as_ptr(),
+                    offset,
+                    index,
+                )
+            };
+            bridge_result(accepted, "set fragment buffer")
+        })
     }
 
     /// Set a fragment texture
-    pub fn set_fragment_texture(&self, texture: &MetalTexture, index: usize) {
-        unsafe {
-            metal_render_encoder_set_fragment_texture(self.ptr.as_ptr(), texture.as_ptr(), index);
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error after encoding has ended or for an invalid texture
+    /// binding index.
+    pub fn set_fragment_texture(
+        &self,
+        texture: &MetalTexture,
+        index: usize,
+    ) -> Result<(), MetalError> {
+        self.state.with_active(|| {
+            let index = checked_slot("fragment texture", index, MAX_TEXTURE_BINDINGS)?;
+            let accepted = unsafe {
+                metal_render_encoder_set_fragment_texture(
+                    self.ptr.as_ptr(),
+                    texture.as_ptr(),
+                    index,
+                )
+            };
+            bridge_result(accepted, "set fragment texture")
+        })
     }
 
     /// Draw primitives
+    ///
+    /// # Errors
+    ///
+    /// Returns an error after encoding has ended or when the vertex range
+    /// cannot be represented by Swift's `Int`.
     pub fn draw_primitives(
         &self,
         primitive_type: MTLPrimitiveType,
         vertex_start: usize,
         vertex_count: usize,
-    ) {
-        unsafe {
-            metal_render_encoder_draw_primitives(
-                self.ptr.as_ptr(),
-                primitive_type.raw(),
-                vertex_start,
-                vertex_count,
-            );
-        }
+    ) -> Result<(), MetalError> {
+        self.state.with_active(|| {
+            let vertex_start = checked_swift_value("vertex start", vertex_start)?;
+            let vertex_count = checked_swift_value("vertex count", vertex_count)?;
+            let accepted = unsafe {
+                metal_render_encoder_draw_primitives(
+                    self.ptr.as_ptr(),
+                    primitive_type.raw(),
+                    vertex_start,
+                    vertex_count,
+                )
+            };
+            bridge_result(accepted, "draw primitives")
+        })
     }
 
     /// End encoding
-    pub fn end_encoding(&self) {
-        unsafe { metal_render_encoder_end_encoding(self.ptr.as_ptr()) }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if encoding already ended through this handle or one
+    /// of its retained clones.
+    pub fn end_encoding(&self) -> Result<(), MetalError> {
+        self.state.end(self.ptr)
     }
 
     /// Get the raw pointer
@@ -1784,8 +2162,21 @@ impl MetalRenderCommandEncoder {
     }
 }
 
+impl Clone for MetalRenderCommandEncoder {
+    fn clone(&self) -> Self {
+        let ptr = unsafe { metal_render_encoder_retain(self.ptr.as_ptr()) };
+        Self {
+            ptr: NonNull::new(ptr).unwrap_or(self.ptr),
+            state: Arc::clone(&self.state),
+        }
+    }
+}
+
 impl Drop for MetalRenderCommandEncoder {
     fn drop(&mut self) {
+        if Arc::strong_count(&self.state) == 1 {
+            self.state.end_on_drop(self.ptr);
+        }
         unsafe { metal_render_encoder_release(self.ptr.as_ptr()) }
     }
 }
@@ -2075,6 +2466,40 @@ const fn checked_swift_int(value: usize) -> Option<usize> {
         None
     } else {
         Some(value)
+    }
+}
+
+const MAX_COLOR_ATTACHMENTS: usize = 8;
+const MAX_VERTEX_ATTRIBUTES: usize = 31;
+const MAX_BUFFER_BINDINGS: usize = 31;
+const MAX_TEXTURE_BINDINGS: usize = 128;
+
+fn checked_swift_value(argument: &'static str, value: usize) -> Result<usize, MetalError> {
+    checked_swift_int(value).ok_or(MetalError::SwiftIntOverflow { argument, value })
+}
+
+fn checked_slot(
+    argument: &'static str,
+    index: usize,
+    max_exclusive: usize,
+) -> Result<usize, MetalError> {
+    let index = checked_swift_value(argument, index)?;
+    if index >= max_exclusive {
+        Err(MetalError::IndexOutOfRange {
+            argument,
+            index,
+            max_exclusive,
+        })
+    } else {
+        Ok(index)
+    }
+}
+
+fn bridge_result(accepted: bool, operation: &'static str) -> Result<(), MetalError> {
+    if accepted {
+        Ok(())
+    } else {
+        Err(MetalError::NativeCallRejected { operation })
     }
 }
 

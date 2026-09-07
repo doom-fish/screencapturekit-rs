@@ -47,7 +47,8 @@ impl Renderer {
             let desc = MetalRenderPipelineDescriptor::new();
             desc.set_vertex_function(&vert);
             desc.set_fragment_function(&frag);
-            desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+            desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+                .map_err(|error| error.to_string())?;
             device
                 .create_render_pipeline_state(&desc)
                 .ok_or("Failed to create textured pipeline")?
@@ -64,7 +65,8 @@ impl Renderer {
             let desc = MetalRenderPipelineDescriptor::new();
             desc.set_vertex_function(&vert);
             desc.set_fragment_function(&frag);
-            desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+            desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+                .map_err(|error| error.to_string())?;
             device
                 .create_render_pipeline_state(&desc)
                 .ok_or("Failed to create ycbcr pipeline")?
@@ -96,7 +98,7 @@ impl SCStreamOutputTrait for Handler {
             return;
         }
 
-        let Some(pixel_buffer) = sample.image_buffer() else {
+        let Some(pixel_buffer) = sample.pixel_buffer() else {
             return;
         };
 
@@ -145,7 +147,12 @@ impl SCStreamOutputTrait for Handler {
         let uniforms = Uniforms::from_captured_textures(viewport_width, viewport_height, &textures);
 
         // Create uniform buffer (in a real app, reuse this buffer)
-        if let Some(uniform_buffer) = self.renderer.device.create_buffer_with_data(&uniforms) {
+        let uniform_bytes = uniforms.to_bytes();
+        if let Some(uniform_buffer) = self
+            .renderer
+            .device
+            .create_buffer_with_bytes(&uniform_bytes)
+        {
             println!(
                 "   Uniforms: viewport={:?}, texture={:?}",
                 uniforms.viewport_size, uniforms.texture_size

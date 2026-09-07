@@ -275,10 +275,16 @@ class PickerResult {
 public typealias PickerOneShotCallback = @convention(c) (Int32, OpaquePointer?, UnsafeMutableRawPointer?) -> Void
 
 /// Repeating observer ABI used by `sc_content_sharing_picker_add_observer`.
-/// `(event, resultPtr, message, userData)` where event is
+/// `(event, resultPtr, message, streamPtr, userData)` where event is
 /// 1 = updated, 0 = cancelled, -1 = start-failed (message non-nil).
 public typealias PickerEventCallback =
-    @convention(c) (Int32, OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void
+    @convention(c) (
+        Int32,
+        OpaquePointer?,
+        UnsafePointer<CChar>?,
+        OpaquePointer?,
+        UnsafeMutableRawPointer?
+    ) -> Void
 
 /// Releases the Rust-side boxed context backing an observer. Invoked exactly
 /// once, after the observer has been detached from `SCContentSharingPicker`.
@@ -408,7 +414,12 @@ final class PersistentPickerObserver: NSObject, SCContentSharingPickerObserver {
         contextRelease(userData)
     }
 
-    private func deliver(_ event: Int32, filter: SCContentFilter?, message: UnsafePointer<CChar>?) {
+    private func deliver(
+        _ event: Int32,
+        filter: SCContentFilter?,
+        message: UnsafePointer<CChar>?,
+        stream: SCStream?
+    ) {
         lock.lock()
         let active = !torndown
         lock.unlock()
@@ -416,21 +427,28 @@ final class PersistentPickerObserver: NSObject, SCContentSharingPickerObserver {
         // Retain the result only once we know it will be delivered, so a
         // dropped event cannot leak a PickerResult.
         let ptr = filter.map { ScreenCaptureKitBridge.retain(PickerResult(filter: $0)) }
-        callback(event, ptr, message, userData)
+        let streamPtr = stream.map { OpaquePointer(Unmanaged.passUnretained($0).toOpaque()) }
+        callback(event, ptr, message, streamPtr, userData)
     }
 
-    func contentSharingPicker(_: SCContentSharingPicker, didCancelFor _: SCStream?) {
-        deliver(0, filter: nil, message: nil)
+    func contentSharingPicker(_: SCContentSharingPicker, didCancelFor stream: SCStream?) {
+        deliver(0, filter: nil, message: nil, stream: stream)
         releaseStandaloneActivation()
     }
 
-    func contentSharingPicker(_: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for _: SCStream?) {
-        deliver(1, filter: filter, message: nil)
+    func contentSharingPicker(
+        _: SCContentSharingPicker,
+        didUpdateWith filter: SCContentFilter,
+        for stream: SCStream?
+    ) {
+        deliver(1, filter: filter, message: nil, stream: stream)
         releaseStandaloneActivation()
     }
 
     func contentSharingPickerStartDidFailWithError(_ error: Error) {
-        error.localizedDescription.withCString { deliver(-1, filter: nil, message: $0) }
+        error.localizedDescription.withCString {
+            deliver(-1, filter: nil, message: $0, stream: nil)
+        }
         releaseStandaloneActivation()
     }
 
@@ -603,11 +621,13 @@ public func removeAllContentSharingPickerObservers() -> Int {
         for observer in all {
             picker.remove(observer)
         }
-        if currentObserver == nil {
-            picker.isActive = false
-            PickerActivationScope.releaseAll()
-        } else {
-            pendingPersistentActivationCleanup = true
+        if PersistentObserverRegistry.isEmpty {
+            if currentObserver == nil {
+                picker.isActive = false
+                PickerActivationScope.releaseAll()
+            } else {
+                pendingPersistentActivationCleanup = true
+            }
         }
     }
     return all.count
@@ -618,12 +638,11 @@ public func removeAllContentSharingPickerObservers() -> Int {
 /// Assign the picker's process-wide `defaultConfiguration`.
 @available(macOS 14.0, *)
 @_cdecl("sc_content_sharing_picker_set_default_configuration")
-public func setContentSharingPickerDefaultConfiguration(_ config: OpaquePointer) {
+public func setContentSharingPickerDefaultConfiguration(_ config: OpaquePointer) -> Bool {
+    guard Thread.isMainThread else { return false }
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
-    let value = box.value
-    DispatchQueue.main.async {
-        SCContentSharingPicker.shared.defaultConfiguration = value
-    }
+    SCContentSharingPicker.shared.defaultConfiguration = box.value
+    return true
 }
 
 /// Assign (or clear, when `config` is nil) the per-stream picker configuration.
@@ -632,15 +651,15 @@ public func setContentSharingPickerDefaultConfiguration(_ config: OpaquePointer)
 public func setContentSharingPickerConfigurationForStream(
     _ config: OpaquePointer?,
     _ streamPtr: OpaquePointer
-) {
+) -> Bool {
+    guard Thread.isMainThread else { return false }
     let scStream: SCStream = unretained(streamPtr)
     let value: SCContentSharingPickerConfiguration? = config.map {
         let box: Box<SCContentSharingPickerConfiguration> = unretained($0)
         return box.value
     }
-    DispatchQueue.main.async {
-        SCContentSharingPicker.shared.setConfiguration(value, for: scStream)
-    }
+    SCContentSharingPicker.shared.setConfiguration(value, for: scStream)
+    return true
 }
 
 // MARK: - Standalone present operations (pair with repeating observers)
@@ -871,11 +890,12 @@ public func showContentSharingPicker(
     _ userData: UnsafeMutableRawPointer?
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    let configValue = configBox.value
 
     presentOnMain(callback, userData) {
         let observer = PickerObserver(callback: callback, userData: userData)
         let picker = installOneShotObserver(observer)
-        picker.defaultConfiguration = configBox.value
+        picker.defaultConfiguration = configValue
         picker.present()
     }
 }
@@ -889,11 +909,12 @@ public func showContentSharingPickerWithResult(
     _ userData: UnsafeMutableRawPointer?
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    let configValue = configBox.value
 
     presentOnMain(callback, userData) {
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         let picker = installOneShotObserver(observer)
-        picker.defaultConfiguration = configBox.value
+        picker.defaultConfiguration = configValue
         picker.present()
     }
 }
@@ -908,12 +929,13 @@ public func showContentSharingPickerForStream(
     _ userData: UnsafeMutableRawPointer?
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    let configValue = configBox.value
     let scStream: SCStream = unretained(streamPtr)
 
     presentOnMain(callback, userData) {
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         let picker = installOneShotObserver(observer)
-        picker.setConfiguration(configBox.value, for: scStream)
+        picker.setConfiguration(configValue, for: scStream)
         picker.present(for: scStream)
     }
 }
@@ -928,12 +950,13 @@ public func showContentSharingPickerUsingStyle(
     _ userData: UnsafeMutableRawPointer?
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    let configValue = configBox.value
     let contentStyle = pickerContentStyle(from: style)
 
     presentOnMain(callback, userData) {
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         let picker = installOneShotObserver(observer)
-        picker.defaultConfiguration = configBox.value
+        picker.defaultConfiguration = configValue
         picker.present(using: contentStyle)
     }
 }
@@ -949,13 +972,14 @@ public func showContentSharingPickerForStreamUsingStyle(
     _ userData: UnsafeMutableRawPointer?
 ) {
     let configBox: Box<SCContentSharingPickerConfiguration> = unretained(config)
+    let configValue = configBox.value
     let scStream: SCStream = unretained(streamPtr)
     let contentStyle = pickerContentStyle(from: style)
 
     presentOnMain(callback, userData) {
         let observer = PickerObserverWithResult(callback: callback, userData: userData)
         let picker = installOneShotObserver(observer)
-        picker.setConfiguration(configBox.value, for: scStream)
+        picker.setConfiguration(configValue, for: scStream)
         picker.present(for: scStream, using: contentStyle)
     }
 }

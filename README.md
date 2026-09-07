@@ -13,7 +13,7 @@
     <a href="https://github.com/doom-fish/screencapturekit-rs/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/doom-fish/screencapturekit-rs?style=for-the-badge&logo=starship&color=F5E0DC&logoColor=D9E0EE&labelColor=302D41" /></a>
 </p></div>
 
-> **💼 Looking for a hosted desktop recording API?** Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) — an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
+> **💼 Looking for a hosted desktop recording API?** Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) — an API for recording video-conferencing services, in-person meetings, and more.
 
 <https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d>
 
@@ -43,7 +43,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "9"
+screencapturekit = "10"
 ```
 
 Opt-in features (additive):
@@ -62,7 +62,7 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "9", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "10", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading a major version?** See [`docs/MIGRATION.md`](docs/MIGRATION.md)
@@ -70,7 +70,8 @@ screencapturekit = { version = "9", features = ["async", "macos_15_0"] }
 > Core Media foundation types onto the shared `apple-cf` crate and 7.0 hardens
 > the FFI boundary; the only likely source change across that line is 5.0's
 > nested `CGRect` layout (`rect.origin.x` / `rect.size.width`). **9.0** tightens
-> memory safety and the stream/picker lifecycle — see the migration notes below.
+> stream and picker lifecycle handling; **10.0** finalizes the audio, Metal,
+> picker, and shared Core Media/Core Video safety contracts described below.
 
 ## Quick Start
 
@@ -291,6 +292,25 @@ SCContentSharingPicker::show(&config, |outcome| match outcome {
 });
 ```
 
+For repeating selections, retain the subscription and route per-stream
+updates with the non-owning `StreamIdentity`:
+
+```rust,ignore
+let subscription = SCContentSharingPicker::add_observer(|event| match event {
+    SCPickerEvent::Updated { result, stream } => {
+        let filter = result.filter();
+        match stream {
+            Some(identity) => println!("update for {identity:?}: {filter:?}"),
+            None => println!("new selection: {filter:?}"),
+        }
+    }
+    SCPickerEvent::Cancelled { stream } => println!("cancelled: {stream:?}"),
+    SCPickerEvent::Failed(error) => eprintln!("picker error: {error}"),
+});
+SCContentSharingPicker::present();
+drop(subscription);
+```
+
 For async contexts, use [`AsyncSCContentSharingPicker::show`].
 </details>
 
@@ -329,7 +349,7 @@ use screencapturekit::prelude::*;
 struct H;
 impl SCStreamOutputTrait for H {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _: SCStreamOutputType) {
-        if let Some(pb) = sample.image_buffer() {
+        if let Some(pb) = sample.pixel_buffer() {
             if let Some(surface) = pb.io_surface() {
                 let _ = (surface.width(), surface.height());
                 // Wrap as `MTLTexture` (see examples 17/18) — no copy.
@@ -341,9 +361,12 @@ impl SCStreamOutputTrait for H {
 
 Built-in Metal helpers live in `screencapturekit::metal` and ship a small
 shader library (`SHADER_SOURCE`) covering BGRA, YCbCr, and UI overlay
-rendering. See [`examples/16_full_metal_app/`](examples/16_full_metal_app/)
-for a complete app and [`examples/18_wgpu_integration.rs`](examples/18_wgpu_integration.rs)
-for the wgpu equivalent.
+rendering. Encode uniform values with `Uniforms::to_bytes()` and upload them
+through `MetalDevice::create_buffer_with_bytes()`; the generic object-
+representation upload is intentionally `unsafe`. See
+[`examples/16_full_metal_app/`](examples/16_full_metal_app/) for a complete app
+and [`examples/18_wgpu_integration.rs`](examples/18_wgpu_integration.rs) for
+the wgpu equivalent.
 </details>
 
 [`AsyncSCContentSharingPicker::show`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/async_api/struct.AsyncSCContentSharingPicker.html
@@ -549,7 +572,8 @@ Highlights by major version:
   content-rect setters are gone (crop with
   `SCStreamConfiguration::with_source_rect`) and `includeMenuBar` is set while
   building via `SCContentFilterBuilder::with_include_menu_bar`. `AudioBuffer`'s
-  fields are private, with mutable access behind `unsafe fn data_mut`, and
+  fields are private, with owner-tied mutable bytes behind
+  `unsafe AudioBufferList::data_mut`, and
   `MetalDevice::as_apple_metal` hands out a borrow instead of a second owner.
   `SCShareableContent::current_process` returns `SCError::FeatureNotAvailable`
   below macOS 14.4 instead of quietly falling back to system-wide content, and
@@ -557,12 +581,19 @@ Highlights by major version:
   Build-SDK stub mode was removed. New: repeating picker observers
   (`SCContentSharingPicker::add_observer`) so
   `allows_changing_selected_content` actually delivers re-selections.
+- **10.0** — audio sample mutation moves to owner-tied unsafe views; Metal
+  buffer uploads and command/encoder lifecycle calls become checked and
+  fallible; repeating picker events preserve optional stream identity; picker
+  configuration is main-thread-only and fallible; shared Core Media/Core Video
+  adoption and byte-view APIs use the finalized apple-cf safety contracts.
 
 If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–7.0
 upgrades are typically just the 5.0 `CGRect` field-access change. 8.0 affects
 you if you use the `async` API; 9.0 affects you if you write screenshots to
 disk, configure recording outputs, crop through the content filter, read
 `AudioBuffer` fields, or call `SCShareableContent::current_process`.
+10.0 affects audio-buffer mutation, Metal upload/encoding paths, repeating
+picker events/configuration, and direct apple-cf raw or locked-byte access.
 
 ## Contributing
 

@@ -2,7 +2,7 @@
 
 > **Snapshot — not a live coverage status.** This document records a
 > point-in-time audit performed against `screencapturekit` **v3.1.1**. It has
-> **not** been re-verified against the current crate version (8.x) and should
+> **not** been re-verified against the upcoming 10.0.0 package and should
 > be read as a historical audit, not an up-to-date certification.
 
 This document records the `screencapturekit` v3.1.1 coverage audit against

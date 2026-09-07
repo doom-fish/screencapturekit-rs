@@ -5,6 +5,11 @@ import IOSurface
 import Metal
 import QuartzCore
 
+private let maxColorAttachmentCount = 8
+private let maxVertexAttributeCount = 31
+private let maxBufferBindingCount = 31
+private let maxTextureBindingCount = 128
+
 // MARK: - Metal Texture from IOSurface
 
 /// Create a Metal texture from an IOSurface plane
@@ -333,6 +338,15 @@ public func metal_command_buffer_commit(_ cmdBuffer: UnsafeMutableRawPointer) {
     buf.commit()
 }
 
+/// Retain command buffer
+@_cdecl("metal_command_buffer_retain")
+public func metal_command_buffer_retain(
+    _ cmdBuffer: UnsafeMutableRawPointer
+) -> UnsafeMutableRawPointer {
+    _ = Unmanaged<MTLCommandBuffer>.fromOpaque(cmdBuffer).retain()
+    return cmdBuffer
+}
+
 /// Wait until command buffer completes
 @_cdecl("metal_command_buffer_wait_until_completed")
 public func metal_command_buffer_wait_until_completed(_ cmdBuffer: UnsafeMutableRawPointer) {
@@ -361,10 +375,12 @@ public func metal_render_pass_set_color_attachment_texture(
     _ desc: UnsafeMutableRawPointer,
     _ index: Int,
     _ texture: UnsafeMutableRawPointer
-) {
+) -> Bool {
+    guard index >= 0, index < maxColorAttachmentCount else { return false }
     let rpd = Unmanaged<MTLRenderPassDescriptor>.fromOpaque(desc).takeUnretainedValue()
     let tex = Unmanaged<MTLTexture>.fromOpaque(texture).takeUnretainedValue()
     rpd.colorAttachments[index].texture = tex
+    return true
 }
 
 /// Set color attachment load action
@@ -373,9 +389,11 @@ public func metal_render_pass_set_color_attachment_load_action(
     _ desc: UnsafeMutableRawPointer,
     _ index: Int,
     _ action: UInt // MTLLoadAction raw value
-) {
+) -> Bool {
+    guard index >= 0, index < maxColorAttachmentCount else { return false }
     let rpd = Unmanaged<MTLRenderPassDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].loadAction = MTLLoadAction(rawValue: action) ?? .clear
+    return true
 }
 
 /// Set color attachment store action
@@ -384,9 +402,11 @@ public func metal_render_pass_set_color_attachment_store_action(
     _ desc: UnsafeMutableRawPointer,
     _ index: Int,
     _ action: UInt // MTLStoreAction raw value
-) {
+) -> Bool {
+    guard index >= 0, index < maxColorAttachmentCount else { return false }
     let rpd = Unmanaged<MTLRenderPassDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].storeAction = MTLStoreAction(rawValue: action) ?? .store
+    return true
 }
 
 /// Set color attachment clear color
@@ -395,9 +415,11 @@ public func metal_render_pass_set_color_attachment_clear_color(
     _ desc: UnsafeMutableRawPointer,
     _ index: Int,
     _ r: Double, _ g: Double, _ b: Double, _ a: Double
-) {
+) -> Bool {
+    guard index >= 0, index < maxColorAttachmentCount else { return false }
     let rpd = Unmanaged<MTLRenderPassDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].clearColor = MTLClearColor(red: r, green: g, blue: b, alpha: a)
+    return true
 }
 
 /// Release render pass descriptor
@@ -423,11 +445,18 @@ public func metal_vertex_descriptor_set_attribute(
     _ format: UInt, // MTLVertexFormat raw value
     _ offset: Int,
     _ bufferIndex: Int
-) {
+) -> Bool {
+    guard index >= 0, index < maxVertexAttributeCount,
+          offset >= 0,
+          bufferIndex >= 0, bufferIndex < maxBufferBindingCount
+    else {
+        return false
+    }
     let vd = Unmanaged<MTLVertexDescriptor>.fromOpaque(desc).takeUnretainedValue()
     vd.attributes[index].format = MTLVertexFormat(rawValue: format) ?? .float2
     vd.attributes[index].offset = offset
     vd.attributes[index].bufferIndex = bufferIndex
+    return true
 }
 
 /// Set layout stride and step function
@@ -437,10 +466,14 @@ public func metal_vertex_descriptor_set_layout(
     _ bufferIndex: Int,
     _ stride: Int,
     _ stepFunction: UInt // MTLVertexStepFunction raw value
-) {
+) -> Bool {
+    guard bufferIndex >= 0, bufferIndex < maxBufferBindingCount, stride >= 0 else {
+        return false
+    }
     let vd = Unmanaged<MTLVertexDescriptor>.fromOpaque(desc).takeUnretainedValue()
     vd.layouts[bufferIndex].stride = stride
     vd.layouts[bufferIndex].stepFunction = MTLVertexStepFunction(rawValue: stepFunction) ?? .perVertex
+    return true
 }
 
 /// Release vertex descriptor
@@ -486,9 +519,11 @@ public func metal_render_pipeline_descriptor_set_color_attachment_pixel_format(
     _ desc: UnsafeMutableRawPointer,
     _ index: Int,
     _ format: UInt
-) {
+) -> Bool {
+    guard index >= 0, index < maxColorAttachmentCount else { return false }
     let rpd = Unmanaged<MTLRenderPipelineDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].pixelFormat = MTLPixelFormat(rawValue: format) ?? .bgra8Unorm
+    return true
 }
 
 /// Set color attachment blending enabled
@@ -497,9 +532,11 @@ public func metal_render_pipeline_descriptor_set_blending_enabled(
     _ desc: UnsafeMutableRawPointer,
     _ index: Int,
     _ enabled: Bool
-) {
+) -> Bool {
+    guard index >= 0, index < maxColorAttachmentCount else { return false }
     let rpd = Unmanaged<MTLRenderPipelineDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].isBlendingEnabled = enabled
+    return true
 }
 
 /// Set color attachment blend operations
@@ -509,10 +546,12 @@ public func metal_render_pipeline_descriptor_set_blend_operations(
     _ index: Int,
     _ rgbOp: UInt,
     _ alphaOp: UInt
-) {
+) -> Bool {
+    guard index >= 0, index < maxColorAttachmentCount else { return false }
     let rpd = Unmanaged<MTLRenderPipelineDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].rgbBlendOperation = MTLBlendOperation(rawValue: rgbOp) ?? .add
     rpd.colorAttachments[index].alphaBlendOperation = MTLBlendOperation(rawValue: alphaOp) ?? .add
+    return true
 }
 
 /// Set color attachment blend factors
@@ -524,12 +563,14 @@ public func metal_render_pipeline_descriptor_set_blend_factors(
     _ dstRgb: UInt,
     _ srcAlpha: UInt,
     _ dstAlpha: UInt
-) {
+) -> Bool {
+    guard index >= 0, index < maxColorAttachmentCount else { return false }
     let rpd = Unmanaged<MTLRenderPipelineDescriptor>.fromOpaque(desc).takeUnretainedValue()
     rpd.colorAttachments[index].sourceRGBBlendFactor = MTLBlendFactor(rawValue: srcRgb) ?? .one
     rpd.colorAttachments[index].destinationRGBBlendFactor = MTLBlendFactor(rawValue: dstRgb) ?? .zero
     rpd.colorAttachments[index].sourceAlphaBlendFactor = MTLBlendFactor(rawValue: srcAlpha) ?? .one
     rpd.colorAttachments[index].destinationAlphaBlendFactor = MTLBlendFactor(rawValue: dstAlpha) ?? .zero
+    return true
 }
 
 /// Set vertex descriptor on render pipeline descriptor
@@ -605,10 +646,12 @@ public func metal_render_encoder_set_vertex_buffer(
     _ buffer: UnsafeMutableRawPointer,
     _ offset: Int,
     _ index: Int
-) {
+) -> Bool {
+    guard offset >= 0, index >= 0, index < maxBufferBindingCount else { return false }
     let enc = Unmanaged<MTLRenderCommandEncoder>.fromOpaque(encoder).takeUnretainedValue()
     let buf = Unmanaged<MTLBuffer>.fromOpaque(buffer).takeUnretainedValue()
     enc.setVertexBuffer(buf, offset: offset, index: index)
+    return true
 }
 
 /// Set fragment buffer
@@ -618,10 +661,12 @@ public func metal_render_encoder_set_fragment_buffer(
     _ buffer: UnsafeMutableRawPointer,
     _ offset: Int,
     _ index: Int
-) {
+) -> Bool {
+    guard offset >= 0, index >= 0, index < maxBufferBindingCount else { return false }
     let enc = Unmanaged<MTLRenderCommandEncoder>.fromOpaque(encoder).takeUnretainedValue()
     let buf = Unmanaged<MTLBuffer>.fromOpaque(buffer).takeUnretainedValue()
     enc.setFragmentBuffer(buf, offset: offset, index: index)
+    return true
 }
 
 /// Set fragment texture
@@ -630,10 +675,12 @@ public func metal_render_encoder_set_fragment_texture(
     _ encoder: UnsafeMutableRawPointer,
     _ texture: UnsafeMutableRawPointer,
     _ index: Int
-) {
+) -> Bool {
+    guard index >= 0, index < maxTextureBindingCount else { return false }
     let enc = Unmanaged<MTLRenderCommandEncoder>.fromOpaque(encoder).takeUnretainedValue()
     let tex = Unmanaged<MTLTexture>.fromOpaque(texture).takeUnretainedValue()
     enc.setFragmentTexture(tex, index: index)
+    return true
 }
 
 /// Draw primitives
@@ -643,9 +690,11 @@ public func metal_render_encoder_draw_primitives(
     _ primitiveType: UInt, // MTLPrimitiveType raw value
     _ vertexStart: Int,
     _ vertexCount: Int
-) {
+) -> Bool {
+    guard vertexStart >= 0, vertexCount >= 0 else { return false }
     let enc = Unmanaged<MTLRenderCommandEncoder>.fromOpaque(encoder).takeUnretainedValue()
     enc.drawPrimitives(type: MTLPrimitiveType(rawValue: primitiveType) ?? .triangle, vertexStart: vertexStart, vertexCount: vertexCount)
+    return true
 }
 
 /// End encoding
@@ -653,6 +702,15 @@ public func metal_render_encoder_draw_primitives(
 public func metal_render_encoder_end_encoding(_ encoder: UnsafeMutableRawPointer) {
     let enc = Unmanaged<MTLRenderCommandEncoder>.fromOpaque(encoder).takeUnretainedValue()
     enc.endEncoding()
+}
+
+/// Retain render command encoder
+@_cdecl("metal_render_encoder_retain")
+public func metal_render_encoder_retain(
+    _ encoder: UnsafeMutableRawPointer
+) -> UnsafeMutableRawPointer {
+    _ = Unmanaged<MTLRenderCommandEncoder>.fromOpaque(encoder).retain()
+    return encoder
 }
 
 /// Release render command encoder

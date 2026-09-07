@@ -55,7 +55,7 @@ impl SCStreamOutputTrait for FrameHandler {
             return;
         }
 
-        let Some(pixel_buffer) = sample.image_buffer() else {
+        let Some(pixel_buffer) = sample.pixel_buffer() else {
             return;
         };
 
@@ -66,7 +66,9 @@ impl SCStreamOutputTrait for FrameHandler {
         let width = pixel_buffer.width() as u32;
         let height = pixel_buffer.height() as u32;
         let bytes_per_row = pixel_buffer.bytes_per_row() as u32;
-        let src_data = guard.as_slice();
+        let Some(src_data) = (unsafe { guard.as_slice() }) else {
+            return;
+        };
 
         // Remove row padding if present - wgpu expects tightly packed rows
         let expected_bytes_per_row = width * 4;
