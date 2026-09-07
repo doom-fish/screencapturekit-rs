@@ -1,12 +1,18 @@
 # screencapturekit-rs coverage audit v2 (vs MacOSX26.2.sdk)
 
-> Snapshot from the `screencapturekit` v3.1.1 audit pass — historical, not re-verified against 6.x.
+> Snapshot from the `screencapturekit` v3.1.1 audit pass — historical, not
+> re-verified against 8.x.
+>
+> **`COVERAGE_PCT` below is declaration-level, not member-level.** It counts
+> top-level SDK declarations (classes, protocols, enums, exported constants)
+> that have a Rust binding. It says nothing about whether every property and
+> method on those types is reachable — several were not (see `COVERAGE.md`).
 
-SDK_PUBLIC_SYMBOLS: 42
+SDK_PUBLIC_DECLARATIONS: 42
 VERIFIED: 41
-GAPS: 0
+DECLARATION_GAPS: 0
 EXEMPT: 1
-COVERAGE_PCT: 100.0%
+DECLARATION_COVERAGE_PCT: 100.0%
 
 ## Methodology
 

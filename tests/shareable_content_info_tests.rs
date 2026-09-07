@@ -13,11 +13,21 @@ fn cg_init_for_headless_ci() {
     unsafe { sc_initialize_core_graphics() }
 }
 
+macro_rules! require_display {
+    ($content:expr, $display:ident) => {
+        let displays = $content.displays();
+        let Some($display) = displays.first() else {
+            eprintln!("skip: no displays available");
+            return;
+        };
+    };
+}
+
 #[test]
 fn test_shareable_content_info_for_display_filter() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -71,7 +81,7 @@ fn test_shareable_content_info_for_window_filter() {
 fn test_shareable_content_info_clone() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -92,7 +102,7 @@ fn test_shareable_content_info_clone() {
 fn test_shareable_content_info_debug() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -111,7 +121,7 @@ fn test_shareable_content_info_debug() {
 fn test_shareable_content_info_display() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -139,7 +149,7 @@ fn test_shareable_content_info_send_sync() {
 fn test_shareable_content_info_pixel_size_calculation() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)

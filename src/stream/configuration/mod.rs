@@ -11,6 +11,8 @@ pub mod stream_properties;
 
 pub use advanced::SCPresenterOverlayAlertSetting;
 pub use audio::{AudioChannelCount, AudioSampleRate};
+pub use captured_frames::{MAX_QUEUE_DEPTH, MIN_QUEUE_DEPTH};
+pub use colors::{color_matrix, color_space, InteriorNulError};
 pub use internal::SCStreamConfiguration;
 pub use pixel_format::PixelFormat;
 pub use stream_properties::SCCaptureDynamicRange;

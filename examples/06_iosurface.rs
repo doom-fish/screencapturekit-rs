@@ -23,7 +23,7 @@ impl SCStreamOutputTrait for Handler {
             let n = self.count.fetch_add(1, Ordering::Relaxed);
 
             if n % 60 == 0 {
-                if let Some(pixel_buffer) = sample.image_buffer() {
+                if let Some(pixel_buffer) = sample.pixel_buffer() {
                     // Check if IOSurface-backed
                     if pixel_buffer.is_backed_by_io_surface() {
                         if let Some(iosurface) = pixel_buffer.io_surface() {
@@ -39,7 +39,9 @@ impl SCStreamOutputTrait for Handler {
 
                             // Lock and access data
                             if let Ok(guard) = iosurface.lock(IOSurfaceLockOptions::READ_ONLY) {
-                                let mut cursor = guard.cursor();
+                                let Some(mut cursor) = (unsafe { guard.cursor() }) else {
+                                    return;
+                                };
 
                                 // Read first pixel
                                 if let Ok(pixel) = cursor.read_pixel() {

@@ -25,14 +25,16 @@ impl SCStreamOutputTrait for Handler {
 
             // Process every 60th frame
             if n % 60 == 0 {
-                if let Some(pixel_buffer) = sample.image_buffer() {
+                if let Some(pixel_buffer) = sample.pixel_buffer() {
                     if let Ok(guard) = pixel_buffer.lock(CVPixelBufferLockFlags::READ_ONLY) {
                         println!("\n📹 Frame {n}");
                         println!("   Size: {}x{}", guard.width(), guard.height());
                         println!("   Bytes per row: {}", guard.bytes_per_row());
 
                         // Method 1: Use cursor with extension trait
-                        let mut cursor = guard.cursor();
+                        let Some(mut cursor) = (unsafe { guard.cursor() }) else {
+                            return;
+                        };
                         if let Ok(pixel) = cursor.read_pixel() {
                             println!("   First pixel (BGRA): {pixel:?}");
                         }
@@ -57,8 +59,9 @@ impl SCStreamOutputTrait for Handler {
                         }
 
                         // Method 4: Direct slice access (fast)
-                        let slice = guard.as_slice();
-                        println!("   Total bytes: {}", slice.len());
+                        if let Some(slice) = unsafe { guard.as_slice() } {
+                            println!("   Total bytes: {}", slice.len());
+                        }
                     }
                 }
             }

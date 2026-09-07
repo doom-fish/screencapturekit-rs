@@ -210,3 +210,109 @@ fn test_frame_status_result_usage() {
     assert!(check_status(SCFrameStatus::Idle).is_err());
     assert!(check_status(SCFrameStatus::Blank).is_err());
 }
+
+// MARK: - FrameInfo completeness
+
+/// `FrameInfo` is documented as a faithful, complete snapshot of the
+/// `SCStreamFrameInfo` attachment dictionary. `dirtyRects` used to be the one
+/// key the batched reader silently dropped, forcing callers back onto the
+/// single-key accessor and a second attachment fetch per frame.
+#[test]
+fn test_frame_info_covers_every_attachment_key() {
+    use screencapturekit::cm::FrameInfo;
+
+    let info = FrameInfo::default();
+    assert!(info.frame_status.is_none());
+    assert!(info.display_time.is_none());
+    assert!(info.scale_factor.is_none());
+    assert!(info.content_scale.is_none());
+    assert!(info.content_rect.is_none());
+    assert!(info.bounding_rect.is_none());
+    assert!(info.screen_rect.is_none());
+    assert!(info.presenter_overlay_content_rect.is_none());
+    assert!(
+        info.dirty_rects.is_none(),
+        "dirty_rects must be part of the batched snapshot"
+    );
+}
+
+/// `SCStreamFrameInfoStatus` arrives as an `NSNumber`, not as a bridged
+/// `SCFrameStatus`. Every raw value the enum knows must survive the
+/// integer round-trip the Swift decoder performs.
+#[test]
+fn test_frame_status_round_trips_through_raw_values() {
+    let all = [
+        SCFrameStatus::Complete,
+        SCFrameStatus::Idle,
+        SCFrameStatus::Blank,
+        SCFrameStatus::Suspended,
+        SCFrameStatus::Started,
+        SCFrameStatus::Stopped,
+    ];
+    for status in all {
+        let raw = status as i32;
+        assert_eq!(
+            SCFrameStatus::from_raw(raw),
+            Some(status),
+            "status {status:?} must survive the NSNumber round-trip"
+        );
+    }
+}
+
+#[test]
+fn test_live_frame_status_attachment_decodes() {
+    use screencapturekit::cm::CMSampleBufferSCExt;
+    use screencapturekit::prelude::*;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    let Ok(content) = SCShareableContent::get() else {
+        eprintln!("skip: screen-recording permission unavailable");
+        return;
+    };
+    let displays = content.displays();
+    let Some(display) = displays.first() else {
+        eprintln!("skip: no displays available");
+        return;
+    };
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+    let config = SCStreamConfiguration::new()
+        .with_width(160)
+        .with_height(120);
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&observed);
+
+    let mut stream = SCStream::new(&filter, &config);
+    stream
+        .add_output_handler(
+            move |sample: CMSampleBuffer, _| {
+                captured
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push(sample.frame_status());
+            },
+            SCStreamOutputType::Screen,
+        )
+        .expect("failed to register screen output");
+
+    if let Err(error) = stream.start_capture() {
+        eprintln!("skip: stream failed to start: {error}");
+        return;
+    }
+    std::thread::sleep(Duration::from_millis(800));
+    let _ = stream.stop_capture();
+
+    let statuses = observed
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert!(!statuses.is_empty(), "capture produced no frames");
+    assert!(
+        statuses.iter().all(Option::is_some),
+        "live SCStreamFrameInfoStatus values did not decode: {statuses:?}"
+    );
+}

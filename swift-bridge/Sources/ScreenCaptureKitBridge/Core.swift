@@ -50,8 +50,8 @@ public struct FFIWindowData {
     // Title handled separately via titleOffset/titleLength into string buffer
     public var titleOffset: UInt32
     public var titleLength: UInt32
-    // Owning app index (-1 if none)
-    public var owningAppIndex: Int32
+    // Owning application process ID (-1 if none)
+    public var owningAppProcessID: Int32
     public var _padding: Int32
 }
 

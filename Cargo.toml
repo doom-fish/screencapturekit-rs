@@ -1,6 +1,6 @@
 [package]
 name = "screencapturekit"
-version = "8.0.0"
+version = "10.0.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/screencapturekit-rs"
@@ -14,15 +14,19 @@ rust-version = "1.76"
 readme = "README.md"
 build = "build.rs"
 include = [
-    "src/**/*",
-    "swift-bridge/Package.swift",
-    "swift-bridge/Sources/**/*",
-    "build.rs",
-    "Cargo.toml",
-    "README.md",
-    "LICENSE-*",
-    "CHANGELOG.md",
-    "COVERAGE.md",
+    "/src/**/*",
+    "/swift-bridge/Package.swift",
+    "/swift-bridge/Sources/**/*",
+    "/examples/**/*",
+    "/tests/**/*",
+    "/benches/**/*",
+    "/docs/**/*",
+    "/build.rs",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE-*",
+    "/CHANGELOG.md",
+    "/COVERAGE.md",
 ]
 
 [lints.rust]
@@ -67,8 +71,8 @@ macos_26_0 = ["macos_15_2"]
 # and Cargo's `[patch.crates-io]` will redirect to your sibling paths.
 # This lets `cargo install screencapturekit` and `release-plz` work from
 # a clean checkout without requiring the sibling repos.
-apple-cf = { version = ">=0.6, <0.10", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
-apple-metal = { version = ">=0.6, <0.9", default-features = false }
+apple-cf = { version = ">=0.10, <0.11", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
+apple-metal = { version = ">=0.9, <0.10", default-features = false }
 
 # Trait-only crate providing `futures_core::Stream`; enabled by the `async`
 # feature so `AsyncSCStream` / `AsyncSCRecordingOutput` can be consumed with the
@@ -101,6 +105,7 @@ bevy = { version = "0.19", default-features = false, features = ["bevy_asset", "
 [[bench]]
 name = "capture_benchmark"
 harness = false
+required-features = ["macos_14_0"]
 
 [[bench]]
 name = "hotspots"
@@ -136,13 +141,21 @@ name = "11_content_picker"
 required-features = ["macos_14_0"]
 
 [[example]]
+name = "12_stream_updates"
+required-features = ["macos_14_0"]
+
+[[example]]
 name = "13_advanced_config"
+required-features = ["macos_15_0"]
+
+[[example]]
+name = "15_memory_leak_check"
 required-features = ["macos_15_0"]
 
 [[example]]
 name = "16_full_metal_app"
 path = "examples/16_full_metal_app/main.rs"
-required-features = ["macos_14_0"]
+required-features = ["macos_15_0"]
 
 # Note: 22_tauri_app is a separate Tauri project, run with:
 #   cd examples/22_tauri_app && npm install && npm run tauri dev

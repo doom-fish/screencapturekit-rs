@@ -283,6 +283,7 @@ impl SCStreamConfiguration {
     /// // Returns true on macOS 14.0+, false on older versions
     /// let _ = config.preserves_aspect_ratio();
     /// ```
+    #[cfg(feature = "macos_14_0")]
     pub fn set_preserves_aspect_ratio(&mut self, preserves_aspect_ratio: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_preserves_aspect_ratio(
@@ -294,6 +295,7 @@ impl SCStreamConfiguration {
     }
 
     /// Preserve aspect ratio when scaling (builder pattern)
+    #[cfg(feature = "macos_14_0")]
     #[must_use]
     pub fn with_preserves_aspect_ratio(mut self, preserves_aspect_ratio: bool) -> Self {
         self.set_preserves_aspect_ratio(preserves_aspect_ratio);
@@ -301,6 +303,7 @@ impl SCStreamConfiguration {
     }
 
     /// Check if aspect ratio preservation is enabled
+    #[cfg(feature = "macos_14_0")]
     pub fn preserves_aspect_ratio(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_preserves_aspect_ratio(self.as_ptr()) }
     }

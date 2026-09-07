@@ -99,7 +99,7 @@ impl VertexBufferBuilder {
             ("Select a Source to Begin".to_string(), [0.6, 0.5, 0.7, 1.0])
         } else if has_source {
             let display = if source_name.len() > 30 {
-                format!("{}...", &source_name.chars().take(27).collect::<String>())
+                format!("{}...", source_name.chars().take(27).collect::<String>())
             } else {
                 source_name.to_string()
             };
@@ -176,7 +176,7 @@ impl VertexBufferBuilder {
         if !format_info.is_empty() {
             // Truncate if too long
             let display_info = if format_info.len() > 40 {
-                format!("{}...", &format_info.chars().take(37).collect::<String>())
+                format!("{}...", format_info.chars().take(37).collect::<String>())
             } else {
                 format_info.to_string()
             };
@@ -293,7 +293,7 @@ impl VertexBufferBuilder {
             self.text(font, name, text_x, text_y, scale, name_color);
 
             let t: String = if value.len() > 12 {
-                format!("{}...", &value.chars().take(9).collect::<String>())
+                format!("{}...", value.chars().take(9).collect::<String>())
             } else {
                 value
             };

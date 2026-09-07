@@ -54,7 +54,7 @@ impl SCStreamOutputTrait for FrameHandler {
             return;
         }
 
-        let Some(pixel_buffer) = sample.image_buffer() else {
+        let Some(pixel_buffer) = sample.pixel_buffer() else {
             return;
         };
 
@@ -64,7 +64,9 @@ impl SCStreamOutputTrait for FrameHandler {
 
         let width = pixel_buffer.width();
         let height = pixel_buffer.height();
-        let data = guard.as_slice();
+        let Some(data) = (unsafe { guard.as_slice() }) else {
+            return;
+        };
 
         // Convert BGRA to RGBA
         let mut rgba = vec![0u8; width * height * 4];

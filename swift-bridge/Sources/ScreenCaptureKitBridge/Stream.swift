@@ -115,9 +115,6 @@ public func releaseContentFilter(_ filter: OpaquePointer) {
     release(filter)
 }
 
-@_cdecl("sc_content_filter_set_content_rect")
-public func setContentFilterContentRect(_: OpaquePointer, _: Double, _: Double, _: Double, _: Double) {}
-
 @_cdecl("sc_content_filter_get_content_rect")
 public func getContentFilterContentRect(
     _ filter: OpaquePointer,
@@ -126,86 +123,102 @@ public func getContentFilterContentRect(
     _ width: UnsafeMutablePointer<Double>,
     _ height: UnsafeMutablePointer<Double>
 ) {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 14.0, *) {
-        let rect = f.contentRect
-        x.pointee = rect.origin.x
-        y.pointee = rect.origin.y
-        width.pointee = rect.size.width
-        height.pointee = rect.size.height
-    } else {
-        x.pointee = 0.0
-        y.pointee = 0.0
-        width.pointee = 0.0
-        height.pointee = 0.0
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 14.0, *) {
+            let rect = f.contentRect
+            x.pointee = rect.origin.x
+            y.pointee = rect.origin.y
+            width.pointee = rect.size.width
+            height.pointee = rect.size.height
+            return
+        }
+    #endif
+    x.pointee = 0.0
+    y.pointee = 0.0
+    width.pointee = 0.0
+    height.pointee = 0.0
 }
 
 @_cdecl("sc_content_filter_get_style")
 public func getContentFilterStyle(_ filter: OpaquePointer) -> Int32 {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 14.0, *) {
-        switch f.style {
-        case .none:
-            return 0
-        case .window:
-            return 1
-        case .display:
-            return 2
-        case .application:
-            return 3
-        @unknown default:
-            return 0
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 14.0, *) {
+            switch f.style {
+            case .none:
+                return 0
+            case .window:
+                return 1
+            case .display:
+                return 2
+            case .application:
+                return 3
+            @unknown default:
+                return 0
+            }
         }
-    }
+    #endif
     return 0
 }
 
 @_cdecl("sc_content_filter_get_stream_type")
 public func getContentFilterStreamType(_ filter: OpaquePointer) -> Int32 {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 14.0, *) {
-        switch f.streamType {
-        case .window:
-            return 0
-        case .display:
-            return 1
-        @unknown default:
-            return -1
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 14.0, *) {
+            switch f.streamType {
+            case .window:
+                return 0
+            case .display:
+                return 1
+            @unknown default:
+                return -1
+            }
         }
-    }
+    #endif
     return -1
 }
 
 @_cdecl("sc_content_filter_get_point_pixel_scale")
 public func getContentFilterPointPixelScale(_ filter: OpaquePointer) -> Float {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 14.0, *) {
-        return f.pointPixelScale
-    }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 14.0, *) {
+            return f.pointPixelScale
+        }
+    #endif
     return 1.0
 }
 
 // macOS 14.2+ - includeMenuBar property
-@_cdecl("sc_content_filter_set_include_menu_bar")
-public func setContentFilterIncludeMenuBar(_ filter: OpaquePointer, _ include: Bool) {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 14.2, *) {
-        f.includeMenuBar = include
+#if SCREENCAPTUREKIT_HAS_MACOS14_2_SDK
+    @_cdecl("sc_content_filter_set_include_menu_bar")
+    public func setContentFilterIncludeMenuBar(_ filter: OpaquePointer, _ include: Bool) {
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 14.2, *) {
+            f.includeMenuBar = include
+        }
     }
-}
 
-@_cdecl("sc_content_filter_get_include_menu_bar")
-public func getContentFilterIncludeMenuBar(_ filter: OpaquePointer) -> Bool {
-    let f: SCContentFilter = unretained(filter)
-    if #available(macOS 14.2, *) {
-        return f.includeMenuBar
+    @_cdecl("sc_content_filter_get_include_menu_bar")
+    public func getContentFilterIncludeMenuBar(_ filter: OpaquePointer) -> Bool {
+        let f: SCContentFilter = unretained(filter)
+        if #available(macOS 14.2, *) {
+            return f.includeMenuBar
+        }
+        return false
     }
-    return false
-}
+#else
+    @_cdecl("sc_content_filter_set_include_menu_bar")
+    public func setContentFilterIncludeMenuBar(_: OpaquePointer, _: Bool) {}
+
+    @_cdecl("sc_content_filter_get_include_menu_bar")
+    public func getContentFilterIncludeMenuBar(_: OpaquePointer) -> Bool { false }
+#endif
 
 // macOS 15.2+ - readonly arrays
-#if SCREENCAPTUREKIT_HAS_MACOS15_SDK
+#if SCREENCAPTUREKIT_HAS_MACOS15_2_SDK
     @_cdecl("sc_content_filter_get_included_displays_count")
     public func getContentFilterIncludedDisplaysCount(_ filter: OpaquePointer) -> Int {
         let f: SCContentFilter = unretained(filter)
@@ -284,12 +297,20 @@ public func getContentFilterIncludeMenuBar(_ filter: OpaquePointer) -> Bool {
 
 // MARK: - Stream: SCStream Delegates and Handlers
 
+// Delegate lifecycle event codes. Mirrored by `delegate_event_callback` in
+// src/stream/sc_stream.rs; the two must be changed together.
+private let kStreamEventDidBecomeActive: Int32 = 0
+private let kStreamEventDidBecomeInactive: Int32 = 1
+private let kStreamEventVideoEffectDidStart: Int32 = 2
+private let kStreamEventVideoEffectDidStop: Int32 = 3
+
 private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
     let contextPtr: UnsafeMutableRawPointer
     let errorCallback: @convention(c) (UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>) -> Void
     let contextRelease: @convention(c) (UnsafeMutableRawPointer) -> Void
-    var activeCallback: (@convention(c) (UnsafeMutableRawPointer) -> Void)?
-    var inactiveCallback: (@convention(c) (UnsafeMutableRawPointer) -> Void)?
+
+    private let eventLock = NSLock()
+    private var eventCallback: (@convention(c) (UnsafeMutableRawPointer, Int32) -> Void)?
 
     init(
         contextPtr: UnsafeMutableRawPointer,
@@ -309,21 +330,46 @@ private class StreamDelegateWrapper: NSObject, SCStreamDelegate {
         contextRelease(contextPtr)
     }
 
+    func setEventCallback(_ callback: @escaping @convention(c) (UnsafeMutableRawPointer, Int32) -> Void) {
+        eventLock.lock()
+        defer { eventLock.unlock() }
+        eventCallback = callback
+    }
+
+    private func emit(_ event: Int32) {
+        eventLock.lock()
+        let callback = eventCallback
+        eventLock.unlock()
+        callback?(contextPtr, event)
+    }
+
     func stream(_: SCStream, didStopWithError error: Error) {
         let errorCode = extractStreamErrorCode(error)
         let errorMsg = error.localizedDescription
         errorMsg.withCString { errorCallback(contextPtr, errorCode, $0) }
     }
 
-    #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        @available(macOS 14.0, *)
+        func outputVideoEffectDidStart(for _: SCStream) {
+            emit(kStreamEventVideoEffectDidStart)
+        }
+
+        @available(macOS 14.0, *)
+        func outputVideoEffectDidStop(for _: SCStream) {
+            emit(kStreamEventVideoEffectDidStop)
+        }
+    #endif
+
+    #if SCREENCAPTUREKIT_HAS_MACOS15_2_SDK
         @available(macOS 15.2, *)
         func streamDidBecomeActive(_: SCStream) {
-            activeCallback?(contextPtr)
+            emit(kStreamEventDidBecomeActive)
         }
 
         @available(macOS 15.2, *)
         func streamDidBecomeInactive(_: SCStream) {
-            inactiveCallback?(contextPtr)
+            emit(kStreamEventDidBecomeInactive)
         }
     #endif
 }
@@ -371,6 +417,10 @@ private class StreamOutputHandler: NSObject, SCStreamOutput {
 private class StreamState {
     let delegate: StreamDelegateWrapper
     let outputHandler: StreamOutputHandler
+    /// Number of live Rust-side `SCStream` handles (the original plus every
+    /// clone) referencing this state. Mutated only while holding
+    /// `streamStatesLock`, so it needs no lock of its own.
+    var refCount: Int = 1
     private var outputTypes: Set<Int32> = []
     private let lock = NSLock()
 
@@ -414,10 +464,26 @@ private func setStreamState(_ state: StreamState, for stream: SCStream) {
     streamStates[ObjectIdentifier(stream)] = state
 }
 
-private func removeStreamState(for stream: SCStream) {
+/// Mirror a Rust-side `SCStream` clone: one more handle now refers to this
+/// state, so it must outlive that handle too.
+private func retainStreamState(for stream: SCStream) {
     streamStatesLock.lock()
     defer { streamStatesLock.unlock() }
-    streamStates.removeValue(forKey: ObjectIdentifier(stream))
+    streamStates[ObjectIdentifier(stream)]?.refCount += 1
+}
+
+/// Drop one Rust-side handle's claim on the state, discarding it only when the
+/// last handle goes away. Dropping it on the first release would detach the
+/// delegate and output handler while surviving clones were still capturing.
+private func releaseStreamState(for stream: SCStream) {
+    streamStatesLock.lock()
+    defer { streamStatesLock.unlock() }
+    let key = ObjectIdentifier(stream)
+    guard let state = streamStates[key] else { return }
+    state.refCount -= 1
+    if state.refCount <= 0 {
+        streamStates.removeValue(forKey: key)
+    }
 }
 
 // MARK: - Stream: SCStream Control
@@ -456,56 +522,49 @@ public func createStream(
     return actualStreamPtr
 }
 
+/// Register the trampoline that forwards `SCStreamDelegate` lifecycle events
+/// (become active/inactive, video effect start/stop) to Rust.
+///
+/// The trampoline is called with the same opaque context pointer that was
+/// passed to `sc_stream_create` and an event code (see the `kStreamEvent*`
+/// constants above). Returns `false` when the stream has no registered state.
+@_cdecl("sc_stream_set_delegate_event_callback")
+public func setStreamDelegateEventCallback(
+    _ stream: OpaquePointer,
+    _ callback: @escaping @convention(c) (UnsafeMutableRawPointer, Int32) -> Void
+) -> Bool {
+    let scStream: SCStream = unretained(stream)
+    guard let state = getStreamState(for: scStream) else { return false }
+    state.delegate.setEventCallback(callback)
+    return true
+}
+
+/// Map the Rust-side output type discriminant onto `SCStreamOutputType`.
+/// 0 = screen, 1 = audio, 2 = microphone. Unsupported values return `nil`
+/// instead of silently registering a different output type.
+private func nativeOutputType(_ type: Int32) -> SCStreamOutputType? {
+    if type == 0 {
+        return .screen
+    }
+    if type == 1 {
+        return .audio
+    }
+    if type == 2 {
+        #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
+            if #available(macOS 15.0, *) {
+                return .microphone
+            }
+        #endif
+    }
+    return nil
+}
+
 @_cdecl("sc_stream_add_stream_output")
 public func addStreamOutput(
     _ stream: OpaquePointer,
     _ type: Int32
 ) -> Bool {
-    let scStream: SCStream = unretained(stream)
-    guard let state = getStreamState(for: scStream) else { return false }
-
-    // If we already registered this output type with SCStream, skip the native call
-    if state.hasOutput(type) {
-        return true
-    }
-
-    let outputType: SCStreamOutputType
-    if type == 0 {
-        outputType = .screen
-    } else if type == 2 {
-        #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
-            if #available(macOS 15.0, *) {
-                outputType = .microphone
-            } else {
-                outputType = .audio
-            }
-        #else
-            outputType = .audio
-        #endif
-    } else {
-        outputType = .audio
-    }
-
-    // INTENTIONAL DEVIATION FROM SCStream.addStreamOutput's `nil`→main-queue
-    // contract: this bridge always uses a dedicated queue when the caller
-    // didn't supply one. Apple's API treats `nil` as "deliver on the main
-    // queue", which only works when the host process runs a Cocoa runloop
-    // (RunLoop.main / app `NSRunLoop`). Pure-Rust hosts typically don't, in
-    // which case main-queue dispatch never fires and samples are silently
-    // dropped. A dedicated user-interactive queue gives correct delivery
-    // out of the box; callers who need main-queue affinity (e.g. AppKit/
-    // UIKit access) should pass their own DispatchQueue via
-    // `sc_stream_add_stream_output_with_queue` or hop to the main queue
-    // from inside their handler.
-    let queue = DispatchQueue(label: "com.screencapturekit.output.\(type)", qos: .userInteractive)
-
-    do {
-        try scStream.addStreamOutput(state.outputHandler, type: outputType, sampleHandlerQueue: queue)
-        state.addOutput(type)
-        return true
-    } catch {
-        return false
-    }
+    addStreamOutputWithQueue(stream, type, nil)
 }
 
 @_cdecl("sc_stream_add_stream_output_with_queue")
@@ -516,33 +575,27 @@ public func addStreamOutputWithQueue(
 ) -> Bool {
     let scStream: SCStream = unretained(stream)
     guard let state = getStreamState(for: scStream) else { return false }
+    guard let outputType = nativeOutputType(type) else { return false }
 
-    // If we already registered this output type with SCStream, skip the native call
+    // One shared `StreamOutputHandler` object serves every Rust handler, so
+    // ScreenCaptureKit only ever needs one native registration per output
+    // type. A repeat call is a no-op that reuses the queue established by the
+    // first registration; the Rust side refuses conflicting explicit queues
+    // before it gets here.
     if state.hasOutput(type) {
         return true
     }
 
-    let outputType: SCStreamOutputType
-    if type == 0 {
-        outputType = .screen
-    } else if type == 2 {
-        #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
-            if #available(macOS 15.0, *) {
-                outputType = .microphone
-            } else {
-                outputType = .audio
-            }
-        #else
-            outputType = .audio
-        #endif
-    } else {
-        outputType = .audio
-    }
-
-    // See comment in `addStreamOutput` above: when no queue is supplied we
-    // intentionally synthesise a dedicated queue rather than passing `nil`
-    // to Apple's API (which would require a Cocoa runloop). Callers who
-    // pass an explicit DispatchQueue keep full control.
+    // INTENTIONAL DEVIATION FROM SCStream.addStreamOutput's `nil`→main-queue
+    // contract: this bridge always uses a dedicated queue when the caller
+    // didn't supply one. Apple's API treats `nil` as "deliver on the main
+    // queue", which only works when the host process runs a Cocoa runloop
+    // (RunLoop.main / app `NSRunLoop`). Pure-Rust hosts typically don't, in
+    // which case main-queue dispatch never fires and samples are silently
+    // dropped. A dedicated user-interactive queue gives correct delivery
+    // out of the box; callers who need main-queue affinity (e.g. AppKit/
+    // UIKit access) should pass their own DispatchQueue or hop to the main
+    // queue from inside their handler.
     let queue: DispatchQueue = if let queuePtr = dispatchQueue {
         unretained(queuePtr)
     } else {
@@ -566,23 +619,7 @@ public func removeStreamOutput(
     let scStream: SCStream = unretained(stream)
     guard let state = getStreamState(for: scStream) else { return false }
     guard state.hasOutput(type) else { return false }
-
-    let outputType: SCStreamOutputType
-    if type == 0 {
-        outputType = .screen
-    } else if type == 2 {
-        #if SCREENCAPTUREKIT_HAS_MACOS15_SDK
-            if #available(macOS 15.0, *) {
-                outputType = .microphone
-            } else {
-                outputType = .audio
-            }
-        #else
-            outputType = .audio
-        #endif
-    } else {
-        outputType = .audio
-    }
+    guard let outputType = nativeOutputType(type) else { return false }
 
     do {
         try scStream.removeStreamOutput(state.outputHandler, type: outputType)
@@ -680,22 +717,24 @@ public func updateStreamConfiguration(
     _ context: UnsafeMutableRawPointer?,
     _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Void
 ) {
-    if #available(macOS 14.0, *) {
-        let scStream: SCStream = unretained(stream)
-        let scConfig: SCStreamConfiguration = unretained(config)
-        Task {
-            do {
-                try await scStream.updateConfiguration(scConfig)
-                callback(context, true, nil)
-            } catch {
-                let bridgeError = SCBridgeError.configurationError(error.localizedDescription)
-                bridgeError.description.withCString { callback(context, false, $0) }
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        if #available(macOS 14.0, *) {
+            let scStream: SCStream = unretained(stream)
+            let scConfig: SCStreamConfiguration = unretained(config)
+            Task {
+                do {
+                    try await scStream.updateConfiguration(scConfig)
+                    callback(context, true, nil)
+                } catch {
+                    let bridgeError = SCBridgeError.configurationError(error.localizedDescription)
+                    bridgeError.description.withCString { callback(context, false, $0) }
+                }
             }
+            return
         }
-    } else {
-        let bridgeError = SCBridgeError.configurationError("updateConfiguration requires macOS 14.0 or later")
-        bridgeError.description.withCString { callback(context, false, $0) }
-    }
+    #endif
+    let bridgeError = SCBridgeError.configurationError("updateConfiguration requires macOS 14.0 or later")
+    bridgeError.description.withCString { callback(context, false, $0) }
 }
 
 // MARK: - Stream Properties
@@ -706,10 +745,7 @@ public func getStreamSynchronizationClock(_ stream: OpaquePointer) -> OpaquePoin
     if #available(macOS 13.0, *) {
         let s: SCStream = unretained(stream)
         if let clock = s.synchronizationClock {
-            // Return a +0 (unretained) reference; the Rust side wraps it via
-            // CMClock::from_raw, which retains. The clock is owned by the live
-            // stream for the duration of this synchronous call.
-            return OpaquePointer(Unmanaged.passUnretained(clock as AnyObject).toOpaque())
+            return OpaquePointer(Unmanaged.passRetained(clock as AnyObject).toOpaque())
         }
     }
     return nil
@@ -718,13 +754,14 @@ public func getStreamSynchronizationClock(_ stream: OpaquePointer) -> OpaquePoin
 @_cdecl("sc_stream_retain")
 public func retainStream(_ stream: OpaquePointer) -> OpaquePointer {
     let s: SCStream = unretained(stream)
+    retainStreamState(for: s)
     return retain(s)
 }
 
 @_cdecl("sc_stream_release")
 public func releaseStream(_ stream: OpaquePointer) {
     let s: SCStream = unretained(stream)
-    removeStreamState(for: s)
+    releaseStreamState(for: s)
     release(stream)
 }
 
@@ -783,7 +820,10 @@ public func releaseStream(_ stream: OpaquePointer) {
         if #available(macOS 15.0, *) {
             do {
                 try removeRecordingOutputImpl(stream, recordingOutput)
-                callback(context, true, nil)
+                let rec: SCRecordingOutput = unretained(recordingOutput)
+                afterRecordingOutputTerminal(rec) {
+                    callback(context, true, nil)
+                }
             } catch {
                 error.localizedDescription.withCString { callback(context, false, $0) }
             }

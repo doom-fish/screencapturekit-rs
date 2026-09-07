@@ -4,7 +4,9 @@
 
 use screencapturekit::cg::CGRect;
 use screencapturekit::cm::CMTime;
-use screencapturekit::stream::configuration::{PixelFormat, SCStreamConfiguration};
+use screencapturekit::stream::configuration::{
+    color_matrix, color_space, PixelFormat, SCStreamConfiguration, MAX_QUEUE_DEPTH, MIN_QUEUE_DEPTH,
+};
 
 // MARK: - Builder Pattern Tests
 
@@ -110,6 +112,7 @@ fn test_builder_with_background_color_rgba() {
 }
 
 #[test]
+#[cfg(feature = "macos_14_0")]
 fn test_builder_with_stream_name() {
     let config = SCStreamConfiguration::new().with_stream_name(Some("TestStream"));
     let name = config.stream_name();
@@ -222,9 +225,122 @@ fn test_configuration_equality() {
     // This tests pointer-based equality
     assert_ne!(config1, config2);
 
-    // A clone shares the same underlying object (ref counted), so pointers are equal
+    // `Clone` deep-copies the underlying mutable SCStreamConfiguration, so a
+    // clone is a distinct object under this type's identity-based equality.
     let config3 = config1.clone();
-    assert_eq!(config1, config3);
+    assert_ne!(config1, config3);
+}
+
+/// `Clone` must hand back an independent `SCStreamConfiguration`, not another
+/// handle on the same mutable Objective-C object: aliasing clones would let
+/// one handle silently reconfigure the others (and race, given `Send`/`Sync`).
+#[test]
+fn test_configuration_clone_is_independent() {
+    let original = SCStreamConfiguration::new()
+        .with_width(1920)
+        .with_height(1080)
+        .with_shows_cursor(true)
+        .with_queue_depth(5);
+
+    let mut copy = original.clone();
+    assert_eq!(copy.width(), 1920);
+    assert_eq!(copy.height(), 1080);
+    assert!(copy.shows_cursor());
+    assert_eq!(copy.queue_depth(), 5);
+
+    copy.set_width(640);
+    copy.set_height(480);
+    copy.set_shows_cursor(false);
+    copy.set_queue_depth(8);
+
+    assert_eq!(original.width(), 1920, "clone must not mutate the original");
+    assert_eq!(original.height(), 1080);
+    assert!(original.shows_cursor());
+    assert_eq!(original.queue_depth(), 5);
+}
+
+/// Side-channel state (background colour / colour space / colour matrix lives
+/// in the Swift bridge's per-configuration table, not on the native object)
+/// has to be carried across the deep copy too.
+#[test]
+fn test_configuration_clone_copies_side_channel_state() {
+    let original = SCStreamConfiguration::new()
+        .with_background_color_rgba(0.25, 0.5, 0.75, 1.0)
+        .with_color_space_name(color_space::SRGB)
+        .with_color_matrix(color_matrix::ITU_R_709_2);
+
+    let copy = original.clone();
+    assert_ne!(copy, original, "clone must be an independent object");
+    assert_eq!(copy.background_color(), Some((0.25, 0.5, 0.75, 1.0)));
+    assert_eq!(copy.color_space_name().as_deref(), Some(color_space::SRGB));
+    assert_eq!(
+        copy.color_matrix().as_deref(),
+        Some(color_matrix::ITU_R_709_2)
+    );
+}
+
+/// `queueDepth` outside `ScreenCaptureKit`'s documented 3..=8 range is clamped
+/// rather than forwarded, because `SCStream` rejects it at `startCapture`
+/// time with an opaque `SCStreamErrorFailedToStart`.
+#[test]
+fn test_queue_depth_is_clamped_to_supported_range() {
+    let mut config = SCStreamConfiguration::new();
+
+    config.set_queue_depth(0);
+    assert_eq!(config.queue_depth(), MIN_QUEUE_DEPTH);
+
+    config.set_queue_depth(1);
+    assert_eq!(config.queue_depth(), MIN_QUEUE_DEPTH);
+
+    config.set_queue_depth(u32::MAX);
+    assert_eq!(config.queue_depth(), MAX_QUEUE_DEPTH);
+
+    for depth in MIN_QUEUE_DEPTH..=MAX_QUEUE_DEPTH {
+        config.set_queue_depth(depth);
+        assert_eq!(config.queue_depth(), depth);
+    }
+}
+
+/// `set_fps(0)` means "uncapped". The naive `1/0` `CMTime` it used to build was
+/// flagged valid but had a zero timescale, so `CMTimeGetSeconds` divides by
+/// zero; `kCMTimeZero` (`0/1`) is the value `ScreenCaptureKit` documents.
+#[test]
+fn test_set_fps_zero_is_cm_time_zero() {
+    let config = SCStreamConfiguration::new().with_fps(0);
+
+    let interval = config.minimum_frame_interval();
+    assert_eq!(interval.value, 0);
+    assert_eq!(interval.timescale, 1);
+    assert!(interval.is_valid());
+    assert_eq!(config.fps(), 0);
+}
+
+/// Interior NUL bytes cannot cross the C boundary; the fallible setters must
+/// say so instead of silently leaving the previous value in place.
+#[test]
+fn test_interior_nul_strings_are_rejected() {
+    let mut config = SCStreamConfiguration::new().with_color_matrix(color_matrix::ITU_R_601_4);
+
+    assert!(config.try_set_color_matrix("ITU_R\0_709_2").is_err());
+    assert!(config
+        .try_set_color_space_name("kCGColorSpace\0SRGB")
+        .is_err());
+    #[cfg(feature = "macos_14_0")]
+    assert!(config.try_set_stream_name(Some("bad\0name")).is_err());
+
+    assert_eq!(
+        config.color_matrix().as_deref(),
+        Some(color_matrix::ITU_R_601_4),
+        "a rejected value must not disturb the previous one"
+    );
+
+    assert!(config
+        .try_set_color_matrix(color_matrix::SMPTE_240M_1995)
+        .is_ok());
+    assert_eq!(
+        config.color_matrix().as_deref(),
+        Some(color_matrix::SMPTE_240M_1995)
+    );
 }
 
 #[test]

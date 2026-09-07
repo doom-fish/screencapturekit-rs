@@ -12,6 +12,67 @@ type BackgroundColor = (f32, f32, f32, f32);
 
 use super::{internal::SCStreamConfiguration, pixel_format::PixelFormat};
 
+/// `YCbCr` matrices accepted by `SCStreamConfiguration.colorMatrix`.
+///
+/// The property takes a `CFStringRef` and `ScreenCaptureKit` only honours the
+/// `kCGDisplayStreamYCbCrMatrix_*` values reproduced here; anything else is
+/// ignored by the system with no diagnostic. Using these constants instead of
+/// a hand-written literal is the difference between "the matrix was applied"
+/// and "the matrix was silently dropped".
+///
+/// The matrix only affects `YCbCr` pixel formats (`420v` / `420f` /
+/// [`PixelFormat::YCbCr_420v`] and friends); it is inert for BGRA capture.
+///
+/// # Examples
+///
+/// ```
+/// use screencapturekit::stream::configuration::{color_matrix, SCStreamConfiguration};
+///
+/// let config = SCStreamConfiguration::new().with_color_matrix(color_matrix::ITU_R_709_2);
+/// ```
+pub mod color_matrix {
+    /// `kCGDisplayStreamYCbCrMatrix_ITU_R_709_2` — HD (Rec. 709).
+    pub const ITU_R_709_2: &str = "ITU_R_709_2";
+    /// `kCGDisplayStreamYCbCrMatrix_ITU_R_601_4` — SD (Rec. 601).
+    pub const ITU_R_601_4: &str = "ITU_R_601_4";
+    /// `kCGDisplayStreamYCbCrMatrix_SMPTE_240M_1995` — SMPTE 240M.
+    pub const SMPTE_240M_1995: &str = "SMPTE_240M_1995";
+}
+
+/// Color-space names accepted by `SCStreamConfiguration.colorSpaceName`.
+///
+/// These mirror the `kCGColorSpace*` constants; `SRGB` is the system default
+/// for SDR capture and `DISPLAY_P3` / `EXTENDED_LINEAR_DISPLAY_P3` are the
+/// usual choices for wide-gamut and HDR pipelines.
+pub mod color_space {
+    /// `kCGColorSpaceSRGB`
+    pub const SRGB: &str = "kCGColorSpaceSRGB";
+    /// `kCGColorSpaceDisplayP3`
+    pub const DISPLAY_P3: &str = "kCGColorSpaceDisplayP3";
+    /// `kCGColorSpaceExtendedLinearDisplayP3`
+    pub const EXTENDED_LINEAR_DISPLAY_P3: &str = "kCGColorSpaceExtendedLinearDisplayP3";
+    /// `kCGColorSpaceExtendedLinearSRGB`
+    pub const EXTENDED_LINEAR_SRGB: &str = "kCGColorSpaceExtendedLinearSRGB";
+    /// `kCGColorSpaceITUR_2100_PQ`
+    pub const ITUR_2100_PQ: &str = "kCGColorSpaceITUR_2100_PQ";
+}
+
+/// A string that could not be forwarded to `SCStreamConfiguration`.
+///
+/// The native properties take C strings, so a value containing an interior NUL
+/// byte cannot be represented without truncating it into a different — and
+/// silently wrong — identifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InteriorNulError;
+
+impl std::fmt::Display for InteriorNulError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("value contains an interior NUL byte and cannot cross the C boundary")
+    }
+}
+
+impl std::error::Error for InteriorNulError {}
+
 impl SCStreamConfiguration {
     /// Set the pixel format for captured frames
     ///
@@ -112,21 +173,34 @@ impl SCStreamConfiguration {
 
     /// Set the color space name for captured content.
     ///
-    /// Available on macOS 13.0+
+    /// Available on macOS 13.0+. Use the [`color_space`] constants for the
+    /// values `ScreenCaptureKit` recognises.
     ///
     /// If `name` contains an interior NUL byte it cannot be converted to a C
     /// string and the call is silently ignored (the configuration is left
-    /// unchanged). Valid color-space names never contain NUL bytes.
+    /// unchanged). Use [`try_set_color_space_name`](Self::try_set_color_space_name)
+    /// if you need to observe that rejection.
     pub fn set_color_space_name(&mut self, name: &str) -> &mut Self {
-        if let Ok(c_name) = std::ffi::CString::new(name) {
-            unsafe {
-                crate::ffi::sc_stream_configuration_set_color_space_name(
-                    self.as_ptr(),
-                    c_name.as_ptr(),
-                );
-            }
-        }
+        let _ = self.try_set_color_space_name(name);
         self
+    }
+
+    /// Set the color space name, reporting values that cannot cross the C
+    /// boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
+    /// `name` contains an interior NUL byte.
+    pub fn try_set_color_space_name(&mut self, name: &str) -> Result<&mut Self, InteriorNulError> {
+        let c_name = std::ffi::CString::new(name).map_err(|_| InteriorNulError)?;
+        unsafe {
+            crate::ffi::sc_stream_configuration_set_color_space_name(
+                self.as_ptr(),
+                c_name.as_ptr(),
+            );
+        }
+        Ok(self)
     }
 
     /// Set the color space name (builder pattern).
@@ -145,23 +219,36 @@ impl SCStreamConfiguration {
         }
     }
 
-    /// Set the color matrix for captured content
+    /// Set the `YCbCr` color matrix for captured content.
     ///
-    /// Available on macOS 13.0+. The matrix should be a 3x3 array in row-major order.
+    /// Available on macOS 13.0+. `matrix` must be one of the [`color_matrix`]
+    /// constants — despite the free-form `&str` signature the property is a
+    /// closed set of `kCGDisplayStreamYCbCrMatrix_*` identifiers, and any
+    /// other string is ignored by the system without an error. The setting
+    /// only affects `YCbCr` pixel formats and is inert for BGRA capture.
     ///
     /// If `matrix` contains an interior NUL byte it cannot be converted to a C
     /// string and the call is silently ignored (the configuration is left
-    /// unchanged). Valid matrix-name strings never contain NUL bytes.
+    /// unchanged). Use [`try_set_color_matrix`](Self::try_set_color_matrix) if
+    /// you need to observe that rejection.
     pub fn set_color_matrix(&mut self, matrix: &str) -> &mut Self {
-        if let Ok(c_matrix) = std::ffi::CString::new(matrix) {
-            unsafe {
-                crate::ffi::sc_stream_configuration_set_color_matrix(
-                    self.as_ptr(),
-                    c_matrix.as_ptr(),
-                );
-            }
-        }
+        let _ = self.try_set_color_matrix(matrix);
         self
+    }
+
+    /// Set the color matrix, reporting values that cannot cross the C
+    /// boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
+    /// `matrix` contains an interior NUL byte.
+    pub fn try_set_color_matrix(&mut self, matrix: &str) -> Result<&mut Self, InteriorNulError> {
+        let c_matrix = std::ffi::CString::new(matrix).map_err(|_| InteriorNulError)?;
+        unsafe {
+            crate::ffi::sc_stream_configuration_set_color_matrix(self.as_ptr(), c_matrix.as_ptr());
+        }
+        Ok(self)
     }
 
     /// Get the color matrix for captured content.

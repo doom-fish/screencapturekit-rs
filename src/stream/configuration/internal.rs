@@ -19,6 +19,11 @@ use std::fmt;
 pub struct SCStreamConfiguration(pub(crate) *const c_void);
 
 impl PartialEq for SCStreamConfiguration {
+    /// Identity comparison: two `SCStreamConfiguration`s are equal only when
+    /// they wrap the same native object.
+    ///
+    /// Because [`Clone`] deep-copies (see below), `config != config.clone()`
+    /// even though the two carry identical settings.
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
@@ -45,14 +50,22 @@ impl SCStreamConfiguration {
     }
 }
 
-// `Clone::clone` is not a `memcpy`: it crosses the Swift FFI boundary and calls
-// `sc_stream_configuration_retain` (an Objective-C `retain`). For most callers
-// the cost is irrelevant, but if you're cloning an `SCStreamConfiguration` per
-// frame on the hot path, prefer sharing an `Arc<SCStreamConfiguration>` (or
-// `&SCStreamConfiguration`) and cloning *that* instead.
+// `Clone::clone` is not a `memcpy`: it crosses the Swift FFI boundary and
+// deep-copies the underlying `SCStreamConfiguration`. That is deliberate.
+// `SCStreamConfiguration` is a *mutable* Objective-C class, so a retain-based
+// clone would hand out aliases: `config.clone().set_width(..)` would silently
+// resize the original, and two threads configuring "their own" clone would
+// race on the same non-atomic properties — which the `Send`/`Sync` impls below
+// promise cannot happen. If you're cloning per frame on a hot path, share an
+// `Arc<SCStreamConfiguration>` (or a `&SCStreamConfiguration`) instead.
+impl Clone for SCStreamConfiguration {
+    fn clone(&self) -> Self {
+        Self(unsafe { crate::ffi::sc_stream_configuration_copy(self.0) })
+    }
+}
+
 crate::utils::retained::sc_retained!(
     SCStreamConfiguration,
-    retain = crate::ffi::sc_stream_configuration_retain,
     release = crate::ffi::sc_stream_configuration_release,
 );
 
