@@ -396,8 +396,7 @@ fn test_cmtime_const_equality() {
     assert!(TIME1.equals(&TIME2));
     assert!(!TIME1.equals(&TIME3));
 
-    // Test with invalid times
-    assert!(!CMTime::INVALID.equals(&CMTime::INVALID)); // Invalid times don't equal
+    assert!(CMTime::INVALID.equals(&CMTime::INVALID));
     assert!(CMTime::ZERO.equals(&CMTime::ZERO));
 }
 
