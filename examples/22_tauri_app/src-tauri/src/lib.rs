@@ -52,8 +52,8 @@ fn list_displays() -> Result<Vec<DisplayInfo>, String> {
             id: d.display_id(),
             width: d.width() as usize,
             height: d.height() as usize,
-            frame_x: d.frame().x,
-            frame_y: d.frame().y,
+            frame_x: d.frame().origin.x,
+            frame_y: d.frame().origin.y,
         })
         .collect();
 

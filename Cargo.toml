@@ -1,6 +1,6 @@
 [package]
 name = "screencapturekit"
-version = "10.0.1"
+version = "10.0.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/screencapturekit-rs"
@@ -159,6 +159,8 @@ required-features = ["macos_15_0"]
 
 # Note: 22_tauri_app is a separate Tauri project, run with:
 #   cd examples/22_tauri_app && npm install && npm run tauri dev
+# Cargo excludes nested packages from this crate's published archive; clone the
+# repository to build the Tauri example.
 
 [[example]]
 name = "23_client_server_server"

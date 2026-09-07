@@ -33,6 +33,7 @@ DerivedData/
 # Example outputs and test artifacts
 *.jpg
 *.png
+!examples/22_tauri_app/src-tauri/icons/icon.png
 *.raw
 *.mp4
 *.mov

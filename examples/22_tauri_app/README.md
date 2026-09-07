@@ -2,6 +2,9 @@
 
 A complete Tauri 2.0 application demonstrating screencapturekit-rs integration for macOS screen capture with WebGL rendering.
 
+This is a nested Cargo package, so Cargo does not include it in the published
+`screencapturekit` crate archive. Build it from a repository checkout.
+
 ## Features
 
 - 📸 **Screenshot capture** - Take screenshots of displays and windows
@@ -18,6 +21,7 @@ A complete Tauri 2.0 application demonstrating screencapturekit-rs integration f
 │   │   └── main.rs         # Entry point
 │   ├── Cargo.toml          # Rust dependencies
 │   ├── tauri.conf.json     # Tauri configuration
+│   ├── icons/icon.png      # Application icon used by Tauri code generation
 │   └── Info.plist          # macOS permissions
 ├── src/
 │   ├── index.html          # Main UI
