@@ -8,13 +8,12 @@
 //! `ScreenCaptureKit` attachments.
 //!
 //! Bring [`CMSampleBufferExt`] into scope for the
-//! `image_buffer()`/`audio_buffer_list()`/`make_data_ready()` accessors
-//! that are pending an apple-cf v0.2 API addition.
+//! `pixel_buffer()`/`audio_buffer_list()`/`make_data_ready()` convenience
+//! accessors.
 
 use super::ffi;
 use super::{
-    AudioBuffer, AudioBufferList, AudioBufferListRaw, CMBlockBuffer, CMSampleTimingInfo, CMTime,
-    SCFrameStatus,
+    AudioBuffer, AudioBufferList, CMBlockBuffer, CMSampleTimingInfo, CMTime, SCFrameStatus,
 };
 use crate::cv::CVPixelBuffer;
 
@@ -40,6 +39,7 @@ impl FrameInfoFields {
     const BOUNDING_RECT: u32 = 1 << 5;
     const SCREEN_RECT: u32 = 1 << 6;
     const PRESENTER_OVERLAY_RECT: u32 = 1 << 7;
+    const DIRTY_RECTS: u32 = 1 << 8;
 }
 
 /// Snapshot of every `SCStreamFrameInfo` attachment on a sample buffer.
@@ -47,7 +47,10 @@ impl FrameInfoFields {
 /// Returned by [`CMSampleBufferSCExt::frame_info`]. Each field is `Some` when
 /// the underlying attachment was present (depends on macOS version, output
 /// type, and stream configuration); `None` indicates the attachment was
-/// missing.
+/// missing. Every key `ScreenCaptureKit` documents on `SCStreamFrameInfo` has
+/// a field here, so a `FrameInfo` is a faithful, complete representation of
+/// the attachment dictionary — there is no attachment you still have to reach
+/// for a single-key accessor to read.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct FrameInfo {
@@ -71,6 +74,10 @@ pub struct FrameInfo {
     /// `SCStreamFrameInfo.presenterOverlayContentRect` — Presenter Overlay
     /// bounding rect (macOS 14.2+).
     pub presenter_overlay_content_rect: Option<crate::cg::CGRect>,
+    /// `SCStreamFrameInfo.dirtyRects` — regions that changed since the
+    /// previous frame. `Some(vec)` is always non-empty; an attachment holding
+    /// zero usable rects reads back as `None`.
+    pub dirty_rects: Option<Vec<crate::cg::CGRect>>,
 }
 
 // ------------------------------------------------------------------
@@ -232,22 +239,7 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             if !ffi::cm_sample_buffer_get_dirty_rects(self.as_ptr(), &mut rects_ptr, &mut count) {
                 return None;
             }
-            if rects_ptr.is_null() || count == 0 {
-                return None;
-            }
-            let rects_typed = rects_ptr.cast::<f64>();
-            let mut rects = Vec::with_capacity(count);
-            for i in 0..count {
-                let base = rects_typed.add(i * 4);
-                rects.push(crate::cg::CGRect::new(
-                    *base,
-                    *base.add(1),
-                    *base.add(2),
-                    *base.add(3),
-                ));
-            }
-            ffi::cm_sample_buffer_free_dirty_rects(rects_ptr);
-            Some(rects)
+            take_dirty_rects(rects_ptr, count)
         }
     }
 
@@ -262,6 +254,8 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             let mut bounding_rect = [0.0_f64; 4];
             let mut screen_rect = [0.0_f64; 4];
             let mut presenter_overlay_rect = [0.0_f64; 4];
+            let mut dirty_rects_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+            let mut dirty_rects_count: usize = 0;
             if !ffi::cm_sample_buffer_get_frame_info(
                 self.as_ptr(),
                 &mut fields,
@@ -273,10 +267,22 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
                 bounding_rect.as_mut_ptr(),
                 screen_rect.as_mut_ptr(),
                 presenter_overlay_rect.as_mut_ptr(),
+                &mut dirty_rects_ptr,
+                &mut dirty_rects_count,
             ) {
+                // The bridge only allocates the dirty-rect array when it sets
+                // the DIRTY_RECTS bit, but free defensively so an unexpected
+                // false return can never leak it.
+                drop(take_dirty_rects(dirty_rects_ptr, dirty_rects_count));
                 return None;
             }
             let to_rect = |a: [f64; 4]| crate::cg::CGRect::new(a[0], a[1], a[2], a[3]);
+            let dirty_rects = if (fields & FrameInfoFields::DIRTY_RECTS) != 0 {
+                take_dirty_rects(dirty_rects_ptr, dirty_rects_count)
+            } else {
+                drop(take_dirty_rects(dirty_rects_ptr, dirty_rects_count));
+                None
+            };
             Some(FrameInfo {
                 frame_status: ((fields & FrameInfoFields::STATUS) != 0)
                     .then(|| SCFrameStatus::from_raw(status))
@@ -297,18 +303,49 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
                     & FrameInfoFields::PRESENTER_OVERLAY_RECT)
                     != 0)
                     .then(|| to_rect(presenter_overlay_rect)),
+                dirty_rects,
             })
         }
     }
 }
 
+/// Copy a bridge-allocated `[x, y, w, h] * count` array into owned
+/// [`CGRect`](crate::cg::CGRect)s and hand the allocation back to the bridge.
+///
+/// # Safety
+///
+/// `rects_ptr` must be null or a bridge-allocated array of `count * 4` `f64`s
+/// that has not been freed yet.
+unsafe fn take_dirty_rects(
+    rects_ptr: *mut std::ffi::c_void,
+    count: usize,
+) -> Option<Vec<crate::cg::CGRect>> {
+    if rects_ptr.is_null() {
+        return None;
+    }
+    let rects_typed = rects_ptr.cast::<f64>();
+    let mut rects = Vec::with_capacity(count);
+    for i in 0..count {
+        unsafe {
+            let base = rects_typed.add(i * 4);
+            rects.push(crate::cg::CGRect::new(
+                *base,
+                *base.add(1),
+                *base.add(2),
+                *base.add(3),
+            ));
+        }
+    }
+    unsafe { ffi::cm_sample_buffer_free_dirty_rects(rects_ptr) };
+    (!rects.is_empty()).then_some(rects)
+}
+
 // ------------------------------------------------------------------
-// CMSampleBufferExt — generic accessors not yet in apple-cf.
+// CMSampleBufferExt — crate-specific convenience accessors.
 // ------------------------------------------------------------------
 
-/// Extension trait carrying generic `CMSampleBuffer` accessors that aren't
-/// available on [`apple_cf::cm::CMSampleBuffer`] yet (planned for an
-/// `apple-cf` v0.2 release).
+/// Extension trait carrying `CMSampleBuffer` convenience accessors used by
+/// this crate.
 pub trait CMSampleBufferExt {
     /// Construct a sample buffer wrapping a `CVPixelBuffer`.
     ///
@@ -324,8 +361,18 @@ pub trait CMSampleBufferExt {
     where
         Self: Sized;
 
-    /// Borrow the attached `CVPixelBuffer`, if any.
-    fn image_buffer(&self) -> Option<CVPixelBuffer>;
+    /// Return an owned `CVPixelBuffer` for the attached image buffer, if any.
+    fn pixel_buffer(&self) -> Option<CVPixelBuffer>;
+
+    /// Return an owned `CVPixelBuffer` for the attached image buffer, if any.
+    ///
+    /// Use [`Self::pixel_buffer`] for method-call syntax. apple-cf now has an
+    /// inherent `CMSampleBuffer::image_buffer` returning `CVImageBuffer`, so
+    /// this compatibility method is only reachable with UFCS.
+    #[deprecated(note = "use CMSampleBufferExt::pixel_buffer")]
+    fn image_buffer(&self) -> Option<CVPixelBuffer> {
+        self.pixel_buffer()
+    }
 
     /// Read the audio sample buffer's underlying `AudioBufferList`, if any.
     fn audio_buffer_list(&self) -> Option<AudioBufferList>;
@@ -402,26 +449,27 @@ impl CMSampleBufferExt for CMSampleBuffer {
                 image_buffer.as_ptr(),
                 presentation_time.value,
                 presentation_time.timescale,
+                presentation_time.flags,
+                presentation_time.epoch,
                 duration.value,
                 duration.timescale,
+                duration.flags,
+                duration.epoch,
                 &mut sample_buffer_ptr,
             );
             if status == 0 && !sample_buffer_ptr.is_null() {
-                Self::from_raw(sample_buffer_ptr).ok_or(status)
+                Ok(Self::from_ptr(sample_buffer_ptr))
             } else {
                 Err(status)
             }
         }
     }
 
-    fn image_buffer(&self) -> Option<CVPixelBuffer> {
-        unsafe {
-            // SAFETY: cm_sample_buffer_get_image_buffer returns a +1
-            // (passRetained) CVImageBuffer; CVPixelBuffer::from_raw adopts that
-            // +1 reference, so ownership is balanced (released on drop).
-            let ptr = ffi::cm_sample_buffer_get_image_buffer(self.as_ptr());
-            CVPixelBuffer::from_raw(ptr)
-        }
+    fn pixel_buffer(&self) -> Option<CVPixelBuffer> {
+        let ptr = self.image_buffer_ptr_borrowed();
+        // SAFETY: the pointer is borrowed from `self` and remains live for the
+        // duration of the retain performed by `from_raw_borrowed`.
+        unsafe { CVPixelBuffer::from_raw_borrowed(ptr) }
     }
 
     fn audio_buffer_list(&self) -> Option<AudioBufferList> {
@@ -439,18 +487,12 @@ impl CMSampleBufferExt for CMSampleBuffer {
                 &mut block_buffer_ptr,
             );
 
-            if num_buffers == 0 {
-                None
-            } else {
-                Some(AudioBufferList {
-                    inner: AudioBufferListRaw {
-                        num_buffers,
-                        buffers_ptr: buffers_ptr.cast::<AudioBuffer>(),
-                        buffers_len,
-                    },
-                    block_buffer_ptr,
-                })
-            }
+            AudioBufferList::from_bridge(
+                num_buffers,
+                buffers_ptr.cast::<AudioBuffer>(),
+                buffers_len,
+                block_buffer_ptr,
+            )
         }
     }
 
@@ -610,11 +652,11 @@ impl CMSampleBufferDataBufferExt for CMSampleBuffer {
                 return None;
             }
             // `CMSampleBufferGetDataBuffer` returns a +0 (unretained) reference.
-            // `CMBlockBuffer::from_raw` adopts a +1 reference and releases on
+            // `CMBlockBuffer::from_ptr` adopts a +1 reference and releases on
             // drop, so we must retain first to keep the refcount balanced.
             // (Mirrors apple-cf's own `CMSampleBuffer::data_buffer`.)
             let retained = ffi::cm_block_buffer_retain(ptr);
-            CMBlockBuffer::from_raw(retained)
+            (!retained.is_null()).then(|| CMBlockBuffer::from_ptr(retained))
         }
     }
 }

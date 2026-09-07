@@ -146,8 +146,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match SCScreenshotManager::capture_screenshot(&filter, &file_config) {
             Ok(output) => {
-                if let Some(url) = output.file_url() {
-                    println!("   ✅ Saved directly to: {url}");
+                if let Some(saved) = output.file_path() {
+                    println!("   ✅ Saved directly to: {}", saved.display());
                 } else {
                     println!("   ✅ Screenshot captured (file save may be async)");
                 }

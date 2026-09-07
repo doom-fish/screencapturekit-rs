@@ -4,7 +4,7 @@ use screencapturekit::cm::CMBlockBuffer;
 
 #[test]
 fn test_block_buffer_from_raw_null() {
-    let buffer = CMBlockBuffer::from_raw(std::ptr::null_mut());
+    let buffer = unsafe { CMBlockBuffer::from_raw(std::ptr::null_mut()) };
     assert!(buffer.is_none());
 }
 

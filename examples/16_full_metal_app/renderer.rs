@@ -8,8 +8,9 @@ use crate::vertex::Vertex;
 pub use screencapturekit::metal::{
     MTLBlendFactor, MTLBlendOperation, MTLLoadAction, MTLPixelFormat, MTLPrimitiveType,
     MTLStoreAction, MTLVertexFormat, MTLVertexStepFunction, MetalBuffer, MetalCapturedTextures,
-    MetalCommandQueue, MetalDevice, MetalLayer, MetalLibrary, MetalRenderPassDescriptor,
-    MetalRenderPipelineDescriptor, MetalRenderPipelineState, MetalVertexDescriptor, SHADER_SOURCE,
+    MetalCommandQueue, MetalDevice, MetalError, MetalLayer, MetalLibrary,
+    MetalRenderPassDescriptor, MetalRenderPipelineDescriptor, MetalRenderPipelineState,
+    MetalVertexDescriptor, SHADER_SOURCE,
 };
 
 /// Error type for Metal rendering operations
@@ -41,11 +42,14 @@ pub type CaptureTextures = MetalCapturedTextures;
 pub fn create_vertex_descriptor() -> MetalVertexDescriptor {
     let desc = MetalVertexDescriptor::new();
     // Position: float2 at offset 0
-    desc.set_attribute(0, MTLVertexFormat::Float2, 0, 0);
+    desc.set_attribute(0, MTLVertexFormat::Float2, 0, 0)
+        .expect("attribute 0 is valid");
     // Color: float4 at offset 8 (after float2)
-    desc.set_attribute(1, MTLVertexFormat::Float4, size_of::<[f32; 2]>(), 0);
+    desc.set_attribute(1, MTLVertexFormat::Float4, size_of::<[f32; 2]>(), 0)
+        .expect("attribute 1 is valid");
     // Layout: stride = sizeof(Vertex), per-vertex step
-    desc.set_layout(0, size_of::<Vertex>(), MTLVertexStepFunction::PerVertex);
+    desc.set_layout(0, size_of::<Vertex>(), MTLVertexStepFunction::PerVertex)
+        .expect("buffer slot 0 is valid");
     desc
 }
 
@@ -71,16 +75,20 @@ pub fn create_pipeline(
     // Set vertex descriptor for vertex_colored shader
     let vertex_desc = create_vertex_descriptor();
     desc.set_vertex_descriptor(&vertex_desc);
-    desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
-    desc.set_blending_enabled(0, true);
-    desc.set_blend_operations(0, MTLBlendOperation::Add, MTLBlendOperation::Add);
+    desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+        .expect("color attachment 0 is valid");
+    desc.set_blending_enabled(0, true)
+        .expect("color attachment 0 is valid");
+    desc.set_blend_operations(0, MTLBlendOperation::Add, MTLBlendOperation::Add)
+        .expect("color attachment 0 is valid");
     desc.set_blend_factors(
         0,
         MTLBlendFactor::SourceAlpha,
         MTLBlendFactor::OneMinusSourceAlpha,
         MTLBlendFactor::SourceAlpha,
         MTLBlendFactor::OneMinusSourceAlpha,
-    );
+    )
+    .expect("color attachment 0 is valid");
     device
         .create_render_pipeline_state(&desc)
         .ok_or(RenderError::PipelineCreationFailed)

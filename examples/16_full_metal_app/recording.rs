@@ -42,15 +42,15 @@ impl RecordingConfig {
         config: SCRecordingOutputConfiguration,
     ) -> SCRecordingOutputConfiguration {
         config
-            .with_video_codec(self.codec)
-            .with_output_file_type(self.file_type)
+            .with_video_codec(self.codec.clone())
+            .with_output_file_type(self.file_type.clone())
     }
 
     /// Get file extension based on file type
-    pub const fn file_extension(&self) -> &'static str {
-        match self.file_type {
-            SCRecordingOutputFileType::MP4 => "mp4",
-            SCRecordingOutputFileType::MOV => "mov",
+    pub fn file_extension(&self) -> &'static str {
+        match self.file_type.extension() {
+            Some(extension) => extension,
+            None => "mov",
         }
     }
 }
@@ -211,14 +211,8 @@ impl RecordingConfigMenu {
 
     pub fn option_value(config: &RecordingConfig, idx: usize) -> String {
         match idx {
-            0 => match config.codec {
-                SCRecordingOutputCodec::H264 => "H.264".to_string(),
-                SCRecordingOutputCodec::HEVC => "HEVC".to_string(),
-            },
-            1 => match config.file_type {
-                SCRecordingOutputFileType::MP4 => "MP4".to_string(),
-                SCRecordingOutputFileType::MOV => "MOV".to_string(),
-            },
+            0 => config.codec.to_string(),
+            1 => config.file_type.to_string(),
             _ => "?".to_string(),
         }
     }
@@ -226,17 +220,17 @@ impl RecordingConfigMenu {
     pub fn toggle_or_adjust(config: &mut RecordingConfig, idx: usize, _increase: bool) {
         match idx {
             0 => {
-                // Toggle codec
-                config.codec = match config.codec {
-                    SCRecordingOutputCodec::H264 => SCRecordingOutputCodec::HEVC,
-                    SCRecordingOutputCodec::HEVC => SCRecordingOutputCodec::H264,
+                config.codec = if config.codec == SCRecordingOutputCodec::H264 {
+                    SCRecordingOutputCodec::HEVC
+                } else {
+                    SCRecordingOutputCodec::H264
                 };
             }
             1 => {
-                // Toggle file type
-                config.file_type = match config.file_type {
-                    SCRecordingOutputFileType::MP4 => SCRecordingOutputFileType::MOV,
-                    SCRecordingOutputFileType::MOV => SCRecordingOutputFileType::MP4,
+                config.file_type = if config.file_type == SCRecordingOutputFileType::MP4 {
+                    SCRecordingOutputFileType::MOV
+                } else {
+                    SCRecordingOutputFileType::MP4
                 };
             }
             _ => {}

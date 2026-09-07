@@ -430,7 +430,7 @@ fn bench_pixel_buffer_access(c: &mut Criterion) {
         return;
     };
 
-    let Some(pixel_buffer) = sample.image_buffer() else {
+    let Some(pixel_buffer) = sample.pixel_buffer() else {
         eprintln!("Warning: No pixel buffer in captured frame");
         return;
     };
@@ -449,7 +449,8 @@ fn bench_pixel_buffer_access(c: &mut Criterion) {
     group.bench_function("pixel_buffer/read_first_pixel", |b| {
         b.iter(|| {
             if let Ok(guard) = pixel_buffer.lock(CVPixelBufferLockFlags::READ_ONLY) {
-                let slice = guard.as_slice();
+                let slice =
+                    unsafe { guard.as_slice() }.expect("captured pixel buffer must expose bytes");
                 if slice.len() >= 4 {
                     let pixel: [u8; 4] = [slice[0], slice[1], slice[2], slice[3]];
                     black_box(pixel);
@@ -462,7 +463,8 @@ fn bench_pixel_buffer_access(c: &mut Criterion) {
     group.bench_function("pixel_buffer/read_all_pixels", |b| {
         b.iter(|| {
             if let Ok(guard) = pixel_buffer.lock(CVPixelBufferLockFlags::READ_ONLY) {
-                let slice = guard.as_slice();
+                let slice =
+                    unsafe { guard.as_slice() }.expect("captured pixel buffer must expose bytes");
                 // Simulate processing by computing a checksum
                 let sum: u64 = slice.iter().step_by(1024).map(|&b| u64::from(b)).sum();
                 black_box(sum);

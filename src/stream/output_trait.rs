@@ -70,11 +70,10 @@ use super::output_type::SCStreamOutputType;
 /// Handlers must be `Send + Sync`. `Send` is required because a handler
 /// registered on one thread is invoked on a `ScreenCaptureKit` dispatch
 /// queue, which runs on different OS threads over time. `Sync` is required
-/// because [`SCStream`] internally uses an `RwLock` to allow callbacks for
-/// independent output types (Screen / Audio / Microphone) to dispatch
-/// concurrently — without `Sync`, two threads could not concurrently
-/// invoke `&self` methods through the shared lock guard, even though
-/// `ScreenCaptureKit` serialises callbacks per output type in practice.
+/// because [`SCStream`](crate::stream::SCStream) internally uses an `RwLock`
+/// to hold the handler registry — without `Sync`, a handler could not be
+/// shared across the dispatch queues that `ScreenCaptureKit` uses for the
+/// independent output types (Screen / Audio / Microphone).
 ///
 /// In practice, handlers that share state via `Arc<Mutex<…>>`, `Arc<RwLock<…>>`,
 /// or atomic primitives satisfy `Sync` automatically. Handlers that capture

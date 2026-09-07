@@ -6,7 +6,7 @@
 //!
 //! Safe, idiomatic Rust bindings for Apple's [ScreenCaptureKit] framework.
 //!
-//! Capture screen content, windows, and applications with high performance on macOS 12.3+.
+//! Capture screen content, windows, and applications with high performance on macOS 13.0+.
 //!
 //! [ScreenCaptureKit]: https://developer.apple.com/documentation/screencapturekit
 //!
@@ -192,15 +192,15 @@
 //! use std::io::{Read, Seek, SeekFrom};
 //!
 //! # fn handle(sample: CMSampleBuffer) {
-//! if let Some(buffer) = sample.image_buffer() {
+//! if let Some(buffer) = sample.pixel_buffer() {
 //!     if let Ok(guard) = buffer.lock(CVPixelBufferLockFlags::READ_ONLY) {
 //!         // Method 1: Direct slice access (fast)
-//!         let pixels = guard.as_slice();
+//!         let Some(pixels) = (unsafe { guard.as_slice() }) else { return };
 //!         let width = guard.width();
 //!         let height = guard.height();
 //!
 //!         // Method 2: Use cursor for reading specific pixels
-//!         let mut cursor = guard.cursor();
+//!         let Some(mut cursor) = (unsafe { guard.cursor() }) else { return };
 //!         
 //!         // Read first pixel (BGRA)
 //!         if let Ok(pixel) = cursor.read_pixel() {
@@ -230,7 +230,7 @@
 //! use screencapturekit::cv::PixelBufferCursorExt;
 //!
 //! # fn handle(sample: CMSampleBuffer) {
-//! if let Some(buffer) = sample.image_buffer() {
+//! if let Some(buffer) = sample.pixel_buffer() {
 //!     // Check if IOSurface-backed (usually true for ScreenCaptureKit)
 //!     if buffer.is_backed_by_io_surface() {
 //!         if let Some(surface) = buffer.io_surface() {
@@ -241,7 +241,7 @@
 //!
 //!             // Lock for CPU access to IOSurface data
 //!             if let Ok(guard) = surface.lock(IOSurfaceLockOptions::READ_ONLY) {
-//!                 let mut cursor = guard.cursor();
+//!                 let Some(mut cursor) = (unsafe { guard.cursor() }) else { return };
 //!                 if let Ok(pixel) = cursor.read_pixel() {
 //!                     println!("First pixel: {:?}", pixel);
 //!                 }
@@ -312,12 +312,15 @@
 //!
 //! ## Dynamic Stream Updates
 //!
-//! Update configuration or content filter while streaming:
+//! Update configuration or content filter while streaming.
+//! `update_configuration` needs the `macos_14_0` feature;
+//! `update_content_filter` is part of the baseline.
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "macos_14_0")]
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use screencapturekit::prelude::*;
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let content = SCShareableContent::get()?;
 //! # let display = content.displays().into_iter().next().unwrap();
 //! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
@@ -349,6 +352,8 @@
 //! stream.stop_capture()?;
 //! # Ok(())
 //! # }
+//! # #[cfg(not(feature = "macos_14_0"))]
+//! # fn main() {}
 //! ```
 //!
 //! ## Error Handling with Delegates
@@ -579,7 +584,9 @@
 //!
 //! ## Platform Requirements
 //!
-//! - **macOS 12.3+** (Monterey) - Base `ScreenCaptureKit` support
+//! - **macOS 13.0+** (Ventura) - `ScreenCaptureKit` itself starts at 12.3, but
+//!   this crate's Swift bridge is built with a 13.0 deployment target and uses
+//!   the macOS 13 audio APIs unconditionally
 //! - **Screen Recording Permission** - Must be granted by user in System Preferences
 //! - **Hardened Runtime** - Required for notarized apps
 //!
@@ -811,7 +818,7 @@ pub mod prelude {
         delegate_trait::SCStreamDelegateTrait,
         output_trait::SCStreamOutputTrait,
         output_type::SCStreamOutputType,
-        sc_stream::SCStream,
+        sc_stream::{SCStream, StreamIdentity},
         ErrorHandler,
     };
 }

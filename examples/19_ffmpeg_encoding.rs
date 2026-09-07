@@ -116,7 +116,7 @@ impl SCStreamOutputTrait for EncodingHandler {
             return;
         }
 
-        let Some(pixel_buffer) = sample.image_buffer() else {
+        let Some(pixel_buffer) = sample.pixel_buffer() else {
             return;
         };
 
@@ -125,7 +125,9 @@ impl SCStreamOutputTrait for EncodingHandler {
             return;
         };
 
-        let data = guard.as_slice();
+        let Some(data) = (unsafe { guard.as_slice() }) else {
+            return;
+        };
 
         // Verify size matches expected (width * height * 4 bytes per pixel)
         if data.len() >= self.expected_size {

@@ -24,7 +24,7 @@
 use std::ffi::c_void;
 use std::fmt;
 
-#[cfg(feature = "macos_14_2")]
+#[cfg(feature = "macos_14_0")]
 use crate::cg::CGRect;
 use crate::{
     error::{SCError, SCResult},
@@ -35,6 +35,32 @@ use crate::{
 /// Content filter for `ScreenCaptureKit` streams
 ///
 /// Defines what content to capture (displays, windows, or applications).
+///
+/// # Immutability, `Clone`, `Send` and `Sync`
+///
+/// An `SCContentFilter` is **immutable once built**. Every method on it is a
+/// read; the one property Apple declares as writable, `includeMenuBar`, is set
+/// by [`SCContentFilterBuilder::with_include_menu_bar`] while the underlying
+/// object is still uniquely owned by the builder and has not yet escaped.
+///
+/// That invariant is what makes the three otherwise-conflicting properties of
+/// this type sound together:
+///
+/// - **`Clone` aliases.** `SCContentFilter` is a plain `NSObject`: Apple
+///   provides no copy initialiser and does not conform it to `NSCopying`, so a
+///   deep copy is impossible. Cloning therefore performs an Objective-C
+///   `retain` and hands back a second handle to the *same* object.
+/// - **`Send + Sync` are `unsafe impl`s.** They promise that sharing a handle
+///   across threads is safe.
+/// - **`includeMenuBar` is `@property(nonatomic, assign)`** — an unsynchronised
+///   `BOOL` ivar.
+///
+/// Exposing a setter alongside an aliasing `Clone` and `Sync` would let two
+/// threads write and read that ivar concurrently through safe Rust, which is a
+/// data race. Removing the setter (rather than `Clone` or `Send`/`Sync`) keeps
+/// the ergonomic handle semantics while leaving nothing to race on. Filters
+/// obtained from the content sharing picker keep whatever `includeMenuBar`
+/// value the system chose; build your own filter if you need to override it.
 ///
 /// # Examples
 ///
@@ -117,26 +143,13 @@ impl SCContentFilter {
         self.0
     }
 
-    /// Sets the content rectangle for this filter (macOS 14.2+)
+    /// Gets the content rectangle for this filter (macOS 14.0+)
     ///
-    /// Specifies the rectangle within the content filter to capture.
-    #[cfg(feature = "macos_14_2")]
-    #[must_use]
-    pub fn set_content_rect(self, rect: CGRect) -> Self {
-        unsafe {
-            ffi::sc_content_filter_set_content_rect(
-                self.0,
-                rect.origin.x,
-                rect.origin.y,
-                rect.size.width,
-                rect.size.height,
-            );
-        }
-        self
-    }
-
-    /// Gets the content rectangle for this filter (macOS 14.2+)
-    #[cfg(feature = "macos_14_2")]
+    /// This mirrors Apple's read-only `SCContentFilter.contentRect`: the rect,
+    /// in points, that the filter's content occupies. There is no setter —
+    /// `SCContentFilter` derives the rect from the display/window/application
+    /// it was built from. Returns a zero rect on macOS < 14.0.
+    #[cfg(feature = "macos_14_0")]
     pub fn content_rect(&self) -> CGRect {
         unsafe {
             let mut x = 0.0;
@@ -167,6 +180,12 @@ impl SCContentFilter {
     ///
     /// Returns whether this filter captures a window or a display.
     #[cfg(feature = "macos_14_0")]
+    #[deprecated(
+        since = "8.0.0",
+        note = "Apple deprecated SCContentFilter.streamType in macOS 14.2 (and SCStreamType \
+                itself in 15.0). Use `style()`, which also distinguishes application filters."
+    )]
+    #[allow(deprecated)]
     pub fn stream_type(&self) -> SCStreamType {
         let value = unsafe { ffi::sc_content_filter_get_stream_type(self.0) };
         SCStreamType::from(value)
@@ -181,18 +200,16 @@ impl SCContentFilter {
         unsafe { ffi::sc_content_filter_get_point_pixel_scale(self.0) }
     }
 
-    /// Include the menu bar in capture (macOS 14.2+)
+    /// Whether the menu bar is included in capture (macOS 14.2+)
     ///
-    /// When set to `true`, the menu bar is included in display capture.
-    /// This property has no effect for window filters.
-    #[cfg(feature = "macos_14_2")]
-    pub fn set_include_menu_bar(&mut self, include: bool) {
-        unsafe {
-            ffi::sc_content_filter_set_include_menu_bar(self.0, include);
-        }
-    }
-
-    /// Check if menu bar is included in capture (macOS 14.2+)
+    /// Fixed when the filter is built. Apple's default depends on the
+    /// constructor — `true` for display-excluding filters, `false` for
+    /// display-including ones — and is overridden by
+    /// [`SCContentFilterBuilder::with_include_menu_bar`].
+    ///
+    /// There is deliberately no setter: `SCContentFilter` is immutable once it
+    /// escapes the builder, which is what makes [`Clone`], [`Send`] and
+    /// [`Sync`] sound for this handle. See the type-level docs.
     #[cfg(feature = "macos_14_2")]
     pub fn include_menu_bar(&self) -> bool {
         unsafe { ffi::sc_content_filter_get_include_menu_bar(self.0) }
@@ -304,6 +321,11 @@ impl std::fmt::Display for SCShareableContentStyle {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[cfg(feature = "macos_14_0")]
+#[deprecated(
+    since = "8.0.0",
+    note = "Apple deprecated SCStreamType in macOS 15.0. Use SCShareableContentStyle instead."
+)]
+#[allow(deprecated)]
 pub enum SCStreamType {
     /// Window-based stream
     #[default]
@@ -313,6 +335,7 @@ pub enum SCStreamType {
 }
 
 #[cfg(feature = "macos_14_0")]
+#[allow(deprecated)]
 impl From<i32> for SCStreamType {
     fn from(value: i32) -> Self {
         match value {
@@ -323,6 +346,7 @@ impl From<i32> for SCStreamType {
 }
 
 #[cfg(feature = "macos_14_0")]
+#[allow(deprecated)]
 impl std::fmt::Display for SCStreamType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -332,10 +356,13 @@ impl std::fmt::Display for SCStreamType {
     }
 }
 
-// `Clone::clone` is not a `memcpy`: it crosses the Swift FFI boundary and calls
-// `sc_content_filter_retain` (an Objective-C `retain`). For hot-path code that
-// needs many references to the same filter, prefer `Arc<SCContentFilter>` over
-// per-call `.clone()`.
+// `Clone::clone` is not a `memcpy` and not a deep copy: `SCContentFilter` is a
+// plain `NSObject` with no copy initialiser and no `NSCopying` conformance, so
+// the clone crosses the Swift FFI boundary, calls `sc_content_filter_retain`
+// (an Objective-C `retain`) and returns a second handle to the same object.
+// That aliasing is only sound because the type exposes no mutation — see the
+// `SCContentFilter` docs. For hot-path code that needs many references to the
+// same filter, prefer `Arc<SCContentFilter>` over per-call `.clone()`.
 crate::utils::retained::sc_retained!(
     SCContentFilter,
     retain = crate::ffi::sc_content_filter_retain,
@@ -356,8 +383,13 @@ impl fmt::Display for SCContentFilter {
     }
 }
 
-// Safety: SCContentFilter wraps an Objective-C object that is thread-safe
-// The underlying SCContentFilter object can be safely sent between threads
+// SAFETY: every `SCContentFilter` method is a read of a property that is fixed
+// when the object is built, so no two threads can ever write — or read while
+// another writes — the same Objective-C ivar through safe Rust. `includeMenuBar`
+// is Apple's only writable property and it is `nonatomic`; it is assigned once
+// inside `SCContentFilterBuilder::try_build`, before the pointer is wrapped and
+// therefore before any handle (or clone) exists that another thread could
+// observe. Adding any post-construction setter would invalidate both impls.
 unsafe impl Send for SCContentFilter {}
 unsafe impl Sync for SCContentFilter {}
 
@@ -395,7 +427,7 @@ unsafe impl Sync for SCContentFilter {}
 pub struct SCContentFilterBuilder {
     filter_type: FilterType,
     #[cfg(feature = "macos_14_2")]
-    content_rect: Option<CGRect>,
+    include_menu_bar: Option<bool>,
 }
 
 enum FilterType {
@@ -426,7 +458,7 @@ impl SCContentFilterBuilder {
         Self {
             filter_type: FilterType::None,
             #[cfg(feature = "macos_14_2")]
-            content_rect: None,
+            include_menu_bar: None,
         }
     }
 
@@ -529,11 +561,21 @@ impl SCContentFilterBuilder {
         self
     }
 
-    /// Set the content rectangle (macOS 14.2+)
+    /// Include or exclude the menu bar in display capture (macOS 14.2+)
+    ///
+    /// This is the only way to set Apple's `SCContentFilter.includeMenuBar`:
+    /// the built filter is immutable, so the value is applied here while the
+    /// underlying object is still uniquely owned by the builder (see the
+    /// [`SCContentFilter`] docs for why a post-construction setter would be
+    /// unsound).
+    ///
+    /// Leaving it unset keeps Apple's per-constructor default — `true` for
+    /// display-excluding filters, `false` for display-including ones. The
+    /// property has no effect on desktop-independent window filters.
     #[cfg(feature = "macos_14_2")]
     #[must_use]
-    pub fn with_content_rect(mut self, rect: CGRect) -> Self {
-        self.content_rect = Some(rect);
+    pub fn with_include_menu_bar(mut self, include: bool) -> Self {
+        self.include_menu_bar = Some(include);
         self
     }
 
@@ -589,14 +631,6 @@ impl SCContentFilterBuilder {
         excepting_windows: &[&SCWindow],
     ) -> Self {
         self.with_excluding_applications(applications, excepting_windows)
-    }
-
-    /// Set the content rectangle (macOS 14.2+)
-    #[cfg(feature = "macos_14_2")]
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_content_rect() instead")]
-    pub fn content_rect(self, rect: CGRect) -> Self {
-        self.with_content_rect(rect)
     }
 
     /// Build the content filter.
@@ -731,13 +765,16 @@ impl SCContentFilterBuilder {
             }
         };
 
-        // Apply content rect if set (macOS 14.2+)
+        // The only mutation of an SCContentFilter this crate performs, and the
+        // only point at which it is sound: the object was created moments ago
+        // by the `sc_content_filter_create_*` call above, no other handle or
+        // clone exists yet, and it has not been shared with another thread.
+        // Once `filter` is returned it is immutable for the rest of its life,
+        // which is what `SCContentFilter`'s `Clone`/`Send`/`Sync` rely on.
         #[cfg(feature = "macos_14_2")]
-        let filter = if let Some(rect) = self.content_rect {
-            filter.set_content_rect(rect)
-        } else {
-            filter
-        };
+        if let Some(include) = self.include_menu_bar {
+            unsafe { ffi::sc_content_filter_set_include_menu_bar(filter.0, include) };
+        }
 
         Ok(filter)
     }
@@ -758,7 +795,7 @@ impl std::fmt::Debug for SCContentFilterBuilder {
         debug.field("filter_type", &filter_type_name);
 
         #[cfg(feature = "macos_14_2")]
-        debug.field("content_rect", &self.content_rect);
+        debug.field("include_menu_bar", &self.include_menu_bar);
 
         debug.finish()
     }

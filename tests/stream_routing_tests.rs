@@ -172,3 +172,163 @@ fn test_two_concurrent_streams_route_samples_independently() {
          under the old global routing one stream would see ~2× the other's frames"
     );
 }
+
+/// Shared skip-aware setup: a 320×240 video-only filter/config for the first
+/// display, or `None` when the environment can't run live capture.
+fn live_capture_fixture() -> Option<(SCContentFilter, SCStreamConfiguration)> {
+    let content = match SCShareableContent::get() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("skip: screen-recording permission required (error: {e:?})");
+            return None;
+        }
+    };
+    let displays = content.displays();
+    let display = displays.first().or_else(|| {
+        eprintln!("skip: no displays available");
+        None
+    })?;
+
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .with_excluding_windows(&[])
+        .build();
+
+    let mut config = SCStreamConfiguration::default();
+    config.set_width(320);
+    config.set_height(240);
+    config.set_captures_audio(false);
+
+    Some((filter, config))
+}
+
+/// Regression test: `remove_output_handler` must match on the output type as
+/// well as the id. Passing a mismatched type used to remove the handler
+/// anyway — and then detach the *wrong* native output.
+#[test]
+fn test_remove_output_handler_rejects_a_mismatched_output_type() {
+    let Some((filter, config)) = live_capture_fixture() else {
+        return;
+    };
+
+    let (handler, count) = TaggedHandler::new("screen");
+    let mut stream = SCStream::new(&filter, &config);
+    let id = stream
+        .add_output_handler(handler, SCStreamOutputType::Screen)
+        .expect("add_output_handler failed");
+
+    assert!(
+        !stream.remove_output_handler(id, SCStreamOutputType::Audio),
+        "removing a Screen handler under the Audio type must not succeed"
+    );
+
+    if let Err(e) = stream.start_capture() {
+        eprintln!("skip: stream failed to start: {e:?}");
+        return;
+    }
+    std::thread::sleep(Duration::from_millis(500));
+    let _ = stream.stop_capture();
+    std::thread::sleep(Duration::from_millis(100));
+
+    assert!(
+        count.load(Ordering::Relaxed) > 0,
+        "the mismatched removal detached a handler it had no business touching"
+    );
+
+    // The correctly typed removal still works and reports the native teardown.
+    assert!(
+        stream
+            .try_remove_output_handler(id, SCStreamOutputType::Screen)
+            .expect("native removeStreamOutput failed"),
+        "correctly typed removal reported 'not found'"
+    );
+    assert!(
+        !stream.remove_output_handler(id, SCStreamOutputType::Screen),
+        "second removal of the same id must report 'not found'"
+    );
+}
+
+/// `ScreenCaptureKit` delivers every handler of one output type on a single
+/// queue, so a second handler that demands a *different* queue must be
+/// rejected rather than silently attached to the first handler's queue.
+#[test]
+fn test_conflicting_custom_queue_for_one_output_type_is_rejected() {
+    use screencapturekit::dispatch_queue::{DispatchQoS, DispatchQueue};
+
+    let Some((filter, config)) = live_capture_fixture() else {
+        return;
+    };
+
+    let queue_a = DispatchQueue::new("com.test.capture.a", DispatchQoS::UserInteractive);
+    let queue_b = DispatchQueue::new("com.test.capture.b", DispatchQoS::UserInteractive);
+
+    let (first, _first_count) = TaggedHandler::new("first");
+    let (second, _second_count) = TaggedHandler::new("second");
+    let (third, _third_count) = TaggedHandler::new("third");
+
+    let mut stream = SCStream::new(&filter, &config);
+    let first_id = stream
+        .add_output_handler_with_queue(first, SCStreamOutputType::Screen, Some(&queue_a))
+        .expect("first registration failed");
+
+    assert!(
+        stream
+            .add_output_handler_with_queue(second, SCStreamOutputType::Screen, Some(&queue_b))
+            .is_none(),
+        "a second Screen handler on a different queue must be rejected"
+    );
+
+    // Not asking for a specific queue is fine — it joins the established one.
+    assert!(
+        stream
+            .add_output_handler_with_queue(third, SCStreamOutputType::Screen, None)
+            .is_some(),
+        "a queue-agnostic handler must be allowed to join the established queue"
+    );
+
+    assert!(stream.remove_output_handler(first_id, SCStreamOutputType::Screen));
+}
+
+/// Regression test: dropping a clone must not tear down the shared Swift-side
+/// `StreamState`. The bridge used to discard it on the first release, which
+/// detached the delegate and output handler of every surviving clone.
+#[test]
+fn test_clone_keeps_delivering_after_the_original_is_dropped() {
+    let Some((filter, config)) = live_capture_fixture() else {
+        return;
+    };
+
+    let (handler, count) = TaggedHandler::new("clone");
+    let mut stream = SCStream::new(&filter, &config);
+    stream
+        .add_output_handler(handler, SCStreamOutputType::Screen)
+        .expect("add_output_handler failed");
+
+    let mut clone = stream.clone();
+    drop(stream);
+
+    // Registration goes through the shared bridge-side state, so this fails
+    // outright if dropping the original discarded it.
+    let (late, late_count) = TaggedHandler::new("late");
+    clone
+        .add_output_handler(late, SCStreamOutputType::Screen)
+        .expect("registering on the surviving clone failed — bridge state was torn down");
+
+    if let Err(e) = clone.start_capture() {
+        eprintln!("skip: stream failed to start: {e:?}");
+        return;
+    }
+    std::thread::sleep(Duration::from_millis(800));
+    let _ = clone.stop_capture();
+    std::thread::sleep(Duration::from_millis(100));
+
+    assert!(
+        count.load(Ordering::Relaxed) > 0,
+        "the surviving clone received no samples — dropping the original tore \
+         down the shared bridge state"
+    );
+    assert!(
+        late_count.load(Ordering::Relaxed) > 0,
+        "the handler registered after the original was dropped never fired"
+    );
+}

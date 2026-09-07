@@ -18,9 +18,12 @@
 //! | 1 | Mono |
 //! | 2 | Stereo (default) |
 
+#[cfg(feature = "macos_15_0")]
 use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 
 use super::internal::SCStreamConfiguration;
+#[cfg(feature = "macos_15_0")]
+use super::InteriorNulError;
 
 /// Audio sample rate for capture
 ///
@@ -327,6 +330,7 @@ impl SCStreamConfiguration {
     ///     .with_sample_rate(48000)
     ///     .with_channel_count(2);
     /// ```
+    #[cfg(feature = "macos_15_0")]
     pub fn set_captures_microphone(&mut self, captures_microphone: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_captures_microphone(
@@ -338,6 +342,7 @@ impl SCStreamConfiguration {
     }
 
     /// Enable microphone capture (builder pattern)
+    #[cfg(feature = "macos_15_0")]
     #[must_use]
     pub fn with_captures_microphone(mut self, captures_microphone: bool) -> Self {
         self.set_captures_microphone(captures_microphone);
@@ -345,6 +350,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get whether microphone capture is enabled (macOS 15.0+).
+    #[cfg(feature = "macos_15_0")]
     pub fn captures_microphone(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_captures_microphone(self.as_ptr()) }
     }
@@ -394,8 +400,9 @@ impl SCStreamConfiguration {
     /// macOS 15.0+. On earlier versions, this setting has no effect.
     ///
     /// If `device_id` contains an interior NUL byte it cannot be converted to a
-    /// C string and the call is silently ignored. Valid Core Audio device IDs
-    /// never contain NUL bytes.
+    /// C string and the call is silently ignored. Use
+    /// [`try_set_microphone_capture_device_id`](Self::try_set_microphone_capture_device_id)
+    /// to observe that rejection.
     ///
     /// # Example
     /// ```rust,no_run
@@ -405,19 +412,36 @@ impl SCStreamConfiguration {
     ///     .with_captures_microphone(true);
     /// config.set_microphone_capture_device_id("AppleHDAEngineInput:1B,0,1,0:1");
     /// ```
+    #[cfg(feature = "macos_15_0")]
     pub fn set_microphone_capture_device_id(&mut self, device_id: &str) -> &mut Self {
-        unsafe {
-            if let Ok(c_id) = std::ffi::CString::new(device_id) {
-                crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
-                    self.as_ptr(),
-                    c_id.as_ptr(),
-                );
-            }
-        }
+        let _ = self.try_set_microphone_capture_device_id(device_id);
         self
     }
 
+    /// Set microphone capture device ID, reporting IDs that cannot cross the C
+    /// boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
+    /// `device_id` contains an interior NUL byte.
+    #[cfg(feature = "macos_15_0")]
+    pub fn try_set_microphone_capture_device_id(
+        &mut self,
+        device_id: &str,
+    ) -> Result<&mut Self, InteriorNulError> {
+        let c_id = std::ffi::CString::new(device_id).map_err(|_| InteriorNulError)?;
+        unsafe {
+            crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
+                self.as_ptr(),
+                c_id.as_ptr(),
+            );
+        }
+        Ok(self)
+    }
+
     /// Set microphone capture device ID (builder pattern)
+    #[cfg(feature = "macos_15_0")]
     #[must_use]
     pub fn with_microphone_capture_device_id(mut self, device_id: &str) -> Self {
         self.set_microphone_capture_device_id(device_id);
@@ -425,6 +449,7 @@ impl SCStreamConfiguration {
     }
 
     /// Clear microphone capture device ID, reverting to default system microphone
+    #[cfg(feature = "macos_15_0")]
     pub fn clear_microphone_capture_device_id(&mut self) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
@@ -436,6 +461,7 @@ impl SCStreamConfiguration {
     }
 
     /// Get microphone capture device ID (macOS 15.0+).
+    #[cfg(feature = "macos_15_0")]
     pub fn microphone_capture_device_id(&self) -> Option<String> {
         unsafe {
             ffi_string_from_buffer(SMALL_BUFFER_SIZE, |buf, len| {

@@ -1,7 +1,5 @@
 //! `SCContentFilter` tests
 
-#[cfg(feature = "macos_14_2")]
-use screencapturekit::cg::CGRect;
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::content_filter::SCContentFilter;
 
@@ -13,11 +11,21 @@ fn cg_init_for_headless_ci() {
     unsafe { sc_initialize_core_graphics() }
 }
 
+macro_rules! require_display {
+    ($content:expr, $display:ident) => {
+        let displays = $content.displays();
+        let Some($display) = displays.first() else {
+            eprintln!("skip: no displays available");
+            return;
+        };
+    };
+}
+
 #[test]
 fn test_content_filter_builder_display() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -45,7 +53,7 @@ fn test_content_filter_builder_window() {
 fn test_content_filter_exclude_windows() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
     let windows = content.windows();
 
     if !windows.is_empty() {
@@ -64,7 +72,7 @@ fn test_content_filter_exclude_windows() {
 fn test_content_filter_include_windows() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
     let windows = content.windows();
 
     if !windows.is_empty() {
@@ -83,7 +91,7 @@ fn test_content_filter_include_windows() {
 fn test_content_filter_include_applications() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
     let apps = content.applications();
 
     if !apps.is_empty() {
@@ -98,52 +106,62 @@ fn test_content_filter_include_applications() {
     }
 }
 
+/// `SCContentFilter.contentRect` is read-only in `ScreenCaptureKit` — there is
+/// no setter to round-trip against, so the filter derives the rect from the
+/// display it was built from.
 #[test]
-#[cfg(feature = "macos_14_2")]
-fn test_content_filter_content_rect() {
+#[cfg(feature = "macos_14_0")]
+fn test_content_filter_content_rect_is_derived_from_the_display() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
-
-    let rect = CGRect::new(100.0, 100.0, 800.0, 600.0);
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .with_content_rect(rect)
         .build();
 
-    // Test get_content_rect
-    let retrieved_rect = filter.content_rect();
-    // The rect should be set (though exact values may vary based on macOS version)
-    assert!(retrieved_rect.size.width >= 0.0);
-    assert!(retrieved_rect.size.height >= 0.0);
+    let rect = filter.content_rect();
+    assert!(rect.size.width >= 0.0);
+    assert!(rect.size.height >= 0.0);
+    // The whole-display filter covers the display it was built from.
+    assert!(
+        (rect.size.width - display.frame().size.width).abs() < 1.0,
+        "content_rect width {} does not match display width {}",
+        rect.size.width,
+        display.frame().size.width
+    );
 }
 
+/// Reading `content_rect` twice must return the same value and must not
+/// mutate the filter — the setter that used to exist mapped onto a Swift
+/// no-op, so callers were silently misled.
 #[test]
-#[cfg(feature = "macos_14_2")]
-fn test_content_filter_set_content_rect() {
+#[cfg(feature = "macos_14_0")]
+fn test_content_filter_content_rect_is_stable() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
 
-    let rect = CGRect::new(50.0, 50.0, 400.0, 300.0);
-    let filter = filter.set_content_rect(rect);
-
-    let debug_str = format!("{filter:?}");
-    assert!(debug_str.contains("SCContentFilter"));
+    let first = filter.content_rect();
+    let second = filter.content_rect();
+    let same = |a: f64, b: f64| (a - b).abs() < f64::EPSILON;
+    assert!(same(first.origin.x, second.origin.x));
+    assert!(same(first.origin.y, second.origin.y));
+    assert!(same(first.size.width, second.size.width));
+    assert!(same(first.size.height, second.size.height));
 }
 
 #[test]
 fn test_content_filter_clone() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -167,7 +185,7 @@ fn test_content_filter_send_sync() {
 fn test_content_filter_debug_display() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -185,7 +203,7 @@ fn test_content_filter_debug_display() {
 fn test_content_filter_equality() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter1 = SCContentFilter::create()
         .with_display(display)
@@ -206,7 +224,7 @@ fn test_content_filter_hash() {
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -228,7 +246,7 @@ fn test_content_filter_style() {
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -268,7 +286,7 @@ fn test_content_filter_point_pixel_scale() {
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -280,24 +298,100 @@ fn test_content_filter_point_pixel_scale() {
     assert!(scale > 0.0);
 }
 
+/// `includeMenuBar` is set by the builder — the built filter has no setter, so
+/// there is nothing for a clone on another thread to race against.
 #[test]
 #[cfg(feature = "macos_14_2")]
-fn test_content_filter_include_menu_bar() {
+fn test_content_filter_include_menu_bar_is_set_by_the_builder() {
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
-    let mut filter = SCContentFilter::create()
+    for requested in [true, false] {
+        let filter = SCContentFilter::create()
+            .with_display(display)
+            .with_excluding_windows(&[])
+            .with_include_menu_bar(requested)
+            .build();
+
+        assert_eq!(
+            filter.include_menu_bar(),
+            requested,
+            "builder failed to apply include_menu_bar({requested})"
+        );
+    }
+}
+
+/// Apple's default depends on the constructor: `true` for display-excluding
+/// filters, `false` for display-including ones. Leaving the builder option
+/// unset must not disturb it.
+#[test]
+#[cfg(feature = "macos_14_2")]
+fn test_content_filter_include_menu_bar_defaults_are_untouched() {
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    require_display!(content, display);
+
+    let excluding = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
+    assert!(
+        excluding.include_menu_bar(),
+        "display-excluding filters default to including the menu bar"
+    );
 
-    // Set include menu bar
-    filter.set_include_menu_bar(true);
-    let includes_menu_bar = filter.include_menu_bar();
-    // May return false on older macOS versions
-    let _ = includes_menu_bar;
+    let including = SCContentFilter::create()
+        .with_display(display)
+        .with_including_windows(&[])
+        .build();
+    assert!(
+        !including.include_menu_bar(),
+        "display-including filters default to excluding the menu bar"
+    );
+}
+
+/// A clone aliases the same Objective-C object, and the filter is immutable, so
+/// clones can be shared across threads and must always agree with the original.
+#[test]
+#[cfg(feature = "macos_14_2")]
+fn test_content_filter_clones_are_immutable_and_shareable() {
+    use std::sync::Arc;
+
+    cg_init_for_headless_ci();
+
+    let content = SCShareableContent::get().expect("Failed to get shareable content");
+    require_display!(content, display);
+
+    let filter = Arc::new(
+        SCContentFilter::create()
+            .with_display(display)
+            .with_excluding_windows(&[])
+            .with_include_menu_bar(false)
+            .build(),
+    );
+    let expected = filter.include_menu_bar();
+
+    let readers: Vec<_> = (0..4)
+        .map(|_| {
+            let filter = Arc::clone(&filter);
+            let cloned = (*filter).clone();
+            std::thread::spawn(move || {
+                for _ in 0..200 {
+                    assert_eq!(filter.include_menu_bar(), expected);
+                    assert_eq!(cloned.include_menu_bar(), expected);
+                }
+            })
+        })
+        .collect();
+
+    for reader in readers {
+        reader.join().expect("reader thread panicked");
+    }
+
+    assert_eq!(filter.include_menu_bar(), expected);
 }
 
 #[test]
@@ -306,7 +400,7 @@ fn test_content_filter_included_displays() {
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -341,7 +435,7 @@ fn test_content_filter_included_applications() {
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
     let apps = content.applications();
 
     if !apps.is_empty() {

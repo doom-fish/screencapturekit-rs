@@ -344,7 +344,7 @@ fn bench_pixel_buffer_paths(c: &mut Criterion) {
     let Some(sample) = capture_single_frame() else {
         return;
     };
-    let Some(pb) = sample.image_buffer() else {
+    let Some(pb) = sample.pixel_buffer() else {
         return;
     };
 
@@ -354,7 +354,11 @@ fn bench_pixel_buffer_paths(c: &mut Criterion) {
     group.bench_function("lock_as_slice_zero_copy", |b| {
         b.iter(|| {
             let g = pb.lock(CVPixelBufferLockFlags::READ_ONLY).unwrap();
-            black_box(g.as_slice().len());
+            black_box(
+                unsafe { g.as_slice() }
+                    .expect("captured pixel buffer must expose bytes")
+                    .len(),
+            );
         });
     });
 
@@ -363,7 +367,7 @@ fn bench_pixel_buffer_paths(c: &mut Criterion) {
     let bytes = 1920 * 1080 * 4;
     group.bench_function("memset_then_copy_1080p_rgba", |b| {
         let g = pb.lock(CVPixelBufferLockFlags::READ_ONLY).unwrap();
-        let src = g.as_slice();
+        let src = unsafe { g.as_slice() }.expect("captured pixel buffer must expose bytes");
         let n = bytes.min(src.len());
         b.iter(|| {
             // emulates `vec![0u8; n]` + memcpy (the current copy_data_bytes
@@ -375,7 +379,7 @@ fn bench_pixel_buffer_paths(c: &mut Criterion) {
     });
     group.bench_function("alloc_uninit_then_copy_1080p_rgba", |b| {
         let g = pb.lock(CVPixelBufferLockFlags::READ_ONLY).unwrap();
-        let src = g.as_slice();
+        let src = unsafe { g.as_slice() }.expect("captured pixel buffer must expose bytes");
         let n = bytes.min(src.len());
         b.iter(|| {
             // emulates the proposed Vec::with_capacity + set_len after copy
@@ -468,7 +472,7 @@ fn run_stream(duration: Duration, with_audio: bool) -> Arc<AvStats> {
             .frame_info_ns
             .fetch_add(info_elapsed, Ordering::Relaxed);
         // Touch the pixel buffer pointer so the optimiser can't elide.
-        let _img = buf.image_buffer();
+        let _img = buf.pixel_buffer();
         video_stats.video_frames.fetch_add(1, Ordering::Relaxed);
         video_stats
             .video_handler_ns

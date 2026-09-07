@@ -59,11 +59,17 @@ pub trait SCStreamDelegateTrait: Send + Sync {
     /// Called when video effects start (macOS 14.0+)
     ///
     /// Notifies when the stream's overlay video effect (presenter overlay) has started.
+    ///
+    /// Requires the `macos_14_0` cargo feature: without it the bridge does not
+    /// compile Apple's `outputVideoEffectDidStart(for:)` and this never fires.
     fn output_video_effect_did_start_for_stream(&self) {}
 
     /// Called when video effects stop (macOS 14.0+)
     ///
     /// Notifies when the stream's overlay video effect (presenter overlay) has stopped.
+    ///
+    /// Requires the `macos_14_0` cargo feature — see
+    /// [`output_video_effect_did_start_for_stream`](Self::output_video_effect_did_start_for_stream).
     fn output_video_effect_did_stop_for_stream(&self) {}
 
     /// Called when the stream becomes active (macOS 15.2+)
@@ -72,12 +78,18 @@ pub trait SCStreamDelegateTrait: Send + Sync {
     /// is re-opened after all the windows being shared were closed.
     /// When all the windows being shared are closed, the client will receive
     /// `stream_did_become_inactive`.
+    ///
+    /// Requires the `macos_15_2` cargo feature: without it the bridge does not
+    /// compile Apple's `streamDidBecomeActive(_:)` and this never fires.
     fn stream_did_become_active(&self) {}
 
     /// Called when the stream becomes inactive (macOS 15.2+)
     ///
     /// Notifies when all the windows that are currently being shared are exited.
     /// This callback occurs for all content filter types.
+    ///
+    /// Requires the `macos_15_2` cargo feature — see
+    /// [`stream_did_become_active`](Self::stream_did_become_active).
     fn stream_did_become_inactive(&self) {}
 
     /// Called when the stream stops with an error.

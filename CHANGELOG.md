@@ -5,7 +5,258 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [10.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v10.0.0...v10.0.1) - 2026-09-07
+
+### Fixed
+
+- Updated the `CMTime` equality regression to follow Core Media comparison
+  semantics for invalid values.
+
+## [10.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v9.0.1...v10.0.0) - 2026-09-07
+
+### Changed (breaking)
+
+- [**breaking**] Audio descriptors are immutable: `AudioBufferList::get_mut`
+  and `AudioBuffer::data_mut` were replaced by owner-tied
+  `unsafe AudioBufferList::data_mut(index)`.
+- [**breaking**] Safe Metal uploads now take initialized byte slices through
+  `create_buffer_with_bytes`; generic `create_buffer_with_data` is `unsafe`.
+  Indexed setters and command/encoder lifecycle operations return
+  `Result<_, MetalError>`.
+- [**breaking**] Repeating picker events carry
+  `Option<StreamIdentity>`. Picker configuration setters return
+  `Result<(), SCPickerConfigurationError>`, require the process main thread,
+  and never enqueue a mutation after reporting failure.
+- [**breaking**] Finalized apple-cf contracts are integrated:
+  `CMSampleBufferExt::pixel_buffer()` returns the specific lockable
+  `CVPixelBuffer`, raw adoption and locked byte views use explicit unsafe
+  contracts, byte views return `Option`, and `CVPixelBufferLockFlags::bits()`
+  exposes native-width flags.
+- Raised in-family requirements to `apple-cf >=0.10, <0.11` and
+  `apple-metal >=0.9, <0.10`.
+
+### Fixed
+
+- Snapshot picker configurations before deferred presentation, preserve
+  stream identity in repeating callbacks, invalidate subscription activity
+  during bulk removal, and avoid deactivating a newly registered observer
+  session during stale cleanup.
+- Validate Metal descriptor and encoder indices on both sides of the Swift
+  boundary, share lifecycle state across retained command/encoder clones, and
+  automatically end the final dropped encoder.
+- Decode dirty rectangles from their documented `NSValue` representation,
+  preserve all `CMTime` fields when constructing image samples, and normalize
+  video-range chroma across 16...240 in the built-in YCbCr shader.
+- Transfer synchronization clocks with an owned retain before adopting them
+  through `apple-cf`.
+
+## [9.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v9.0.0...v9.0.1) - 2026-08-31
+
+The first published v9 release. 9.0.0 was tagged but never reached crates.io,
+so everything listed under 9.0.0 below ships here — upgrade from 8.0.1 by
+reading that section.
+
+### Fixed
+
+- The crate-level "Dynamic Stream Updates" doctest no longer fails to compile
+  under default features. It calls `SCStream::update_configuration`, which 9.0.0
+  gated behind `macos_14_0`.
+
+## [9.0.0](https://github.com/doom-fish/screencapturekit-rs/compare/v8.0.1...v9.0.0) - 2026-08-31
+
+### Added
+
+- Repeating content-picker observers:
+  `SCContentSharingPicker::add_observer` returns an `SCPickerSubscription` that
+  keeps delivering `SCPickerEvent`s until it is dropped, plus
+  `remove_all_observers`, the standalone `present` / `present_using_style` /
+  `present_for_stream` / `present_for_stream_using_style` entry points,
+  `set_default_configuration`, `default_configuration`,
+  `set_configuration_for_stream`, and `deactivate`. This is what makes
+  `SCContentSharingPickerConfiguration::allows_changing_selected_content`
+  usable: Apple re-invokes the observer on every re-selection, and the one-shot
+  `show*()` helpers (unchanged) deliberately latch after the first event.
+
+- One-shot picker sessions now detach their observer, clear
+  `SCContentSharingPicker.isActive` when nothing else needs it, and unwind the
+  temporary `NSApplication` activation-policy promotion they take out for
+  non-UI host processes. The promotion is reference counted, so the process no
+  longer keeps a stray Dock icon for its lifetime.
+
+- Getters for every `SCScreenshotConfiguration` property:
+  `width`, `height`, `shows_cursor`, `source_rect`, `destination_rect`,
+  `ignore_shadows`, `ignore_clipping`, `include_child_windows`,
+  `display_intent`, `dynamic_range`, and `file_path`, plus
+  `without_file_path` to clear a configured output path.
+
+- `AudioInputDevice::list_with_default` — the device list and the index of the
+  default device from one discovery pass.
+
+- `SCShareableContent::current_process_is_available`.
+
+- Runtime availability probes and fallible constructors for content-picker and
+  recording configurations (`try_new`), so binaries built with newer feature
+  flags fail predictably on older macOS releases.
+
+### Changed
+
+- [**breaking**] `SCScreenshotOutput::file_url() -> Option<String>` is now
+  `SCScreenshotOutput::file_path() -> Option<PathBuf>`, read through an owned
+  bridge string. The old form used a fixed 4 KiB buffer and could silently
+  truncate long paths.
+
+- [**breaking**] `SCScreenshotConfiguration::with_file_path` now takes
+  `impl AsRef<Path>` instead of `&str`. `&str` call sites are unchanged. Use
+  `try_set_file_path` to detect non-UTF-8 paths or interior NUL bytes instead
+  of having the call silently target a different path.
+
+- [**breaking**] Recording codecs and file types are now open, string-backed
+  identifiers rather than closed integer enums. Known associated constants
+  remain (`H264`, `HEVC`, `MP4`, `MOV`, and others); use `identifier()` and
+  `from_identifier()` for values added by newer macOS releases.
+
+- [**breaking**] Removed the nonfunctional `SCContentFilter` content-rectangle
+  setters and builder option. Apple's `contentRect` is read-only; crop with
+  `SCStreamConfiguration::with_source_rect`. `includeMenuBar` is now set only
+  while building via `SCContentFilterBuilder::with_include_menu_bar`, keeping
+  built filters immutable and thread-safe.
+
+- [**breaking**] Recording delegates now require `Sync` in addition to `Send`,
+  allowing callbacks to run without a re-entrancy-deadlocking mutex.
+
+- [**breaking**] `AudioBuffer`'s fields are private and read through accessors
+  that validate the descriptor. Mutable access is now `unsafe fn data_mut`,
+  because the caller must guarantee the sample buffer outlives the slice and
+  that no other alias exists. The old public fields let safe code build slices
+  past the end of the audio block.
+
+- [**breaking**] Incomplete build-SDK stub mode, including the
+  `SCREENCAPTUREKIT_ALLOW_STUBBED_BUILD` escape hatch, was removed. Requested
+  `macos_*` APIs must exist in the selected Xcode SDK.
+
+- [**breaking**] `SCShareableContent::current_process` now returns
+  `SCError::FeatureNotAvailable` on macOS older than 14.4. It previously fell
+  back to the system-wide `SCShareableContent.excludingDesktopWindows(...)`
+  query, which requires screen-recording consent and returns every window on
+  the machine — the opposite of what the current-process API promises, and
+  indistinguishable from a real result. Gate on the new
+  `SCShareableContent::current_process_is_available()` if you need to branch.
+
+- [**breaking**] `MetalDevice::as_apple_metal` returns a lifetime-bound
+  `BorrowedAppleMetalDevice<'_>` rather than an owned `apple-metal` device. The
+  previous form handed out a second owner of a device the stream configuration
+  still holds.
+
+- [**breaking**] `SCStream::update_configuration` now requires the
+  `macos_14_0` feature. Apple's `SCStream.updateConfiguration(_:)` is macOS
+  14.0+, and the ungated method compiled into a call that could only ever
+  return an error on an older host.
+
+- `SCStreamConfiguration::clone` and `SCContentSharingPickerConfiguration::clone`
+  now produce independent configurations instead of retaining the shared Swift
+  box. The old clones aliased one mutable box between handles, so a `&mut self`
+  setter on one clone mutated state another clone observed through a shared
+  `&` — and, since both types are `Send + Sync`, concurrently from another
+  thread. A test that mutates clones on four threads segfaults against the old
+  implementation.
+
+- `AudioInputDevice::list` and `default_device` now read from a single frozen
+  device-discovery pass instead of re-querying `AVCaptureDevice` for the count
+  and then again for each field, which could tear across a microphone
+  hot-plug (a stale count paired with fresh names, or an `is_default` flag that
+  disagreed with `default_device`).
+
+- `build.rs` compares the full `major.minor` macOS SDK version when deciding
+  which `SCREENCAPTUREKIT_HAS_*` defines to pass to Swift. A major-only
+  comparison accepted a 15.0 SDK for the `macos_15_2` feature. Requested APIs
+  missing from the build SDK now fail early with a clear error, and SwiftPM
+  scratch directories are isolated by SDK and define set so feature-order
+  changes cannot link a stale bridge.
+
+- The bridge's SC-specific CoreMedia Swift target was renamed
+  `CoreMediaBridge` -> `ScreenCaptureKitCoreMediaBridge`. `apple-cf-rs`
+  publishes a target with the former name and both static archives link into
+  the same binary.
+
+- The documented macOS floor is now 13.0, matching the Swift package's
+  deployment target and the bridge's unguarded use of the macOS 13 audio APIs.
+  It previously advertised `ScreenCaptureKit`'s own 12.3 floor.
+
+### Fixed
+
+- Completion and picker callbacks now use opaque token registries. Timeout,
+  cancellation, duplicate delivery, or a late native callback can no longer
+  dereference a reclaimed Rust allocation; async picker payloads also release
+  retained native objects when their future is abandoned.
+
+- Stream handles, delegates, and output handlers now share explicit lifetime
+  state across clones. Dropping one clone no longer detaches callbacks from
+  surviving handles, and all user callbacks and destructors run outside crate
+  locks with panic barriers at the Swift/C boundary.
+
+- Async sample and recording queues now track every parked consumer, unregister
+  dropped futures, wake outside locks, close on terminal lifecycle events, and
+  keep native capture state synchronized even when a control future is dropped.
+  Async FFI completions now use the same configurable deadline as blocking
+  calls, backed by one process-wide timeout worker rather than one thread per
+  future. Human-driven content-picker futures remain untimed.
+
+- A capture that failed to start no longer leaves the async sample queue
+  permanently closed: a retry reopens it and clears the stale error, while a
+  queue closed by a successful `stop_capture` stays closed.
+
+- `start_capture` whose completion timed out now reissues the native start on
+  the next call. It previously left `capturing` latched, so every later
+  `start_capture` returned `Ok(())` without doing anything for a stream that
+  had never started.
+
+- `remove_recording_output` no longer leaves its output count inflated when the
+  finalization wait times out. The native removal has already happened by that
+  point, and the stale count permanently disabled the stop-and-flush path for
+  the remaining outputs.
+
+- Recording-output teardown now retains both the delegate and its output
+  through finalization, releases terminal waiters before user callbacks, and
+  avoids the recording-only stream stop hang. Waiting for finalization no
+  longer gives up merely because `didStartRecording` has not been delivered
+  yet, which reported completion while the movie was still being written.
+
+- The picker's `show*()` entry points report an error instead of hanging when
+  the host process has no main run loop to present on. They previously
+  scheduled onto a main queue nobody drains, stranding the caller's callback
+  context forever.
+
+- Repeating picker observers now reclaim Rust contexts synchronously on
+  unsubscribe, restore activation policy when the final session ends, and
+  reject registration when Apple's main-actor precondition cannot be met.
+
+- `SCShareableContent::snapshot()` no longer indexes zero-length scratch
+  vectors, reports truncation/string-pool pressure, and associates windows to
+  applications by process ID rather than unstable cross-call indices. Packing
+  reads now carry provenance over the whole scratch allocation rather than over
+  an empty slice.
+
+- `AudioInputDevice::list_with_default` reports the default device's index in
+  the list it returns, not its index in the unfiltered discovery snapshot.
+
+- Audio buffer descriptors are validated, and Swift now frees descriptor arrays
+  allocated by Swift.
+
+- Frame status is decoded from its actual `NSNumber` attachment, and batched
+  frame metadata now includes dirty rectangles with allocator-matched cleanup.
+
+- Swift-to-C string copies (picker excluded bundle IDs, UTType identifiers,
+  screenshot output paths, audio device IDs and names) now report a value that
+  does not fit as a failure instead of silently truncating it, and reject a
+  zero-sized buffer. `sc_screenshot_output_get_file_url` in particular computed
+  `bufferSize - 1`, which wrote out of bounds when handed a zero-sized buffer.
+
+- The picker's `includedWindows` / `includedDisplays` / `includedApplications`
+  fast path and `SCScreenshotManager.captureImage(in:)` were gated on the
+  macOS 15.0 SDK define but are macOS 15.2 APIs; building against a 15.0 SDK
+  failed to compile rather than taking the fallback path. Likewise
+  `SCShareableContent.getCurrentProcessShareableContent` (14.4) was gated on
+  the 15.0 define.
 
 ## [8.0.1](https://github.com/doom-fish/screencapturekit-rs/compare/v8.0.0...v8.0.1) - 2026-07-18
 
