@@ -50,21 +50,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.available_output_file_types_count()
     );
 
-    // Show all codec options
+    // Show what this machine actually supports. The lists are open-ended: a
+    // codec or file type added by a newer macOS still shows up by identifier.
     println!("\n🎬 Supported Codecs:");
-    println!("   - H264 (value: {})", SCRecordingOutputCodec::H264 as i32);
-    println!("   - HEVC (value: {})", SCRecordingOutputCodec::HEVC as i32);
+    for codec in config.available_video_codecs() {
+        println!("   - {codec} ({})", codec.identifier());
+    }
 
-    // Show all file type options
     println!("\n📄 Supported File Types:");
-    println!(
-        "   - MP4 (value: {})",
-        SCRecordingOutputFileType::MP4 as i32
-    );
-    println!(
-        "   - MOV (value: {})",
-        SCRecordingOutputFileType::MOV as i32
-    );
+    for file_type in config.available_output_file_types() {
+        println!("   - {file_type} ({})", file_type.identifier());
+    }
 
     // Create recording output
     println!("\n🎥 Creating recording output...");

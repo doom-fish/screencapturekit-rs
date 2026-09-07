@@ -31,8 +31,8 @@ fn test_iosurface_lock_options_debug() {
 
 #[test]
 fn test_cvpixelbuffer_lock_flags_values() {
-    assert_eq!(CVPixelBufferLockFlags::READ_ONLY.as_u32(), 0x0000_0001);
-    assert_eq!(CVPixelBufferLockFlags::NONE.as_u32(), 0x0000_0000);
+    assert_eq!(CVPixelBufferLockFlags::READ_ONLY.bits(), 0x0000_0001);
+    assert_eq!(CVPixelBufferLockFlags::NONE.bits(), 0x0000_0000);
     assert!(CVPixelBufferLockFlags::READ_ONLY.is_read_only());
     assert!(!CVPixelBufferLockFlags::NONE.is_read_only());
 }
@@ -83,7 +83,7 @@ fn test_iosurface_lock_and_access() {
     assert!(guard.bytes_per_row() >= 40);
 
     // Test as_slice
-    let slice = guard.as_slice();
+    let slice = unsafe { guard.as_slice() }.expect("locked surface must expose bytes");
     assert!(!slice.is_empty());
 }
 
@@ -96,15 +96,15 @@ fn test_iosurface_lock_guard_row() {
         .expect("Failed to lock IOSurface");
 
     // Valid row
-    let row0 = guard.row(0);
+    let row0 = unsafe { guard.row(0) };
     assert!(row0.is_some());
     assert_eq!(row0.unwrap().len(), guard.bytes_per_row());
 
-    let row19 = guard.row(19);
+    let row19 = unsafe { guard.row(19) };
     assert!(row19.is_some());
 
     // Invalid row
-    let row20 = guard.row(20);
+    let row20 = unsafe { guard.row(20) };
     assert!(row20.is_none());
 }
 
@@ -118,7 +118,7 @@ fn test_iosurface_lock_guard_cursor() {
         .lock(IOSurfaceLockOptions::READ_ONLY)
         .expect("Failed to lock IOSurface");
 
-    let mut cursor = guard.cursor();
+    let mut cursor = unsafe { guard.cursor() }.expect("locked surface must expose bytes");
     let mut buf = [0u8; 4];
     let result = cursor.read_exact(&mut buf);
     assert!(result.is_ok());
@@ -176,11 +176,10 @@ fn test_pixel_buffer_create_and_lock() {
     assert!(guard.bytes_per_row() >= 400); // At least 100 * 4 bytes
 
     // Test as_slice
-    let slice = guard.as_slice();
+    let slice = unsafe { guard.as_slice() }.expect("locked pixel buffer must expose bytes");
     assert!(!slice.is_empty());
 
-    // Test Deref trait
-    let _: &[u8] = &guard;
+    let _: &[u8] = slice;
 }
 
 #[test]
@@ -194,18 +193,18 @@ fn test_pixel_buffer_lock_guard_row_access() {
         .expect("Failed to lock buffer");
 
     // Valid row access
-    let row0 = guard.row(0);
+    let row0 = unsafe { guard.row(0) };
     assert!(row0.is_some());
     assert_eq!(row0.unwrap().len(), guard.bytes_per_row());
 
-    let row49 = guard.row(49);
+    let row49 = unsafe { guard.row(49) };
     assert!(row49.is_some());
 
     // Invalid row access
-    let row50 = guard.row(50);
+    let row50 = unsafe { guard.row(50) };
     assert!(row50.is_none());
 
-    let row_overflow = guard.row(1000);
+    let row_overflow = unsafe { guard.row(1000) };
     assert!(row_overflow.is_none());
 }
 
@@ -220,7 +219,7 @@ fn test_pixel_buffer_lock_guard_cursor() {
         .lock(CVPixelBufferLockFlags::READ_ONLY)
         .expect("Failed to lock buffer");
 
-    let mut cursor = guard.cursor();
+    let mut cursor = unsafe { guard.cursor() }.expect("locked pixel buffer must expose bytes");
     let mut buf = [0u8; 4];
     let result = cursor.read_exact(&mut buf);
     assert!(result.is_ok());
@@ -288,7 +287,7 @@ fn test_pixel_buffer_cursor_extension_trait() {
         .lock(CVPixelBufferLockFlags::READ_ONLY)
         .expect("Failed to lock buffer");
 
-    let mut cursor = guard.cursor();
+    let mut cursor = unsafe { guard.cursor() }.expect("locked pixel buffer must expose bytes");
 
     // Test seek_to_pixel
     let bytes_per_row = guard.bytes_per_row();

@@ -1,7 +1,7 @@
 <div align="center">
   <h1>ScreenCaptureKit-rs</h1>
   <p><strong>Safe, idiomatic Rust bindings for Apple's <a href="https://developer.apple.com/documentation/screencapturekit">ScreenCaptureKit</a> framework.</strong></p>
-  <p>Capture screens, windows, and applications on macOS 12.3+ with high performance and low overhead.</p>
+  <p>Capture screens, windows, and applications on macOS 13.0+ with high performance and low overhead.</p>
 </div>
 
 <div align="center"><p>
@@ -13,7 +13,7 @@
     <a href="https://github.com/doom-fish/screencapturekit-rs/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/doom-fish/screencapturekit-rs?style=for-the-badge&logo=starship&color=F5E0DC&logoColor=D9E0EE&labelColor=302D41" /></a>
 </p></div>
 
-> **💼 Looking for a hosted desktop recording API?** Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) — an API for recording Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
+> **💼 Looking for a hosted desktop recording API?** Check out [Recall.ai](https://www.recall.ai/product/desktop-recording-sdk?utm_source=github&utm_medium=sponsorship&utm_campaign=screencapturekit-rs) — an API for recording video-conferencing services, in-person meetings, and more.
 
 <https://github.com/user-attachments/assets/8a272c48-7ec3-4132-9111-4602b4fa991d>
 
@@ -43,7 +43,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "8"
+screencapturekit = "10"
 ```
 
 Opt-in features (additive):
@@ -51,8 +51,8 @@ Opt-in features (additive):
 | Feature | Enables |
 |---|---|
 | `async` | Runtime-agnostic async API (Tokio / async-std / smol / …) |
-| `macos_13_0` | Audio capture, sync clock |
-| `macos_14_0` | Screenshots, content picker, content info |
+| `macos_13_0` | Synchronization clock (audio capture is part of the 13.0 baseline) |
+| `macos_14_0` | Screenshots, content picker/info, aspect ratio, stream names |
 | `macos_14_2` | Menu bar capture, child windows, presenter overlay |
 | `macos_14_4` | Current-process shareable content |
 | `macos_15_0` | Recording output, HDR capture, microphone |
@@ -62,16 +62,16 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "8", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "10", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading a major version?** See [`docs/MIGRATION.md`](docs/MIGRATION.md)
 > for a per-version guide. Releases 3.0–6.0 consolidated the Core Graphics /
 > Core Media foundation types onto the shared `apple-cf` crate and 7.0 hardens
 > the FFI boundary; the only likely source change across that line is 5.0's
-> nested `CGRect` layout (`rect.origin.x` / `rect.size.width`). **8.0** makes the
-> `async` stream lifecycle methods real futures — add `.await` to
-> `AsyncSCStream::{start,stop}_capture` and `update_*` (see below).
+> nested `CGRect` layout (`rect.origin.x` / `rect.size.width`). **9.0** tightens
+> stream and picker lifecycle handling; **10.0** finalizes the audio, Metal,
+> picker, and shared Core Media/Core Video safety contracts described below.
 
 ## Quick Start
 
@@ -292,6 +292,25 @@ SCContentSharingPicker::show(&config, |outcome| match outcome {
 });
 ```
 
+For repeating selections, retain the subscription and route per-stream
+updates with the non-owning `StreamIdentity`:
+
+```rust,ignore
+let subscription = SCContentSharingPicker::add_observer(|event| match event {
+    SCPickerEvent::Updated { result, stream } => {
+        let filter = result.filter();
+        match stream {
+            Some(identity) => println!("update for {identity:?}: {filter:?}"),
+            None => println!("new selection: {filter:?}"),
+        }
+    }
+    SCPickerEvent::Cancelled { stream } => println!("cancelled: {stream:?}"),
+    SCPickerEvent::Failed(error) => eprintln!("picker error: {error}"),
+});
+SCContentSharingPicker::present();
+drop(subscription);
+```
+
 For async contexts, use [`AsyncSCContentSharingPicker::show`].
 </details>
 
@@ -330,7 +349,7 @@ use screencapturekit::prelude::*;
 struct H;
 impl SCStreamOutputTrait for H {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, _: SCStreamOutputType) {
-        if let Some(pb) = sample.image_buffer() {
+        if let Some(pb) = sample.pixel_buffer() {
             if let Some(surface) = pb.io_surface() {
                 let _ = (surface.width(), surface.height());
                 // Wrap as `MTLTexture` (see examples 17/18) — no copy.
@@ -342,9 +361,12 @@ impl SCStreamOutputTrait for H {
 
 Built-in Metal helpers live in `screencapturekit::metal` and ship a small
 shader library (`SHADER_SOURCE`) covering BGRA, YCbCr, and UI overlay
-rendering. See [`examples/16_full_metal_app/`](examples/16_full_metal_app/)
-for a complete app and [`examples/18_wgpu_integration.rs`](examples/18_wgpu_integration.rs)
-for the wgpu equivalent.
+rendering. Encode uniform values with `Uniforms::to_bytes()` and upload them
+through `MetalDevice::create_buffer_with_bytes()`; the generic object-
+representation upload is intentionally `unsafe`. See
+[`examples/16_full_metal_app/`](examples/16_full_metal_app/) for a complete app
+and [`examples/18_wgpu_integration.rs`](examples/18_wgpu_integration.rs) for
+the wgpu equivalent.
 </details>
 
 [`AsyncSCContentSharingPicker::show`]: https://doom-fish.github.io/screencapturekit-rs/screencapturekit/async_api/struct.AsyncSCContentSharingPicker.html
@@ -400,9 +422,11 @@ let mut config = SCStreamConfiguration::new().with_width(1920).with_height(1080)
 
 ## Requirements & Permissions
 
-- **macOS 12.3+** (Monterey) — base `ScreenCaptureKit`
-- **macOS 13.0+** — audio capture · **14.0+** — picker / screenshots ·
-  **15.0+** — recording / HDR / mic · **26.0+** — advanced screenshots
+- **macOS 13.0+** (Ventura). Apple's `ScreenCaptureKit` itself starts at 12.3,
+  but this crate's Swift bridge is built with a 13.0 deployment target and uses
+  the 13.0 audio APIs unconditionally, so 13.0 is the real floor.
+- **14.0+** — picker / screenshots · **15.0+** — recording / HDR / mic ·
+  **26.0+** — advanced screenshots
 - **Xcode Command Line Tools** at build time (`xcode-select --install`)
 
 Screen capture **always requires user permission**. To grant it:
@@ -469,14 +493,14 @@ use screencapturekit::prelude::*;
 use screencapturekit::shareable_content::ContentSnapshot;
 # fn example() -> Result<(), Box<dyn std::error::Error>> {
 let content = SCShareableContent::get()?;
-let ContentSnapshot { displays, windows, applications } =
+let ContentSnapshot { displays, windows, applications, truncation, .. } =
     content.snapshot().ok_or("snapshot failed")?;
 for w in &windows {
     let app = w.owning_app_index.and_then(|i| applications.get(i));
     println!("{} - {}", app.map(|a| &*a.application_name).unwrap_or(""),
              w.title.as_deref().unwrap_or(""));
 }
-# let _ = displays;
+# let _ = (displays, truncation);
 # Ok(()) }
 ```
 
@@ -530,7 +554,7 @@ Highlights by major version:
   `bgra_data_into_strided`) plus a locked `IOSurface` CPU view, and relaxes the
   `AudioBufferRef::data()` slice lifetime so the returned slice is tied to the
   wrapped buffer.
-- **8.0** — `async` only. `AsyncSCStream::{start_capture, stop_capture,
+- **8.0** — `AsyncSCStream::{start_capture, stop_capture,
   update_configuration, update_content_filter}` now return a waker-based future
   instead of blocking — add `.await` (e.g. `stream.start_capture().await?`). The
   stream engine now reports stops only through
@@ -538,10 +562,38 @@ Highlights by major version:
   is deprecated). New: `AsyncSCStream::{take_error, add_output_type, next_typed,
   try_next_typed}` for error visibility and audio+video on one stream. The
   synchronous `SCStream` API is unchanged.
+- **9.0** — memory-safety and lifecycle hardening.
+  `SCScreenshotOutput::file_url() -> Option<String>` became
+  `file_path() -> Option<PathBuf>`, and
+  `SCScreenshotConfiguration::with_file_path` takes `impl AsRef<Path>` (`&str`
+  still works). Recording codecs and file types are open, string-backed
+  identifiers rather than integer enums, and recording delegates now require
+  `Sync`. `SCContentFilter` is immutable once built: the nonfunctional
+  content-rect setters are gone (crop with
+  `SCStreamConfiguration::with_source_rect`) and `includeMenuBar` is set while
+  building via `SCContentFilterBuilder::with_include_menu_bar`. `AudioBuffer`'s
+  fields are private, with owner-tied mutable bytes behind
+  `unsafe AudioBufferList::data_mut`, and
+  `MetalDevice::as_apple_metal` hands out a borrow instead of a second owner.
+  `SCShareableContent::current_process` returns `SCError::FeatureNotAvailable`
+  below macOS 14.4 instead of quietly falling back to system-wide content, and
+  `SCStream::update_configuration` now requires the `macos_14_0` feature.
+  Build-SDK stub mode was removed. New: repeating picker observers
+  (`SCContentSharingPicker::add_observer`) so
+  `allows_changing_selected_content` actually delivers re-selections.
+- **10.0** — audio sample mutation moves to owner-tied unsafe views; Metal
+  buffer uploads and command/encoder lifecycle calls become checked and
+  fallible; repeating picker events preserve optional stream identity; picker
+  configuration is main-thread-only and fallible; shared Core Media/Core Video
+  adoption and byte-view APIs use the finalized apple-cf safety contracts.
 
 If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–7.0
-upgrades are typically just the 5.0 `CGRect` field-access change, and 8.0 only
-affects you if you use the `async` API.
+upgrades are typically just the 5.0 `CGRect` field-access change. 8.0 affects
+you if you use the `async` API; 9.0 affects you if you write screenshots to
+disk, configure recording outputs, crop through the content filter, read
+`AudioBuffer` fields, or call `SCShareableContent::current_process`.
+10.0 affects audio-buffer mutation, Metal upload/encoding paths, repeating
+picker events/configuration, and direct apple-cf raw or locked-byte access.
 
 ## Contributing
 
@@ -571,7 +623,7 @@ meeting transcription, and remote desktop. A few highlights:
 <details>
 <summary>And many more…</summary>
 
-[fl_caption](https://github.com/xkeyC/fl_caption), [Lycoris](https://github.com/solaoi/lycoris), [Hindsight](https://github.com/Tomotsugu-dev/Hindsight), [kivio](https://github.com/ZMGID/kivio), [Drift](https://github.com/diiviikk5/Drift), [Phantom](https://github.com/zruss11/Phantom), [ruhear](https://github.com/aizcutei/ruhear), [Tab5-Screen-Streamer](https://github.com/Hiroki-Kawakami/Tab5-Screen-Streamer), [macloop](https://github.com/kemsta/macloop), [beer](https://github.com/alii/beer), [phantom-ear](https://github.com/fomyio/phantom-ear), [Logia](https://github.com/daschinmoy21/Logia), [VibeTube](https://github.com/VibeCreAI/VibeTube), [silly-ai](https://github.com/zz85/silly-ai), [aresampler](https://github.com/adnissen/aresampler), [xos](https://github.com/xlateai/xos), [scriberr-desktop](https://github.com/rishikanthc/scriberr-desktop), [echonote](https://github.com/luismctech/echonote), [zest-wallpaper](https://github.com/lgcenen/zest-wallpaper), [mira](https://github.com/fluffypony/mira), [overlay-ai](https://github.com/VishnuVVR-369/overlay-ai), [open-rec](https://github.com/TommyBez/open-rec), [omnirec](https://github.com/omnirec/omnirec), [oxiremote](https://github.com/nhtera/oxiremote), [LocalWhisper](https://github.com/ly7erg1c/LocalWhisper), [Hush](https://github.com/khawkins98/Hush), [cocuyo](https://github.com/jorgeajimenezl/cocuyo), [openhush](https://github.com/claymore666/openhush), [tucknotes](https://github.com/ajgagnon/tucknotes), [domino](https://github.com/nitinm21/domino), [bridge](https://github.com/maorinka/bridge), [screen-recorder](https://github.com/forfd8960/screen-recorder), [orbit](https://github.com/divesh-balani/orbit), [audio-capture](https://github.com/birdieHyun/audio-capture), [AFFiNE-teto](https://github.com/shrik450/AFFiNE-teto), [loom](https://github.com/rkendel1/loom).
+[fl_caption](https://github.com/xkeyC/fl_caption), [Lycoris](https://github.com/solaoi/lycoris), [Hindsight](https://github.com/Tomotsugu-dev/Hindsight), [kivio](https://github.com/ZMGID/kivio), [Drift](https://github.com/diiviikk5/Drift), [Phantom](https://github.com/zruss11/Phantom), [ruhear](https://github.com/aizcutei/ruhear), [Tab5-Screen-Streamer](https://github.com/Hiroki-Kawakami/Tab5-Screen-Streamer), [macloop](https://github.com/kemsta/macloop), [beer](https://github.com/alii/beer), [phantom-ear](https://github.com/fomyio/phantom-ear), [Logia](https://github.com/daschinmoy21/Logia), [VibeTube](https://github.com/VibeCreAI/VibeTube), [silly-ai](https://github.com/zz85/silly-ai), [aresampler](https://github.com/adnissen/aresampler), [xos](https://github.com/xlateai/xos), [scriberr-desktop](https://github.com/rishikanthc/scriberr-desktop), [echonote](https://github.com/luismctech/echonote), [zest-wallpaper](https://github.com/lgcenen/zest-wallpaper), [mira](https://github.com/fluffypony/mira), [overlay-ai](https://github.com/VishnuVVR-369/overlay-ai), [open-rec](https://github.com/TommyBez/open-rec), [omnirec](https://github.com/omnirec/omnirec), [oxiremote](https://github.com/nhtera/oxiremote), [LocalWhisper](https://github.com/ly7erg1c/LocalWhisper), [Hush](https://github.com/khawkins98/Hush), [cocuyo](https://github.com/jorgeajimenezl/cocuyo), [openhush](https://github.com/claymore666/openhush), [tucknotes](https://github.com/ajgagnon/tucknotes), [domino](https://github.com/nitinm21/domino), [bridge](https://github.com/maorinka/bridge), [screen-recorder](https://github.com/forfd8960/screen-recorder), [orbit](https://github.com/divesh-balani/orbit), [audio-capture](https://github.com/birdieHyun/audio-capture), [AFFiNE-teto](https://github.com/shrik450/AFFiNE-teto), [loom](https://github.com/rkendel1/loom), [transkit-desktop](https://github.com/transkit-app/transkit-desktop), [iced_live_cast](https://github.com/veecore/iced_live_cast), [vloom](https://github.com/victory-sokolov/vloom).
 
 </details>
 

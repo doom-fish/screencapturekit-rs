@@ -15,6 +15,20 @@ fn cg_init_for_headless_ci() {
     unsafe { sc_initialize_core_graphics() }
 }
 
+macro_rules! require_display {
+    ($content:expr, $display:ident) => {
+        let displays = $content.displays();
+        let Some($display) = displays.first() else {
+            eprintln!("skip: no displays available");
+            return;
+        };
+    };
+}
+
+fn has_capturable_display() -> bool {
+    SCShareableContent::get().is_ok_and(|content| !content.displays().is_empty())
+}
+
 #[test]
 fn test_screenshot_manager_type() {
     // Just verify the type exists and can be referenced
@@ -25,7 +39,7 @@ fn test_screenshot_manager_type() {
 fn test_capture_image() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -49,7 +63,7 @@ fn test_capture_image() {
 fn test_capture_sample_buffer() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -80,7 +94,7 @@ fn test_cgimage_send_sync() {
 fn test_cgimage_rgba_data() {
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -111,7 +125,7 @@ fn test_cgimage_bgra_matches_rgba_byteswap() {
     let Ok(content) = SCShareableContent::get() else {
         return;
     };
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -162,7 +176,7 @@ fn test_cgimage_data_into_buffer_apis() {
     let Ok(content) = SCShareableContent::get() else {
         return;
     };
-    let display = &content.displays()[0];
+    require_display!(content, display);
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
@@ -235,6 +249,10 @@ fn test_cgimage_data_into_buffer_apis() {
 fn test_capture_image_in_rect() {
     use screencapturekit::cg::CGRect;
     cg_init_for_headless_ci();
+    if !has_capturable_display() {
+        eprintln!("skip: no displays available");
+        return;
+    }
 
     // Capture a specific region of the screen
     let rect = CGRect::new(0.0, 0.0, 640.0, 480.0);
@@ -262,6 +280,10 @@ fn test_capture_image_in_rect() {
 fn test_capture_image_in_rect_small_region() {
     use screencapturekit::cg::CGRect;
     cg_init_for_headless_ci();
+    if !has_capturable_display() {
+        eprintln!("skip: no displays available");
+        return;
+    }
 
     // Capture a small 100x100 region
     let rect = CGRect::new(100.0, 100.0, 100.0, 100.0);
@@ -395,7 +417,7 @@ fn test_capture_screenshot_with_configuration() {
 
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
-    let display = &content.displays()[0];
+    require_display!(content, display);
 
     let filter = SCContentFilter::create()
         .with_display(display)
@@ -460,4 +482,140 @@ fn test_capture_screenshot_in_rect_with_configuration() {
             println!("⚠ capture_screenshot_in_rect not available: {e}");
         }
     }
+}
+
+// MARK: - SCScreenshotConfiguration getters (macOS 26.0+)
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_scalar_getters_round_trip() {
+    use screencapturekit::screenshot_manager::{
+        SCScreenshotConfiguration, SCScreenshotDisplayIntent, SCScreenshotDynamicRange,
+    };
+
+    let config = SCScreenshotConfiguration::new()
+        .with_width(1920)
+        .with_height(1080)
+        .with_shows_cursor(true)
+        .with_ignore_shadows(true)
+        .with_ignore_clipping(true)
+        .with_include_child_windows(true)
+        .with_display_intent(SCScreenshotDisplayIntent::Local)
+        .with_dynamic_range(SCScreenshotDynamicRange::BothSDRAndHDR);
+
+    assert_eq!(config.width(), 1920);
+    assert_eq!(config.height(), 1080);
+    assert!(config.shows_cursor());
+    assert!(config.ignore_shadows());
+    assert!(config.ignore_clipping());
+    assert!(config.include_child_windows());
+    assert_eq!(
+        config.display_intent(),
+        Some(SCScreenshotDisplayIntent::Local)
+    );
+    assert_eq!(
+        config.dynamic_range(),
+        Some(SCScreenshotDynamicRange::BothSDRAndHDR)
+    );
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_rect_getters_round_trip() {
+    use screencapturekit::cg::CGRect;
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+
+    let source = CGRect::new(10.0, 20.0, 640.0, 480.0);
+    let destination = CGRect::new(0.0, 0.0, 1280.0, 960.0);
+
+    let config = SCScreenshotConfiguration::new()
+        .with_source_rect(source)
+        .with_destination_rect(destination);
+
+    let read_source = config.source_rect();
+    assert!((read_source.origin.x - source.origin.x).abs() < f64::EPSILON);
+    assert!((read_source.origin.y - source.origin.y).abs() < f64::EPSILON);
+    assert!((read_source.size.width - source.size.width).abs() < f64::EPSILON);
+    assert!((read_source.size.height - source.size.height).abs() < f64::EPSILON);
+
+    let read_destination = config.destination_rect();
+    assert!((read_destination.size.width - destination.size.width).abs() < f64::EPSILON);
+    assert!((read_destination.size.height - destination.size.height).abs() < f64::EPSILON);
+}
+
+/// The path must survive the round trip byte-for-byte. The previous
+/// `String`-based accessor decoded lossily and used a fixed-size buffer.
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_file_path_round_trip() {
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+    use std::path::PathBuf;
+
+    let dir = std::env::temp_dir();
+    let path: PathBuf = dir.join("screencapturekit round trip.png");
+
+    let config = SCScreenshotConfiguration::new().with_file_path(&path);
+    assert_eq!(config.file_path().as_deref(), Some(path.as_path()));
+
+    let cleared = config.without_file_path();
+    assert_eq!(cleared.file_path(), None);
+
+    let mut config = SCScreenshotConfiguration::new().with_file_path(&path);
+    config.clear_file_path();
+    assert_eq!(config.file_path(), None);
+}
+
+/// A long path must not be truncated into a different, valid-looking path.
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_long_file_path_survives() {
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+
+    let long_name = "x".repeat(200);
+    let path = std::env::temp_dir().join(format!("{long_name}.png"));
+
+    let config = SCScreenshotConfiguration::new().with_file_path(&path);
+    assert_eq!(config.file_path().as_deref(), Some(path.as_path()));
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_rejects_interior_nul_path() {
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+
+    let mut config = SCScreenshotConfiguration::new();
+    assert!(
+        config.try_set_file_path("/tmp/bad\0name.png").is_err(),
+        "interior NUL path must be rejected"
+    );
+    assert_eq!(config.file_path(), None);
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_rejects_non_utf8_path() {
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+    use std::os::unix::ffi::OsStringExt;
+
+    let path = std::path::PathBuf::from(std::ffi::OsString::from_vec(
+        b"/tmp/screenshot-\xff.png".to_vec(),
+    ));
+    let mut config = SCScreenshotConfiguration::new();
+    assert!(config.try_set_file_path(path).is_err());
+    assert_eq!(config.file_path(), None);
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_content_type_round_trip() {
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+
+    let supported = SCScreenshotConfiguration::supported_content_types();
+    assert!(
+        !supported.is_empty(),
+        "SCScreenshotConfiguration reported no supported content types"
+    );
+
+    let config = SCScreenshotConfiguration::new().with_content_type("public.png");
+    assert_eq!(config.content_type().as_deref(), Some("public.png"));
 }

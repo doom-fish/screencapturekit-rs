@@ -8,20 +8,34 @@ import VideoToolbox
 
 // MARK: - Audio Buffer List Bridge Types
 
-public struct AudioBufferBridge {
-    public var number_channels: UInt32
-    public var data_bytes_size: UInt32
-    public var data_ptr: UnsafeMutableRawPointer?
-}
-
-public struct AudioBufferListRaw {
-    public var num_buffers: UInt32
-    public var buffers_ptr: UnsafeMutablePointer<AudioBufferBridge>?
-    public var buffers_len: UInt
+// Deliberately `private` and SC-prefixed. apple-cf's `CoreMediaBridge` module
+// exports `public struct AudioBufferBridge` / `AudioBufferListRaw` under the
+// same module name, so a `public` twin here collides at link time once both
+// static libraries are pulled into the same binary.
+private struct SCAudioBufferBridge {
+    var number_channels: UInt32
+    var data_bytes_size: UInt32
+    var data_ptr: UnsafeMutableRawPointer?
 }
 
 // MARK: - CMSampleBuffer Bridge
 
+// ScreenCaptureKit stores `SCStreamFrameInfo.status` as an `NSNumber`, not as a
+// bridged `SCFrameStatus`. `as? SCFrameStatus` on an `NSNumber` always fails
+// because `SCFrameStatus` is an `@objc` enum and NSNumber is not bridgeable to
+// it, so the previous cast made every frame report "no status". Read the
+// numeric payload and reconstruct the enum from its raw value; the
+// `SCFrameStatus` branch is kept first in case a future SDK starts handing back
+// an already-bridged value.
+private func decodeFrameStatus(_ value: Any?) -> Int32? {
+    if let status = value as? SCFrameStatus {
+        return Int32(truncatingIfNeeded: status.rawValue)
+    }
+    if let number = value as? NSNumber {
+        return Int32(truncatingIfNeeded: number.intValue)
+    }
+    return nil
+}
 
 @_cdecl("cm_sample_buffer_get_frame_status")
 public func cm_sample_buffer_get_frame_status(_ sampleBuffer: UnsafeMutableRawPointer) -> Int32 {
@@ -29,12 +43,12 @@ public func cm_sample_buffer_get_frame_status(_ sampleBuffer: UnsafeMutableRawPo
 
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
           let firstAttachment = attachments.first,
-          let status = firstAttachment[SCStreamFrameInfo.status.rawValue as CFString] as? SCFrameStatus
+          let status = decodeFrameStatus(firstAttachment[SCStreamFrameInfo.status.rawValue as CFString])
     else {
         return -1
     }
 
-    return Int32(status.rawValue)
+    return status
 }
 
 @_cdecl("cm_sample_buffer_get_display_time")
@@ -101,109 +115,108 @@ public func cm_sample_buffer_get_content_rect(_ sampleBuffer: UnsafeMutableRawPo
     return true
 }
 
-@available(macOS 14.0, *)
-@_cdecl("cm_sample_buffer_get_bounding_rect")
-public func cm_sample_buffer_get_bounding_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+#if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+    @_cdecl("cm_sample_buffer_get_bounding_rect")
+    public func cm_sample_buffer_get_bounding_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
+        guard #available(macOS 14.0, *) else { return false }
+        let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
-    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
-          let firstAttachment = attachments.first,
-          let rectDict = firstAttachment[SCStreamFrameInfo.boundingRect.rawValue as CFString] as? [String: Any],
-          let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
-    else {
+        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+              let firstAttachment = attachments.first,
+              let rectDict = firstAttachment[SCStreamFrameInfo.boundingRect.rawValue as CFString] as? [String: Any],
+              let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
+        else {
+            return false
+        }
+
+        outX.pointee = rect.origin.x
+        outY.pointee = rect.origin.y
+        outWidth.pointee = rect.size.width
+        outHeight.pointee = rect.size.height
+        return true
+    }
+#else
+    @_cdecl("cm_sample_buffer_get_bounding_rect")
+    public func cm_sample_buffer_get_bounding_rect(_: UnsafeMutableRawPointer, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>) -> Bool {
         return false
     }
+#endif
 
-    outX.pointee = rect.origin.x
-    outY.pointee = rect.origin.y
-    outWidth.pointee = rect.size.width
-    outHeight.pointee = rect.size.height
-    return true
-}
+#if SCREENCAPTUREKIT_HAS_MACOS13_1_SDK
+    @_cdecl("cm_sample_buffer_get_screen_rect")
+    public func cm_sample_buffer_get_screen_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
+        guard #available(macOS 13.1, *) else { return false }
+        let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
-@available(macOS 13.1, *)
-@_cdecl("cm_sample_buffer_get_screen_rect")
-public func cm_sample_buffer_get_screen_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+              let firstAttachment = attachments.first,
+              let rectDict = firstAttachment[SCStreamFrameInfo.screenRect.rawValue as CFString] as? [String: Any],
+              let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
+        else {
+            return false
+        }
 
-    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
-          let firstAttachment = attachments.first,
-          let rectDict = firstAttachment[SCStreamFrameInfo.screenRect.rawValue as CFString] as? [String: Any],
-          let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
-    else {
+        outX.pointee = rect.origin.x
+        outY.pointee = rect.origin.y
+        outWidth.pointee = rect.size.width
+        outHeight.pointee = rect.size.height
+        return true
+    }
+#else
+    @_cdecl("cm_sample_buffer_get_screen_rect")
+    public func cm_sample_buffer_get_screen_rect(_: UnsafeMutableRawPointer, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>) -> Bool {
         return false
     }
-
-    outX.pointee = rect.origin.x
-    outY.pointee = rect.origin.y
-    outWidth.pointee = rect.size.width
-    outHeight.pointee = rect.size.height
-    return true
-}
+#endif
 
 /// Read the `SCStreamFrameInfo.presenterOverlayContentRect` attachment off the
 /// sample buffer (macOS 14.2+ Presenter Overlay). Returns false (and leaves the
 /// out parameters untouched) if the attachment is missing — typical when the
 /// stream was not configured with a presenter overlay.
-@available(macOS 14.2, *)
-@_cdecl("cm_sample_buffer_get_presenter_overlay_content_rect")
-public func cm_sample_buffer_get_presenter_overlay_content_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
+#if SCREENCAPTUREKIT_HAS_MACOS14_2_SDK
+    @_cdecl("cm_sample_buffer_get_presenter_overlay_content_rect")
+    public func cm_sample_buffer_get_presenter_overlay_content_rect(_ sampleBuffer: UnsafeMutableRawPointer, _ outX: UnsafeMutablePointer<Float64>, _ outY: UnsafeMutablePointer<Float64>, _ outWidth: UnsafeMutablePointer<Float64>, _ outHeight: UnsafeMutablePointer<Float64>) -> Bool {
+        guard #available(macOS 14.2, *) else { return false }
+        let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
-    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
-          let firstAttachment = attachments.first,
-          let rectDict = firstAttachment[SCStreamFrameInfo.presenterOverlayContentRect.rawValue as CFString] as? [String: Any],
-          let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
-    else {
-        return false
+        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
+              let firstAttachment = attachments.first,
+              let rectDict = firstAttachment[SCStreamFrameInfo.presenterOverlayContentRect.rawValue as CFString] as? [String: Any],
+              let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
+        else {
+            return false
+        }
+
+        outX.pointee = rect.origin.x
+        outY.pointee = rect.origin.y
+        outWidth.pointee = rect.size.width
+        outHeight.pointee = rect.size.height
+        return true
     }
+#else
+    @_cdecl("cm_sample_buffer_get_presenter_overlay_content_rect")
+    public func cm_sample_buffer_get_presenter_overlay_content_rect(_: UnsafeMutableRawPointer, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>, _: UnsafeMutablePointer<Float64>) -> Bool {
+        false
+    }
+#endif
 
-    outX.pointee = rect.origin.x
-    outY.pointee = rect.origin.y
-    outWidth.pointee = rect.size.width
-    outHeight.pointee = rect.size.height
-    return true
-}
 
 @_cdecl("cm_sample_buffer_get_dirty_rects")
 public func cm_sample_buffer_get_dirty_rects(_ sampleBuffer: UnsafeMutableRawPointer, _ outRects: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outCount: UnsafeMutablePointer<UInt>) -> Bool {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
+    outRects.pointee = nil
+    outCount.pointee = 0
+
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
           let firstAttachment = attachments.first,
-          let dirtyRects = firstAttachment[SCStreamFrameInfo.dirtyRects.rawValue as CFString] as? [Any]
+          let (rectsPtr, count) = copyDirtyRects(firstAttachment[SCStreamFrameInfo.dirtyRects.rawValue as CFString])
     else {
-        outRects.pointee = nil
-        outCount.pointee = 0
         return false
     }
 
-    var rects: [CGRect] = []
-    for item in dirtyRects {
-        if let rectDict = item as? [String: Any],
-           let rect = CGRect(dictionaryRepresentation: rectDict as CFDictionary)
-        {
-            rects.append(rect)
-        }
-    }
-
-    guard !rects.isEmpty else {
-        outRects.pointee = nil
-        outCount.pointee = 0
-        return false
-    }
-
-    // Allocate array of 4 doubles per rect (x, y, width, height)
-    let rectsPtr = UnsafeMutablePointer<Float64>.allocate(capacity: rects.count * 4)
-    for (index, rect) in rects.enumerated() {
-        rectsPtr[index * 4 + 0] = rect.origin.x
-        rectsPtr[index * 4 + 1] = rect.origin.y
-        rectsPtr[index * 4 + 2] = rect.size.width
-        rectsPtr[index * 4 + 3] = rect.size.height
-    }
-
-    outRects.pointee = UnsafeMutableRawPointer(rectsPtr)
-    outCount.pointee = UInt(rects.count)
+    outRects.pointee = rectsPtr
+    outCount.pointee = count
     return true
 }
 
@@ -223,6 +236,57 @@ private struct FrameInfoFieldBits {
     static let boundingRect: UInt32 = 1 << 5
     static let screenRect: UInt32 = 1 << 6
     static let presenterOverlayRect: UInt32 = 1 << 7
+    static let dirtyRects: UInt32 = 1 << 8
+}
+
+// Decode the `SCStreamFrameInfoDirtyRects` attachment into a freshly allocated
+// `[x, y, w, h] * count` array owned by the caller.
+func copyDirtyRects(_ value: Any?) -> (UnsafeMutableRawPointer, UInt)? {
+    guard let dirtyRects = value as? [Any] else { return nil }
+
+    var rects: [CGRect] = []
+    for item in dirtyRects {
+        if let value = item as? NSValue {
+            rects.append(value.rectValue)
+        }
+    }
+    guard !rects.isEmpty else { return nil }
+
+    let rectsPtr = UnsafeMutablePointer<Float64>.allocate(capacity: rects.count * 4)
+    for (index, rect) in rects.enumerated() {
+        rectsPtr[index * 4 + 0] = rect.origin.x
+        rectsPtr[index * 4 + 1] = rect.origin.y
+        rectsPtr[index * 4 + 2] = rect.size.width
+        rectsPtr[index * 4 + 3] = rect.size.height
+    }
+    return (UnsafeMutableRawPointer(rectsPtr), UInt(rects.count))
+}
+
+@_cdecl("cm_test_copy_nsvalue_dirty_rects")
+public func cm_test_copy_nsvalue_dirty_rects(
+    _ values: UnsafePointer<Float64>,
+    _ count: UInt,
+    _ outRects: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outCount: UnsafeMutablePointer<UInt>
+) -> Bool {
+    outRects.pointee = nil
+    outCount.pointee = 0
+    guard count > 0, count <= UInt(Int.max / 4) else { return false }
+
+    var boxed: [NSValue] = []
+    boxed.reserveCapacity(Int(count))
+    for index in 0 ..< Int(count) {
+        boxed.append(NSValue(rect: CGRect(
+            x: values[index * 4],
+            y: values[index * 4 + 1],
+            width: values[index * 4 + 2],
+            height: values[index * 4 + 3]
+        )))
+    }
+    guard let (rects, decodedCount) = copyDirtyRects(boxed) else { return false }
+    outRects.pointee = rects
+    outCount.pointee = decodedCount
+    return true
 }
 
 // Single-call frame info fetch.
@@ -238,6 +302,10 @@ private struct FrameInfoFieldBits {
 // at its default value and the corresponding bit is left clear on older
 // systems.
 //
+// `outDirtyRects` receives a freshly allocated `[x, y, w, h] * count` array
+// whenever the `dirtyRects` bit is set; the caller owns it and must release it
+// with `cm_sample_buffer_free_dirty_rects`.
+//
 // Layout MUST match `FrameInfoRaw` in src/cm/ffi.rs.
 @_cdecl("cm_sample_buffer_get_frame_info")
 public func cm_sample_buffer_get_frame_info(
@@ -250,10 +318,14 @@ public func cm_sample_buffer_get_frame_info(
     _ outContentRect: UnsafeMutablePointer<Float64>,        // [4]: x,y,w,h
     _ outBoundingRect: UnsafeMutablePointer<Float64>,       // [4]
     _ outScreenRect: UnsafeMutablePointer<Float64>,         // [4]
-    _ outPresenterOverlayRect: UnsafeMutablePointer<Float64> // [4]
+    _ outPresenterOverlayRect: UnsafeMutablePointer<Float64>, // [4]
+    _ outDirtyRects: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
+    _ outDirtyRectsCount: UnsafeMutablePointer<UInt>
 ) -> Bool {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
     outFields.pointee = 0
+    outDirtyRects.pointee = nil
+    outDirtyRectsCount.pointee = 0
 
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
           let attachment = attachments.first
@@ -263,8 +335,8 @@ public func cm_sample_buffer_get_frame_info(
 
     var fields: UInt32 = 0
 
-    if let status = attachment[SCStreamFrameInfo.status.rawValue as CFString] as? SCFrameStatus {
-        outStatus.pointee = Int32(status.rawValue)
+    if let status = decodeFrameStatus(attachment[SCStreamFrameInfo.status.rawValue as CFString]) {
+        outStatus.pointee = status
         fields |= FrameInfoFieldBits.status
     }
     if let displayTime = attachment[SCStreamFrameInfo.displayTime.rawValue as CFString] as? UInt64 {
@@ -287,66 +359,48 @@ public func cm_sample_buffer_get_frame_info(
         outContentRect[3] = rect.size.height
         fields |= FrameInfoFieldBits.contentRect
     }
-    if #available(macOS 14.0, *),
-       let dict = attachment[SCStreamFrameInfo.boundingRect.rawValue as CFString] as? [String: Any],
-       let rect = CGRect(dictionaryRepresentation: dict as CFDictionary) {
-        outBoundingRect[0] = rect.origin.x
-        outBoundingRect[1] = rect.origin.y
-        outBoundingRect[2] = rect.size.width
-        outBoundingRect[3] = rect.size.height
-        fields |= FrameInfoFieldBits.boundingRect
-    }
-    if #available(macOS 13.1, *),
-       let dict = attachment[SCStreamFrameInfo.screenRect.rawValue as CFString] as? [String: Any],
-       let rect = CGRect(dictionaryRepresentation: dict as CFDictionary) {
-        outScreenRect[0] = rect.origin.x
-        outScreenRect[1] = rect.origin.y
-        outScreenRect[2] = rect.size.width
-        outScreenRect[3] = rect.size.height
-        fields |= FrameInfoFieldBits.screenRect
-    }
-    if #available(macOS 14.2, *),
-       let dict = attachment[SCStreamFrameInfo.presenterOverlayContentRect.rawValue as CFString] as? [String: Any],
-       let rect = CGRect(dictionaryRepresentation: dict as CFDictionary) {
-        outPresenterOverlayRect[0] = rect.origin.x
-        outPresenterOverlayRect[1] = rect.origin.y
-        outPresenterOverlayRect[2] = rect.size.width
-        outPresenterOverlayRect[3] = rect.size.height
-        fields |= FrameInfoFieldBits.presenterOverlayRect
+    #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
+        if #available(macOS 14.0, *),
+           let dict = attachment[SCStreamFrameInfo.boundingRect.rawValue as CFString] as? [String: Any],
+           let rect = CGRect(dictionaryRepresentation: dict as CFDictionary) {
+            outBoundingRect[0] = rect.origin.x
+            outBoundingRect[1] = rect.origin.y
+            outBoundingRect[2] = rect.size.width
+            outBoundingRect[3] = rect.size.height
+            fields |= FrameInfoFieldBits.boundingRect
+        }
+    #endif
+    #if SCREENCAPTUREKIT_HAS_MACOS13_1_SDK
+        if #available(macOS 13.1, *),
+           let dict = attachment[SCStreamFrameInfo.screenRect.rawValue as CFString] as? [String: Any],
+           let rect = CGRect(dictionaryRepresentation: dict as CFDictionary) {
+            outScreenRect[0] = rect.origin.x
+            outScreenRect[1] = rect.origin.y
+            outScreenRect[2] = rect.size.width
+            outScreenRect[3] = rect.size.height
+            fields |= FrameInfoFieldBits.screenRect
+        }
+    #endif
+    #if SCREENCAPTUREKIT_HAS_MACOS14_2_SDK
+        if #available(macOS 14.2, *),
+           let dict = attachment[SCStreamFrameInfo.presenterOverlayContentRect.rawValue as CFString] as? [String: Any],
+           let rect = CGRect(dictionaryRepresentation: dict as CFDictionary) {
+            outPresenterOverlayRect[0] = rect.origin.x
+            outPresenterOverlayRect[1] = rect.origin.y
+            outPresenterOverlayRect[2] = rect.size.width
+            outPresenterOverlayRect[3] = rect.size.height
+            fields |= FrameInfoFieldBits.presenterOverlayRect
+        }
+    #endif
+    if let (rectsPtr, count) = copyDirtyRects(attachment[SCStreamFrameInfo.dirtyRects.rawValue as CFString]) {
+        outDirtyRects.pointee = rectsPtr
+        outDirtyRectsCount.pointee = count
+        fields |= FrameInfoFieldBits.dirtyRects
     }
 
     outFields.pointee = fields
     return fields != 0
 }
-
-@_cdecl("cm_sample_buffer_get_presentation_timestamp_value")
-public func cm_sample_buffer_get_presentation_timestamp_value(_ sampleBuffer: UnsafeMutableRawPointer) -> Int64 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-    return time.value
-}
-
-@_cdecl("cm_sample_buffer_get_presentation_timestamp_timescale")
-public func cm_sample_buffer_get_presentation_timestamp_timescale(_ sampleBuffer: UnsafeMutableRawPointer) -> Int32 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-    return time.timescale
-}
-
-@_cdecl("cm_sample_buffer_get_presentation_timestamp_flags")
-public func cm_sample_buffer_get_presentation_timestamp_flags(_ sampleBuffer: UnsafeMutableRawPointer) -> UInt32 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-    return time.flags.rawValue
-}
-
-@_cdecl("cm_sample_buffer_get_presentation_timestamp_epoch")
-public func cm_sample_buffer_get_presentation_timestamp_epoch(_ sampleBuffer: UnsafeMutableRawPointer) -> Int64 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-    return time.epoch
-}
-
 
 
 @_cdecl("cm_sample_buffer_get_output_presentation_timestamp")
@@ -378,38 +432,6 @@ public func cm_sample_buffer_set_output_presentation_timestamp(
     return CMSampleBufferSetOutputPresentationTimeStamp(buffer, newValue: time)
 }
 
-@_cdecl("cm_sample_buffer_get_duration_value")
-public func cm_sample_buffer_get_duration_value(_ sampleBuffer: UnsafeMutableRawPointer) -> Int64 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let duration = CMSampleBufferGetDuration(buffer)
-    return duration.value
-}
-
-@_cdecl("cm_sample_buffer_get_duration_timescale")
-public func cm_sample_buffer_get_duration_timescale(_ sampleBuffer: UnsafeMutableRawPointer) -> Int32 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let duration = CMSampleBufferGetDuration(buffer)
-    return duration.timescale
-}
-
-@_cdecl("cm_sample_buffer_get_duration_flags")
-public func cm_sample_buffer_get_duration_flags(_ sampleBuffer: UnsafeMutableRawPointer) -> UInt32 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let duration = CMSampleBufferGetDuration(buffer)
-    return duration.flags.rawValue
-}
-
-@_cdecl("cm_sample_buffer_get_duration_epoch")
-public func cm_sample_buffer_get_duration_epoch(_ sampleBuffer: UnsafeMutableRawPointer) -> Int64 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-    let duration = CMSampleBufferGetDuration(buffer)
-    return duration.epoch
-}
-
-
-
-
-
 
 @_cdecl("cm_sample_buffer_get_sample_size")
 public func cm_sample_buffer_get_sample_size(_ sampleBuffer: UnsafeMutableRawPointer, _ sampleIndex: Int) -> Int {
@@ -437,26 +459,6 @@ public func cm_sample_buffer_make_data_ready(_ sampleBuffer: UnsafeMutableRawPoi
 
 // MARK: - Audio Buffer List Bridge
 
-@_cdecl("cm_sample_buffer_get_audio_buffer_list_num_buffers")
-public func cm_sample_buffer_get_audio_buffer_list_num_buffers(_ sampleBuffer: UnsafeMutableRawPointer) -> UInt32 {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-
-    var blockBuffer: CMBlockBuffer?
-    var audioBufferList = AudioBufferList()
-
-    let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-        buffer,
-        bufferListSizeNeededOut: nil,
-        bufferListOut: &audioBufferList,
-        bufferListSize: MemoryLayout<AudioBufferList>.size,
-        blockBufferAllocator: nil,
-        blockBufferMemoryAllocator: nil,
-        flags: 0,
-        blockBufferOut: &blockBuffer
-    )
-
-    return status == noErr ? audioBufferList.mNumberBuffers : 0
-}
 
 @_cdecl("cm_sample_buffer_get_audio_buffer_list")
 public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutableRawPointer, _ outNumBuffers: UnsafeMutablePointer<UInt32>, _ outBuffersPtr: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outBuffersLen: UnsafeMutablePointer<UInt>, _ outBlockBuffer: UnsafeMutablePointer<UnsafeMutableRawPointer?>) {
@@ -516,7 +518,7 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
         return
     }
 
-    let buffers = UnsafeMutablePointer<AudioBufferBridge>.allocate(capacity: numBuffers)
+    let buffers = UnsafeMutablePointer<SCAudioBufferBridge>.allocate(capacity: numBuffers)
 
     // Trust-boundary hardening: CoreMedia's reported mDataByteSize is copied across
     // the FFI boundary and used by Rust to build a slice via from_raw_parts. If
@@ -531,7 +533,7 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
         let bufferArray = UnsafeBufferPointer(start: buffersPtr, count: numBuffers)
         for (index, audioBuffer) in bufferArray.enumerated() {
             let clampedSize = min(audioBuffer.mDataByteSize, blockDataLength)
-            buffers[index] = AudioBufferBridge(
+            buffers[index] = SCAudioBufferBridge(
                 number_channels: audioBuffer.mNumberChannels,
                 data_bytes_size: clampedSize,
                 data_ptr: audioBuffer.mData
@@ -546,12 +548,12 @@ public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutable
     outBlockBuffer.pointee = Unmanaged.passRetained(blockBuffer).toOpaque()
 }
 
-
-
-
-
-
-
+@_cdecl("cm_audio_buffer_bridge_array_free")
+public func cm_audio_buffer_bridge_array_free(_ buffers: UnsafeMutableRawPointer?) {
+    buffers?
+        .assumingMemoryBound(to: SCAudioBufferBridge.self)
+        .deallocate()
+}
 
 
 // MARK: - CMFormatDescription APIs
@@ -655,15 +657,6 @@ public func cm_sample_buffer_copy_pcm_data_into_audio_buffer_list(
 }
 
 
-
-
-
-
-
-
-
-
-
 // MARK: - CMSampleBuffer Creation
 
 @_cdecl("cm_sample_buffer_create_for_image_buffer")
@@ -671,16 +664,30 @@ public func cm_sample_buffer_create_for_image_buffer(
     _ imageBuffer: UnsafeMutableRawPointer,
     _ presentationTimeValue: Int64,
     _ presentationTimeScale: Int32,
+    _ presentationTimeFlags: UInt32,
+    _ presentationTimeEpoch: Int64,
     _ durationValue: Int64,
     _ durationScale: Int32,
+    _ durationFlags: UInt32,
+    _ durationEpoch: Int64,
     _ sampleBufferOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>
 ) -> Int32 {
     let pixelBuffer = Unmanaged<CVPixelBuffer>.fromOpaque(imageBuffer).takeUnretainedValue()
 
     var sampleBuffer: CMSampleBuffer?
     var timingInfo = CMSampleTimingInfo(
-        duration: CMTime(value: CMTimeValue(durationValue), timescale: durationScale, flags: .valid, epoch: 0),
-        presentationTimeStamp: CMTime(value: CMTimeValue(presentationTimeValue), timescale: presentationTimeScale, flags: .valid, epoch: 0),
+        duration: CMTime(
+            value: CMTimeValue(durationValue),
+            timescale: durationScale,
+            flags: CMTimeFlags(rawValue: durationFlags),
+            epoch: durationEpoch
+        ),
+        presentationTimeStamp: CMTime(
+            value: CMTimeValue(presentationTimeValue),
+            timescale: presentationTimeScale,
+            flags: CMTimeFlags(rawValue: presentationTimeFlags),
+            epoch: presentationTimeEpoch
+        ),
         decodeTimeStamp: .invalid
     )
 
@@ -714,8 +721,6 @@ public func cm_sample_buffer_create_for_image_buffer(
 }
 
 // MARK: - Hash Functions
-
-
 
 
 // MARK: - CMBlockBuffer Creation (for testing)

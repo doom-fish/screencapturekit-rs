@@ -1,9 +1,8 @@
-//! Proves that system-allocated memory (like Swift's malloc) must be freed with
-//! `std::alloc::System.dealloc()`, NOT `Vec::from_raw_parts` drop, because
-//! Vec routes through Rust's global allocator which may differ (e.g. mimalloc).
+//! Demonstrates why foreign allocations must not be reconstructed as a Rust
+//! `Vec`: `Vec` routes deallocation through the selected global allocator.
 //!
-//! This test uses a detecting allocator as `#[global_allocator]` to observe
-//! which deallocation path is taken.
+//! `AudioBufferList` now returns its descriptor array to a Swift deallocator;
+//! these tests retain the allocator regression rationale.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
@@ -75,8 +74,9 @@ fn vec_from_raw_parts_routes_through_global_allocator() {
     );
 }
 
-/// Demonstrates the fix: `System.dealloc()` bypasses the global allocator entirely,
-/// correctly freeing system-allocated memory regardless of `#[global_allocator]`.
+/// Demonstrates that an explicitly selected allocator bypasses Rust's global
+/// allocator. The production bridge uses the stronger form of this rule by
+/// deallocating in Swift itself.
 #[test]
 fn system_dealloc_bypasses_global_allocator() {
     let _guard = TEST_LOCK.lock().unwrap();
@@ -89,7 +89,7 @@ fn system_dealloc_bypasses_global_allocator() {
     TRACKED_DEALLOC_COUNT.store(0, Ordering::SeqCst);
 
     // System.dealloc → system free() directly, bypassing global allocator
-    // This is the FIXED path for AudioBufferList::drop
+    // The production path calls the Swift deallocator instead.
     unsafe {
         System.dealloc(ptr, layout);
     }
@@ -99,7 +99,6 @@ fn system_dealloc_bypasses_global_allocator() {
     let count = TRACKED_DEALLOC_COUNT.load(Ordering::SeqCst);
     assert_eq!(
         count, 0,
-        "System.dealloc should NOT route through global allocator (count={count}). \
-         This proves the fix: System.dealloc correctly frees Swift-allocated memory."
+        "System.dealloc should NOT route through global allocator (count={count})"
     );
 }

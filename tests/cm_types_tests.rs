@@ -4,6 +4,16 @@
 
 use screencapturekit::cm::{CMSampleTimingInfo, CMTime};
 
+extern "C" {
+    fn cm_test_copy_nsvalue_dirty_rects(
+        values: *const f64,
+        count: usize,
+        out_rects: *mut *mut std::ffi::c_void,
+        out_count: *mut usize,
+    ) -> bool;
+    fn cm_sample_buffer_free_dirty_rects(rects: *mut std::ffi::c_void);
+}
+
 #[test]
 fn test_cmtime_creation() {
     let time = CMTime::new(1, 30);
@@ -115,6 +125,79 @@ fn test_sample_buffer_cg_image_round_trips() {
     let cg = sb.cg_image().expect("cg_image from sample buffer");
     assert_eq!(cg.width(), 64);
     assert_eq!(cg.height(), 48);
+}
+
+#[test]
+fn test_image_sample_preserves_all_timing_fields() {
+    use screencapturekit::cm::{CMSampleBuffer, CMSampleBufferExt};
+    use screencapturekit::cv::CVPixelBuffer;
+
+    let pixel_buffer =
+        CVPixelBuffer::create(16, 16, 0x4247_5241).expect("create BGRA pixel buffer");
+    let presentation_time = CMTime {
+        value: 120,
+        timescale: 600,
+        flags: 3,
+        epoch: 7,
+    };
+    let duration = CMTime {
+        value: 10,
+        timescale: 600,
+        flags: 3,
+        epoch: 11,
+    };
+    let sample =
+        CMSampleBuffer::create_for_image_buffer(&pixel_buffer, presentation_time, duration)
+            .expect("create image sample");
+    let timing = sample.sample_timing_info(0).expect("sample timing info");
+
+    assert_eq!(timing.presentation_time_stamp, presentation_time);
+    assert_eq!(timing.duration, duration);
+}
+
+#[test]
+fn test_sample_buffer_pixel_buffer_is_retained_and_specific() {
+    use screencapturekit::cm::{CMSampleBuffer, CMSampleBufferExt};
+    use screencapturekit::cv::CVPixelBuffer;
+
+    let pixel_buffer = {
+        let source = CVPixelBuffer::create(32, 24, 0x4247_5241).expect("create BGRA pixel buffer");
+        let sample = CMSampleBuffer::create_for_image_buffer(
+            &source,
+            CMTime::new(1, 60),
+            CMTime::new(1, 60),
+        )
+        .expect("create image sample");
+        sample.pixel_buffer().expect("specific pixel buffer")
+    };
+
+    assert_eq!(pixel_buffer.width(), 32);
+    assert_eq!(pixel_buffer.height(), 24);
+}
+
+#[test]
+fn test_dirty_rect_parser_decodes_nsvalue_rectangles() {
+    let expected = [1.5, 2.5, 30.0, 40.0, 10.0, 20.0, 3.0, 4.0];
+    let mut rects = std::ptr::null_mut();
+    let mut count = 0;
+
+    let decoded = unsafe {
+        cm_test_copy_nsvalue_dirty_rects(
+            expected.as_ptr(),
+            expected.len() / 4,
+            &mut rects,
+            &mut count,
+        )
+    };
+    assert!(decoded);
+    assert_eq!(count, 2);
+    assert!(!rects.is_null());
+
+    let actual = unsafe { std::slice::from_raw_parts(rects.cast::<f64>(), expected.len()) };
+    for (actual, expected) in actual.iter().zip(expected) {
+        assert!((*actual - expected).abs() < f64::EPSILON);
+    }
+    unsafe { cm_sample_buffer_free_dirty_rects(rects) };
 }
 
 #[test]

@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Realistic per-video-frame workload — the path that profile
             // attributions should show.
             let _info = buf.frame_info();
-            let _img = buf.image_buffer();
+            let _img = buf.pixel_buffer();
             video_counters.video.fetch_add(1, Ordering::Relaxed);
         },
         SCStreamOutputType::Screen,

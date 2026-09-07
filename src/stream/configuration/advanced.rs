@@ -1,6 +1,6 @@
 use super::internal::SCStreamConfiguration;
 
-/// Presenter overlay privacy alert setting (macOS 14.2+)
+/// Presenter overlay privacy alert setting (macOS 14.0+)
 ///
 /// Controls when the system displays a privacy alert for presenter overlay.
 #[repr(i32)]
@@ -42,6 +42,7 @@ impl SCStreamConfiguration {
         self
     }
 
+    /// Get whether shadows are ignored for single-window capture (macOS 14.0+).
     #[cfg(feature = "macos_14_0")]
     pub fn ignores_shadows_single_window(&self) -> bool {
         unsafe {
@@ -53,10 +54,12 @@ impl SCStreamConfiguration {
     ///
     /// A Boolean value that indicates whether the stream treats the transparency
     /// of the captured content as opaque.
-    /// Available on macOS 13.0+
     ///
-    /// Requires the `macos_13_0` feature flag to be enabled.
-    #[cfg(feature = "macos_13_0")]
+    /// Available on macOS 14.0+ (`SCStreamConfiguration.shouldBeOpaque` is
+    /// annotated `API_AVAILABLE(macos(14.0))`), so this requires the
+    /// `macos_14_0` feature flag. On older systems the bridge ignores the
+    /// assignment.
+    #[cfg(feature = "macos_14_0")]
     pub fn set_should_be_opaque(&mut self, should_be_opaque: bool) -> &mut Self {
         unsafe {
             crate::ffi::sc_stream_configuration_set_should_be_opaque(
@@ -68,14 +71,15 @@ impl SCStreamConfiguration {
     }
 
     /// Sets whether captured content should be treated as opaque (builder pattern)
-    #[cfg(feature = "macos_13_0")]
+    #[cfg(feature = "macos_14_0")]
     #[must_use]
     pub fn with_should_be_opaque(mut self, should_be_opaque: bool) -> Self {
         self.set_should_be_opaque(should_be_opaque);
         self
     }
 
-    #[cfg(feature = "macos_13_0")]
+    /// Get whether captured content is treated as opaque (macOS 14.0+).
+    #[cfg(feature = "macos_14_0")]
     pub fn should_be_opaque(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_should_be_opaque(self.as_ptr()) }
     }
@@ -105,6 +109,7 @@ impl SCStreamConfiguration {
         self
     }
 
+    /// Get whether child windows are included (macOS 14.2+).
     #[cfg(feature = "macos_14_2")]
     pub fn includes_child_windows(&self) -> bool {
         unsafe { crate::ffi::sc_stream_configuration_get_includes_child_windows(self.as_ptr()) }
@@ -113,10 +118,11 @@ impl SCStreamConfiguration {
     /// Sets the presenter overlay privacy alert setting.
     ///
     /// A configuration for the privacy alert that the capture session displays.
-    /// Available on macOS 14.2+
     ///
-    /// Requires the `macos_14_2` feature flag to be enabled.
-    #[cfg(feature = "macos_14_2")]
+    /// Available on macOS 14.0+ — `presenterOverlayPrivacyAlertSetting` is
+    /// annotated `API_AVAILABLE(macos(14.0))`, not 14.2 as this binding
+    /// previously assumed — so it only needs the `macos_14_0` feature flag.
+    #[cfg(feature = "macos_14_0")]
     pub fn set_presenter_overlay_privacy_alert_setting(
         &mut self,
         setting: SCPresenterOverlayAlertSetting,
@@ -130,8 +136,8 @@ impl SCStreamConfiguration {
         self
     }
 
-    /// Sets the presenter overlay privacy alert setting (builder pattern)
-    #[cfg(feature = "macos_14_2")]
+    /// Sets the presenter overlay privacy alert setting (builder pattern, macOS 14.0+)
+    #[cfg(feature = "macos_14_0")]
     #[must_use]
     pub fn with_presenter_overlay_privacy_alert_setting(
         mut self,
@@ -141,7 +147,8 @@ impl SCStreamConfiguration {
         self
     }
 
-    #[cfg(feature = "macos_14_2")]
+    /// Get the presenter overlay privacy alert setting (macOS 14.0+).
+    #[cfg(feature = "macos_14_0")]
     pub fn presenter_overlay_privacy_alert_setting(&self) -> SCPresenterOverlayAlertSetting {
         let value = unsafe {
             crate::ffi::sc_stream_configuration_get_presenter_overlay_privacy_alert_setting(
@@ -179,6 +186,7 @@ impl SCStreamConfiguration {
         self
     }
 
+    /// Get whether the shadow display configuration is ignored (macOS 14.0+).
     #[cfg(feature = "macos_14_0")]
     pub fn ignores_shadow_display_configuration(&self) -> bool {
         unsafe {

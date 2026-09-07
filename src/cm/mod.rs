@@ -26,7 +26,7 @@
 //!         println!("Frame at {:?}", pts);
 //!
 //!         // Access pixel buffer for CPU processing.
-//!         if let Some(pixel_buffer) = sample.image_buffer() {
+//!         if let Some(pixel_buffer) = sample.pixel_buffer() {
 //!             // Access IOSurface for GPU processing.
 //!             if let Some(surface) = pixel_buffer.io_surface() {
 //!                 println!("Surface: {}x{}", surface.width(), surface.height());

@@ -684,13 +684,14 @@ impl ApplicationHandler for App {
                         )
                         .with_time(self.time),
                     };
+                    let uniform_bytes = uniforms.to_bytes();
                     let uniforms_buffer = self
                         .device
-                        .create_buffer_with_data(&uniforms)
+                        .create_buffer_with_bytes(&uniform_bytes)
                         .expect("Failed to create uniforms buffer");
 
                     // Render
-                    render_frame(
+                    if let Err(error) = render_frame(
                         &self.layer,
                         &self.command_queue,
                         capture_textures.as_ref(),
@@ -700,7 +701,9 @@ impl ApplicationHandler for App {
                         &self.fullscreen_pipeline,
                         &self.ycbcr_pipeline,
                         &self.overlay_pipeline,
-                    );
+                    ) {
+                        eprintln!("render error: {error}");
+                    }
                 }
                 _ => {}
             }
@@ -756,7 +759,8 @@ fn create_textured_pipeline(
     let desc = MetalRenderPipelineDescriptor::new();
     desc.set_vertex_function(&vert);
     desc.set_fragment_function(&frag);
-    desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm);
+    desc.set_color_attachment_pixel_format(0, MTLPixelFormat::BGRA8Unorm)
+        .expect("color attachment 0 is valid");
     device
         .create_render_pipeline_state(&desc)
         .expect("Failed to create pipeline")
@@ -972,50 +976,48 @@ fn render_frame(
     fullscreen_pipeline: &renderer::MetalRenderPipelineState,
     ycbcr_pipeline: &renderer::MetalRenderPipelineState,
     overlay_pipeline: &renderer::MetalRenderPipelineState,
-) {
+) -> Result<(), renderer::MetalError> {
     let Some(drawable) = layer.next_drawable() else {
-        return;
+        return Ok(());
     };
 
     let render_pass = MetalRenderPassDescriptor::new();
     let drawable_texture = drawable.texture();
-    render_pass.set_color_attachment_texture(0, &drawable_texture);
-    render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear);
-    render_pass.set_color_attachment_clear_color(0, 0.08, 0.08, 0.1, 1.0);
-    render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store);
+    render_pass.set_color_attachment_texture(0, &drawable_texture)?;
+    render_pass.set_color_attachment_load_action(0, MTLLoadAction::Clear)?;
+    render_pass.set_color_attachment_clear_color(0, 0.08, 0.08, 0.1, 1.0)?;
+    render_pass.set_color_attachment_store_action(0, MTLStoreAction::Store)?;
 
     let Some(cmd_buffer) = command_queue.command_buffer() else {
-        return;
+        return Ok(());
     };
-    let Some(encoder) = cmd_buffer.render_command_encoder(&render_pass) else {
-        return;
-    };
+    let encoder = cmd_buffer.render_command_encoder(&render_pass)?;
 
     // Draw captured frame as background
     if let Some(textures) = capture_textures {
         if textures.is_ycbcr() {
             if let Some(ref plane1) = textures.plane1 {
-                encoder.set_render_pipeline_state(ycbcr_pipeline);
-                encoder.set_vertex_buffer(uniforms_buffer, 0, 0);
-                encoder.set_fragment_texture(&textures.plane0, 0);
-                encoder.set_fragment_texture(plane1, 1);
-                encoder.set_fragment_buffer(uniforms_buffer, 0, 0);
+                encoder.set_render_pipeline_state(ycbcr_pipeline)?;
+                encoder.set_vertex_buffer(uniforms_buffer, 0, 0)?;
+                encoder.set_fragment_texture(&textures.plane0, 0)?;
+                encoder.set_fragment_texture(plane1, 1)?;
+                encoder.set_fragment_buffer(uniforms_buffer, 0, 0)?;
             }
         } else {
-            encoder.set_render_pipeline_state(fullscreen_pipeline);
-            encoder.set_vertex_buffer(uniforms_buffer, 0, 0);
-            encoder.set_fragment_texture(&textures.plane0, 0);
+            encoder.set_render_pipeline_state(fullscreen_pipeline)?;
+            encoder.set_vertex_buffer(uniforms_buffer, 0, 0)?;
+            encoder.set_fragment_texture(&textures.plane0, 0)?;
         }
-        encoder.draw_primitives(MTLPrimitiveType::TriangleStrip, 0, 4);
+        encoder.draw_primitives(MTLPrimitiveType::TriangleStrip, 0, 4)?;
     }
 
     // Draw overlay UI
-    encoder.set_render_pipeline_state(overlay_pipeline);
-    encoder.set_vertex_buffer(vertex_buffer, 0, 0);
-    encoder.set_vertex_buffer(uniforms_buffer, 0, 1);
-    encoder.draw_primitives(MTLPrimitiveType::Triangle, 0, vertex_count);
-    encoder.end_encoding();
+    encoder.set_render_pipeline_state(overlay_pipeline)?;
+    encoder.set_vertex_buffer(vertex_buffer, 0, 0)?;
+    encoder.set_vertex_buffer(uniforms_buffer, 0, 1)?;
+    encoder.draw_primitives(MTLPrimitiveType::Triangle, 0, vertex_count)?;
+    encoder.end_encoding()?;
 
-    cmd_buffer.present_drawable(&drawable);
-    cmd_buffer.commit();
+    cmd_buffer.present_drawable(&drawable)?;
+    cmd_buffer.commit()
 }

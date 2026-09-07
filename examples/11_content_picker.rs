@@ -72,45 +72,49 @@ fn main() {
     // Demonstrate the result types
     println!("📦 Picker APIs:");
     println!("   Main API:");
-    println!("     SCContentSharingPicker::pick(&config) -> SCPickerOutcome");
+    println!("     SCContentSharingPicker::show(&config, callback)");
     println!("       - SCPickerOutcome::Picked(result)  // result.filter(), result.windows(), result.displays()");
     println!("       - SCPickerOutcome::Cancelled");
     println!("       - SCPickerOutcome::Error(message)");
     println!();
     println!("   Simple API:");
-    println!("     SCContentSharingPicker::pick_filter(&config) -> SCPickerFilterOutcome");
+    println!("     SCContentSharingPicker::show_filter(&config, callback)");
     println!("       - SCPickerFilterOutcome::Filter(filter)");
     println!("       - SCPickerFilterOutcome::Cancelled");
     println!("       - SCPickerFilterOutcome::Error(message)");
+    println!();
+    println!("   Repeating observer API:");
+    println!("     SCContentSharingPicker::add_observer(callback) -> SCPickerSubscription");
+    println!("       - Updated {{ result, stream: Some(identity) }} updates an existing stream");
+    println!("       - Updated {{ result, stream: None }} is a new selection");
 
     // Example of how to use the picker (commented out as it needs GUI)
     /*
     use screencapturekit::content_sharing_picker::{
-        SCContentSharingPicker, SCPickerOutcome,
+        SCContentSharingPicker, SCPickerEvent, SCPickerOutcome,
     };
 
-    let result = SCContentSharingPicker::pick(&config);
-    match result {
-        SCPickerOutcome::Picked(result) => {
-            // Get filter + metadata
-            let filter = result.filter();
-            let (width, height) = result.pixel_size();
+    SCContentSharingPicker::show(&config, |outcome| {
+        match outcome {
+            SCPickerOutcome::Picked(result) => {
+                let filter = result.filter();
+                let (width, height) = result.pixel_size();
+                println!("Selected {width}x{height}: {filter:?}");
+            }
+            SCPickerOutcome::Cancelled => println!("User cancelled the picker"),
+            SCPickerOutcome::Error(msg) => eprintln!("Picker error: {msg}"),
+        }
+    });
 
-            // Access picked content for custom filters
-            for window in result.windows() {
-                println!("Selected window: {:?}", window.title());
-            }
-            for display in result.displays() {
-                println!("Selected display: {:?}", display.display_id());
-            }
+    let subscription = SCContentSharingPicker::add_observer(|event| match event {
+        SCPickerEvent::Updated { result, stream } => {
+            println!("Updated {:?}: {:?}", stream, result.filter());
         }
-        SCPickerOutcome::Cancelled => {
-            println!("User cancelled the picker");
-        }
-        SCPickerOutcome::Error(msg) => {
-            eprintln!("Picker error: {}", msg);
-        }
-    }
+        SCPickerEvent::Cancelled { stream } => println!("Cancelled {stream:?}"),
+        SCPickerEvent::Failed(message) => eprintln!("Picker failed: {message}"),
+    });
+    SCContentSharingPicker::present();
+    drop(subscription);
     */
 
     println!("\n✅ Content sharing picker example completed!");

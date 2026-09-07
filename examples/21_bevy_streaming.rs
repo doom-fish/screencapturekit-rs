@@ -47,7 +47,7 @@ impl SCStreamOutputTrait for StreamHandler {
             return;
         }
 
-        let Some(pixel_buffer) = sample.image_buffer() else {
+        let Some(pixel_buffer) = sample.pixel_buffer() else {
             return;
         };
 
@@ -57,7 +57,9 @@ impl SCStreamOutputTrait for StreamHandler {
 
         let width = pixel_buffer.width() as u32;
         let height = pixel_buffer.height() as u32;
-        let data = guard.as_slice();
+        let Some(data) = (unsafe { guard.as_slice() }) else {
+            return;
+        };
 
         // Convert BGRA to RGBA for Bevy
         let mut rgba = vec![0u8; (width * height * 4) as usize];

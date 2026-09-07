@@ -179,36 +179,36 @@ mod iosurface_plane_tests {
                 assert!(guard.base_address_of_plane(100).is_none());
 
                 // Test plane_data
-                let plane0_data = guard.plane_data(0);
+                let plane0_data = unsafe { guard.plane_data(0) };
                 assert!(plane0_data.is_some());
                 let data = plane0_data.unwrap();
                 assert!(data.len() >= y_size);
 
-                let plane1_data = guard.plane_data(1);
+                let plane1_data = unsafe { guard.plane_data(1) };
                 assert!(plane1_data.is_some());
                 let data = plane1_data.unwrap();
                 assert!(data.len() >= uv_size);
 
                 // Out of bounds
-                assert!(guard.plane_data(2).is_none());
+                assert!(unsafe { guard.plane_data(2) }.is_none());
 
                 // Test plane_row
-                let row0 = guard.plane_row(0, 0);
+                let row0 = unsafe { guard.plane_row(0, 0) };
                 assert!(row0.is_some());
                 assert!(row0.unwrap().len() >= width);
 
-                let row_last = guard.plane_row(0, height - 1);
+                let row_last = unsafe { guard.plane_row(0, height - 1) };
                 assert!(row_last.is_some());
 
                 // Out of bounds row
-                assert!(guard.plane_row(0, height).is_none());
-                assert!(guard.plane_row(0, height + 100).is_none());
+                assert!(unsafe { guard.plane_row(0, height) }.is_none());
+                assert!(unsafe { guard.plane_row(0, height + 100) }.is_none());
 
                 // Out of bounds plane
-                assert!(guard.plane_row(2, 0).is_none());
+                assert!(unsafe { guard.plane_row(2, 0) }.is_none());
 
                 // Plane 1 row access
-                let uv_row = guard.plane_row(1, 0);
+                let uv_row = unsafe { guard.plane_row(1, 0) };
                 assert!(uv_row.is_some());
                 assert!(uv_row.unwrap().len() >= uv_width * 2);
             }
@@ -236,8 +236,8 @@ mod iosurface_plane_tests {
                 // Single-plane surfaces have plane_count() == 0
                 // So plane methods should return None
                 assert!(guard.base_address_of_plane(0).is_none());
-                assert!(guard.plane_data(0).is_none());
-                assert!(guard.plane_row(0, 0).is_none());
+                assert!(unsafe { guard.plane_data(0) }.is_none());
+                assert!(unsafe { guard.plane_row(0, 0) }.is_none());
             }
         }
     }

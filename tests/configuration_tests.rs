@@ -2,7 +2,9 @@
 //!
 //! Tests for `SCStreamConfiguration` and related types
 
-use screencapturekit::stream::configuration::{PixelFormat, SCStreamConfiguration};
+use screencapturekit::stream::configuration::{
+    PixelFormat, SCStreamConfiguration, MAX_QUEUE_DEPTH,
+};
 
 #[test]
 fn test_default_configuration() {
@@ -277,6 +279,7 @@ fn test_video_without_audio() {
 }
 
 #[test]
+#[cfg(feature = "macos_14_0")]
 fn test_stream_name() {
     let mut config = SCStreamConfiguration::default();
     config.set_stream_name(Some("test-stream"));
@@ -307,12 +310,12 @@ fn test_queue_depth_and_frame_interval() {
         flags: 1,
         epoch: 1,
     };
-    let queue_depth = 10;
     let mut config = SCStreamConfiguration::default();
-    config.set_queue_depth(queue_depth);
+    // 10 is outside ScreenCaptureKit's documented 3..=8 range and is clamped.
+    config.set_queue_depth(10);
     config.set_minimum_frame_interval(&cm_time);
 
-    assert_eq!(config.queue_depth(), queue_depth);
+    assert_eq!(config.queue_depth(), MAX_QUEUE_DEPTH);
 
     let acquired_cm_time = config.minimum_frame_interval();
     // Note: minimum_frame_interval may not be supported on all macOS versions
