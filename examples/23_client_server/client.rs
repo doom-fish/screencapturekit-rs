@@ -72,7 +72,7 @@ impl eframe::App for ViewerApp {
             }
         }
 
-        egui::Panel::top("top").show_inside(ui, |ui| {
+        egui::Panel::top("top").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("📺 Remote Screen Viewer");
                 ui.separator();
@@ -84,7 +84,7 @@ impl eframe::App for ViewerApp {
             });
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             if let Some(ref texture) = self.texture {
                 let available = ui.available_size();
                 let tex_size = texture.size_vec2();

@@ -145,7 +145,7 @@ impl eframe::App for ScreenViewerApp {
         }
 
         // Top panel with stats
-        egui::Panel::top("top_panel").show_inside(ui, |ui| {
+        egui::Panel::top("top_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("🖥️ Screen Capture Viewer");
                 ui.separator();
@@ -157,7 +157,7 @@ impl eframe::App for ScreenViewerApp {
         });
 
         // Central panel with the captured screen
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             if let Some(ref texture) = self.texture {
                 // Calculate size to fit in available space while maintaining aspect ratio
                 let available = ui.available_size();
