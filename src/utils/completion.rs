@@ -628,23 +628,26 @@ mod tests {
 
     #[test]
     fn async_completion_times_out_and_wakes() {
-        struct WakeFlag(AtomicBool);
-        impl std::task::Wake for WakeFlag {
+        struct WakeSignal(std::sync::mpsc::Sender<()>);
+        impl std::task::Wake for WakeSignal {
             fn wake(self: Arc<Self>) {
-                self.0.store(true, Ordering::Release);
+                self.0
+                    .send(())
+                    .expect("timeout wake receiver should remain available");
             }
         }
 
         let (future, _context) =
-            AsyncCompletion::<()>::create_inner(None, true, Some(Duration::from_millis(10)));
+            AsyncCompletion::<()>::create_inner(None, true, Some(Duration::from_millis(100)));
         let mut future = Box::pin(future);
-        let wake_flag = Arc::new(WakeFlag(AtomicBool::new(false)));
-        let waker = Waker::from(Arc::clone(&wake_flag));
+        let (wake_sender, wake_receiver) = std::sync::mpsc::channel();
+        let waker = Waker::from(Arc::new(WakeSignal(wake_sender)));
         let mut context = Context::from_waker(&waker);
         assert!(future.as_mut().poll(&mut context).is_pending());
 
-        std::thread::sleep(Duration::from_millis(50));
-        assert!(wake_flag.0.load(Ordering::Acquire));
+        wake_receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("completion did not wake after its deadline");
         let Poll::Ready(Err(error)) = future.as_mut().poll(&mut context) else {
             panic!("completion did not resolve after its deadline");
         };

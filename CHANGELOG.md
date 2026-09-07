@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Serialized live capture integration tests so concurrent audio streams do not
   race for the runner's capture resources.
+- Made the asynchronous timeout test await its wake signal instead of assuming
+  a fixed scheduler delay.
 
 ## [10.0.2](https://github.com/doom-fish/screencapturekit-rs/compare/v10.0.1...v10.0.2) - 2026-09-07
 
