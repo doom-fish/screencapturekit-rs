@@ -35,9 +35,9 @@ fn test_dispatch_queue_with_different_labels() {
 }
 
 #[test]
-#[should_panic(expected = "Label contains null byte")]
-fn test_dispatch_queue_null_byte_in_label() {
-    let _queue = DispatchQueue::new("com.test\0.queue", DispatchQoS::Default);
+fn test_dispatch_queue_null_byte_in_label_does_not_panic() {
+    let queue = DispatchQueue::new("com.test\0.queue", DispatchQoS::Default);
+    assert!(!queue.as_ptr().is_null());
 }
 
 #[test]

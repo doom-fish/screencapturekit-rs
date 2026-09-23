@@ -790,8 +790,8 @@ fn test_remove_recording_then_stop_completes() {
         return;
     };
 
-    let output_path =
-        std::env::temp_dir().join(format!("sck-recording-test-{}.mp4", std::process::id()));
+    let output_path = std::path::Path::new(env!("CARGO_TARGET_TMPDIR"))
+        .join(format!("sck-recording-test-{}.mp4", std::process::id()));
     let _ = std::fs::remove_file(&output_path);
 
     let filter = SCContentFilter::create()
@@ -897,8 +897,8 @@ fn test_remove_recording_racing_start_still_waits_for_terminal() {
         return;
     };
 
-    let output_path =
-        std::env::temp_dir().join(format!("sck-recording-race-{}.mp4", std::process::id()));
+    let output_path = std::path::Path::new(env!("CARGO_TARGET_TMPDIR"))
+        .join(format!("sck-recording-race-{}.mp4", std::process::id()));
     let _ = std::fs::remove_file(&output_path);
 
     let filter = SCContentFilter::create()
