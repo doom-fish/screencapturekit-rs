@@ -151,7 +151,7 @@ fn test_block_buffer_as_slice() {
     let data = vec![10u8, 20, 30, 40, 50];
     let buffer = CMBlockBuffer::create(&data).expect("Failed to create buffer");
 
-    let slice = buffer.as_slice();
+    let slice = unsafe { buffer.as_slice() };
     assert!(slice.is_some());
     assert_eq!(slice.unwrap(), &data[..]);
 }
@@ -181,7 +181,7 @@ fn test_block_buffer_cursor_ref() {
     let data = vec![100u8, 101, 102, 103];
     let buffer = CMBlockBuffer::create(&data).expect("Failed to create buffer");
 
-    let mut cursor = buffer.cursor_ref().expect("Failed to create cursor_ref");
+    let mut cursor = unsafe { buffer.cursor_ref() }.expect("Failed to create cursor_ref");
 
     let mut buf = [0u8; 2];
     cursor.read_exact(&mut buf).unwrap();

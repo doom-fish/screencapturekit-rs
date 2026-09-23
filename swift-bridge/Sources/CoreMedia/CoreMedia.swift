@@ -6,18 +6,6 @@ import Foundation
 import ScreenCaptureKit
 import VideoToolbox
 
-// MARK: - Audio Buffer List Bridge Types
-
-// Deliberately `private` and SC-prefixed. apple-cf's `CoreMediaBridge` module
-// exports `public struct AudioBufferBridge` / `AudioBufferListRaw` under the
-// same module name, so a `public` twin here collides at link time once both
-// static libraries are pulled into the same binary.
-private struct SCAudioBufferBridge {
-    var number_channels: UInt32
-    var data_bytes_size: UInt32
-    var data_ptr: UnsafeMutableRawPointer?
-}
-
 // MARK: - CMSampleBuffer Bridge
 
 // ScreenCaptureKit stores `SCStreamFrameInfo.status` as an `NSNumber`, not as a
@@ -456,105 +444,6 @@ public func cm_sample_buffer_make_data_ready(_ sampleBuffer: UnsafeMutableRawPoi
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
     return CMSampleBufferMakeDataReady(buffer)
 }
-
-// MARK: - Audio Buffer List Bridge
-
-
-@_cdecl("cm_sample_buffer_get_audio_buffer_list")
-public func cm_sample_buffer_get_audio_buffer_list(_ sampleBuffer: UnsafeMutableRawPointer, _ outNumBuffers: UnsafeMutablePointer<UInt32>, _ outBuffersPtr: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _ outBuffersLen: UnsafeMutablePointer<UInt>, _ outBlockBuffer: UnsafeMutablePointer<UnsafeMutableRawPointer?>) {
-    let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
-
-    // First, query the required buffer size
-    var bufferListSizeNeeded = 0
-    var status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-        buffer,
-        bufferListSizeNeededOut: &bufferListSizeNeeded,
-        bufferListOut: nil,
-        bufferListSize: 0,
-        blockBufferAllocator: nil,
-        blockBufferMemoryAllocator: nil,
-        flags: 0,
-        blockBufferOut: nil
-    )
-
-    guard bufferListSizeNeeded > 0 else {
-        outNumBuffers.pointee = 0
-        outBuffersPtr.pointee = nil
-        outBuffersLen.pointee = 0
-        outBlockBuffer.pointee = nil
-        return
-    }
-
-    // Allocate buffer of the required size
-    let audioBufferListPtr = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: bufferListSizeNeeded / MemoryLayout<AudioBufferList>.stride + 1)
-    defer { audioBufferListPtr.deallocate() }
-
-    var blockBuffer: CMBlockBuffer?
-    status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-        buffer,
-        bufferListSizeNeededOut: nil,
-        bufferListOut: audioBufferListPtr,
-        bufferListSize: bufferListSizeNeeded,
-        blockBufferAllocator: nil,
-        blockBufferMemoryAllocator: nil,
-        flags: 0,
-        blockBufferOut: &blockBuffer
-    )
-
-    guard status == noErr, let blockBuffer else {
-        outNumBuffers.pointee = 0
-        outBuffersPtr.pointee = nil
-        outBuffersLen.pointee = 0
-        outBlockBuffer.pointee = nil
-        return
-    }
-
-    let numBuffers = Int(audioBufferListPtr.pointee.mNumberBuffers)
-    guard numBuffers > 0 else {
-        outNumBuffers.pointee = 0
-        outBuffersPtr.pointee = nil
-        outBuffersLen.pointee = 0
-        outBlockBuffer.pointee = nil
-        return
-    }
-
-    let buffers = UnsafeMutablePointer<SCAudioBufferBridge>.allocate(capacity: numBuffers)
-
-    // Trust-boundary hardening: CoreMedia's reported mDataByteSize is copied across
-    // the FFI boundary and used by Rust to build a slice via from_raw_parts. If
-    // CoreMedia ever over-reports a buffer size, that slice would read out of bounds.
-    // Clamp each reported mDataByteSize to the block buffer's actual backing length
-    // so the Rust consumer can trust the value it receives. Per-buffer offsets into
-    // the block buffer aren't tracked here, so we conservatively clamp every buffer
-    // to the total block-buffer data length.
-    let blockDataLength = UInt32(truncatingIfNeeded: CMBlockBufferGetDataLength(blockBuffer))
-
-    withUnsafePointer(to: &audioBufferListPtr.pointee.mBuffers) { buffersPtr in
-        let bufferArray = UnsafeBufferPointer(start: buffersPtr, count: numBuffers)
-        for (index, audioBuffer) in bufferArray.enumerated() {
-            let clampedSize = min(audioBuffer.mDataByteSize, blockDataLength)
-            buffers[index] = SCAudioBufferBridge(
-                number_channels: audioBuffer.mNumberChannels,
-                data_bytes_size: clampedSize,
-                data_ptr: audioBuffer.mData
-            )
-        }
-    }
-
-    outNumBuffers.pointee = UInt32(numBuffers)
-    outBuffersPtr.pointee = UnsafeMutableRawPointer(buffers)
-    outBuffersLen.pointee = UInt(numBuffers)
-    // Retain the block buffer to keep data alive, caller must release
-    outBlockBuffer.pointee = Unmanaged.passRetained(blockBuffer).toOpaque()
-}
-
-@_cdecl("cm_audio_buffer_bridge_array_free")
-public func cm_audio_buffer_bridge_array_free(_ buffers: UnsafeMutableRawPointer?) {
-    buffers?
-        .assumingMemoryBound(to: SCAudioBufferBridge.self)
-        .deallocate()
-}
-
 
 // MARK: - CMFormatDescription APIs
 

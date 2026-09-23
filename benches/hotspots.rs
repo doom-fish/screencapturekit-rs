@@ -625,12 +625,12 @@ fn bench_audio_buffer_list(c: &mut Criterion) {
     group.bench_function("get_abl", |b| {
         b.iter(|| {
             let abl = sample.audio_buffer_list();
-            black_box(abl);
+            let _ = black_box(abl);
         });
     });
     group.bench_function("get_abl_then_iterate_buffers", |b| {
         b.iter(|| {
-            if let Some(abl) = sample.audio_buffer_list() {
+            if let Ok(abl) = sample.audio_buffer_list() {
                 let mut total = 0usize;
                 for buf in &abl {
                     total += buf.data().len();

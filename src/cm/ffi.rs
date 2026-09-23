@@ -105,14 +105,6 @@ extern "C" {
     pub fn cm_sample_buffer_retain(sample_buffer: *mut std::ffi::c_void);
     pub fn cm_sample_buffer_is_valid(sample_buffer: *mut std::ffi::c_void) -> bool;
     pub fn cm_sample_buffer_get_num_samples(sample_buffer: *mut std::ffi::c_void) -> usize;
-    pub fn cm_sample_buffer_get_audio_buffer_list(
-        sample_buffer: *mut std::ffi::c_void,
-        out_num_buffers: *mut u32,
-        out_buffers_ptr: *mut *mut std::ffi::c_void,
-        out_buffers_len: *mut usize,
-        out_block_buffer: *mut *mut std::ffi::c_void,
-    );
-    pub fn cm_audio_buffer_bridge_array_free(buffers: *mut std::ffi::c_void);
     pub fn cm_block_buffer_release(block_buffer: *mut std::ffi::c_void);
     pub fn cm_block_buffer_retain(block_buffer: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
     pub fn cm_block_buffer_get_data_length(block_buffer: *mut std::ffi::c_void) -> usize;

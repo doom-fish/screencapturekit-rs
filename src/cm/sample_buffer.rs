@@ -8,13 +8,10 @@
 //! `ScreenCaptureKit` attachments.
 //!
 //! Bring [`CMSampleBufferExt`] into scope for the
-//! `pixel_buffer()`/`audio_buffer_list()`/`make_data_ready()` convenience
-//! accessors.
+//! `pixel_buffer()`/`make_data_ready()` convenience accessors.
 
 use super::ffi;
-use super::{
-    AudioBuffer, AudioBufferList, CMBlockBuffer, CMSampleTimingInfo, CMTime, SCFrameStatus,
-};
+use super::{CMBlockBuffer, CMSampleTimingInfo, CMTime, SCFrameStatus};
 use crate::cv::CVPixelBuffer;
 
 /// Re-exported `CMSampleBuffer` — same opaque-pointer wrapper used across
@@ -374,9 +371,6 @@ pub trait CMSampleBufferExt {
         self.pixel_buffer()
     }
 
-    /// Read the audio sample buffer's underlying `AudioBufferList`, if any.
-    fn audio_buffer_list(&self) -> Option<AudioBufferList>;
-
     /// Output presentation timestamp (after timing adjustments).
     fn output_presentation_timestamp(&self) -> CMTime;
 
@@ -470,30 +464,6 @@ impl CMSampleBufferExt for CMSampleBuffer {
         // SAFETY: the pointer is borrowed from `self` and remains live for the
         // duration of the retain performed by `from_raw_borrowed`.
         unsafe { CVPixelBuffer::from_raw_borrowed(ptr) }
-    }
-
-    fn audio_buffer_list(&self) -> Option<AudioBufferList> {
-        unsafe {
-            let mut num_buffers: u32 = 0;
-            let mut buffers_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-            let mut buffers_len: usize = 0;
-            let mut block_buffer_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-
-            ffi::cm_sample_buffer_get_audio_buffer_list(
-                self.as_ptr(),
-                &mut num_buffers,
-                &mut buffers_ptr,
-                &mut buffers_len,
-                &mut block_buffer_ptr,
-            );
-
-            AudioBufferList::from_bridge(
-                num_buffers,
-                buffers_ptr.cast::<AudioBuffer>(),
-                buffers_len,
-                block_buffer_ptr,
-            )
-        }
     }
 
     fn output_presentation_timestamp(&self) -> CMTime {

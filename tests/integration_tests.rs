@@ -200,7 +200,7 @@ fn test_audio_capture() {
     // Verify audio buffer properties (may be empty if no audio playing)
     let mut samples_with_data = 0;
     for sample in collected_samples.iter() {
-        if let Some(audio_buffer_list) = sample.audio_buffer_list() {
+        if let Ok(audio_buffer_list) = sample.audio_buffer_list() {
             let num_buffers = audio_buffer_list.num_buffers();
             if num_buffers > 0 {
                 samples_with_data += 1;

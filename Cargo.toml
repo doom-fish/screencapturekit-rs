@@ -71,8 +71,8 @@ macos_26_0 = ["macos_15_2"]
 # and Cargo's `[patch.crates-io]` will redirect to your sibling paths.
 # This lets `cargo install screencapturekit` and `release-plz` work from
 # a clean checkout without requiring the sibling repos.
-apple-cf = { version = ">=0.10, <0.11", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
-apple-metal = { version = ">=0.9, <0.10", default-features = false }
+apple-cf = { version = ">=0.11, <0.12", default-features = false, features = ["cg", "iosurface", "dispatch", "cv", "cm"] }
+apple-metal = { version = ">=0.10, <0.11", default-features = false }
 
 # Trait-only crate providing `futures_core::Stream`; enabled by the `async`
 # feature so `AsyncSCStream` / `AsyncSCRecordingOutput` can be consumed with the

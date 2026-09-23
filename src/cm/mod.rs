@@ -36,7 +36,6 @@
 //! }
 //! ```
 
-mod audio;
 mod block_buffer;
 pub mod ffi;
 mod format_description;
@@ -46,9 +45,8 @@ mod sample_buffer;
 mod time;
 
 // Re-export all public types
-pub use audio::{
-    AudioBuffer, AudioBufferList, AudioBufferListIter, AudioBufferListRaw, AudioBufferRef,
-};
+pub use apple_cf::cm::audio::{AudioBufferListIter, AudioBufferRef};
+pub use apple_cf::cm::{AudioBuffer, AudioBufferList, AudioBufferListRaw};
 pub use block_buffer::CMBlockBuffer;
 pub use format_description::CMFormatDescription;
 pub use frame_status::SCFrameStatus;
