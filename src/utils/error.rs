@@ -546,6 +546,8 @@ pub enum SCStreamErrorCode {
     FailedToStartMicrophoneCapture = -3820,
     /// The stream was stopped by the system (macOS 15.0+)
     SystemStoppedStream = -3821,
+    InsufficientStorage = -3822,
+    NotSupported = -3823,
 }
 
 impl SCStreamErrorCode {
@@ -573,6 +575,8 @@ impl SCStreamErrorCode {
             -3819 => Some(Self::FailedToStopAudioCapture),
             -3820 => Some(Self::FailedToStartMicrophoneCapture),
             -3821 => Some(Self::SystemStoppedStream),
+            -3822 => Some(Self::InsufficientStorage),
+            -3823 => Some(Self::NotSupported),
             _ => None,
         }
     }
@@ -613,6 +617,8 @@ impl std::fmt::Display for SCStreamErrorCode {
             Self::FailedToStopAudioCapture => write!(f, "Failed to stop audio capture"),
             Self::FailedToStartMicrophoneCapture => write!(f, "Failed to start microphone capture"),
             Self::SystemStoppedStream => write!(f, "System stopped the stream"),
+            Self::InsufficientStorage => write!(f, "Insufficient storage for recording"),
+            Self::NotSupported => write!(f, "Operation not supported"),
         }
     }
 }

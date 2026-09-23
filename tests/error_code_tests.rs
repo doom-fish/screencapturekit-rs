@@ -50,6 +50,8 @@ fn test_error_code_values() {
         -3820
     );
     assert_eq!(SCStreamErrorCode::SystemStoppedStream as i32, -3821);
+    assert_eq!(SCStreamErrorCode::InsufficientStorage as i32, -3822);
+    assert_eq!(SCStreamErrorCode::NotSupported as i32, -3823);
 }
 
 // MARK: - Error Code Conversion
@@ -81,6 +83,8 @@ fn test_error_code_from_raw_valid() {
         (-3819, SCStreamErrorCode::FailedToStopAudioCapture),
         (-3820, SCStreamErrorCode::FailedToStartMicrophoneCapture),
         (-3821, SCStreamErrorCode::SystemStoppedStream),
+        (-3822, SCStreamErrorCode::InsufficientStorage),
+        (-3823, SCStreamErrorCode::NotSupported),
     ];
 
     for (raw, expected) in codes {
@@ -91,7 +95,7 @@ fn test_error_code_from_raw_valid() {
 
 #[test]
 fn test_error_code_from_raw_invalid() {
-    let invalid_codes = [0, 1, -1, -3800, -3822, -9999, i32::MAX, i32::MIN];
+    let invalid_codes = [0, 1, -1, -3800, -3824, -9999, i32::MAX, i32::MIN];
 
     for code in invalid_codes {
         let result = SCStreamErrorCode::from_raw(code);
@@ -132,6 +136,8 @@ fn test_all_error_codes_display() {
         SCStreamErrorCode::FailedToStopAudioCapture,
         SCStreamErrorCode::FailedToStartMicrophoneCapture,
         SCStreamErrorCode::SystemStoppedStream,
+        SCStreamErrorCode::InsufficientStorage,
+        SCStreamErrorCode::NotSupported,
     ];
 
     for code in codes {
@@ -376,6 +382,30 @@ fn test_macos_15_errors() {
         SCStreamErrorCode::from_raw(-3821),
         Some(SCStreamErrorCode::SystemStoppedStream)
     );
+}
+
+#[test]
+fn test_macos_27_errors() {
+    assert_eq!(
+        SCStreamErrorCode::from_raw(-3822),
+        Some(SCStreamErrorCode::InsufficientStorage)
+    );
+    assert_eq!(
+        SCStreamErrorCode::from_raw(-3823),
+        Some(SCStreamErrorCode::NotSupported)
+    );
+    assert_eq!(SCStreamErrorCode::InsufficientStorage.as_raw(), -3822);
+    assert_eq!(SCStreamErrorCode::NotSupported.as_raw(), -3823);
+
+    let error = SCError::from_error_code(-3822);
+    assert_eq!(
+        error.stream_error_code(),
+        Some(SCStreamErrorCode::InsufficientStorage)
+    );
+    assert!(error.to_string().contains("Insufficient storage"));
+    assert!(SCError::from_error_code(-3823)
+        .to_string()
+        .contains("not supported"));
 }
 
 #[test]
