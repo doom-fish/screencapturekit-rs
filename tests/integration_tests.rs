@@ -86,7 +86,7 @@ fn test_video_capture() {
         .build();
 
     // Create stream
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add video output handler
     let samples = Arc::new(Mutex::new(Vec::new()));
@@ -168,7 +168,7 @@ fn test_audio_capture() {
         .build();
 
     // Create stream
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add audio output handler
     let samples = Arc::new(Mutex::new(Vec::new()));
@@ -257,7 +257,7 @@ fn test_video_and_audio_capture() {
         .build();
 
     // Create stream
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add video output handler
     let video_samples = Arc::new(Mutex::new(Vec::new()));
@@ -333,7 +333,7 @@ fn test_pixel_buffer_locking() {
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add output handler
     let samples = Arc::new(Mutex::new(Vec::new()));
@@ -432,7 +432,7 @@ fn test_iosurface_backed_buffer() {
         .with_display(display)
         .with_excluding_windows(&[])
         .build();
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add output handler
     let samples = Arc::new(Mutex::new(Vec::new()));

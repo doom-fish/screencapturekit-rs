@@ -106,7 +106,7 @@ fn bench_stream_creation(c: &mut Criterion) {
 
     c.bench_function("api/SCStream::new", |b| {
         b.iter(|| {
-            let stream = SCStream::new(&filter, &config);
+            let stream = SCStream::new(&filter, &config).expect("failed to create stream");
             black_box(stream)
         });
     });
@@ -188,7 +188,7 @@ fn bench_frame_throughput(c: &mut Criterion) {
 
                 // Start the stream ONCE outside iter_custom so setup cost
                 // doesn't pollute the measurement.
-                let mut stream = SCStream::new(&filter, &config);
+                let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
                 stream.add_output_handler(handler, SCStreamOutputType::Screen);
                 stream.start_capture().expect("Failed to start capture");
 
@@ -276,7 +276,7 @@ fn bench_stream_startup(c: &mut Criterion) {
                     }
                 };
 
-                let mut stream = SCStream::new(&filter, &config);
+                let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
                 stream.add_output_handler(handler, SCStreamOutputType::Screen);
                 stream.start_capture().expect("Failed to start capture");
 
@@ -343,7 +343,7 @@ fn bench_frame_latency(c: &mut Criterion) {
                     }
                 };
 
-                let mut stream = SCStream::new(&filter, &config);
+                let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
                 stream.add_output_handler(handler, SCStreamOutputType::Screen);
 
                 stream.start_capture().expect("Failed to start capture");
@@ -411,7 +411,7 @@ fn bench_pixel_buffer_access(c: &mut Criterion) {
         }
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
     stream.start_capture().expect("Failed to start capture");
 
@@ -588,7 +588,7 @@ fn bench_stream_lifecycle(c: &mut Criterion) {
             let mut total = Duration::ZERO;
 
             for _ in 0..iters {
-                let stream = SCStream::new(&filter, &config);
+                let stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
                 let start = Instant::now();
                 stream.start_capture().expect("Failed to start");
@@ -607,7 +607,7 @@ fn bench_stream_lifecycle(c: &mut Criterion) {
             let mut total = Duration::ZERO;
 
             for _ in 0..iters {
-                let stream = SCStream::new(&filter, &config);
+                let stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
                 let start = Instant::now();
                 stream.start_capture().expect("Failed to start");
@@ -647,7 +647,7 @@ fn bench_configuration_updates(c: &mut Criterion) {
     group.sample_size(20);
 
     group.bench_function("update_configuration", |b| {
-        let stream = SCStream::new(&filter, &config);
+        let stream = SCStream::new(&filter, &config).expect("failed to create stream");
         stream.start_capture().expect("Failed to start");
 
         b.iter(|| {

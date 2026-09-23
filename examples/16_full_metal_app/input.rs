@@ -135,7 +135,7 @@ pub fn start_capture(
         state: Arc::clone(capture_state),
     };
 
-    let mut s = SCStream::new(&filter_to_use, &sc_config);
+    let mut s = SCStream::new(&filter_to_use, &sc_config).expect("failed to create stream");
     if !mic_only {
         s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
         s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);

@@ -53,7 +53,7 @@ use super::output_type::SCStreamOutputType;
 /// # let display = &content.displays()[0];
 /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
 /// # let config = SCStreamConfiguration::default();
-/// let mut stream = SCStream::new(&filter, &config);
+/// let mut stream = SCStream::new(&filter, &config)?;
 ///
 /// stream.add_output_handler(
 ///     |_sample, _output_type| println!("Got frame!"),

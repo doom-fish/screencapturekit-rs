@@ -129,7 +129,7 @@ fn test_stream_lifecycle() {
 
         // Create and drop streams multiple times
         for _ in 0..5 {
-            let stream = SCStream::new(&filter, &config);
+            let stream = SCStream::new(&filter, &config).expect("failed to create stream");
             drop(stream);
         }
     }
@@ -164,7 +164,7 @@ fn test_handler_registration_cleanup() {
 
         // Register and remove handlers multiple times
         for _ in 0..10 {
-            let mut stream = SCStream::new(&filter, &config);
+            let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
             let count = Arc::new(AtomicUsize::new(0));
 
             let handler = TestHandler {
@@ -200,7 +200,7 @@ fn test_closure_handler_memory() {
             .with_height(480);
 
         for _ in 0..10 {
-            let mut stream = SCStream::new(&filter, &config);
+            let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
             let count = Arc::new(AtomicUsize::new(0));
             let count_clone = count.clone();
 
@@ -287,7 +287,7 @@ fn test_multiple_streams_memory() {
         // Create multiple streams simultaneously
         let streams: Vec<_> = (0..5)
             .map(|_| {
-                let mut stream = SCStream::new(&filter, &config);
+                let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
                 let count = Arc::new(AtomicUsize::new(0));
                 let count_clone = count.clone();
 

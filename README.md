@@ -103,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_height(1080)
         .with_pixel_format(PixelFormat::BGRA);
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
     stream.add_output_handler(Handler, SCStreamOutputType::Screen);
     stream.start_capture()?;
 
@@ -141,7 +141,7 @@ let config = SCStreamConfiguration::new()
     .with_sample_rate(48_000)
     .with_channel_count(2);
 
-let mut stream = SCStream::new(&filter, &config);
+let mut stream = SCStream::new(&filter, &config)?;
 // stream.add_output_handler(...) for Screen and/or Audio
 stream.start_capture()?;
 # Ok(()) }
@@ -183,7 +183,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 
     // 30-frame ring buffer; oldest frames are dropped if the consumer can't keep up.
-    let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+    let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen)?;
     // start/stop/update are real futures — awaiting parks the task via its
     // Waker and never blocks the executor thread.
     stream.start_capture().await?;
@@ -232,7 +232,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_width(1920).with_height(1080)
         .with_captures_audio(true);
 
-    let mut stream = AsyncSCStream::new(&filter, &config, 32, SCStreamOutputType::Screen);
+    let mut stream = AsyncSCStream::new(&filter, &config, 32, SCStreamOutputType::Screen)?;
     // … then register audio as a second output type on the SAME stream.
     stream.add_output_type(SCStreamOutputType::Audio);
     stream.start_capture().await?;

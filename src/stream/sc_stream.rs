@@ -13,7 +13,7 @@ use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
-use crate::error::SCError;
+use crate::error::{SCError, SCResult};
 use crate::stream::delegate_trait::SCStreamDelegateTrait;
 use crate::utils::completion::{is_timeout_error, UnitCompletion};
 use crate::utils::panic_safe::catch_user_panic;
@@ -358,7 +358,6 @@ extern "C" fn sample_handler(context: *mut c_void, sample_buffer: *const c_void,
 pub struct StreamIdentity(NonZeroUsize);
 
 impl StreamIdentity {
-    #[cfg(feature = "macos_14_0")]
     pub(crate) fn from_ptr(ptr: *const c_void) -> Option<Self> {
         NonZeroUsize::new(ptr as usize).map(Self)
     }
@@ -396,7 +395,7 @@ impl StreamIdentity {
 ///     .with_height(1080);
 ///
 /// // Create and start stream
-/// let mut stream = SCStream::new(&filter, &config);
+/// let mut stream = SCStream::new(&filter, &config)?;
 /// stream.start_capture()?;
 ///
 /// // ... capture frames ...
@@ -407,6 +406,7 @@ impl StreamIdentity {
 /// ```
 pub struct SCStream {
     ptr: *const c_void,
+    identity: StreamIdentity,
     /// Per-stream context holding handlers and delegate (ref-counted).
     context: *mut StreamContext,
 }
@@ -433,11 +433,12 @@ impl SCStream {
     ///     .with_width(1920)
     ///     .with_height(1080);
     ///
-    /// let stream = SCStream::new(&filter, &config);
+    /// let stream = SCStream::new(&filter, &config)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(filter: &SCContentFilter, configuration: &SCStreamConfiguration) -> Self {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn new(filter: &SCContentFilter, configuration: &SCStreamConfiguration) -> SCResult<Self> {
         Self::create(filter, configuration, None)
     }
 
@@ -470,16 +471,17 @@ impl SCStream {
     /// let delegate = StreamCallbacks::new()
     ///     .on_error(|e| eprintln!("Stream stopped with error: {}", e));
     ///
-    /// let stream = SCStream::new_with_delegate(&filter, &config, delegate);
+    /// let stream = SCStream::new_with_delegate(&filter, &config, delegate)?;
     /// stream.start_capture()?;
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::missing_errors_doc)]
     pub fn new_with_delegate(
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
         delegate: impl SCStreamDelegateTrait + 'static,
-    ) -> Self {
+    ) -> SCResult<Self> {
         Self::create(filter, configuration, Some(Arc::new(delegate)))
     }
 
@@ -487,7 +489,7 @@ impl SCStream {
         filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
         delegate: Option<Arc<dyn SCStreamDelegateTrait>>,
-    ) -> Self {
+    ) -> SCResult<Self> {
         let context = StreamContext::new(delegate);
         let context_ptr = context.cast::<c_void>();
 
@@ -503,15 +505,28 @@ impl SCStream {
             )
         };
 
+        unsafe { Self::adopt(ptr, context) }
+    }
+
+    unsafe fn adopt(ptr: *const c_void, context: *mut StreamContext) -> SCResult<Self> {
+        let Some(identity) = StreamIdentity::from_ptr(ptr) else {
+            unsafe { StreamContext::release(context) };
+            return Err(SCError::null_pointer(
+                "ScreenCaptureKit returned no SCStream",
+            ));
+        };
+
         // Wire up the remaining delegate callbacks (active / inactive / video
         // effect start / stop). Registration is unconditional: a delegate can
         // be present from the start, and the Rust trampoline is a no-op when
         // there isn't one.
-        if !ptr.is_null() {
-            unsafe { ffi::sc_stream_set_delegate_event_callback(ptr, delegate_event_callback) };
-        }
+        unsafe { ffi::sc_stream_set_delegate_event_callback(ptr, delegate_event_callback) };
 
-        Self { ptr, context }
+        Ok(Self {
+            ptr,
+            identity,
+            context,
+        })
     }
 
     /// Add an output handler to receive captured frames
@@ -562,7 +577,7 @@ impl SCStream {
     /// # let display = &content.displays()[0];
     /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     /// # let config = SCStreamConfiguration::default();
-    /// let mut stream = SCStream::new(&filter, &config);
+    /// let mut stream = SCStream::new(&filter, &config)?;
     /// stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
     /// # Ok(())
     /// # }
@@ -577,7 +592,7 @@ impl SCStream {
     /// # let display = &content.displays()[0];
     /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     /// # let config = SCStreamConfiguration::default();
-    /// let mut stream = SCStream::new(&filter, &config);
+    /// let mut stream = SCStream::new(&filter, &config)?;
     /// stream.add_output_handler(
     ///     |_sample, _type| println!("Got frame!"),
     ///     SCStreamOutputType::Screen
@@ -606,7 +621,7 @@ impl SCStream {
     /// # let config = SCStreamConfiguration::default();
     /// let frame_count = Arc::new(AtomicUsize::new(0));
     /// let count_handler = frame_count.clone();
-    /// let mut stream = SCStream::new(&filter, &config);
+    /// let mut stream = SCStream::new(&filter, &config)?;
     /// stream.add_output_handler(
     ///     move |_sample, _type| {
     ///         count_handler.fetch_add(1, Ordering::Relaxed);
@@ -663,7 +678,7 @@ impl SCStream {
     /// # let display = &content.displays()[0];
     /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     /// # let config = SCStreamConfiguration::default();
-    /// let mut stream = SCStream::new(&filter, &config);
+    /// let mut stream = SCStream::new(&filter, &config)?;
     /// let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
     ///
     /// stream.add_output_handler_with_queue(
@@ -1072,8 +1087,7 @@ impl SCStream {
     /// Return a stable, non-owning identity for this stream.
     #[must_use]
     pub fn identity(&self) -> StreamIdentity {
-        // SAFETY: every SCStream constructor rejects a null native pointer.
-        StreamIdentity(unsafe { NonZeroUsize::new_unchecked(self.ptr as usize) })
+        self.identity
     }
 
     #[cfg(feature = "async")]
@@ -1125,9 +1139,7 @@ impl Drop for SCStream {
     // each Rust clone adds +1; each `drop` removes -1; each bridge object's
     // `deinit` removes -1, and the context is freed when the total reaches 0.
     fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe { ffi::sc_stream_release(self.ptr) };
-        }
+        unsafe { ffi::sc_stream_release(self.ptr) };
         unsafe { StreamContext::release(self.context) };
     }
 }
@@ -1157,7 +1169,7 @@ impl Clone for SCStream {
     /// # let display = &content.displays()[0];
     /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     /// # let config = SCStreamConfiguration::default();
-    /// let mut stream = SCStream::new(&filter, &config);
+    /// let mut stream = SCStream::new(&filter, &config)?;
     /// stream.add_output_handler(|_, _| println!("Handler 1"), SCStreamOutputType::Screen);
     ///
     /// // Clone shares the same handlers
@@ -1171,6 +1183,7 @@ impl Clone for SCStream {
 
         Self {
             ptr: unsafe { crate::ffi::sc_stream_retain(self.ptr) },
+            identity: self.identity,
             context: self.context,
         }
     }
@@ -1713,6 +1726,28 @@ mod tests {
             delegate_event_callback(ctx.cast::<c_void>(), event);
         }
         unsafe { StreamContext::release(ctx) };
+    }
+
+    #[test]
+    fn test_null_native_stream_is_rejected_and_releases_its_context() {
+        let ctx = StreamContext::new(None);
+        unsafe { StreamContext::retain(ctx) };
+
+        let result = unsafe { SCStream::adopt(std::ptr::null(), ctx) };
+
+        assert!(matches!(result, Err(SCError::NullPointer(_))));
+        assert_eq!(unsafe { &*ctx }.ref_count.load(Ordering::Relaxed), 1);
+        unsafe { StreamContext::release(ctx) };
+    }
+
+    #[test]
+    fn test_stream_identity_rejects_null() {
+        assert!(StreamIdentity::from_ptr(std::ptr::null()).is_none());
+        let value = 0x1000_usize as *const c_void;
+        assert_eq!(
+            StreamIdentity::from_ptr(value),
+            NonZeroUsize::new(0x1000).map(StreamIdentity)
+        );
     }
 
     #[test]

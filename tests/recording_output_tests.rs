@@ -821,7 +821,7 @@ fn test_remove_recording_then_stop_completes() {
         return;
     };
 
-    let stream = SCStream::new(&filter, &stream_config);
+    let stream = SCStream::new(&filter, &stream_config).expect("failed to create stream");
     stream
         .add_recording_output(&recording)
         .expect("failed to add recording output");
@@ -922,7 +922,7 @@ fn test_remove_recording_racing_start_still_waits_for_terminal() {
         return;
     };
 
-    let stream = SCStream::new(&filter, &stream_config);
+    let stream = SCStream::new(&filter, &stream_config).expect("failed to create stream");
     stream
         .add_recording_output(&recording)
         .expect("failed to add recording output");

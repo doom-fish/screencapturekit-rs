@@ -170,7 +170,7 @@ fn capture_single_frame() -> Option<CMSampleBuffer> {
         }
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).ok()?;
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
     stream.start_capture().ok()?;
 
@@ -500,7 +500,7 @@ fn run_stream(duration: Duration, with_audio: bool) -> Arc<AvStats> {
             .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream.add_output_handler(video_handler, SCStreamOutputType::Screen);
     if with_audio {
         stream.add_output_handler(audio_handler, SCStreamOutputType::Audio);
@@ -598,7 +598,7 @@ fn capture_single_audio_sample() -> Option<CMSampleBuffer> {
         }
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).ok()?;
     stream.add_output_handler(
         |_buf: CMSampleBuffer, _ot: SCStreamOutputType| {},
         SCStreamOutputType::Screen,

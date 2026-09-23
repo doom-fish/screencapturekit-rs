@@ -163,7 +163,7 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
             .with_height(1080);
 
         // Create async stream with 30-frame buffer
-        let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+        let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen)?;
         // start/stop are truly async: awaiting parks the task via its Waker and
         // resumes from the Swift completion callback — the executor is never blocked.
         stream.start_capture().await?;
@@ -262,7 +262,7 @@ async fn av_capture() -> Result<(), Box<dyn std::error::Error>> {
         .with_height(720)
         .with_captures_audio(true);
 
-    let mut stream = AsyncSCStream::new(&filter, &config, 32, SCStreamOutputType::Screen);
+    let mut stream = AsyncSCStream::new(&filter, &config, 32, SCStreamOutputType::Screen)?;
     if stream.add_output_type(SCStreamOutputType::Audio) {
         println!("   ✅ Registered audio + video on a single stream");
     }

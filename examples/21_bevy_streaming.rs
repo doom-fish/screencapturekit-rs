@@ -157,7 +157,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         state: state.clone(),
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
 
     println!("Starting capture...\n");

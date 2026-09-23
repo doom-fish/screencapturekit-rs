@@ -51,7 +51,7 @@ use crate::error::SCError;
 ///     })
 ///     .on_error(|error| eprintln!("Error: {}", error));
 ///
-/// let stream = SCStream::new_with_delegate(&filter, &config, delegate);
+/// let stream = SCStream::new_with_delegate(&filter, &config, delegate)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -137,7 +137,7 @@ pub trait SCStreamDelegateTrait: Send + Sync {
 ///     eprintln!("Stream error: {}", error);
 /// });
 ///
-/// let stream = SCStream::new_with_delegate(&filter, &config, error_handler);
+/// let stream = SCStream::new_with_delegate(&filter, &config, error_handler)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -206,7 +206,7 @@ where
 ///     .on_active(|| println!("Stream became active"))
 ///     .on_inactive(|| println!("Stream became inactive"));
 ///
-/// let stream = SCStream::new_with_delegate(&filter, &config, delegate);
+/// let stream = SCStream::new_with_delegate(&filter, &config, delegate)?;
 /// # Ok(())
 /// # }
 /// ```

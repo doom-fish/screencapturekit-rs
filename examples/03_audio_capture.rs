@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let video_count = handler.video_count.clone();
     let audio_count = handler.audio_count.clone();
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
     // The Handler matches on output_type internally, but we still need to
     // register it once per output type we want to receive — sample_handler
     // only fans the buffer out to handlers whose `of_type` matches.

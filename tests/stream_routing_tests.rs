@@ -108,13 +108,13 @@ fn test_two_concurrent_streams_route_samples_independently() {
     let (handler_b, count_b) = TaggedHandler::new("B");
 
     // Stream A
-    let mut stream_a = SCStream::new(&filter, &config_a);
+    let mut stream_a = SCStream::new(&filter, &config_a).expect("failed to create stream");
     let _id_a = stream_a
         .add_output_handler(handler_a, SCStreamOutputType::Screen)
         .expect("add_output_handler A failed");
 
     // Stream B (independent SCStream — must have its own routing context)
-    let mut stream_b = SCStream::new(&filter, &config_b);
+    let mut stream_b = SCStream::new(&filter, &config_b).expect("failed to create stream");
     let _id_b = stream_b
         .add_output_handler(handler_b, SCStreamOutputType::Screen)
         .expect("add_output_handler B failed");
@@ -212,7 +212,7 @@ fn test_remove_output_handler_rejects_a_mismatched_output_type() {
     };
 
     let (handler, count) = TaggedHandler::new("screen");
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     let id = stream
         .add_output_handler(handler, SCStreamOutputType::Screen)
         .expect("add_output_handler failed");
@@ -266,7 +266,7 @@ fn test_conflicting_custom_queue_for_one_output_type_is_rejected() {
     let (second, _second_count) = TaggedHandler::new("second");
     let (third, _third_count) = TaggedHandler::new("third");
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     let first_id = stream
         .add_output_handler_with_queue(first, SCStreamOutputType::Screen, Some(&queue_a))
         .expect("first registration failed");
@@ -299,7 +299,7 @@ fn test_clone_keeps_delivering_after_the_original_is_dropped() {
     };
 
     let (handler, count) = TaggedHandler::new("clone");
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream
         .add_output_handler(handler, SCStreamOutputType::Screen)
         .expect("add_output_handler failed");

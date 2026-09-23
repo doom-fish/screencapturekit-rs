@@ -211,7 +211,7 @@ fn capture_one_video_frame() -> Option<CMSampleBuffer> {
         }
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).ok()?;
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
     stream.start_capture().ok()?;
     let start = Instant::now();

@@ -40,7 +40,7 @@
 //! let recording = SCRecordingOutput::new(&rec_config).ok_or("Failed to create recording")?;
 //!
 //! // Add to stream and start
-//! let mut stream = SCStream::new(&filter, &config);
+//! let mut stream = SCStream::new(&filter, &config)?;
 //! stream.add_recording_output(&recording)?;
 //! stream.start_capture()?;
 //!

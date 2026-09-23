@@ -429,7 +429,7 @@ impl ApplicationHandler for App<'_> {
                     frame: self.shared_frame.clone(),
                 };
 
-                let mut stream = SCStream::new(&filter, &config);
+                let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
                 stream.add_output_handler(handler, SCStreamOutputType::Screen);
                 let _ = stream.start_capture();
                 self.stream = Some(stream);

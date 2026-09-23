@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let count = Arc::new(AtomicUsize::new(0));
     let handler = Handler { count };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
 
     println!("Starting capture...\n");

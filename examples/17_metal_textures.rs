@@ -206,7 +206,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         count: Arc::new(AtomicUsize::new(0)),
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
 
     println!("\nStarting capture (YCbCr 420v format)...\n");

@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         audio: AtomicUsize::new(0),
     });
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
 
     let video_counters = Arc::clone(&counters);
     stream.add_output_handler(

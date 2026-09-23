@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 4. Create stream
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
 
     // Method 1: Struct-based handler
     let count = Arc::new(AtomicUsize::new(0));

@@ -33,7 +33,7 @@
 //!     .with_width(1920)
 //!     .with_height(1080);
 //!
-//! let mut stream = SCStream::new(&filter, &config);
+//! let mut stream = SCStream::new(&filter, &config)?;
 //! stream.add_output_handler(
 //!     |sample, output_type| println!("Got frame!"),
 //!     SCStreamOutputType::Screen

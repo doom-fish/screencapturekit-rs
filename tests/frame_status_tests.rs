@@ -286,7 +286,7 @@ fn test_live_frame_status_attachment_decodes() {
     let observed = Arc::new(Mutex::new(Vec::new()));
     let captured = Arc::clone(&observed);
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream
         .add_output_handler(
             move |sample: CMSampleBuffer, _| {

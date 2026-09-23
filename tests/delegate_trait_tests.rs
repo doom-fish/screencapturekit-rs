@@ -444,7 +444,8 @@ fn test_stream_with_delegate_starts_stops_and_survives_clone_drop() {
 
     let frames = Arc::new(AtomicU32::new(0));
     let frame_counter = frames.clone();
-    let mut stream = SCStream::new_with_delegate(&filter, &config, delegate);
+    let mut stream =
+        SCStream::new_with_delegate(&filter, &config, delegate).expect("failed to create stream");
     stream
         .add_output_handler(
             move |_sample, _type| {

@@ -194,7 +194,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         expected_size,
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
 
     println!("Starting capture...\n");

@@ -94,7 +94,7 @@
 //! let frame_count = Arc::new(AtomicUsize::new(0));
 //! let count_clone = frame_count.clone();
 //!
-//! let mut stream = SCStream::new(&filter, &config);
+//! let mut stream = SCStream::new(&filter, &config)?;
 //! stream.add_output_handler(
 //!     move |_sample: CMSampleBuffer, _of_type: SCStreamOutputType| {
 //!         count_clone.fetch_add(1, Ordering::Relaxed);
@@ -133,7 +133,7 @@
 //!     .with_shows_cursor(true);
 //!
 //! // Create stream and add handler
-//! let mut stream = SCStream::new(&filter, &config);
+//! let mut stream = SCStream::new(&filter, &config)?;
 //! stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
 //!
 //! // Start capturing
@@ -303,7 +303,7 @@
 //!     audio_count: Arc::new(AtomicUsize::new(0)),
 //! };
 //!
-//! let mut stream = SCStream::new(&filter, &config);
+//! let mut stream = SCStream::new(&filter, &config)?;
 //! stream.add_output_handler(handler, SCStreamOutputType::Screen);
 //! stream.start_capture()?;
 //! # Ok(())
@@ -329,7 +329,7 @@
 //! # impl SCStreamOutputTrait for MyHandler {
 //! #     fn did_output_sample_buffer(&self, _: CMSampleBuffer, _: SCStreamOutputType) {}
 //! # }
-//! let mut stream = SCStream::new(&filter, &config);
+//! let mut stream = SCStream::new(&filter, &config)?;
 //! stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
 //! stream.start_capture()?;
 //!
@@ -375,7 +375,7 @@
 //! });
 //!
 //! // Create stream with delegate
-//! let mut stream = SCStream::new_with_delegate(&filter, &config, error_handler);
+//! let mut stream = SCStream::new_with_delegate(&filter, &config, error_handler)?;
 //! stream.add_output_handler(
 //!     |_sample, _type| { /* process frames */ },
 //!     SCStreamOutputType::Screen
@@ -398,7 +398,7 @@
 //! # let display = content.displays().into_iter().next().unwrap();
 //! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
 //! # let config = SCStreamConfiguration::new();
-//! let mut stream = SCStream::new(&filter, &config);
+//! let mut stream = SCStream::new(&filter, &config)?;
 //!
 //! // Create a high-priority queue for frame processing
 //! let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
@@ -436,7 +436,7 @@
 //!         .with_height(1080);
 //!     
 //!     // Create async stream with 30-frame buffer
-//!     let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+//!     let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen)?;
 //!     stream.start_capture()?;
 //!     
 //!     // Async iteration over frames
@@ -526,7 +526,7 @@
 //!     .ok_or("Failed to create recording output")?;
 //!
 //! // Start stream and add recording
-//! let stream = SCStream::new(&filter, &stream_config);
+//! let stream = SCStream::new(&filter, &stream_config)?;
 //! stream.add_recording_output(&recording_output)?;
 //! stream.start_capture()?;
 //!

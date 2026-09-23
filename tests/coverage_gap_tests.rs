@@ -104,7 +104,7 @@ fn test_yuv_420v_pixel_format_capture() {
         captured: Mutex::new(None),
     });
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream
         .add_output_handler(
             DelegatingHandler {
@@ -205,7 +205,7 @@ fn test_handler_add_remove_mid_capture() {
         }
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     let id = stream
         .add_output_handler(handler, SCStreamOutputType::Screen)
         .expect("add_output_handler failed");
@@ -300,7 +300,7 @@ fn test_presenter_overlay_content_rect_absent_when_overlay_disabled() {
         captured: Mutex::new(None),
     });
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream
         .add_output_handler(
             DelegatingHandler {

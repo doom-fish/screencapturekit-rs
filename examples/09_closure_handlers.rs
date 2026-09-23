@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let frame_count = Arc::new(AtomicUsize::new(0));
     let count_clone = frame_count.clone();
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
 
     // Add handler using a closure directly
     stream.add_output_handler(
@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let frame_count = Arc::new(AtomicUsize::new(0));
     let count_clone = frame_count.clone();
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
 
     // Create a high-priority queue for frame processing
     let queue = DispatchQueue::new("com.example.capture", DispatchQoS::UserInteractive);
@@ -115,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Create stream with delegate
-    let mut stream = SCStream::new_with_delegate(&filter, &config, error_handler);
+    let mut stream = SCStream::new_with_delegate(&filter, &config, error_handler)?;
 
     let frame_count = Arc::new(AtomicUsize::new(0));
     let count_clone = frame_count.clone();
@@ -147,7 +147,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let video_clone = video_count.clone();
     let stats_clone = stats_count.clone();
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
 
     // Handler 1: Count frames
     stream.add_output_handler(

@@ -130,7 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         count: count.clone(),
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
     stream.start_capture()?;
 

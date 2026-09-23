@@ -224,7 +224,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         frame: shared_frame.clone(),
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config)?;
     stream.add_output_handler(handler, SCStreamOutputType::Screen);
 
     println!("Starting capture...");

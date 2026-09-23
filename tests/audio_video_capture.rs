@@ -104,7 +104,7 @@ fn test_screen_capture_with_audio() {
         received_audio: audio_received.clone(),
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream.add_output_handler(video_output, SCStreamOutputType::Screen);
     stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
 
@@ -192,7 +192,7 @@ fn test_combined_video_audio_capture() {
         received_audio: audio_received,
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
     stream.add_output_handler(video_output, SCStreamOutputType::Screen);
     stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
 

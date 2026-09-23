@@ -51,7 +51,7 @@
 //! let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
 //! let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 //!
-//! let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+//! let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen)?;
 //! stream.start_capture().await?;
 //!
 //! // Process frames asynchronously
@@ -797,7 +797,7 @@ impl Future for StreamControlFuture {
 ///     .with_width(1920)
 ///     .with_height(1080);
 ///
-/// let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen);
+/// let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen)?;
 /// stream.start_capture().await?;
 ///
 /// // Process frames asynchronously
@@ -845,13 +845,13 @@ impl AsyncSCStream {
     ///   `0` is treated as `1`, since the queue must hold the sample it is
     ///   about to hand to the consumer
     /// * `output_type` - Type of output (Screen, Audio, Microphone)
-    #[must_use]
+    #[allow(clippy::missing_errors_doc)]
     pub fn new(
         filter: &SCContentFilter,
         config: &SCStreamConfiguration,
         buffer_capacity: usize,
         output_type: crate::stream::output_type::SCStreamOutputType,
-    ) -> Self {
+    ) -> Result<Self, SCError> {
         let state = Arc::new(Mutex::new(AsyncSampleIteratorState {
             buffer: std::collections::VecDeque::with_capacity(buffer_capacity),
             waiters: Vec::new(),
@@ -868,7 +868,7 @@ impl AsyncSCStream {
             state: Arc::clone(&state),
         };
 
-        let mut stream = crate::stream::SCStream::new_with_delegate(filter, config, delegate);
+        let mut stream = crate::stream::SCStream::new_with_delegate(filter, config, delegate)?;
         if stream.add_output_handler(sender, output_type).is_none() {
             // Registration failed and the sender was dropped with it, which
             // already closed the queue (it was the only one). Record why, so
@@ -880,10 +880,10 @@ impl AsyncSCStream {
             }
         }
 
-        Self {
+        Ok(Self {
             stream,
             iterator_state: state,
-        }
+        })
     }
 
     /// Get the next sample buffer asynchronously
@@ -1832,7 +1832,7 @@ impl AsyncSCContentSharingPicker {
     ///     let display = displays.first()?;
     ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     ///     let stream_config = SCStreamConfiguration::new();
-    ///     let stream = SCStream::new(&filter, &stream_config);
+    ///     let stream = SCStream::new(&filter, &stream_config).ok()?;
     ///
     ///     // When stream is active and user wants to change source
     ///     let config = SCContentSharingPickerConfiguration::new();
@@ -2072,7 +2072,7 @@ impl Drop for RecordingEventStream<'_> {
 ///
 ///     let (recording, events) = AsyncSCRecordingOutput::new(&rec_config)?;
 ///
-///     let mut stream = SCStream::new(&filter, &config);
+///     let mut stream = SCStream::new(&filter, &config).ok()?;
 ///     stream.add_recording_output(&recording).ok()?;
 ///     stream.start_capture().ok()?;
 ///

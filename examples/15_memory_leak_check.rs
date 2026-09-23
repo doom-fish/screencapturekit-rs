@@ -369,7 +369,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
             .with_channel_count(2),
     };
 
-    let mut stream = SCStream::new(&filter, &config);
+    let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add output handlers for all types using SharedHandler wrapper
     stream.add_output_handler(SharedHandler(handler.clone()), SCStreamOutputType::Screen);

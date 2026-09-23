@@ -133,7 +133,8 @@ fn test_async_stream_creation() {
                 .with_width(100)
                 .with_height(100);
 
-            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             // Test basic methods
             assert!(!stream.is_closed());
@@ -176,7 +177,8 @@ fn test_async_stream_with_audio() {
                 .with_height(100);
 
             // Create with Audio output type
-            let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Audio);
+            let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Audio)
+                .expect("failed to create stream");
             assert!(!stream.is_closed());
             assert_eq!(stream.buffered_count(), 0);
         }
@@ -199,7 +201,8 @@ async fn test_async_stream_start_stop_capture() {
                 .with_width(100)
                 .with_height(100);
 
-            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             // Start capture
             let start_result = stream.start_capture().await;
@@ -232,7 +235,8 @@ async fn test_async_stream_update_configuration() {
                 .with_width(100)
                 .with_height(100);
 
-            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             // Start capture first
             let _ = stream.start_capture().await;
@@ -268,7 +272,8 @@ async fn test_async_stream_update_content_filter() {
                 .with_width(100)
                 .with_height(100);
 
-            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             // Start capture first
             let _ = stream.start_capture().await;
@@ -305,7 +310,8 @@ fn test_async_stream_next_future() {
                 .with_width(100)
                 .with_height(100);
 
-            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             // Get the next future (tests the next() method)
             let next_future = stream.next();
@@ -386,7 +392,8 @@ fn test_async_stream_take_error_initially_none() {
             let config = SCStreamConfiguration::new()
                 .with_width(100)
                 .with_height(100);
-            let stream = AsyncSCStream::new(&filter, &config, 4, SCStreamOutputType::Screen);
+            let stream = AsyncSCStream::new(&filter, &config, 4, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             // A freshly created stream is open and has no stop error.
             assert!(!stream.is_closed());
@@ -412,7 +419,8 @@ fn test_async_stream_multi_output_typed() {
                 .with_height(120)
                 .with_captures_audio(true);
 
-            let mut stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen);
+            let mut stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             // Nothing is buffered before capture starts.
             assert!(stream.try_next_typed().is_none());
@@ -463,7 +471,8 @@ async fn test_async_stream_frames_streamext_combinators() {
         .with_height(120)
         .with_shows_cursor(true);
 
-    let stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen);
+    let stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen)
+        .expect("failed to create stream");
 
     if stream.start_capture().await.is_ok() {
         // Drive the `futures_core::Stream` impl through `StreamExt`: take at most
@@ -625,7 +634,8 @@ mod capture_tests {
                     .with_height(240)
                     .with_shows_cursor(true);
 
-                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen)
+                    .expect("failed to create stream");
 
                 // Start capture
                 if stream.inner().start_capture().is_ok() {
@@ -665,7 +675,8 @@ mod capture_tests {
                     .with_shows_cursor(true);
 
                 // Small buffer capacity
-                let stream = AsyncSCStream::new(&filter, &config, 2, SCStreamOutputType::Screen);
+                let stream = AsyncSCStream::new(&filter, &config, 2, SCStreamOutputType::Screen)
+                    .expect("failed to create stream");
 
                 if stream.inner().start_capture().is_ok() {
                     // Wait for buffer to potentially fill
@@ -694,7 +705,8 @@ mod capture_tests {
                     .with_height(120)
                     .with_shows_cursor(true);
 
-                let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+                let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen)
+                    .expect("failed to create stream");
 
                 if stream.inner().start_capture().is_ok() {
                     std::thread::sleep(Duration::from_millis(200));
@@ -722,7 +734,8 @@ mod capture_tests {
                     .with_width(160)
                     .with_height(120);
 
-                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen)
+                    .expect("failed to create stream");
 
                 assert!(!stream.is_closed());
 
@@ -751,7 +764,8 @@ mod capture_tests {
                     .with_height(120)
                     .with_shows_cursor(true);
 
-                let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+                let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen)
+                    .expect("failed to create stream");
 
                 if stream.inner().start_capture().is_ok() {
                     std::thread::sleep(Duration::from_millis(200));
@@ -814,7 +828,8 @@ mod future_polling_tests {
                     .with_width(160)
                     .with_height(120);
 
-                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen)
+                    .expect("failed to create stream");
 
                 // Create future but don't start capture - should poll Pending or None
                 let mut future = stream.next();
@@ -846,7 +861,8 @@ mod future_polling_tests {
                     .with_width(160)
                     .with_height(120);
 
-                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen)
+                    .expect("failed to create stream");
 
                 if stream.inner().start_capture().is_ok() {
                     // Wait for frames
@@ -887,7 +903,8 @@ mod future_polling_tests {
                     .with_width(160)
                     .with_height(120);
 
-                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+                let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen)
+                    .expect("failed to create stream");
 
                 if stream.inner().start_capture().is_ok() {
                     let _ = stream.inner().stop_capture();
@@ -1210,7 +1227,8 @@ mod tokio_async_tests {
                 .with_width(160)
                 .with_height(120);
 
-            let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen);
+            let stream = AsyncSCStream::new(&filter, &config, 5, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             if stream.start_capture().await.is_ok() {
                 // Use tokio timeout to avoid hanging
@@ -1250,7 +1268,8 @@ mod tokio_async_tests {
                 .with_width(160)
                 .with_height(120);
 
-            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen);
+            let stream = AsyncSCStream::new(&filter, &config, 10, SCStreamOutputType::Screen)
+                .expect("failed to create stream");
 
             if stream.start_capture().await.is_ok() {
                 // Try to get multiple frames with timeout
@@ -1401,7 +1420,8 @@ async fn test_async_frame_delivery_assertive() {
         .with_width(320)
         .with_height(240);
 
-    let stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen);
+    let stream = AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen)
+        .expect("failed to create stream");
     stream.start_capture().await.expect("start_capture failed");
 
     // A real frame must be delivered within a reasonable window.
@@ -1474,7 +1494,8 @@ async fn test_extra_output_type_registration_never_closes_the_stream() {
         return;
     };
 
-    let mut stream = AsyncSCStream::new(&filter, &config, 8, SCStreamOutputType::Screen);
+    let mut stream = AsyncSCStream::new(&filter, &config, 8, SCStreamOutputType::Screen)
+        .expect("failed to create stream");
     assert!(!stream.is_closed(), "stream closed before it was used");
 
     // Either outcome exercises the sender accounting: on success the queue has
@@ -1518,7 +1539,8 @@ async fn test_clean_stop_closes_the_sample_queue() {
         return;
     };
 
-    let stream = AsyncSCStream::new(&filter, &config, 8, SCStreamOutputType::Screen);
+    let stream = AsyncSCStream::new(&filter, &config, 8, SCStreamOutputType::Screen)
+        .expect("failed to create stream");
     if let Err(e) = stream.start_capture().await {
         eprintln!("skip: stream failed to start: {e:?}");
         return;
@@ -1557,7 +1579,8 @@ async fn test_restart_after_stop_is_rejected() {
         return;
     };
 
-    let stream = AsyncSCStream::new(&filter, &config, 4, SCStreamOutputType::Screen);
+    let stream = AsyncSCStream::new(&filter, &config, 4, SCStreamOutputType::Screen)
+        .expect("failed to create stream");
     if let Err(e) = stream.start_capture().await {
         eprintln!("skip: stream failed to start: {e:?}");
         return;
@@ -1583,12 +1606,10 @@ async fn test_two_concurrent_consumers_both_get_woken() {
         return;
     };
 
-    let stream = std::sync::Arc::new(AsyncSCStream::new(
-        &filter,
-        &config,
-        16,
-        SCStreamOutputType::Screen,
-    ));
+    let stream = std::sync::Arc::new(
+        AsyncSCStream::new(&filter, &config, 16, SCStreamOutputType::Screen)
+            .expect("failed to create stream"),
+    );
     if let Err(e) = stream.start_capture().await {
         eprintln!("skip: stream failed to start: {e:?}");
         return;

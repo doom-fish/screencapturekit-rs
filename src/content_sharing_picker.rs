@@ -750,7 +750,7 @@ impl SCContentSharingPicker {
     ///     let display = displays.first()?;
     ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
     ///     let stream_config = SCStreamConfiguration::new();
-    ///     let stream = SCStream::new(&filter, &stream_config);
+    ///     let stream = SCStream::new(&filter, &stream_config).ok()?;
     ///
     ///     // When stream is active and user wants to change source
     ///     let config = SCContentSharingPickerConfiguration::new();
