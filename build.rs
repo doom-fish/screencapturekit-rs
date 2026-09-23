@@ -207,7 +207,7 @@ fn main() {
 
     let sdk_version = detect_sdk_version();
     assert!(
-        !sdk_version.is_some_and(|version| version < SdkVersion::new(13, 0)),
+        sdk_version.is_none_or(|version| version >= SdkVersion::new(13, 0)),
         "screencapturekit: the Swift bridge requires the macOS 13.0 SDK or later; \
          install a newer Xcode or point DEVELOPER_DIR/SDKROOT at it"
     );

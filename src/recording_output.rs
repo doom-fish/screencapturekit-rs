@@ -862,8 +862,8 @@ impl SCRecordingOutput {
         unsafe {
             crate::ffi::sc_recording_output_get_recorded_duration(
                 self.ptr,
-                &mut value,
-                &mut timescale,
+                &raw mut value,
+                &raw mut timescale,
             );
         }
         CMTime::new(value, timescale)

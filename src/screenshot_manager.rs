@@ -784,7 +784,7 @@ where
     let mut y = 0.0;
     let mut width = 0.0;
     let mut height = 0.0;
-    ffi_call(&mut x, &mut y, &mut width, &mut height);
+    ffi_call(&raw mut x, &raw mut y, &raw mut width, &raw mut height);
     crate::cg::CGRect::new(x, y, width, height)
 }
 

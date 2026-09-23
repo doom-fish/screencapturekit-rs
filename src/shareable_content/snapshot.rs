@@ -252,7 +252,7 @@ unsafe fn collect_applications(
             MAX_APPS as isize,
             pool.as_mut_ptr(),
             STRING_POOL_BYTES as isize,
-            &mut strings_used,
+            &raw mut strings_used,
         );
         if written <= 0 {
             return (Vec::new(), false, 0);
@@ -296,7 +296,7 @@ unsafe fn collect_windows(
             MAX_WINDOWS as isize,
             pool.as_mut_ptr(),
             STRING_POOL_BYTES as isize,
-            &mut strings_used,
+            &raw mut strings_used,
         );
 
         if written <= 0 {

@@ -78,10 +78,10 @@ impl SCStreamConfiguration {
 
             crate::ffi::sc_stream_configuration_get_minimum_frame_interval(
                 self.as_ptr(),
-                &mut value,
-                &mut timescale,
-                &mut flags,
-                &mut epoch,
+                &raw mut value,
+                &raw mut timescale,
+                &raw mut flags,
+                &raw mut epoch,
             );
 
             CMTime {

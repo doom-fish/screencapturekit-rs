@@ -91,10 +91,10 @@ impl SCDisplay {
         unsafe {
             crate::ffi::sc_display_get_frame_packed(
                 self.0,
-                &mut x,
-                &mut y,
-                &mut width,
-                &mut height,
+                &raw mut x,
+                &raw mut y,
+                &raw mut width,
+                &raw mut height,
             );
         }
         CGRect::new(x, y, width, height)

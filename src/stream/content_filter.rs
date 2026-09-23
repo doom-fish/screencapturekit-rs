@@ -158,10 +158,10 @@ impl SCContentFilter {
             let mut height = 0.0;
             ffi::sc_content_filter_get_content_rect(
                 self.0,
-                &mut x,
-                &mut y,
-                &mut width,
-                &mut height,
+                &raw mut x,
+                &raw mut y,
+                &raw mut width,
+                &raw mut height,
             );
             CGRect::new(x, y, width, height)
         }

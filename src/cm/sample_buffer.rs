@@ -126,7 +126,7 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
     fn display_time(&self) -> Option<u64> {
         unsafe {
             let mut value: u64 = 0;
-            if ffi::cm_sample_buffer_get_display_time(self.as_ptr(), &mut value) {
+            if ffi::cm_sample_buffer_get_display_time(self.as_ptr(), &raw mut value) {
                 Some(value)
             } else {
                 None
@@ -137,7 +137,7 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
     fn scale_factor(&self) -> Option<f64> {
         unsafe {
             let mut value: f64 = 0.0;
-            if ffi::cm_sample_buffer_get_scale_factor(self.as_ptr(), &mut value) {
+            if ffi::cm_sample_buffer_get_scale_factor(self.as_ptr(), &raw mut value) {
                 Some(value)
             } else {
                 None
@@ -148,7 +148,7 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
     fn content_scale(&self) -> Option<f64> {
         unsafe {
             let mut value: f64 = 0.0;
-            if ffi::cm_sample_buffer_get_content_scale(self.as_ptr(), &mut value) {
+            if ffi::cm_sample_buffer_get_content_scale(self.as_ptr(), &raw mut value) {
                 Some(value)
             } else {
                 None
@@ -162,8 +162,13 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             let mut y = 0.0;
             let mut w = 0.0;
             let mut h = 0.0;
-            if ffi::cm_sample_buffer_get_content_rect(self.as_ptr(), &mut x, &mut y, &mut w, &mut h)
-            {
+            if ffi::cm_sample_buffer_get_content_rect(
+                self.as_ptr(),
+                &raw mut x,
+                &raw mut y,
+                &raw mut w,
+                &raw mut h,
+            ) {
                 Some(crate::cg::CGRect::new(x, y, w, h))
             } else {
                 None
@@ -179,10 +184,10 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             let mut h = 0.0;
             if ffi::cm_sample_buffer_get_bounding_rect(
                 self.as_ptr(),
-                &mut x,
-                &mut y,
-                &mut w,
-                &mut h,
+                &raw mut x,
+                &raw mut y,
+                &raw mut w,
+                &raw mut h,
             ) {
                 Some(crate::cg::CGRect::new(x, y, w, h))
             } else {
@@ -197,8 +202,13 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             let mut y = 0.0;
             let mut w = 0.0;
             let mut h = 0.0;
-            if ffi::cm_sample_buffer_get_screen_rect(self.as_ptr(), &mut x, &mut y, &mut w, &mut h)
-            {
+            if ffi::cm_sample_buffer_get_screen_rect(
+                self.as_ptr(),
+                &raw mut x,
+                &raw mut y,
+                &raw mut w,
+                &raw mut h,
+            ) {
                 Some(crate::cg::CGRect::new(x, y, w, h))
             } else {
                 None
@@ -215,10 +225,10 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             let mut h = 0.0;
             if ffi::cm_sample_buffer_get_presenter_overlay_content_rect(
                 self.as_ptr(),
-                &mut x,
-                &mut y,
-                &mut w,
-                &mut h,
+                &raw mut x,
+                &raw mut y,
+                &raw mut w,
+                &raw mut h,
             ) {
                 Some(crate::cg::CGRect::new(x, y, w, h))
             } else {
@@ -233,7 +243,11 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
         unsafe {
             let mut rects_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
             let mut count: usize = 0;
-            if !ffi::cm_sample_buffer_get_dirty_rects(self.as_ptr(), &mut rects_ptr, &mut count) {
+            if !ffi::cm_sample_buffer_get_dirty_rects(
+                self.as_ptr(),
+                &raw mut rects_ptr,
+                &raw mut count,
+            ) {
                 return None;
             }
             take_dirty_rects(rects_ptr, count)
@@ -255,17 +269,17 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             let mut dirty_rects_count: usize = 0;
             if !ffi::cm_sample_buffer_get_frame_info(
                 self.as_ptr(),
-                &mut fields,
-                &mut status,
-                &mut display_time,
-                &mut scale_factor,
-                &mut content_scale,
+                &raw mut fields,
+                &raw mut status,
+                &raw mut display_time,
+                &raw mut scale_factor,
+                &raw mut content_scale,
                 content_rect.as_mut_ptr(),
                 bounding_rect.as_mut_ptr(),
                 screen_rect.as_mut_ptr(),
                 presenter_overlay_rect.as_mut_ptr(),
-                &mut dirty_rects_ptr,
-                &mut dirty_rects_count,
+                &raw mut dirty_rects_ptr,
+                &raw mut dirty_rects_count,
             ) {
                 // The bridge only allocates the dirty-rect array when it sets
                 // the DIRTY_RECTS bit, but free defensively so an unexpected
@@ -449,7 +463,7 @@ impl CMSampleBufferExt for CMSampleBuffer {
                 duration.timescale,
                 duration.flags,
                 duration.epoch,
-                &mut sample_buffer_ptr,
+                &raw mut sample_buffer_ptr,
             );
             if status == 0 && !sample_buffer_ptr.is_null() {
                 Ok(Self::from_ptr(sample_buffer_ptr))
@@ -474,10 +488,10 @@ impl CMSampleBufferExt for CMSampleBuffer {
             let mut epoch: i64 = 0;
             ffi::cm_sample_buffer_get_output_presentation_timestamp(
                 self.as_ptr(),
-                &mut value,
-                &mut timescale,
-                &mut flags,
-                &mut epoch,
+                &raw mut value,
+                &raw mut timescale,
+                &raw mut flags,
+                &raw mut epoch,
             );
             CMTime {
                 value,
@@ -543,18 +557,18 @@ impl CMSampleBufferExt for CMSampleBuffer {
             let status = ffi::cm_sample_buffer_get_sample_timing_info(
                 self.as_ptr(),
                 index,
-                &mut dur_v,
-                &mut dur_s,
-                &mut dur_f,
-                &mut dur_e,
-                &mut pts_v,
-                &mut pts_s,
-                &mut pts_f,
-                &mut pts_e,
-                &mut dts_v,
-                &mut dts_s,
-                &mut dts_f,
-                &mut dts_e,
+                &raw mut dur_v,
+                &raw mut dur_s,
+                &raw mut dur_f,
+                &raw mut dur_e,
+                &raw mut pts_v,
+                &raw mut pts_s,
+                &raw mut pts_f,
+                &raw mut pts_e,
+                &raw mut dts_v,
+                &raw mut dts_s,
+                &raw mut dts_f,
+                &raw mut dts_e,
             );
             if status == 0 {
                 Ok(CMSampleTimingInfo {
@@ -586,7 +600,7 @@ impl CMSampleBufferExt for CMSampleBuffer {
     fn cg_image(&self) -> Result<apple_cf::cg::CGImage, i32> {
         unsafe {
             let mut status: i32 = 0;
-            let ptr = ffi::cm_sample_buffer_create_cg_image(self.as_ptr(), &mut status);
+            let ptr = ffi::cm_sample_buffer_create_cg_image(self.as_ptr(), &raw mut status);
             if !ptr.is_null() && status == 0 {
                 // Safety: the Swift bridge returns a retained CGImage on
                 // success; passing it straight to CGImage::from_raw takes

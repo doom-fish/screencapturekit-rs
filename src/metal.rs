@@ -813,7 +813,7 @@ impl MetalDevice {
             metal_device_create_library_with_source(
                 self.ptr.as_ptr(),
                 source_c.as_ptr(),
-                &mut error_ptr,
+                &raw mut error_ptr,
             )
         };
 

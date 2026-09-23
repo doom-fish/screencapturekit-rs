@@ -162,10 +162,10 @@ impl SCStreamConfiguration {
         let was_set = unsafe {
             crate::ffi::sc_stream_configuration_get_background_color(
                 self.as_ptr(),
-                &mut r,
-                &mut g,
-                &mut b,
-                &mut a,
+                &raw mut r,
+                &raw mut g,
+                &raw mut b,
+                &raw mut a,
             )
         };
         was_set.then_some((r, g, b, a))

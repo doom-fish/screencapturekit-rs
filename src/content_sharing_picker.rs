@@ -417,10 +417,10 @@ impl SCPickerResult {
         unsafe {
             crate::ffi::sc_picker_result_get_content_rect(
                 self.ptr,
-                &mut x,
-                &mut y,
-                &mut width,
-                &mut height,
+                &raw mut x,
+                &raw mut y,
+                &raw mut width,
+                &raw mut height,
             );
         }
         (width, height)
@@ -436,10 +436,10 @@ impl SCPickerResult {
         unsafe {
             crate::ffi::sc_picker_result_get_content_rect(
                 self.ptr,
-                &mut x,
-                &mut y,
-                &mut width,
-                &mut height,
+                &raw mut x,
+                &raw mut y,
+                &raw mut width,
+                &raw mut height,
             );
         }
         (x, y, width, height)

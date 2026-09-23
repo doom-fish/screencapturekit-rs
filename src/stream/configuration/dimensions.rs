@@ -202,10 +202,10 @@ impl SCStreamConfiguration {
             let mut height = 0.0;
             crate::ffi::sc_stream_configuration_get_source_rect(
                 self.as_ptr(),
-                &mut x,
-                &mut y,
-                &mut width,
-                &mut height,
+                &raw mut x,
+                &raw mut y,
+                &raw mut width,
+                &raw mut height,
             );
             CGRect::new(x, y, width, height)
         }
@@ -256,10 +256,10 @@ impl SCStreamConfiguration {
             let mut height = 0.0;
             crate::ffi::sc_stream_configuration_get_destination_rect(
                 self.as_ptr(),
-                &mut x,
-                &mut y,
-                &mut width,
-                &mut height,
+                &raw mut x,
+                &raw mut y,
+                &raw mut width,
+                &raw mut height,
             );
             CGRect::new(x, y, width, height)
         }

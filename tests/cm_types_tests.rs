@@ -185,8 +185,8 @@ fn test_dirty_rect_parser_decodes_nsvalue_rectangles() {
         cm_test_copy_nsvalue_dirty_rects(
             expected.as_ptr(),
             expected.len() / 4,
-            &mut rects,
-            &mut count,
+            &raw mut rects,
+            &raw mut count,
         )
     };
     assert!(decoded);

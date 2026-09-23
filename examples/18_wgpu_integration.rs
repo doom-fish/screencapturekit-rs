@@ -265,7 +265,7 @@ impl Renderer<'_> {
         let needs_new_texture = self
             .texture
             .as_ref()
-            .map_or(true, |t| t.width() != width || t.height() != height);
+            .is_none_or(|t| t.width() != width || t.height() != height);
 
         if needs_new_texture {
             let texture = self.device.create_texture(&wgpu::TextureDescriptor {
