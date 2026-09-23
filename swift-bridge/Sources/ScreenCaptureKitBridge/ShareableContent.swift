@@ -530,8 +530,8 @@ public func getDisplaysBatch(
         let d = displays[i]
         buffer[i] = FFIDisplayData(
             displayId: d.displayID,
-            width: Int32(d.width),
-            height: Int32(d.height),
+            width: Int32(clamping: d.width),
+            height: Int32(clamping: d.height),
             frame: FFIRect(d.frame)
         )
     }
@@ -634,7 +634,7 @@ public func getWindowsBatch(
 
         buffer[i] = FFIWindowData(
             windowId: w.windowID,
-            windowLayer: Int32(w.windowLayer),
+            windowLayer: Int32(clamping: w.windowLayer),
             isOnScreen: w.isOnScreen,
             isActive: isActive,
             frame: FFIRect(w.frame),

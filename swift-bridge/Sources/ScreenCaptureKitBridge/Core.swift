@@ -159,7 +159,7 @@ func errorToCString(_ error: Error) -> UnsafeMutablePointer<CChar>? {
 func extractStreamErrorCode(_ error: Error) -> Int32 {
     let nsError = error as NSError
     if nsError.domain == "com.apple.ScreenCaptureKit.SCStreamErrorDomain" {
-        return Int32(nsError.code)
+        return Int32(exactly: nsError.code) ?? 0
     }
     return 0
 }
