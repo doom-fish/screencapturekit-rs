@@ -349,6 +349,27 @@ extern "C" fn sample_handler(context: *mut c_void, sample_buffer: *const c_void,
     }
 }
 
+/// Stable, non-owning identity for an [`SCStream`].
+///
+/// This is the address of the underlying native stream, stored as an opaque
+/// value. It does not keep the stream alive and must never be dereferenced.
+/// Compare it with [`SCStream::identity`] while the stream is still live.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StreamIdentity(NonZeroUsize);
+
+impl StreamIdentity {
+    #[cfg(feature = "macos_14_0")]
+    pub(crate) fn from_ptr(ptr: *const c_void) -> Option<Self> {
+        NonZeroUsize::new(ptr as usize).map(Self)
+    }
+
+    /// Whether this identity belongs to `stream`.
+    #[must_use]
+    pub fn matches(self, stream: &SCStream) -> bool {
+        self == stream.identity()
+    }
+}
+
 /// `SCStream` is a lightweight wrapper around the Swift `SCStream` instance.
 /// It provides direct FFI access to `ScreenCaptureKit` functionality.
 ///
@@ -384,27 +405,6 @@ extern "C" fn sample_handler(context: *mut c_void, sample_buffer: *const c_void,
 /// # Ok(())
 /// # }
 /// ```
-/// Stable, non-owning identity for an [`SCStream`].
-///
-/// This is the address of the underlying native stream, stored as an opaque
-/// value. It does not keep the stream alive and must never be dereferenced.
-/// Compare it with [`SCStream::identity`] while the stream is still live.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct StreamIdentity(NonZeroUsize);
-
-impl StreamIdentity {
-    #[cfg(feature = "macos_14_0")]
-    pub(crate) fn from_ptr(ptr: *const c_void) -> Option<Self> {
-        NonZeroUsize::new(ptr as usize).map(Self)
-    }
-
-    /// Whether this identity belongs to `stream`.
-    #[must_use]
-    pub fn matches(self, stream: &SCStream) -> bool {
-        self == stream.identity()
-    }
-}
-
 pub struct SCStream {
     ptr: *const c_void,
     /// Per-stream context holding handlers and delegate (ref-counted).
