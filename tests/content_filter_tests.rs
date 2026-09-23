@@ -30,7 +30,8 @@ fn test_content_filter_builder_display() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     // Verify filter was created (debug output includes pointer)
     let debug_str = format!("{filter:?}");
@@ -43,7 +44,10 @@ fn test_content_filter_builder_window() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
-        let filter = SCContentFilter::create().with_window(window).build();
+        let filter = SCContentFilter::create()
+            .with_window(window)
+            .build()
+            .expect("failed to build content filter");
         let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
     }
@@ -61,7 +65,8 @@ fn test_content_filter_exclude_windows() {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&window_refs)
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
@@ -80,7 +85,8 @@ fn test_content_filter_include_windows() {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_including_windows(&window_refs)
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
@@ -99,7 +105,8 @@ fn test_content_filter_include_applications() {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_including_applications(&app_refs, &[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let debug_str = format!("{filter:?}");
         assert!(debug_str.contains("SCContentFilter"));
@@ -119,7 +126,8 @@ fn test_content_filter_content_rect_is_derived_from_the_display() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let rect = filter.content_rect();
     assert!(rect.size.width >= 0.0);
@@ -146,7 +154,8 @@ fn test_content_filter_content_rect_is_stable() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let first = filter.content_rect();
     let second = filter.content_rect();
@@ -166,7 +175,8 @@ fn test_content_filter_clone() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let cloned = filter;
     let debug_str = format!("{cloned:?}");
@@ -190,7 +200,8 @@ fn test_content_filter_debug_display() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let debug = format!("{filter:?}");
     assert!(debug.contains("SCContentFilter"));
@@ -208,7 +219,8 @@ fn test_content_filter_equality() {
     let filter1 = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let filter2 = filter1.clone();
 
@@ -229,7 +241,8 @@ fn test_content_filter_hash() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let mut set = HashSet::new();
     set.insert(filter.clone());
@@ -251,7 +264,8 @@ fn test_content_filter_style() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let style = filter.style();
     // Display filters should have Display style
@@ -270,7 +284,10 @@ fn test_content_filter_style_window() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
-        let filter = SCContentFilter::create().with_window(window).build();
+        let filter = SCContentFilter::create()
+            .with_window(window)
+            .build()
+            .expect("failed to build content filter");
         let style = filter.style();
         // Window filters should have Window style
         assert!(matches!(
@@ -291,7 +308,8 @@ fn test_content_filter_point_pixel_scale() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let scale = filter.point_pixel_scale();
     // Scale should be positive (typically 1.0 or 2.0 for Retina)
@@ -313,7 +331,8 @@ fn test_content_filter_include_menu_bar_is_set_by_the_builder() {
             .with_display(display)
             .with_excluding_windows(&[])
             .with_include_menu_bar(requested)
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         assert_eq!(
             filter.include_menu_bar(),
@@ -337,7 +356,8 @@ fn test_content_filter_include_menu_bar_defaults_are_untouched() {
     let excluding = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     assert!(
         excluding.include_menu_bar(),
         "display-excluding filters default to including the menu bar"
@@ -346,7 +366,8 @@ fn test_content_filter_include_menu_bar_defaults_are_untouched() {
     let including = SCContentFilter::create()
         .with_display(display)
         .with_including_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     assert!(
         !including.include_menu_bar(),
         "display-including filters default to excluding the menu bar"
@@ -370,7 +391,8 @@ fn test_content_filter_clones_are_immutable_and_shareable() {
             .with_display(display)
             .with_excluding_windows(&[])
             .with_include_menu_bar(false)
-            .build(),
+            .build()
+            .expect("failed to build content filter"),
     );
     let expected = filter.include_menu_bar();
 
@@ -405,7 +427,8 @@ fn test_content_filter_included_displays() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let included_displays = filter.included_displays();
     // Display filters should have at least one included display
@@ -421,7 +444,10 @@ fn test_content_filter_included_windows() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
-        let filter = SCContentFilter::create().with_window(window).build();
+        let filter = SCContentFilter::create()
+            .with_window(window)
+            .build()
+            .expect("failed to build content filter");
         let included_windows = filter.included_windows();
         // Window filters should have at least one included window
         // (Note: may return empty on older macOS)
@@ -443,7 +469,8 @@ fn test_content_filter_included_applications() {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_including_applications(&app_refs, &[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let included_apps = filter.included_applications();
         // Application filters should have included applications
@@ -507,4 +534,18 @@ fn test_shareable_content_style_from_i32() {
         SCShareableContentStyle::from(99),
         SCShareableContentStyle::None
     ); // Unknown
+}
+
+#[test]
+fn test_content_filter_build_without_target_is_an_error() {
+    use screencapturekit::error::SCError;
+
+    let result = SCContentFilter::create().build();
+    assert!(matches!(result, Err(SCError::InvalidConfiguration(_))));
+
+    let result = SCContentFilter::create()
+        .with_excluding_windows(&[])
+        .with_including_applications(&[], &[])
+        .build();
+    assert!(matches!(result, Err(SCError::InvalidConfiguration(_))));
 }

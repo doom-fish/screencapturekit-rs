@@ -418,7 +418,8 @@ fn test_stream_with_delegate_starts_stops_and_survives_clone_drop() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let mut config = SCStreamConfiguration::default();
     config.set_width(320);
     config.set_height(240);

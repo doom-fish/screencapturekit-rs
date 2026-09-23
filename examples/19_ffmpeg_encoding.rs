@@ -178,7 +178,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()?;
 
     // Configure for encoding: BGRA format, 30 FPS
     let frame_interval = CMTime::new(1, 30); // 30 FPS

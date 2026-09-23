@@ -128,7 +128,8 @@ fn test_async_stream_creation() {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             let config = SCStreamConfiguration::new()
                 .with_width(100)
                 .with_height(100);
@@ -171,7 +172,8 @@ fn test_async_stream_with_audio() {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             let config = SCStreamConfiguration::new()
                 .with_width(100)
                 .with_height(100);
@@ -196,7 +198,8 @@ async fn test_async_stream_start_stop_capture() {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             let config = SCStreamConfiguration::new()
                 .with_width(100)
                 .with_height(100);
@@ -230,7 +233,8 @@ async fn test_async_stream_update_configuration() {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             let config = SCStreamConfiguration::new()
                 .with_width(100)
                 .with_height(100);
@@ -267,7 +271,8 @@ async fn test_async_stream_update_content_filter() {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             let config = SCStreamConfiguration::new()
                 .with_width(100)
                 .with_height(100);
@@ -283,7 +288,8 @@ async fn test_async_stream_update_content_filter() {
             let new_filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
 
             let update_result = stream.update_content_filter(&new_filter).await;
             // This may fail if stream is not running, that's ok
@@ -305,7 +311,8 @@ fn test_async_stream_next_future() {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             let config = SCStreamConfiguration::new()
                 .with_width(100)
                 .with_height(100);
@@ -388,7 +395,8 @@ fn test_async_stream_take_error_initially_none() {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             let config = SCStreamConfiguration::new()
                 .with_width(100)
                 .with_height(100);
@@ -413,7 +421,8 @@ fn test_async_stream_multi_output_typed() {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             let config = SCStreamConfiguration::new()
                 .with_width(160)
                 .with_height(120)
@@ -465,7 +474,8 @@ async fn test_async_stream_frames_streamext_combinators() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new()
         .with_width(160)
         .with_height(120)
@@ -627,7 +637,8 @@ mod capture_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(320)
@@ -667,7 +678,8 @@ mod capture_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(160)
@@ -698,7 +710,8 @@ mod capture_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(160)
@@ -728,7 +741,8 @@ mod capture_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(160)
@@ -757,7 +771,8 @@ mod capture_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(160)
@@ -822,7 +837,8 @@ mod future_polling_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(160)
@@ -855,7 +871,8 @@ mod future_polling_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(160)
@@ -897,7 +914,8 @@ mod future_polling_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(160)
@@ -949,7 +967,8 @@ mod screenshot_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(640)
@@ -973,7 +992,8 @@ mod screenshot_tests {
                 let filter = SCContentFilter::create()
                     .with_display(display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(640)
@@ -1221,7 +1241,8 @@ mod tokio_async_tests {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
 
             let config = SCStreamConfiguration::new()
                 .with_width(160)
@@ -1262,7 +1283,8 @@ mod tokio_async_tests {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
 
             let config = SCStreamConfiguration::new()
                 .with_width(160)
@@ -1300,7 +1322,8 @@ mod tokio_async_tests {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
 
             let config = SCStreamConfiguration::new()
                 .with_width(320)
@@ -1328,7 +1351,8 @@ mod tokio_async_tests {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
 
             let config = SCStreamConfiguration::new()
                 .with_width(320)
@@ -1415,7 +1439,8 @@ async fn test_async_frame_delivery_assertive() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new()
         .with_width(320)
         .with_height(240);
@@ -1474,7 +1499,8 @@ fn async_live_fixture() -> Option<(
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new()
         .with_width(320)
         .with_height(240);

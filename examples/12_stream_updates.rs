@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()?;
 
     let config = SCStreamConfiguration::new()
         .with_width(640)
@@ -106,7 +106,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("\n🔄 Switching to window capture...");
         println!("   Window: {}", window.title().unwrap_or_default());
 
-        let window_filter = SCContentFilter::create().with_window(window).build();
+        let window_filter = SCContentFilter::create().with_window(window).build()?;
 
         match stream.update_content_filter(&window_filter) {
             Ok(()) => println!("✅ Filter updated to window"),

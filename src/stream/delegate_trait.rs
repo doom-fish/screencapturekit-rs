@@ -40,7 +40,7 @@ use crate::error::SCError;
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let content = SCShareableContent::get()?;
 /// # let display = &content.displays()[0];
-/// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+/// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
 /// # let config = SCStreamConfiguration::default();
 ///
 /// let delegate = StreamCallbacks::new()
@@ -130,7 +130,7 @@ pub trait SCStreamDelegateTrait: Send + Sync {
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let content = SCShareableContent::get()?;
 /// # let display = &content.displays()[0];
-/// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+/// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
 /// # let config = SCStreamConfiguration::default();
 ///
 /// let error_handler = ErrorHandler::new(|error| {
@@ -190,7 +190,7 @@ where
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let content = SCShareableContent::get()?;
 /// # let display = &content.displays()[0];
-/// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+/// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
 /// # let config = SCStreamConfiguration::default();
 ///
 /// // Create delegate with multiple callbacks

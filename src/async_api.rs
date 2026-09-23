@@ -48,7 +48,7 @@
 //!
 //! let content = AsyncSCShareableContent::get().await?;
 //! let display = &content.displays()[0];
-//! let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+//! let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
 //! let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 //!
 //! let stream = AsyncSCStream::new(&filter, &config, 30, SCStreamOutputType::Screen)?;
@@ -792,7 +792,7 @@ impl Future for StreamControlFuture {
 ///
 /// let content = AsyncSCShareableContent::get().await?;
 /// let display = &content.displays()[0];
-/// let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+/// let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
 /// let config = SCStreamConfiguration::new()
 ///     .with_width(1920)
 ///     .with_height(1080);
@@ -1263,7 +1263,7 @@ impl std::fmt::Debug for AsyncSCStream {
 ///
 /// let content = AsyncSCShareableContent::get().await?;
 /// let display = &content.displays()[0];
-/// let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+/// let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
 /// let config = SCStreamConfiguration::new()
 ///     .with_width(1920)
 ///     .with_height(1080);
@@ -1830,7 +1830,7 @@ impl AsyncSCContentSharingPicker {
     ///     let content = SCShareableContent::get().ok()?;
     ///     let displays = content.displays();
     ///     let display = displays.first()?;
-    ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build().ok()?;
     ///     let stream_config = SCStreamConfiguration::new();
     ///     let stream = SCStream::new(&filter, &stream_config).ok()?;
     ///
@@ -2064,7 +2064,7 @@ impl Drop for RecordingEventStream<'_> {
 ///     let content = AsyncSCShareableContent::get().await.ok()?;
 ///     let displays = content.displays();
 ///     let display = displays.first()?;
-///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build().ok()?;
 ///     let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 ///
 ///     let rec_config = SCRecordingOutputConfiguration::new()

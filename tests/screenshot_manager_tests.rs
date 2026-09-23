@@ -44,7 +44,8 @@ fn test_capture_image() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(640)
@@ -68,7 +69,8 @@ fn test_capture_sample_buffer() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(640)
@@ -99,7 +101,8 @@ fn test_cgimage_rgba_data() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(100)
@@ -130,7 +133,8 @@ fn test_cgimage_bgra_matches_rgba_byteswap() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new().with_width(64).with_height(64);
 
     let Ok(image) = SCScreenshotManager::capture_image(&filter, &config) else {
@@ -180,7 +184,8 @@ fn test_cgimage_data_into_buffer_apis() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new().with_width(64).with_height(64);
     let Ok(image) = SCScreenshotManager::capture_image(&filter, &config) else {
         return;
@@ -422,7 +427,8 @@ fn test_capture_screenshot_with_configuration() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCScreenshotConfiguration::new()
         .with_width(640)

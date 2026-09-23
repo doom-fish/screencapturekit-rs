@@ -17,7 +17,10 @@ fn test_stream_creation() {
     }
 
     let display = &content.displays()[0];
-    let filter = SCContentFilter::create().with_display(display).build();
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::default();
 
     let stream = SCStream::new(&filter, &config).expect("failed to create stream");
@@ -39,7 +42,10 @@ fn test_stream_with_custom_config() {
     }
 
     let display = &content.displays()[0];
-    let filter = SCContentFilter::create().with_display(display).build();
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .build()
+        .expect("failed to build content filter");
     let mut config = SCStreamConfiguration::default();
     config.set_width(1920);
     config.set_height(1080);
@@ -64,7 +70,10 @@ fn test_stream_multiple_instances() {
     }
 
     let display = &content.displays()[0];
-    let filter = SCContentFilter::create().with_display(display).build();
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::default();
 
     let stream1 = SCStream::new(&filter, &config).expect("failed to create stream");
@@ -88,7 +97,10 @@ fn test_stream_clone() {
     }
 
     let display = &content.displays()[0];
-    let filter = SCContentFilter::create().with_display(display).build();
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::default();
 
     let stream1 = SCStream::new(&filter, &config).expect("failed to create stream");
@@ -124,7 +136,10 @@ fn test_stream_update_configuration() {
     }
 
     let display = &content.displays()[0];
-    let filter = SCContentFilter::create().with_display(display).build();
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .build()
+        .expect("failed to build content filter");
     let config1 = SCStreamConfiguration::default();
 
     let stream = SCStream::new(&filter, &config1).expect("failed to create stream");
@@ -154,12 +169,18 @@ fn test_stream_update_filter() {
     }
 
     let display = &content.displays()[0];
-    let filter1 = SCContentFilter::create().with_display(display).build();
+    let filter1 = SCContentFilter::create()
+        .with_display(display)
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::default();
 
     let stream = SCStream::new(&filter1, &config).expect("failed to create stream");
 
-    let filter2 = SCContentFilter::create().with_display(display).build();
+    let filter2 = SCContentFilter::create()
+        .with_display(display)
+        .build()
+        .expect("failed to build content filter");
 
     let result = stream.update_content_filter(&filter2);
 
@@ -197,8 +218,14 @@ fn test_stream_different_displays() {
     let display1 = &content.displays()[0];
     let display2 = &content.displays()[1];
 
-    let filter1 = SCContentFilter::create().with_display(display1).build();
-    let filter2 = SCContentFilter::create().with_display(display2).build();
+    let filter1 = SCContentFilter::create()
+        .with_display(display1)
+        .build()
+        .expect("failed to build content filter");
+    let filter2 = SCContentFilter::create()
+        .with_display(display2)
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::default();
 
     let stream1 = SCStream::new(&filter1, &config).expect("failed to create stream");
@@ -222,7 +249,10 @@ fn test_stream_debug_display() {
     }
 
     let display = &content.displays()[0];
-    let filter = SCContentFilter::create().with_display(display).build();
+    let filter = SCContentFilter::create()
+        .with_display(display)
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::default();
 
     let stream = SCStream::new(&filter, &config).expect("failed to create stream");
@@ -248,7 +278,10 @@ fn test_stream_identity_is_shared_by_clones_only() {
         println!("⚠ No displays available");
         return;
     };
-    let filter = SCContentFilter::create().with_display(&display).build();
+    let filter = SCContentFilter::create()
+        .with_display(&display)
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::default();
 
     let first = SCStream::new(&filter, &config).expect("failed to create stream");

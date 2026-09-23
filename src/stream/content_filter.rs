@@ -16,7 +16,7 @@
 //! let filter = SCContentFilter::create()
 //!     .with_display(display)
 //!     .with_excluding_windows(&[])
-//!     .build();
+//!     .build()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -76,13 +76,13 @@ use crate::{
 /// let filter = SCContentFilter::create()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[])
-///     .build();
+///     .build()?;
 ///
 /// // Or capture a specific window
 /// let window = &content.windows()[0];
 /// let filter = SCContentFilter::create()
 ///     .with_window(window)
-///     .build();
+///     .build()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -121,7 +121,7 @@ impl SCContentFilter {
     /// let filter = SCContentFilter::create()
     ///     .with_display(display)
     ///     .with_excluding_windows(&[])
-    ///     .build();
+    ///     .build()?;
     /// # Ok(())
     /// # }
     /// ```
@@ -387,7 +387,7 @@ impl fmt::Display for SCContentFilter {
 // when the object is built, so no two threads can ever write — or read while
 // another writes — the same Objective-C ivar through safe Rust. `includeMenuBar`
 // is Apple's only writable property and it is `nonatomic`; it is assigned once
-// inside `SCContentFilterBuilder::try_build`, before the pointer is wrapped and
+// inside `SCContentFilterBuilder::build`, before the pointer is wrapped and
 // therefore before any handle (or clone) exists that another thread could
 // observe. Adding any post-construction setter would invalidate both impls.
 unsafe impl Send for SCContentFilter {}
@@ -408,19 +408,19 @@ unsafe impl Sync for SCContentFilter {}
 /// let filter = SCContentFilter::create()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[])
-///     .build();
+///     .build()?;
 ///
 /// // Capture with specific windows excluded
 /// let window = &content.windows()[0];
 /// let filter = SCContentFilter::create()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[window])
-///     .build();
+///     .build()?;
 ///
 /// // Capture specific window
 /// let filter = SCContentFilter::create()
 ///     .with_window(window)
-///     .build();
+///     .build()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -635,26 +635,12 @@ impl SCContentFilterBuilder {
 
     /// Build the content filter.
     ///
-    /// # Panics
-    ///
-    /// Panics if no filter type was set. Call `.display()` or `.window()` before `.build()`.
-    /// For a non-panicking alternative that reports this as a recoverable error, use
-    /// [`try_build`](Self::try_build).
-    #[must_use]
-    pub fn build(self) -> SCContentFilter {
-        self.try_build()
-            .expect("SCContentFilterBuilder: No filter type set. Call .display() or .window() before .build()")
-    }
-
-    /// Build the content filter, returning an error instead of panicking when no
-    /// filter type was set.
-    ///
     /// # Errors
     ///
     /// Returns [`SCError::InvalidConfiguration`] if neither `.display()` nor `.window()`
     /// was called before building.
     #[allow(clippy::too_many_lines)]
-    pub fn try_build(self) -> SCResult<SCContentFilter> {
+    pub fn build(self) -> SCResult<SCContentFilter> {
         let filter = match self.filter_type {
             FilterType::Window(window) => unsafe {
                 let ptr =

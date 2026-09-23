@@ -89,7 +89,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let content = SCShareableContent::get()?;
 //! # let display = content.displays().into_iter().next().unwrap();
-//! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
+//! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build()?;
 //! # let config = SCStreamConfiguration::new();
 //! let frame_count = Arc::new(AtomicUsize::new(0));
 //! let count_clone = frame_count.clone();
@@ -123,7 +123,7 @@
 //! let filter = SCContentFilter::create()
 //!     .with_display(&display)
 //!     .with_excluding_windows(&[])
-//!     .build();
+//!     .build()?;
 //!
 //! // Configure how to capture
 //! let config = SCStreamConfiguration::new()
@@ -289,7 +289,7 @@
 //! let filter = SCContentFilter::create()
 //!     .with_display(&display)
 //!     .with_excluding_windows(&[])
-//!     .build();
+//!     .build()?;
 //!
 //! let config = SCStreamConfiguration::new()
 //!     .with_width(1920)
@@ -323,7 +323,7 @@
 //!
 //! # let content = SCShareableContent::get()?;
 //! # let display = content.displays().into_iter().next().unwrap();
-//! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
+//! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build()?;
 //! # let config = SCStreamConfiguration::new().with_width(640).with_height(480);
 //! # struct MyHandler;
 //! # impl SCStreamOutputTrait for MyHandler {
@@ -345,7 +345,7 @@
 //! // Switch to a different window
 //! let windows = content.windows();
 //! if let Some(window) = windows.iter().find(|w| w.is_on_screen()) {
-//!     let window_filter = SCContentFilter::create().with_window(window).build();
+//!     let window_filter = SCContentFilter::create().with_window(window).build()?;
 //!     stream.update_content_filter(&window_filter)?;
 //! }
 //!
@@ -367,7 +367,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let content = SCShareableContent::get()?;
 //! # let display = content.displays().into_iter().next().unwrap();
-//! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
+//! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build()?;
 //! # let config = SCStreamConfiguration::new();
 //! // Create an error handler using a closure
 //! let error_handler = ErrorHandler::new(|error| {
@@ -396,7 +396,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let content = SCShareableContent::get()?;
 //! # let display = content.displays().into_iter().next().unwrap();
-//! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
+//! # let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build()?;
 //! # let config = SCStreamConfiguration::new();
 //! let mut stream = SCStream::new(&filter, &config)?;
 //!
@@ -429,7 +429,7 @@
 //!     let filter = SCContentFilter::create()
 //!         .with_display(display)
 //!         .with_excluding_windows(&[])
-//!         .build();
+//!         .build()?;
 //!     
 //!     let config = SCStreamConfiguration::new()
 //!         .with_width(1920)
@@ -477,7 +477,7 @@
 //! let filter = SCContentFilter::create()
 //!     .with_display(display)
 //!     .with_excluding_windows(&[])
-//!     .build();
+//!     .build()?;
 //!
 //! let config = SCStreamConfiguration::new()
 //!     .with_width(1920)
@@ -509,7 +509,7 @@
 //! let filter = SCContentFilter::create()
 //!     .with_display(display)
 //!     .with_excluding_windows(&[])
-//!     .build();
+//!     .build()?;
 //!
 //! let stream_config = SCStreamConfiguration::new()
 //!     .with_width(1920)
@@ -631,7 +631,7 @@
 //!
 //! let filter = SCContentFilter::create()
 //!     .with_window(window)
-//!     .build();
+//!     .build()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -656,7 +656,7 @@
 //! let filter = SCContentFilter::create()
 //!     .with_display(&display)
 //!     .with_including_applications(&[safari], &[])  // Include Safari, no excepted windows
-//!     .build();
+//!     .build()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -683,7 +683,7 @@
 //! let filter = SCContentFilter::create()
 //!     .with_display(&display)
 //!     .with_excluding_windows(&my_windows)
-//!     .build();
+//!     .build()?;
 //! # Ok(())
 //! # }
 //! ```

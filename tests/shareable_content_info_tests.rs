@@ -32,7 +32,8 @@ fn test_shareable_content_info_for_display_filter() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
         // Test style
@@ -62,7 +63,10 @@ fn test_shareable_content_info_for_window_filter() {
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
     if let Some(window) = content.windows().first() {
-        let filter = SCContentFilter::create().with_window(window).build();
+        let filter = SCContentFilter::create()
+            .with_window(window)
+            .build()
+            .expect("failed to build content filter");
 
         if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
             let style = info.style();
@@ -86,7 +90,8 @@ fn test_shareable_content_info_clone() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
         let cloned = info.clone();
@@ -107,7 +112,8 @@ fn test_shareable_content_info_debug() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
         let debug_str = format!("{info:?}");
@@ -126,7 +132,8 @@ fn test_shareable_content_info_display() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
         let display_str = format!("{info}");
@@ -154,7 +161,8 @@ fn test_shareable_content_info_pixel_size_calculation() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
         let rect = info.content_rect();

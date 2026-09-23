@@ -127,7 +127,8 @@ fn bench_content_filter_with_excludes(c: &mut Criterion) {
                     let f = SCContentFilter::create()
                         .with_display(display)
                         .with_excluding_windows(slice)
-                        .build();
+                        .build()
+                        .expect("failed to build content filter");
                     black_box(f);
                 });
             },
@@ -149,7 +150,8 @@ fn capture_single_frame() -> Option<CMSampleBuffer> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(1920)
@@ -258,7 +260,8 @@ fn bench_screenshot_rgba(c: &mut Criterion) {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let mut group = c.benchmark_group("screenshot_rgba");
     group.sample_size(20); // each sample = 1 capture + 1 rgba_data
@@ -443,7 +446,8 @@ fn run_stream(duration: Duration, with_audio: bool) -> Arc<AvStats> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let mut config = SCStreamConfiguration::new()
         .with_width(1920)
@@ -575,7 +579,8 @@ fn capture_single_audio_sample() -> Option<CMSampleBuffer> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new()
         .with_width(640)
         .with_height(480)

@@ -28,7 +28,7 @@
 //! let filter = SCContentFilter::create()
 //!     .with_display(display)
 //!     .with_excluding_windows(&[])
-//!     .build();
+//!     .build()?;
 //! let config = SCStreamConfiguration::new()
 //!     .with_width(1920)
 //!     .with_height(1080);

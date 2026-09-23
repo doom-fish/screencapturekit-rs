@@ -80,7 +80,8 @@ fn test_screen_capture_with_audio() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let mut config = SCStreamConfiguration::default();
     config.set_width(1920);
@@ -168,7 +169,8 @@ fn test_combined_video_audio_capture() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let mut config = SCStreamConfiguration::default();
     config.set_width(1920);

@@ -389,7 +389,7 @@ impl StreamIdentity {
 /// let filter = SCContentFilter::create()
 ///     .with_display(display)
 ///     .with_excluding_windows(&[])
-///     .build();
+///     .build()?;
 /// let config = SCStreamConfiguration::new()
 ///     .with_width(1920)
 ///     .with_height(1080);
@@ -428,7 +428,7 @@ impl SCStream {
     /// let filter = SCContentFilter::create()
     ///     .with_display(display)
     ///     .with_excluding_windows(&[])
-    ///     .build();
+    ///     .build()?;
     /// let config = SCStreamConfiguration::new()
     ///     .with_width(1920)
     ///     .with_height(1080);
@@ -463,7 +463,7 @@ impl SCStream {
     /// let filter = SCContentFilter::create()
     ///     .with_display(display)
     ///     .with_excluding_windows(&[])
-    ///     .build();
+    ///     .build()?;
     /// let config = SCStreamConfiguration::new()
     ///     .with_width(1920)
     ///     .with_height(1080);
@@ -575,7 +575,7 @@ impl SCStream {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
     /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config)?;
     /// stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
@@ -590,7 +590,7 @@ impl SCStream {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
     /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config)?;
     /// stream.add_output_handler(
@@ -617,7 +617,7 @@ impl SCStream {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
     /// # let config = SCStreamConfiguration::default();
     /// let frame_count = Arc::new(AtomicUsize::new(0));
     /// let count_handler = frame_count.clone();
@@ -676,7 +676,7 @@ impl SCStream {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
     /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config)?;
     /// let queue = DispatchQueue::new("com.myapp.capture", DispatchQoS::UserInteractive);
@@ -1167,7 +1167,7 @@ impl Clone for SCStream {
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let content = SCShareableContent::get()?;
     /// # let display = &content.displays()[0];
-    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
     /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config)?;
     /// stream.add_output_handler(|_, _| println!("Handler 1"), SCStreamOutputType::Screen);

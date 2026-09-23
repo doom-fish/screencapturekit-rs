@@ -193,7 +193,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()?;
 
     // Use YCbCr format for efficient capture (common in screen capture)
     let config = SCStreamConfiguration::new()

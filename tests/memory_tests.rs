@@ -77,6 +77,7 @@ fn test_content_filter_memory() {
                     .with_display(display)
                     .with_excluding_windows(&[])
                     .build()
+                    .expect("failed to build content filter")
             })
             .collect();
 
@@ -121,7 +122,8 @@ fn test_stream_lifecycle() {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let config = SCStreamConfiguration::new()
             .with_width(640)
@@ -156,7 +158,8 @@ fn test_handler_registration_cleanup() {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let config = SCStreamConfiguration::new()
             .with_width(640)
@@ -193,7 +196,8 @@ fn test_closure_handler_memory() {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let config = SCStreamConfiguration::new()
             .with_width(640)
@@ -278,7 +282,8 @@ fn test_multiple_streams_memory() {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let config = SCStreamConfiguration::new()
             .with_width(320)
@@ -317,7 +322,12 @@ fn test_window_filter_memory() {
     if let Some(window) = windows.first() {
         // Create many window filters
         let filters: Vec<_> = (0..50)
-            .map(|_| SCContentFilter::create().with_window(window).build())
+            .map(|_| {
+                SCContentFilter::create()
+                    .with_window(window)
+                    .build()
+                    .expect("failed to build content filter")
+            })
             .collect();
 
         drop(filters);
@@ -360,7 +370,8 @@ mod macos_14_tests {
             let filter = SCContentFilter::create()
                 .with_display(display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
 
             // Create and drop content info multiple times
             for _ in 0..20 {

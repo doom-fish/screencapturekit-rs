@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()?;
 
     let config = SCStreamConfiguration::new()
         .with_width(1920)
@@ -135,7 +135,7 @@ let window = content.windows().into_iter()
     .find(|w| w.title().as_deref() == Some("Safari"))
     .ok_or("Safari window not found")?;
 
-let filter = SCContentFilter::create().with_window(&window).build();
+let filter = SCContentFilter::create().with_window(&window).build()?;
 let config = SCStreamConfiguration::new()
     .with_captures_audio(true)
     .with_sample_rate(48_000)
@@ -179,7 +179,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = &content.displays()[0];
 
     let filter = SCContentFilter::create()
-        .with_display(display).with_excluding_windows(&[]).build();
+        .with_display(display).with_excluding_windows(&[]).build()?;
     let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 
     // 30-frame ring buffer; oldest frames are dropped if the consumer can't keep up.
@@ -226,7 +226,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let content = AsyncSCShareableContent::get().await?;
     let display = &content.displays()[0];
     let filter = SCContentFilter::create()
-        .with_display(display).with_excluding_windows(&[]).build();
+        .with_display(display).with_excluding_windows(&[]).build()?;
     // Enable audio in the configuration …
     let config = SCStreamConfiguration::new()
         .with_width(1920).with_height(1080)

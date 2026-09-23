@@ -93,7 +93,8 @@ fn test_yuv_420v_pixel_format_capture() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(640)
@@ -187,7 +188,8 @@ fn test_handler_add_remove_mid_capture() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(320)
@@ -289,7 +291,8 @@ fn test_presenter_overlay_content_rect_absent_when_overlay_disabled() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(320)

@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()?;
 
     // 3. Get content info (macOS 14.0+ feature)
     if let Some(info) =

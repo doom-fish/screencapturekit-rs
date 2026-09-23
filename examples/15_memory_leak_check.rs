@@ -305,6 +305,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
                 .with_display(display)
                 .with_excluding_windows(&exclude)
                 .build()
+                .expect("failed to build content filter")
         }
         FilterType::DisplayIncludeWindows => {
             let include = collect_window_refs(&windows, 3);
@@ -312,6 +313,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
                 .with_display(display)
                 .with_including_windows(&include)
                 .build()
+                .expect("failed to build content filter")
         }
         FilterType::DisplayExcludeApps => {
             let exclude_apps = collect_app_refs(&apps, 2);
@@ -320,6 +322,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
                 .with_display(display)
                 .with_excluding_applications(&exclude_apps, &except_windows)
                 .build()
+                .expect("failed to build content filter")
         }
         FilterType::DisplayIncludeApps => {
             let include_apps = collect_app_refs(&apps, 3);
@@ -328,19 +331,24 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
                 .with_display(display)
                 .with_including_applications(&include_apps, &except_windows)
                 .build()
+                .expect("failed to build content filter")
         }
         FilterType::SingleWindow => {
             let window = windows
                 .iter()
                 .find(|w| w.is_on_screen())
                 .unwrap_or(&windows[0]);
-            SCContentFilter::create().with_window(window).build()
+            SCContentFilter::create()
+                .with_window(window)
+                .build()
+                .expect("failed to build content filter")
         }
         #[cfg(feature = "macos_15_0")]
         FilterType::FullConfigWithMic => SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
-            .build(),
+            .build()
+            .expect("failed to build content filter"),
     };
 
     // Test filter properties (macOS 14.0+)

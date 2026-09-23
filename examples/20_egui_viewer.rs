@@ -210,7 +210,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()?;
 
     // Capture at reasonable size for UI display
     let config = SCStreamConfiguration::new()

@@ -130,7 +130,8 @@ fn demo_single_app_filters(
     let include_filter = SCContentFilter::create()
         .with_display(display)
         .with_including_applications(&[live_app], &[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     println!(
         "   Filter created: include only {}",
         app_snap.application_name
@@ -140,7 +141,8 @@ fn demo_single_app_filters(
     let _exclude_filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_applications(&[live_app], &[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     println!("   Filter created: exclude {}", app_snap.application_name);
 
     include_filter
@@ -175,7 +177,8 @@ fn demo_multi_app_filter(
         let _multi_filter = SCContentFilter::create()
             .with_display(display)
             .with_including_applications(&multi_apps, &[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         println!("   Filter created for {} apps:", multi_apps.len());
         for &i in &visible_app_indices {

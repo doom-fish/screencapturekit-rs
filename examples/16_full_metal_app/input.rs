@@ -111,6 +111,7 @@ pub fn start_capture(
                         .with_display(display)
                         .with_excluding_windows(&[])
                         .build()
+                        .expect("failed to build content filter")
                 } else {
                     println!("❌ No displays available for mic-only capture");
                     return;

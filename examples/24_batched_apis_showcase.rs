@@ -138,7 +138,7 @@ fn showcase_bgra_data() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()?;
 
     for &(label, w, h) in &[("1080p", 1920u32, 1080u32), ("4K", 3840u32, 2160u32)] {
         let config = SCStreamConfiguration::new()
@@ -191,7 +191,8 @@ fn capture_one_video_frame() -> Option<CMSampleBuffer> {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new()
         .with_width(1280)
         .with_height(720)

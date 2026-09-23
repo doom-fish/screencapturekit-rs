@@ -83,7 +83,8 @@ fn test_video_capture() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     // Create stream
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
@@ -165,7 +166,8 @@ fn test_audio_capture() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     // Create stream
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
@@ -254,7 +256,8 @@ fn test_video_and_audio_capture() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     // Create stream
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
@@ -332,7 +335,8 @@ fn test_pixel_buffer_locking() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add output handler
@@ -431,7 +435,8 @@ fn test_iosurface_backed_buffer() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add output handler

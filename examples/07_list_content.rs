@@ -67,7 +67,8 @@ fn print_display_scale_info(content: &SCShareableContent, display: &DisplaySnaps
         let filter = SCContentFilter::create()
             .with_display(&live)
             .with_excluding_windows(&[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         if let Some(info) =
             screencapturekit::shareable_content::SCShareableContentInfo::for_filter(&filter)
@@ -168,11 +169,15 @@ fn print_filter_styles(content: &SCShareableContent) {
         let display_filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
         println!("  Display filter style: {:?}", display_filter.style());
     }
     if let Some(window) = live_windows.first() {
-        let window_filter = SCContentFilter::create().with_window(window).build();
+        let window_filter = SCContentFilter::create()
+            .with_window(window)
+            .build()
+            .expect("failed to build content filter");
         println!("  Window filter style: {:?}", window_filter.style());
     }
     println!("\n  Style values:");

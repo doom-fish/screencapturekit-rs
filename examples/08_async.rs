@@ -156,7 +156,7 @@ async fn async_stream_iteration() -> Result<(), Box<dyn std::error::Error>> {
         let filter = SCContentFilter::create()
             .with_display(display)
             .with_excluding_windows(&[])
-            .build();
+            .build()?;
 
         let config = SCStreamConfiguration::new()
             .with_width(1920)
@@ -252,7 +252,7 @@ async fn av_capture() -> Result<(), Box<dyn std::error::Error>> {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()?;
 
     // Enable system-audio capture in the configuration, create the stream for
     // video, then register audio as a second output type so ONE stream carries

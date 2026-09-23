@@ -417,7 +417,8 @@ impl ApplicationHandler for App<'_> {
                 let filter = SCContentFilter::create()
                     .with_display(&display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(1280)

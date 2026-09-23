@@ -91,7 +91,8 @@ fn test_two_concurrent_streams_route_samples_independently() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     // Tiny configuration to keep the test cheap.
     let mut config_a = SCStreamConfiguration::default();
@@ -192,7 +193,8 @@ fn live_capture_fixture() -> Option<(SCContentFilter, SCStreamConfiguration)> {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let mut config = SCStreamConfiguration::default();
     config.set_width(320);

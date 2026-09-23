@@ -91,7 +91,8 @@ fn take_screenshot_display(display_id: Option<u32>) -> Result<ScreenshotResult, 
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .map_err(|e| format!("Failed to build filter: {}", e))?;
     
     let config = SCStreamConfiguration::new()
         .with_width(display.width() as u32)

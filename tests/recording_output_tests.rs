@@ -797,7 +797,8 @@ fn test_remove_recording_then_stop_completes() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let stream_config = SCStreamConfiguration::new()
         .with_width(320)
         .with_height(240);
@@ -903,7 +904,8 @@ fn test_remove_recording_racing_start_still_waits_for_terminal() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let stream_config = SCStreamConfiguration::new()
         .with_width(320)
         .with_height(240);

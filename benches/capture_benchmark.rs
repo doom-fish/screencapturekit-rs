@@ -73,7 +73,8 @@ fn bench_content_filter_creation(c: &mut Criterion) {
             let filter = SCContentFilter::create()
                 .with_display(&display)
                 .with_excluding_windows(&[])
-                .build();
+                .build()
+                .expect("failed to build content filter");
             black_box(filter)
         });
     });
@@ -99,7 +100,8 @@ fn bench_stream_creation(c: &mut Criterion) {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new()
         .with_width(1920)
         .with_height(1080);
@@ -169,7 +171,8 @@ fn bench_frame_throughput(c: &mut Criterion) {
                 let filter = SCContentFilter::create()
                     .with_display(&display)
                     .with_excluding_windows(&[])
-                    .build();
+                    .build()
+                    .expect("failed to build content filter");
 
                 let config = SCStreamConfiguration::new()
                     .with_width(w)
@@ -246,7 +249,8 @@ fn bench_stream_startup(c: &mut Criterion) {
         let filter = SCContentFilter::create()
             .with_display(&display)
             .with_excluding_windows(&[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let config = SCStreamConfiguration::new()
             .with_width(640)
@@ -314,7 +318,8 @@ fn bench_frame_latency(c: &mut Criterion) {
         let filter = SCContentFilter::create()
             .with_display(&display)
             .with_excluding_windows(&[])
-            .build();
+            .build()
+            .expect("failed to build content filter");
 
         let config = SCStreamConfiguration::new()
             .with_width(1920)
@@ -387,7 +392,8 @@ fn bench_pixel_buffer_access(c: &mut Criterion) {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(1920)
@@ -513,7 +519,8 @@ fn bench_screenshot_capture(c: &mut Criterion) {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let resolutions: [(u32, u32, &str); 3] = [
         (640, 480, "480p"),
@@ -574,7 +581,8 @@ fn bench_stream_lifecycle(c: &mut Criterion) {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(1920)
@@ -637,7 +645,8 @@ fn bench_configuration_updates(c: &mut Criterion) {
     let filter = SCContentFilter::create()
         .with_display(&display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
 
     let config = SCStreamConfiguration::new()
         .with_width(1920)

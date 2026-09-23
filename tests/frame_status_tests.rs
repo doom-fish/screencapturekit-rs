@@ -279,7 +279,8 @@ fn test_live_frame_status_attachment_decodes() {
     let filter = SCContentFilter::create()
         .with_display(display)
         .with_excluding_windows(&[])
-        .build();
+        .build()
+        .expect("failed to build content filter");
     let config = SCStreamConfiguration::new()
         .with_width(160)
         .with_height(120);

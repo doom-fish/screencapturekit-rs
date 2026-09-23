@@ -480,7 +480,7 @@ impl SCPickerResult {
     ///             // Create custom filter with a picked window
     ///             let filter = SCContentFilter::create()
     ///                 .with_window(window)
-    ///                 .build();
+    ///                 .build().expect("failed to build content filter");
     ///         }
     ///     }
     /// });
@@ -514,7 +514,7 @@ impl SCPickerResult {
     ///             let filter = SCContentFilter::create()
     ///                 .with_display(display)
     ///                 .with_excluding_windows(&[])
-    ///                 .build();
+    ///                 .build().expect("failed to build content filter");
     ///         }
     ///     }
     /// });
@@ -748,7 +748,7 @@ impl SCContentSharingPicker {
     ///     let content = SCShareableContent::get().ok()?;
     ///     let displays = content.displays();
     ///     let display = displays.first()?;
-    ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build();
+    ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build().ok()?;
     ///     let stream_config = SCStreamConfiguration::new();
     ///     let stream = SCStream::new(&filter, &stream_config).ok()?;
     ///
