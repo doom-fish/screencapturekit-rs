@@ -4,24 +4,6 @@ import CoreGraphics
 import Foundation
 import ScreenCaptureKit
 
-// MARK: - Thread-safe result holder
-
-private class ResultHolder<T> {
-    private let lock = NSLock()
-    private var _value: T?
-    private var _error: String?
-
-    var value: T? {
-        get { lock.lock(); defer { lock.unlock() }; return _value }
-        set { lock.lock(); defer { lock.unlock() }; _value = newValue }
-    }
-
-    var error: String? {
-        get { lock.lock(); defer { lock.unlock() }; return _error }
-        set { lock.lock(); defer { lock.unlock() }; _error = newValue }
-    }
-}
-
 // MARK: - ShareableContent: Content Discovery
 
 /// Copy a Swift String's UTF-8 bytes into a CChar buffer at `offset`. The
@@ -53,60 +35,6 @@ private func appendUTF8(
     }
     offset += UInt32(len)
     return UInt32(len)
-}
-
-/// Synchronous blocking call to get shareable content
-/// Uses DispatchSemaphore to block until async completes
-/// Returns content pointer on success, or writes error message to errorBuffer
-@_cdecl("sc_shareable_content_get_sync")
-public func getShareableContentSync(
-    excludeDesktopWindows: Bool,
-    onScreenWindowsOnly: Bool,
-    errorBuffer: UnsafeMutablePointer<CChar>,
-    errorBufferSize: Int
-) -> OpaquePointer? {
-    // Force CoreGraphics initialization
-    initializeCoreGraphics()
-
-    let semaphore = DispatchSemaphore(value: 0)
-    let holder = ResultHolder<SCShareableContent>()
-
-    Task {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                excludeDesktopWindows,
-                onScreenWindowsOnly: onScreenWindowsOnly
-            )
-            holder.value = content
-        } catch {
-            holder.error = SCBridgeError.contentUnavailable(error.localizedDescription).description
-        }
-        semaphore.signal()
-    }
-
-    // Wait with timeout (5 seconds)
-    let timeout = semaphore.wait(timeout: .now() + 5.0)
-
-    if timeout == .timedOut {
-        _ = writeCString(
-            "Timeout waiting for shareable content",
-            into: errorBuffer,
-            bufferSize: errorBufferSize
-        )
-        return nil
-    }
-
-    if let error = holder.error {
-        _ = writeCString(error, into: errorBuffer, bufferSize: errorBufferSize)
-        return nil
-    }
-
-    if let content = holder.value {
-        return retain(content)
-    }
-
-    _ = writeCString("Unknown error", into: errorBuffer, bufferSize: errorBufferSize)
-    return nil
 }
 
 /// Gets shareable content asynchronously
