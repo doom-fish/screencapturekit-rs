@@ -304,27 +304,21 @@ fn link_swift_bridge(swift_build_dir: &str) {
     // Add rpath for Swift runtime libraries
     println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
 
-    // Add rpath for Xcode Swift runtime (needed for Swift Concurrency)
+    // Add rpath for Xcode Swift runtime
     match Command::new("xcode-select").arg("-p").output() {
         Ok(output) if output.status.success() => {
             let xcode_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let swift_lib_path = format!(
-                "{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx"
-            );
-            println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_lib_path}");
-            let swift_lib_path_new =
+            let swift_lib_path =
                 format!("{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx");
-            println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_lib_path_new}");
+            println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_lib_path}");
         }
         Ok(output) => {
             // xcode-select ran but reported failure (e.g. exit code != 0).
             println!(
                 "cargo:warning=`xcode-select -p` exited non-zero (status={:?}); \
-                 the Swift Concurrency rpath will not be baked in. The resulting \
-                 binary may fail at load time with `dyld: Library not loaded` \
-                 unless Swift's concurrency runtime is on the system search \
-                 path. Install the full Xcode (not just Command Line Tools), \
-                 or set DEVELOPER_DIR to a valid Xcode path.",
+                 the Xcode toolchain Swift rpath will not be baked in. Install \
+                 the full Xcode (not just Command Line Tools), or set \
+                 DEVELOPER_DIR to a valid Xcode path.",
                 output.status.code()
             );
         }
@@ -332,9 +326,8 @@ fn link_swift_bridge(swift_build_dir: &str) {
             // xcode-select binary missing or not executable.
             println!(
                 "cargo:warning=`xcode-select` could not be invoked ({err}); \
-                 the Swift Concurrency rpath will not be baked in. The \
-                 resulting binary may fail at load time with `dyld: Library \
-                 not loaded`. Install Xcode and ensure xcode-select is on PATH."
+                 the Xcode toolchain Swift rpath will not be baked in. \
+                 Install Xcode and ensure xcode-select is on PATH."
             );
         }
     }

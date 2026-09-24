@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Live capture tests check `CGPreflightScreenCaptureAccess` and skip without
   Screen Recording permission instead of raising the permission prompt or
   failing, and the live recording tests write under `target/tmp`.
+- The build script, and the Tauri example's, no longer add the toolchain's
+  Swift 5.5 back-deployment directory (`usr/lib/swift-5.5/macosx`) to the
+  rpath. It pointed into Xcode, so it never made back-deployment work on
+  users' machines, and the bridge's macOS 13 minimum doesn't need it: binaries
+  resolve `@rpath/libswift_Concurrency.dylib` through `/usr/lib/swift`.
 - Docs: `SCStream` had lost its rustdoc to `StreamIdentity`; the coverage
   files were a v3.1.1 snapshot against an SDK that is no longer installed
   (they now measure 11.0.0 against the macOS 26.5 and 27.0 SDKs and say what
