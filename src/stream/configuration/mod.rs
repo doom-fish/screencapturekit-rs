@@ -34,6 +34,18 @@ pub enum SCCaptureResolutionType {
 }
 
 #[cfg(feature = "macos_14_0")]
+impl SCCaptureResolutionType {
+    pub const fn from_raw(raw: i32) -> Option<Self> {
+        match raw {
+            0 => Some(Self::Automatic),
+            1 => Some(Self::Best),
+            2 => Some(Self::Nominal),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(feature = "macos_14_0")]
 impl std::fmt::Display for SCCaptureResolutionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -105,19 +117,45 @@ impl SCStreamConfiguration {
     /// ```no_run
     /// use screencapturekit::stream::configuration::{SCStreamConfiguration, SCStreamConfigurationPreset};
     ///
-    /// let config = SCStreamConfiguration::from_preset(SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay);
+    /// let config = SCStreamConfiguration::from_preset(SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay)
+    ///     .expect("macOS 15.0 or later");
     /// ```
     #[cfg(feature = "macos_15_0")]
-    #[must_use]
-    pub fn from_preset(preset: SCStreamConfigurationPreset) -> Self {
-        unsafe {
-            let ptr = crate::ffi::sc_stream_configuration_create_with_preset(preset as i32);
-            Self::from_ptr(ptr)
+    #[allow(clippy::missing_errors_doc)]
+    pub fn from_preset(preset: SCStreamConfigurationPreset) -> crate::error::SCResult<Self> {
+        let ptr = unsafe { crate::ffi::sc_stream_configuration_create_with_preset(preset as i32) };
+        if ptr.is_null() {
+            #[cfg(feature = "macos_26_0")]
+            let required_version = match preset {
+                SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10 => "26.0",
+                _ => "15.0",
+            };
+            #[cfg(not(feature = "macos_26_0"))]
+            let required_version = "15.0";
+            return Err(crate::error::SCError::feature_not_available(
+                format!("SCStreamConfiguration preset {preset:?}"),
+                required_version,
+            ));
         }
+        Ok(unsafe { Self::from_ptr(ptr) })
     }
 
     #[cfg(feature = "macos_15_0")]
     pub(crate) unsafe fn from_ptr(ptr: *const std::ffi::c_void) -> Self {
         Self(ptr)
+    }
+}
+
+#[cfg(all(test, feature = "macos_15_0"))]
+mod tests {
+    #[test]
+    fn bridge_refuses_unknown_presets() {
+        for raw in [5, -1, i32::MAX, i32::MIN] {
+            let ptr = unsafe { crate::ffi::sc_stream_configuration_create_with_preset(raw) };
+            assert!(
+                ptr.is_null(),
+                "the bridge built a configuration for preset {raw}"
+            );
+        }
     }
 }

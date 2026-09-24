@@ -73,6 +73,12 @@ impl std::fmt::Display for InteriorNulError {
 
 impl std::error::Error for InteriorNulError {}
 
+impl From<InteriorNulError> for crate::error::SCError {
+    fn from(error: InteriorNulError) -> Self {
+        Self::InvalidConfiguration(error.to_string())
+    }
+}
+
 impl SCStreamConfiguration {
     /// Set the pixel format for captured frames
     ///

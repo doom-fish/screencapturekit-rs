@@ -42,7 +42,7 @@ fn test_shareable_content_info_for_display_filter() {
 
     if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
         // Test style
-        let style = info.style();
+        let style = info.style().expect("macOS 14.0 or later");
         println!("Content style: {style:?}");
 
         // Test point_pixel_scale
@@ -77,7 +77,7 @@ fn test_shareable_content_info_for_window_filter() {
             .expect("failed to build content filter");
 
         if let Some(info) = SCShareableContentInfo::for_filter(&filter) {
-            let style = info.style();
+            let style = info.style().expect("macOS 14.0 or later");
             println!("Window filter style: {style:?}");
 
             let scale = info.point_pixel_scale();

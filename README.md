@@ -406,8 +406,8 @@ let mut config = SCStreamConfiguration::new().with_width(1920).with_height(1080)
 
 #[cfg(feature = "macos_14_2")]
 {
-    config.set_ignores_shadows_single_window(true);
-    config.set_includes_child_windows(false);
+    config.set_ignores_shadows_single_window(true)?;
+    config.set_includes_child_windows(false)?;
 }
 ```
 

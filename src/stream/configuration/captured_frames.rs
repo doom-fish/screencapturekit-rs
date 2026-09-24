@@ -1,5 +1,7 @@
 use super::internal::SCStreamConfiguration;
 use crate::cm::CMTime;
+#[cfg(feature = "macos_14_0")]
+use crate::error::{SCError, SCResult};
 
 #[cfg(feature = "macos_14_0")]
 use super::SCCaptureResolutionType;
@@ -164,43 +166,83 @@ impl SCStreamConfiguration {
     /// use screencapturekit::stream::configuration::{SCStreamConfiguration, SCCaptureResolutionType};
     ///
     /// let config = SCStreamConfiguration::new()
-    ///     .with_capture_resolution_type(SCCaptureResolutionType::Best);
+    ///     .with_capture_resolution_type(SCCaptureResolutionType::Best)
+    ///     .expect("macOS 14.0 or later");
     /// ```
     #[cfg(feature = "macos_14_0")]
+    #[allow(clippy::missing_errors_doc)]
     pub fn set_capture_resolution_type(
         &mut self,
         resolution_type: SCCaptureResolutionType,
-    ) -> &mut Self {
-        unsafe {
+    ) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_capture_resolution_type(
                 self.as_ptr(),
                 resolution_type as i32,
-            );
-        }
-        self
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available("SCStreamConfiguration.captureResolution", "14.0")
+        })
     }
 
     /// Set the capture resolution type (builder pattern, macOS 14.0+)
     #[cfg(feature = "macos_14_0")]
-    #[must_use]
+    #[allow(clippy::missing_errors_doc)]
     pub fn with_capture_resolution_type(
         mut self,
         resolution_type: SCCaptureResolutionType,
-    ) -> Self {
-        self.set_capture_resolution_type(resolution_type);
-        self
+    ) -> SCResult<Self> {
+        self.set_capture_resolution_type(resolution_type)?;
+        Ok(self)
     }
 
     /// Get the capture resolution type (macOS 14.0+)
     #[cfg(feature = "macos_14_0")]
-    pub fn capture_resolution_type(&self) -> SCCaptureResolutionType {
-        let value = unsafe {
-            crate::ffi::sc_stream_configuration_get_capture_resolution_type(self.as_ptr())
+    #[allow(clippy::missing_errors_doc)]
+    pub fn capture_resolution_type(&self) -> SCResult<SCCaptureResolutionType> {
+        let mut raw = 0_i32;
+        let available = unsafe {
+            crate::ffi::sc_stream_configuration_get_capture_resolution_type(
+                self.as_ptr(),
+                &raw mut raw,
+            )
         };
-        match value {
-            1 => SCCaptureResolutionType::Best,
-            2 => SCCaptureResolutionType::Nominal,
-            _ => SCCaptureResolutionType::Automatic,
+        if !available {
+            return Err(SCError::feature_not_available(
+                "SCStreamConfiguration.captureResolution",
+                "14.0",
+            ));
+        }
+        SCCaptureResolutionType::from_raw(raw).ok_or_else(|| SCError::UnknownValue {
+            type_name: "SCCaptureResolutionType",
+            raw: i64::from(raw),
+        })
+    }
+}
+
+#[cfg(all(test, feature = "macos_14_0"))]
+mod tests {
+    use super::{SCCaptureResolutionType, SCStreamConfiguration};
+
+    #[test]
+    fn bridge_rejects_unknown_capture_resolution_raw_values() {
+        let mut config = SCStreamConfiguration::new();
+        config
+            .set_capture_resolution_type(SCCaptureResolutionType::Nominal)
+            .expect("macOS 14.0 or later");
+        for raw in [3, -1, i32::MAX, i32::MIN] {
+            let applied = unsafe {
+                crate::ffi::sc_stream_configuration_set_capture_resolution_type(
+                    config.as_ptr(),
+                    raw,
+                )
+            };
+            assert!(!applied, "the bridge accepted raw value {raw}");
+            assert_eq!(
+                config.capture_resolution_type(),
+                Ok(SCCaptureResolutionType::Nominal)
+            );
         }
     }
 }

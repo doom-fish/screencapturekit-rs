@@ -17,26 +17,30 @@ import VideoToolbox
 // an already-bridged value.
 private func decodeFrameStatus(_ value: Any?) -> Int32? {
     if let status = value as? SCFrameStatus {
-        return Int32(truncatingIfNeeded: status.rawValue)
+        return Int32(clamping: status.rawValue)
     }
     if let number = value as? NSNumber {
-        return Int32(truncatingIfNeeded: number.intValue)
+        return Int32(clamping: number.intValue)
     }
     return nil
 }
 
 @_cdecl("cm_sample_buffer_get_frame_status")
-public func cm_sample_buffer_get_frame_status(_ sampleBuffer: UnsafeMutableRawPointer) -> Int32 {
+public func cm_sample_buffer_get_frame_status(
+    _ sampleBuffer: UnsafeMutableRawPointer,
+    _ outStatus: UnsafeMutablePointer<Int32>
+) -> Bool {
     let buffer = Unmanaged<CMSampleBuffer>.fromOpaque(sampleBuffer).takeUnretainedValue()
 
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: false) as? [[CFString: Any]],
           let firstAttachment = attachments.first,
           let status = decodeFrameStatus(firstAttachment[SCStreamFrameInfo.status.rawValue as CFString])
     else {
-        return -1
+        return false
     }
 
-    return status
+    outStatus.pointee = status
+    return true
 }
 
 @_cdecl("cm_sample_buffer_get_display_time")

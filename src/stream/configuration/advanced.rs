@@ -37,22 +37,31 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_14_0` feature flag to be enabled.
     #[cfg(feature = "macos_14_0")]
-    pub fn set_ignores_shadows_single_window(&mut self, ignores_shadows: bool) -> &mut Self {
-        unsafe {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn set_ignores_shadows_single_window(
+        &mut self,
+        ignores_shadows: bool,
+    ) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_ignores_shadows_single_window(
                 self.as_ptr(),
                 ignores_shadows,
-            );
-        }
-        self
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available(
+                "SCStreamConfiguration.ignoreShadowsSingleWindow",
+                "14.0",
+            )
+        })
     }
 
     /// Sets whether to ignore shadows for single window capture (builder pattern)
     #[cfg(feature = "macos_14_0")]
-    #[must_use]
-    pub fn with_ignores_shadows_single_window(mut self, ignores_shadows: bool) -> Self {
-        self.set_ignores_shadows_single_window(ignores_shadows);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_ignores_shadows_single_window(mut self, ignores_shadows: bool) -> SCResult<Self> {
+        self.set_ignores_shadows_single_window(ignores_shadows)?;
+        Ok(self)
     }
 
     /// Get whether shadows are ignored for single-window capture (macOS 14.0+).
@@ -70,25 +79,28 @@ impl SCStreamConfiguration {
     ///
     /// Available on macOS 14.0+ (`SCStreamConfiguration.shouldBeOpaque` is
     /// annotated `API_AVAILABLE(macos(14.0))`), so this requires the
-    /// `macos_14_0` feature flag. On older systems the bridge ignores the
-    /// assignment.
+    /// `macos_14_0` feature flag. On older systems it returns
+    /// [`SCError::FeatureNotAvailable`].
     #[cfg(feature = "macos_14_0")]
-    pub fn set_should_be_opaque(&mut self, should_be_opaque: bool) -> &mut Self {
-        unsafe {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn set_should_be_opaque(&mut self, should_be_opaque: bool) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_should_be_opaque(
                 self.as_ptr(),
                 should_be_opaque,
-            );
-        }
-        self
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available("SCStreamConfiguration.shouldBeOpaque", "14.0")
+        })
     }
 
     /// Sets whether captured content should be treated as opaque (builder pattern)
     #[cfg(feature = "macos_14_0")]
-    #[must_use]
-    pub fn with_should_be_opaque(mut self, should_be_opaque: bool) -> Self {
-        self.set_should_be_opaque(should_be_opaque);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_should_be_opaque(mut self, should_be_opaque: bool) -> SCResult<Self> {
+        self.set_should_be_opaque(should_be_opaque)?;
+        Ok(self)
     }
 
     /// Get whether captured content is treated as opaque (macOS 14.0+).
@@ -104,22 +116,28 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_14_2` feature flag to be enabled.
     #[cfg(feature = "macos_14_2")]
-    pub fn set_includes_child_windows(&mut self, includes_child_windows: bool) -> &mut Self {
-        unsafe {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn set_includes_child_windows(
+        &mut self,
+        includes_child_windows: bool,
+    ) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_includes_child_windows(
                 self.as_ptr(),
                 includes_child_windows,
-            );
-        }
-        self
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available("SCStreamConfiguration.includeChildWindows", "14.2")
+        })
     }
 
     /// Sets whether to include child windows (builder pattern)
     #[cfg(feature = "macos_14_2")]
-    #[must_use]
-    pub fn with_includes_child_windows(mut self, includes_child_windows: bool) -> Self {
-        self.set_includes_child_windows(includes_child_windows);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_includes_child_windows(mut self, includes_child_windows: bool) -> SCResult<Self> {
+        self.set_includes_child_windows(includes_child_windows)?;
+        Ok(self)
     }
 
     /// Get whether child windows are included (macOS 14.2+).
@@ -187,10 +205,9 @@ impl SCStreamConfiguration {
                 "14.0",
             ));
         }
-        SCPresenterOverlayAlertSetting::from_raw(raw).ok_or_else(|| {
-            SCError::ffi_error(format!(
-                "ScreenCaptureKit returned an unknown SCPresenterOverlayAlertSetting raw value {raw}"
-            ))
+        SCPresenterOverlayAlertSetting::from_raw(raw).ok_or_else(|| SCError::UnknownValue {
+            type_name: "SCPresenterOverlayAlertSetting",
+            raw: i64::from(raw),
         })
     }
 
@@ -200,22 +217,31 @@ impl SCStreamConfiguration {
     ///
     /// Requires the `macos_14_0` feature flag to be enabled.
     #[cfg(feature = "macos_14_0")]
-    pub fn set_ignores_shadow_display_configuration(&mut self, ignores_shadow: bool) -> &mut Self {
-        unsafe {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn set_ignores_shadow_display_configuration(
+        &mut self,
+        ignores_shadow: bool,
+    ) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_ignores_shadow_display_configuration(
                 self.as_ptr(),
                 ignores_shadow,
-            );
-        }
-        self
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available("SCStreamConfiguration.ignoreShadowsDisplay", "14.0")
+        })
     }
 
     /// Sets whether to ignore shadow display configuration (builder pattern)
     #[cfg(feature = "macos_14_0")]
-    #[must_use]
-    pub fn with_ignores_shadow_display_configuration(mut self, ignores_shadow: bool) -> Self {
-        self.set_ignores_shadow_display_configuration(ignores_shadow);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_ignores_shadow_display_configuration(
+        mut self,
+        ignores_shadow: bool,
+    ) -> SCResult<Self> {
+        self.set_ignores_shadow_display_configuration(ignores_shadow)?;
+        Ok(self)
     }
 
     /// Get whether the shadow display configuration is ignored (macOS 14.0+).

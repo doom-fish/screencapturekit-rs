@@ -352,26 +352,26 @@ extern "C" {
     pub fn sc_stream_configuration_set_preserves_aspect_ratio(
         config: *const c_void,
         preserves_aspect_ratio: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_preserves_aspect_ratio(config: *const c_void) -> bool;
 
     pub fn sc_stream_configuration_set_ignores_shadows_single_window(
         config: *const c_void,
         ignores_shadows: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_ignores_shadows_single_window(config: *const c_void)
         -> bool;
 
     pub fn sc_stream_configuration_set_should_be_opaque(
         config: *const c_void,
         should_be_opaque: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_should_be_opaque(config: *const c_void) -> bool;
 
     pub fn sc_stream_configuration_set_includes_child_windows(
         config: *const c_void,
         includes_child_windows: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_includes_child_windows(config: *const c_void) -> bool;
 
     pub fn sc_stream_configuration_set_presenter_overlay_privacy_alert_setting(
@@ -411,30 +411,39 @@ extern "C" {
     ) -> bool;
 
     // macOS 14.0+ - capture resolution type
-    pub fn sc_stream_configuration_set_capture_resolution_type(config: *const c_void, value: i32);
-    pub fn sc_stream_configuration_get_capture_resolution_type(config: *const c_void) -> i32;
+    pub fn sc_stream_configuration_set_capture_resolution_type(
+        config: *const c_void,
+        value: i32,
+    ) -> bool;
+    pub fn sc_stream_configuration_get_capture_resolution_type(
+        config: *const c_void,
+        value: *mut i32,
+    ) -> bool;
 
     pub fn sc_stream_configuration_set_ignores_shadow_display_configuration(
         config: *const c_void,
         ignores_shadow: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_ignores_shadow_display_configuration(
         config: *const c_void,
     ) -> bool;
 
-    pub fn sc_stream_configuration_set_preserve_aspect_ratio(config: *const c_void, preserve: bool);
+    pub fn sc_stream_configuration_set_preserve_aspect_ratio(
+        config: *const c_void,
+        preserve: bool,
+    ) -> bool;
     pub fn sc_stream_configuration_get_preserve_aspect_ratio(config: *const c_void) -> bool;
 
     pub fn sc_stream_configuration_set_captures_shadows_only(
         config: *const c_void,
         captures_shadows_only: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_captures_shadows_only(config: *const c_void) -> bool;
 
     pub fn sc_stream_configuration_set_captures_microphone(
         config: *const c_void,
         captures_microphone: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_captures_microphone(config: *const c_void) -> bool;
 
     pub fn sc_stream_configuration_set_excludes_current_process_audio(
@@ -448,22 +457,28 @@ extern "C" {
     pub fn sc_stream_configuration_set_microphone_capture_device_id(
         config: *const c_void,
         device_id: *const i8,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_microphone_capture_device_id(
         config: *const c_void,
         buffer: *mut i8,
         buffer_size: isize,
     ) -> bool;
 
-    pub fn sc_stream_configuration_set_stream_name(config: *const c_void, name: *const i8);
+    pub fn sc_stream_configuration_set_stream_name(config: *const c_void, name: *const i8) -> bool;
     pub fn sc_stream_configuration_get_stream_name(
         config: *const c_void,
         buffer: *mut i8,
         buffer_size: isize,
     ) -> bool;
 
-    pub fn sc_stream_configuration_set_capture_dynamic_range(config: *const c_void, value: i32);
-    pub fn sc_stream_configuration_get_capture_dynamic_range(config: *const c_void) -> i32;
+    pub fn sc_stream_configuration_set_capture_dynamic_range(
+        config: *const c_void,
+        value: i32,
+    ) -> bool;
+    pub fn sc_stream_configuration_get_capture_dynamic_range(
+        config: *const c_void,
+        value: *mut i32,
+    ) -> bool;
 }
 
 // MARK: - SCContentFilter
@@ -917,8 +932,11 @@ extern "C" {
     pub fn sc_screenshot_configuration_set_display_intent(
         config: *const c_void,
         display_intent: i32,
-    );
-    pub fn sc_screenshot_configuration_set_dynamic_range(config: *const c_void, dynamic_range: i32);
+    ) -> bool;
+    pub fn sc_screenshot_configuration_set_dynamic_range(
+        config: *const c_void,
+        dynamic_range: i32,
+    ) -> bool;
     pub fn sc_screenshot_configuration_set_file_url(config: *const c_void, path: *const i8);
     pub fn sc_screenshot_configuration_clear_file_url(config: *const c_void);
     pub fn sc_screenshot_configuration_get_width(config: *const c_void) -> isize;
@@ -941,8 +959,14 @@ extern "C" {
     pub fn sc_screenshot_configuration_get_ignore_shadows(config: *const c_void) -> bool;
     pub fn sc_screenshot_configuration_get_ignore_clipping(config: *const c_void) -> bool;
     pub fn sc_screenshot_configuration_get_include_child_windows(config: *const c_void) -> bool;
-    pub fn sc_screenshot_configuration_get_display_intent(config: *const c_void) -> i32;
-    pub fn sc_screenshot_configuration_get_dynamic_range(config: *const c_void) -> i32;
+    pub fn sc_screenshot_configuration_get_display_intent(
+        config: *const c_void,
+        value: *mut i32,
+    ) -> bool;
+    pub fn sc_screenshot_configuration_get_dynamic_range(
+        config: *const c_void,
+        value: *mut i32,
+    ) -> bool;
     pub fn sc_screenshot_configuration_get_file_path_owned(config: *const c_void) -> *mut i8;
     pub fn sc_screenshot_configuration_release(config: *const c_void);
 
@@ -996,25 +1020,31 @@ extern "C" {
 // MARK: - SCStreamConfiguration additional properties
 extern "C" {
     // macOS 15.0+ - showMouseClicks
-    pub fn sc_stream_configuration_set_shows_mouse_clicks(config: *const c_void, value: bool);
+    pub fn sc_stream_configuration_set_shows_mouse_clicks(
+        config: *const c_void,
+        value: bool,
+    ) -> bool;
     pub fn sc_stream_configuration_get_shows_mouse_clicks(config: *const c_void) -> bool;
 
     // macOS 14.0+ - ignoreShadowsDisplay
-    pub fn sc_stream_configuration_set_ignores_shadows_display(config: *const c_void, value: bool);
+    pub fn sc_stream_configuration_set_ignores_shadows_display(
+        config: *const c_void,
+        value: bool,
+    ) -> bool;
     pub fn sc_stream_configuration_get_ignores_shadows_display(config: *const c_void) -> bool;
 
     // macOS 14.0+ - ignoreGlobalClipDisplay
     pub fn sc_stream_configuration_set_ignore_global_clip_display(
         config: *const c_void,
         value: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_ignore_global_clip_display(config: *const c_void) -> bool;
 
     // macOS 14.0+ - ignoreGlobalClipSingleWindow
     pub fn sc_stream_configuration_set_ignore_global_clip_single_window(
         config: *const c_void,
         value: bool,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_ignore_global_clip_single_window(
         config: *const c_void,
     ) -> bool;
@@ -1026,12 +1056,12 @@ extern "C" {
 // MARK: - SCContentFilter additional properties
 extern "C" {
     // macOS 14.0+ - style and pointPixelScale
-    pub fn sc_content_filter_get_style(filter: *const c_void) -> i32;
+    pub fn sc_content_filter_get_style(filter: *const c_void, value: *mut i32) -> bool;
     pub fn sc_content_filter_get_point_pixel_scale(filter: *const c_void) -> f32;
-    pub fn sc_content_filter_get_stream_type(filter: *const c_void) -> i32;
+    pub fn sc_content_filter_get_stream_type(filter: *const c_void, value: *mut i32) -> bool;
 
     // macOS 14.2+ - includeMenuBar
-    pub fn sc_content_filter_set_include_menu_bar(filter: *const c_void, include: bool);
+    pub fn sc_content_filter_set_include_menu_bar(filter: *const c_void, include: bool) -> bool;
     pub fn sc_content_filter_get_include_menu_bar(filter: *const c_void) -> bool;
 
     // macOS 15.2+ - included content arrays
@@ -1055,7 +1085,7 @@ extern "C" {
 // MARK: - SCShareableContentInfo (macOS 14.0+)
 extern "C" {
     pub fn sc_shareable_content_info_for_filter(filter: *const c_void) -> *const c_void;
-    pub fn sc_shareable_content_info_get_style(info: *const c_void) -> i32;
+    pub fn sc_shareable_content_info_get_style(info: *const c_void, value: *mut i32) -> bool;
     pub fn sc_shareable_content_info_get_point_pixel_scale(info: *const c_void) -> f32;
     pub fn sc_shareable_content_info_get_content_rect(
         info: *const c_void,

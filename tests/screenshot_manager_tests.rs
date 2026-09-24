@@ -559,11 +559,11 @@ fn test_screenshot_configuration_scalar_getters_round_trip() {
     assert!(config.include_child_windows());
     assert_eq!(
         config.display_intent(),
-        Some(SCScreenshotDisplayIntent::Local)
+        Ok(SCScreenshotDisplayIntent::Local)
     );
     assert_eq!(
         config.dynamic_range(),
-        Some(SCScreenshotDynamicRange::BothSDRAndHDR)
+        Ok(SCScreenshotDynamicRange::BothSDRAndHDR)
     );
 }
 
@@ -690,4 +690,37 @@ fn test_screenshot_configuration_rejects_interior_nul_content_type() {
         .expect("create screenshot configuration")
         .with_content_type("public.p\0ng")
         .is_err());
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_enums_from_raw_reject_unknown_values() {
+    use screencapturekit::screenshot_manager::{
+        SCScreenshotDisplayIntent, SCScreenshotDynamicRange,
+    };
+
+    assert_eq!(
+        SCScreenshotDisplayIntent::from_raw(0),
+        Some(SCScreenshotDisplayIntent::Canonical)
+    );
+    assert_eq!(
+        SCScreenshotDisplayIntent::from_raw(1),
+        Some(SCScreenshotDisplayIntent::Local)
+    );
+    assert_eq!(
+        SCScreenshotDynamicRange::from_raw(0),
+        Some(SCScreenshotDynamicRange::SDR)
+    );
+    assert_eq!(
+        SCScreenshotDynamicRange::from_raw(1),
+        Some(SCScreenshotDynamicRange::HDR)
+    );
+    assert_eq!(
+        SCScreenshotDynamicRange::from_raw(2),
+        Some(SCScreenshotDynamicRange::BothSDRAndHDR)
+    );
+    for raw in [3, -1, i32::MAX, i32::MIN] {
+        assert_eq!(SCScreenshotDisplayIntent::from_raw(raw), None);
+        assert_eq!(SCScreenshotDynamicRange::from_raw(raw), None);
+    }
 }

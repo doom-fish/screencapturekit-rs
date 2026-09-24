@@ -33,13 +33,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // SDR capture preset
     let _sdr_config = SCStreamConfiguration::from_preset(
         SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay,
-    );
+    )?;
     println!("   HDR Local Display preset created");
 
     // Canonical HDR preset
     let _hdr_config = SCStreamConfiguration::from_preset(
         SCStreamConfigurationPreset::CaptureHDRStreamCanonicalDisplay,
-    );
+    )?;
     println!("   HDR Canonical Display preset created");
 
     // ========================================
@@ -53,10 +53,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_height(1080);
 
     // Set dynamic range
-    config.set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
+    config.set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay)?;
     println!("   Dynamic range: HDR Local Display");
 
-    let range = config.capture_dynamic_range();
+    let range = config.capture_dynamic_range()?;
     println!("   Current setting: {range:?}");
 
     // Available options:
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   ─────────────────────────────────────");
 
     // Enable microphone capture
-    config.set_captures_microphone(true);
+    config.set_captures_microphone(true)?;
     println!("   Microphone capture: enabled");
 
     // List available audio devices
@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🖱️  5. Mouse Click Indicators");
     println!("   ────────────────────────────");
 
-    config.set_shows_mouse_clicks(true);
+    config.set_shows_mouse_clicks(true)?;
     println!("   Mouse click indicators: enabled");
     println!("   (Shows visual feedback when user clicks)");
 
@@ -123,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🪟 6. Child Window Inclusion");
     println!("   ──────────────────────────");
 
-    config.set_includes_child_windows(true);
+    config.set_includes_child_windows(true)?;
     println!("   Include child windows: enabled");
     println!("   (Captures tooltips, menus, etc.)");
 
@@ -133,7 +133,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n═══════════════════════════════════════════");
     println!("📊 Final Configuration Summary:");
     println!("   • Dimensions: {}x{}", config.width(), config.height());
-    println!("   • Dynamic range: {:?}", config.capture_dynamic_range());
+    println!("   • Dynamic range: {:?}", config.capture_dynamic_range()?);
     println!(
         "   • Presenter overlay: {:?}",
         config.presenter_overlay_privacy_alert_setting()?

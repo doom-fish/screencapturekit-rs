@@ -376,6 +376,7 @@ fn test_audio_config_memory() {
             .with_sample_rate(48000)
             .with_channel_count(2)
             .with_captures_microphone(true)
+            .expect("macOS 15.0 or later")
             .with_excludes_current_process_audio(true);
 
         let _ = config.captures_audio();

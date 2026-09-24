@@ -141,43 +141,27 @@ public func getContentFilterContentRect(
 }
 
 @_cdecl("sc_content_filter_get_style")
-public func getContentFilterStyle(_ filter: OpaquePointer) -> Int32 {
+public func getContentFilterStyle(_ filter: OpaquePointer, _ outStyle: UnsafeMutablePointer<Int32>) -> Bool {
     #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
         let f: SCContentFilter = unretained(filter)
         if #available(macOS 14.0, *) {
-            switch f.style {
-            case .none:
-                return 0
-            case .window:
-                return 1
-            case .display:
-                return 2
-            case .application:
-                return 3
-            @unknown default:
-                return 0
-            }
+            outStyle.pointee = Int32(clamping: f.style.rawValue)
+            return true
         }
     #endif
-    return 0
+    return false
 }
 
 @_cdecl("sc_content_filter_get_stream_type")
-public func getContentFilterStreamType(_ filter: OpaquePointer) -> Int32 {
+public func getContentFilterStreamType(_ filter: OpaquePointer, _ outType: UnsafeMutablePointer<Int32>) -> Bool {
     #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
         let f: SCContentFilter = unretained(filter)
         if #available(macOS 14.0, *) {
-            switch f.streamType {
-            case .window:
-                return 0
-            case .display:
-                return 1
-            @unknown default:
-                return -1
-            }
+            outType.pointee = Int32(clamping: f.streamType.rawValue)
+            return true
         }
     #endif
-    return -1
+    return false
 }
 
 @_cdecl("sc_content_filter_get_point_pixel_scale")
@@ -194,11 +178,13 @@ public func getContentFilterPointPixelScale(_ filter: OpaquePointer) -> Float {
 // macOS 14.2+ - includeMenuBar property
 #if SCREENCAPTUREKIT_HAS_MACOS14_2_SDK
     @_cdecl("sc_content_filter_set_include_menu_bar")
-    public func setContentFilterIncludeMenuBar(_ filter: OpaquePointer, _ include: Bool) {
+    public func setContentFilterIncludeMenuBar(_ filter: OpaquePointer, _ include: Bool) -> Bool {
         let f: SCContentFilter = unretained(filter)
         if #available(macOS 14.2, *) {
             f.includeMenuBar = include
+            return true
         }
+        return false
     }
 
     @_cdecl("sc_content_filter_get_include_menu_bar")
@@ -211,7 +197,7 @@ public func getContentFilterPointPixelScale(_ filter: OpaquePointer) -> Float {
     }
 #else
     @_cdecl("sc_content_filter_set_include_menu_bar")
-    public func setContentFilterIncludeMenuBar(_: OpaquePointer, _: Bool) {}
+    public func setContentFilterIncludeMenuBar(_: OpaquePointer, _: Bool) -> Bool { false }
 
     @_cdecl("sc_content_filter_get_include_menu_bar")
     public func getContentFilterIncludeMenuBar(_: OpaquePointer) -> Bool { false }
@@ -398,15 +384,9 @@ private class StreamOutputHandler: NSObject, SCStreamOutput {
     }
 
     func stream(_: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        // Use rawValue comparison to avoid SDK availability issues
+        // Pass rawValue through to avoid SDK availability issues
         // .screen = 0, .audio = 1, .microphone = 2 (macOS 15+)
-        let outputType: Int32 = if type == .screen {
-            0
-        } else if type.rawValue == 2 { // microphone (macOS 15+)
-            2
-        } else {
-            1 // audio
-        }
+        let outputType = Int32(clamping: type.rawValue)
         // IMPORTANT: passRetained() is used here to retain the CMSampleBuffer for Rust
         // The Rust side will release it when CMSampleBuffer is dropped
         sampleBufferCallback(contextPtr, OpaquePointer(Unmanaged.passRetained(sampleBuffer as AnyObject).toOpaque()), outputType)

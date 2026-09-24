@@ -97,7 +97,10 @@ pub enum SCError {
     InvalidConfiguration(String),
 
     /// Invalid dimension value (width or height)
-    InvalidDimension { field: String, value: usize },
+    InvalidDimension {
+        field: String,
+        value: usize,
+    },
 
     /// Invalid pixel format
     InvalidPixelFormat(String),
@@ -157,7 +160,10 @@ pub enum SCError {
     InternalError(String),
 
     /// OS error with code (for non-SCStream errors)
-    OSError { code: i32, message: String },
+    OSError {
+        code: i32,
+        message: String,
+    },
 
     /// `ScreenCaptureKit` stream error with specific error code
     ///
@@ -166,6 +172,11 @@ pub enum SCError {
     SCStreamError {
         code: SCStreamErrorCode,
         message: Option<String>,
+    },
+
+    UnknownValue {
+        type_name: &'static str,
+        raw: i64,
     },
 }
 
@@ -208,6 +219,12 @@ impl fmt::Display for SCError {
             Self::Timeout(msg) => write!(f, "Operation timed out: {msg}"),
             Self::InternalError(msg) => write!(f, "Internal error: {msg}"),
             Self::OSError { code, message } => write!(f, "OS error {code}: {message}"),
+            Self::UnknownValue { type_name, raw } => {
+                write!(
+                    f,
+                    "ScreenCaptureKit reported {raw}, which is not a known {type_name}"
+                )
+            }
             Self::SCStreamError { code, message } => {
                 if let Some(msg) = message {
                     write!(f, "SCStream error ({code}): {msg}")

@@ -284,10 +284,9 @@ fn test_stream_name() {
     let mut config = SCStreamConfiguration::default();
     config
         .set_stream_name(Some("test-stream"))
-        .expect("stream name has no NUL byte");
+        .expect("set the stream name");
 
-    // The getter may not work on all macOS versions
-    let _ = config.stream_name();
+    assert_eq!(config.stream_name().as_deref(), Some("test-stream"));
 }
 
 #[test]
@@ -296,10 +295,14 @@ fn test_dynamic_range() {
     use screencapturekit::stream::configuration::SCCaptureDynamicRange;
 
     let mut config = SCStreamConfiguration::default();
-    config.set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay);
+    config
+        .set_capture_dynamic_range(SCCaptureDynamicRange::HDRLocalDisplay)
+        .expect("macOS 15.0 or later");
 
-    // May return SDR on macOS < 15.0
-    let _ = config.capture_dynamic_range();
+    assert_eq!(
+        config.capture_dynamic_range(),
+        Ok(SCCaptureDynamicRange::HDRLocalDisplay)
+    );
 }
 
 #[test]
@@ -342,21 +345,19 @@ fn test_advanced_setters() {
     use screencapturekit::stream::configuration::SCPresenterOverlayAlertSetting;
 
     // These advanced properties require macOS 13.0-14.2+
-    // The test verifies that setters don't error, but getters may not
-    // return the set values on older macOS versions
     let mut config = SCStreamConfiguration::default();
-    config.set_ignores_shadows_single_window(true);
-    config.set_should_be_opaque(true);
-    config.set_includes_child_windows(true);
+    config
+        .set_ignores_shadows_single_window(true)
+        .and_then(|config| config.set_should_be_opaque(true))
+        .and_then(|config| config.set_includes_child_windows(true))
+        .expect("macOS 14.2 or later");
     config
         .set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always)
         .expect("set the presenter overlay privacy alert setting");
 
-    // Verify setters worked without errors
-    // Note: getters may return default values on older macOS versions
-    let _ = config.ignores_shadows_single_window();
-    let _ = config.should_be_opaque();
-    let _ = config.includes_child_windows();
+    assert!(config.ignores_shadows_single_window());
+    assert!(config.should_be_opaque());
+    assert!(config.includes_child_windows());
     assert_eq!(
         config.presenter_overlay_privacy_alert_setting(),
         Ok(SCPresenterOverlayAlertSetting::Always)
@@ -439,9 +440,10 @@ fn test_mutable_configuration() {
 #[cfg(feature = "macos_14_0")]
 fn test_captures_shadows_only() {
     let mut config = SCStreamConfiguration::default();
-    config.set_captures_shadows_only(true);
-    // On macOS 14.0+, this should return true; on older versions, false
-    let _ = config.captures_shadows_only();
+    config
+        .set_captures_shadows_only(true)
+        .expect("macOS 14.0 or later");
+    assert!(config.captures_shadows_only());
 }
 
 #[test]
@@ -450,21 +452,22 @@ fn test_captures_shadows_only_builder() {
     let config = SCStreamConfiguration::new()
         .with_width(1920)
         .with_height(1080)
-        .with_captures_shadows_only(true);
+        .with_captures_shadows_only(true)
+        .expect("macOS 14.0 or later");
 
     // Verify builder pattern works
     assert_eq!(config.width(), 1920);
+    assert!(config.captures_shadows_only());
 }
 
 #[test]
 #[cfg(feature = "macos_15_0")]
 fn test_shows_mouse_clicks() {
     let mut config = SCStreamConfiguration::default();
-    config.set_shows_mouse_clicks(true);
-    // On macOS 15.0+, this should return true
-    let result = config.shows_mouse_clicks();
-    // Note: May return false on older macOS versions
-    let _ = result;
+    config
+        .set_shows_mouse_clicks(true)
+        .expect("macOS 15.0 or later");
+    assert!(config.shows_mouse_clicks());
 }
 
 #[test]
@@ -472,35 +475,42 @@ fn test_shows_mouse_clicks() {
 fn test_shows_mouse_clicks_builder() {
     let config = SCStreamConfiguration::new()
         .with_shows_cursor(true)
-        .with_shows_mouse_clicks(true);
+        .with_shows_mouse_clicks(true)
+        .expect("macOS 15.0 or later");
 
     // Verify builder pattern works
     assert!(config.shows_cursor());
+    assert!(config.shows_mouse_clicks());
 }
 
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_ignores_shadows_display() {
     let mut config = SCStreamConfiguration::default();
-    config.set_ignores_shadows_display(true);
-    // On macOS 14.0+, this should return true
-    let _ = config.ignores_shadows_display();
+    config
+        .set_ignores_shadows_display(true)
+        .expect("macOS 14.0 or later");
+    assert!(config.ignores_shadows_display());
 }
 
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_ignore_global_clip_display() {
     let mut config = SCStreamConfiguration::default();
-    config.set_ignore_global_clip_display(true);
-    let _ = config.ignore_global_clip_display();
+    config
+        .set_ignore_global_clip_display(true)
+        .expect("macOS 14.0 or later");
+    assert!(config.ignore_global_clip_display());
 }
 
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_ignore_global_clip_single_window() {
     let mut config = SCStreamConfiguration::default();
-    config.set_ignore_global_clip_single_window(true);
-    let _ = config.ignore_global_clip_single_window();
+    config
+        .set_ignore_global_clip_single_window(true)
+        .expect("macOS 14.0 or later");
+    assert!(config.ignore_global_clip_single_window());
 }
 
 #[test]
@@ -510,10 +520,14 @@ fn test_ignore_global_clip_builder_pattern() {
         .with_width(1920)
         .with_height(1080)
         .with_ignores_shadows_display(true)
-        .with_ignore_global_clip_display(true)
-        .with_ignore_global_clip_single_window(true);
+        .and_then(|config| config.with_ignore_global_clip_display(true))
+        .and_then(|config| config.with_ignore_global_clip_single_window(true))
+        .expect("macOS 14.0 or later");
 
     assert_eq!(config.width(), 1920);
+    assert!(config.ignores_shadows_display());
+    assert!(config.ignore_global_clip_display());
+    assert!(config.ignore_global_clip_single_window());
 }
 
 #[test]
@@ -524,9 +538,12 @@ fn test_preset_configuration() {
     // Test creating configurations from presets
     let config = SCStreamConfiguration::from_preset(
         SCStreamConfigurationPreset::CaptureHDRStreamLocalDisplay,
+    )
+    .expect("macOS 15.0 or later");
+    assert_eq!(
+        config.capture_dynamic_range(),
+        Ok(screencapturekit::stream::configuration::SCCaptureDynamicRange::HDRLocalDisplay)
     );
-    // Just verify it doesn't crash
-    let _ = config.width();
 }
 
 #[test]
@@ -542,9 +559,8 @@ fn test_all_presets() {
     ];
 
     for preset in presets {
-        let config = SCStreamConfiguration::from_preset(preset);
-        // Just verify they don't crash
-        let _ = config.width();
+        let config = SCStreamConfiguration::from_preset(preset).expect("macOS 15.0 or later");
+        assert!(config.capture_dynamic_range().is_ok(), "{preset:?}");
     }
 }
 
@@ -558,11 +574,12 @@ fn test_hdr_recording_preset() {
 
     let config = SCStreamConfiguration::from_preset(
         SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10,
-    );
+    )
+    .expect("macOS 26.0 or later");
 
     assert_eq!(
         config.capture_dynamic_range(),
-        SCCaptureDynamicRange::HDRCanonicalDisplay,
+        Ok(SCCaptureDynamicRange::HDRCanonicalDisplay),
         "HDR10 recording preset must request canonical-display HDR capture"
     );
     assert_eq!(
@@ -588,17 +605,23 @@ fn test_preserves_aspect_ratio() {
     let mut config = SCStreamConfiguration::default();
 
     // Test setting preserves_aspect_ratio
-    config.set_preserves_aspect_ratio(true);
+    config
+        .set_preserves_aspect_ratio(true)
+        .expect("macOS 14.0 or later");
     assert!(config.preserves_aspect_ratio());
 
-    config.set_preserves_aspect_ratio(false);
+    config
+        .set_preserves_aspect_ratio(false)
+        .expect("macOS 14.0 or later");
     assert!(!config.preserves_aspect_ratio());
 }
 
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_preserves_aspect_ratio_builder() {
-    let config = SCStreamConfiguration::new().with_preserves_aspect_ratio(true);
+    let config = SCStreamConfiguration::new()
+        .with_preserves_aspect_ratio(true)
+        .expect("macOS 14.0 or later");
 
     assert!(config.preserves_aspect_ratio());
 }
@@ -686,5 +709,41 @@ fn test_hdr_pixel_formats() {
         let mut config = SCStreamConfiguration::default();
         config.set_pixel_format(format);
         // Just verify HDR formats can be set
+    }
+}
+
+#[test]
+fn test_capture_dynamic_range_from_raw_rejects_unknown_values() {
+    use screencapturekit::stream::configuration::SCCaptureDynamicRange;
+
+    for range in [
+        SCCaptureDynamicRange::SDR,
+        SCCaptureDynamicRange::HDRLocalDisplay,
+        SCCaptureDynamicRange::HDRCanonicalDisplay,
+    ] {
+        assert_eq!(SCCaptureDynamicRange::from_raw(range as i32), Some(range));
+    }
+    for raw in [3, -1, i32::MAX, i32::MIN] {
+        assert_eq!(SCCaptureDynamicRange::from_raw(raw), None);
+    }
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_capture_resolution_type_from_raw_rejects_unknown_values() {
+    use screencapturekit::stream::configuration::SCCaptureResolutionType;
+
+    for resolution in [
+        SCCaptureResolutionType::Automatic,
+        SCCaptureResolutionType::Best,
+        SCCaptureResolutionType::Nominal,
+    ] {
+        assert_eq!(
+            SCCaptureResolutionType::from_raw(resolution as i32),
+            Some(resolution)
+        );
+    }
+    for raw in [3, -1, i32::MAX, i32::MIN] {
+        assert_eq!(SCCaptureResolutionType::from_raw(raw), None);
     }
 }

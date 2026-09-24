@@ -486,6 +486,9 @@ pub enum MetalError {
     RenderEncoderCreationFailed,
     /// The render encoder has already ended.
     RenderEncoderEnded,
+    UnknownPixelFormat {
+        raw: u64,
+    },
 }
 
 impl std::fmt::Display for MetalError {
@@ -513,6 +516,12 @@ impl std::fmt::Display for MetalError {
                 f.write_str("native render command encoder creation failed")
             }
             Self::RenderEncoderEnded => f.write_str("render command encoder already ended"),
+            Self::UnknownPixelFormat { raw } => {
+                write!(
+                    f,
+                    "texture pixel format {raw} is not a known MetalPixelFormat"
+                )
+            }
         }
     }
 }
@@ -986,10 +995,10 @@ impl MetalTexture {
     }
 
     /// Get the pixel format of this texture
-    #[must_use]
-    pub fn pixel_format(&self) -> MetalPixelFormat {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn pixel_format(&self) -> Result<MetalPixelFormat, MetalError> {
         let raw = unsafe { metal_texture_get_pixel_format(self.ptr.as_ptr()) };
-        MetalPixelFormat::from_raw(raw).unwrap_or(MetalPixelFormat::BGRA8Unorm)
+        MetalPixelFormat::from_raw(raw).ok_or(MetalError::UnknownPixelFormat { raw })
     }
 
     /// Get the raw pointer to the underlying `MTLTexture`

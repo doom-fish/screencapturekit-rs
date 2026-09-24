@@ -7,15 +7,18 @@ use std::collections::HashSet;
 
 #[test]
 fn test_frame_status_from_raw() {
-    assert_eq!(SCFrameStatus::from_raw(0), Some(SCFrameStatus::Complete));
-    assert_eq!(SCFrameStatus::from_raw(1), Some(SCFrameStatus::Idle));
-    assert_eq!(SCFrameStatus::from_raw(2), Some(SCFrameStatus::Blank));
-    assert_eq!(SCFrameStatus::from_raw(3), Some(SCFrameStatus::Suspended));
-    assert_eq!(SCFrameStatus::from_raw(4), Some(SCFrameStatus::Started));
-    assert_eq!(SCFrameStatus::from_raw(5), Some(SCFrameStatus::Stopped));
-    assert_eq!(SCFrameStatus::from_raw(6), None);
-    assert_eq!(SCFrameStatus::from_raw(-1), None);
-    assert_eq!(SCFrameStatus::from_raw(999), None);
+    assert_eq!(SCFrameStatus::from_raw(0), SCFrameStatus::Complete);
+    assert_eq!(SCFrameStatus::from_raw(1), SCFrameStatus::Idle);
+    assert_eq!(SCFrameStatus::from_raw(2), SCFrameStatus::Blank);
+    assert_eq!(SCFrameStatus::from_raw(3), SCFrameStatus::Suspended);
+    assert_eq!(SCFrameStatus::from_raw(4), SCFrameStatus::Started);
+    assert_eq!(SCFrameStatus::from_raw(5), SCFrameStatus::Stopped);
+    assert_eq!(SCFrameStatus::from_raw(6), SCFrameStatus::Unknown(6));
+    assert_eq!(SCFrameStatus::from_raw(-1), SCFrameStatus::Unknown(-1));
+    assert_eq!(SCFrameStatus::from_raw(999), SCFrameStatus::Unknown(999));
+    assert_eq!(SCFrameStatus::Unknown(999).raw(), 999);
+    assert_eq!(SCFrameStatus::Unknown(6).to_string(), "Unknown(6)");
+    assert!(!SCFrameStatus::Unknown(6).has_content());
 }
 
 #[test]
@@ -114,6 +117,7 @@ fn test_frame_status_match() {
         SCFrameStatus::Suspended => "suspended",
         SCFrameStatus::Started => "started",
         SCFrameStatus::Stopped => "stopped",
+        SCFrameStatus::Unknown(_) => "unknown",
     };
 
     assert_eq!(result, "complete");
@@ -167,21 +171,21 @@ fn test_frame_status_from_raw_roundtrip() {
     ];
 
     for status in statuses {
-        let raw = status as i32;
+        let raw = status.raw();
         let recovered = SCFrameStatus::from_raw(raw);
-        assert_eq!(recovered, Some(status));
+        assert_eq!(recovered, status);
     }
 }
 
 #[test]
 fn test_frame_status_ordering() {
     // Verify the raw values are as expected
-    assert_eq!(SCFrameStatus::Complete as i32, 0);
-    assert_eq!(SCFrameStatus::Idle as i32, 1);
-    assert_eq!(SCFrameStatus::Blank as i32, 2);
-    assert_eq!(SCFrameStatus::Suspended as i32, 3);
-    assert_eq!(SCFrameStatus::Started as i32, 4);
-    assert_eq!(SCFrameStatus::Stopped as i32, 5);
+    assert_eq!(SCFrameStatus::Complete.raw(), 0);
+    assert_eq!(SCFrameStatus::Idle.raw(), 1);
+    assert_eq!(SCFrameStatus::Blank.raw(), 2);
+    assert_eq!(SCFrameStatus::Suspended.raw(), 3);
+    assert_eq!(SCFrameStatus::Started.raw(), 4);
+    assert_eq!(SCFrameStatus::Stopped.raw(), 5);
 }
 
 #[test]
@@ -252,10 +256,10 @@ fn test_frame_status_round_trips_through_raw_values() {
         SCFrameStatus::Stopped,
     ];
     for status in all {
-        let raw = status as i32;
+        let raw = status.raw();
         assert_eq!(
             SCFrameStatus::from_raw(raw),
-            Some(status),
+            status,
             "status {status:?} must survive the NSNumber round-trip"
         );
     }

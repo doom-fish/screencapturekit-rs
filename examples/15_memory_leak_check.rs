@@ -366,6 +366,7 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
             .with_pixel_format(PixelFormat::BGRA)
             .with_captures_audio(true)
             .with_captures_microphone(true)
+            .expect("macOS 15.0 or later")
             .with_sample_rate(48000)
             .with_channel_count(2),
         _ => SCStreamConfiguration::new()

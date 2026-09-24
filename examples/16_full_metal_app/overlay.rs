@@ -214,10 +214,14 @@ impl ConfigMenu {
             }
             3 => {
                 let new_val = !config.captures_microphone();
-                config.set_captures_microphone(new_val);
+                config
+                    .set_captures_microphone(new_val)
+                    .expect("macOS 15.0 or later");
                 // Also clear device ID when disabling (as per Apple's sample)
                 if !new_val {
-                    config.clear_microphone_capture_device_id();
+                    config
+                        .clear_microphone_capture_device_id()
+                        .expect("macOS 15.0 or later");
                 }
             }
             4 => {
@@ -244,7 +248,7 @@ impl ConfigMenu {
                     if let Some(device) = devices.get(idx) {
                         config
                             .set_microphone_capture_device_id(&device.id)
-                            .expect("device ID has no NUL byte");
+                            .expect("device ID has no NUL byte and macOS is 15.0 or later");
                     }
                 }
             }
@@ -284,16 +288,24 @@ impl ConfigMenu {
                 config.set_scales_to_fit(!config.scales_to_fit());
             }
             9 => {
-                config.set_preserves_aspect_ratio(!config.preserves_aspect_ratio());
+                config
+                    .set_preserves_aspect_ratio(!config.preserves_aspect_ratio())
+                    .expect("macOS 15.0 or later");
             }
             10 => {
-                config.set_should_be_opaque(!config.should_be_opaque());
+                config
+                    .set_should_be_opaque(!config.should_be_opaque())
+                    .expect("macOS 15.0 or later");
             }
             11 => {
-                config.set_captures_shadows_only(!config.captures_shadows_only());
+                config
+                    .set_captures_shadows_only(!config.captures_shadows_only())
+                    .expect("macOS 15.0 or later");
             }
             12 => {
-                config.set_ignores_shadows_display(!config.ignores_shadows_display());
+                config
+                    .set_ignores_shadows_display(!config.ignores_shadows_display())
+                    .expect("macOS 15.0 or later");
             }
             13 => {
                 // Pixel Format
@@ -337,10 +349,12 @@ pub fn default_stream_config() -> SCStreamConfiguration {
         .with_captures_audio(true)
         .with_excludes_current_process_audio(true)
         .with_captures_microphone(false) // Microphone off by default, press 'M' to enable
+        .expect("macOS 15.0 or later")
         .with_channel_count(2)
         .with_sample_rate(48000)
         .with_scales_to_fit(true)
         .with_preserves_aspect_ratio(true)
+        .expect("macOS 15.0 or later")
         .with_queue_depth(8)
         .with_pixel_format(screencapturekit::stream::configuration::PixelFormat::BGRA)
 }

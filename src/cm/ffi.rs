@@ -4,7 +4,10 @@
 #![allow(missing_docs)]
 
 extern "C" {
-    pub fn cm_sample_buffer_get_frame_status(sample_buffer: *mut std::ffi::c_void) -> i32;
+    pub fn cm_sample_buffer_get_frame_status(
+        sample_buffer: *mut std::ffi::c_void,
+        status: *mut i32,
+    ) -> bool;
 
     /// Build a retained `CGImage` from the sample buffer's image buffer via
     /// `VTCreateCGImageFromCVPixelBuffer`. Returns null on failure with

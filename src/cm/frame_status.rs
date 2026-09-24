@@ -22,19 +22,32 @@ pub enum SCFrameStatus {
     Started = 4,
     /// Stopped (last frame)
     Stopped = 5,
+    Unknown(i32),
 }
 
 impl SCFrameStatus {
     /// Create from raw i32 value
-    pub const fn from_raw(value: i32) -> Option<Self> {
+    pub const fn from_raw(value: i32) -> Self {
         match value {
-            0 => Some(Self::Complete),
-            1 => Some(Self::Idle),
-            2 => Some(Self::Blank),
-            3 => Some(Self::Suspended),
-            4 => Some(Self::Started),
-            5 => Some(Self::Stopped),
-            _ => None,
+            0 => Self::Complete,
+            1 => Self::Idle,
+            2 => Self::Blank,
+            3 => Self::Suspended,
+            4 => Self::Started,
+            5 => Self::Stopped,
+            other => Self::Unknown(other),
+        }
+    }
+
+    pub const fn raw(self) -> i32 {
+        match self {
+            Self::Complete => 0,
+            Self::Idle => 1,
+            Self::Blank => 2,
+            Self::Suspended => 3,
+            Self::Started => 4,
+            Self::Stopped => 5,
+            Self::Unknown(raw) => raw,
         }
     }
 
@@ -58,6 +71,7 @@ impl fmt::Display for SCFrameStatus {
             Self::Suspended => write!(f, "Suspended"),
             Self::Started => write!(f, "Started"),
             Self::Stopped => write!(f, "Stopped"),
+            Self::Unknown(raw) => write!(f, "Unknown({raw})"),
         }
     }
 }

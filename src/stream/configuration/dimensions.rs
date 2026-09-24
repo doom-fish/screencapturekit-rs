@@ -4,6 +4,8 @@
 //! and source/destination rectangles for captured streams.
 
 use crate::cg::CGRect;
+#[cfg(feature = "macos_14_0")]
+use crate::error::{SCError, SCResult};
 
 use super::internal::SCStreamConfiguration;
 
@@ -271,7 +273,7 @@ impl SCStreamConfiguration {
     /// aspect ratio, potentially adding letterboxing or pillarboxing.
     ///
     /// Note: This property requires macOS 14.0+. On older versions, the setter
-    /// is a no-op and the getter returns `false`.
+    /// returns `SCError::FeatureNotAvailable` and the getter returns `false`.
     ///
     /// # Examples
     ///
@@ -279,27 +281,35 @@ impl SCStreamConfiguration {
     /// use screencapturekit::prelude::*;
     ///
     /// let mut config = SCStreamConfiguration::default();
-    /// config.set_preserves_aspect_ratio(true);
+    /// config
+    ///     .set_preserves_aspect_ratio(true)
+    ///     .expect("macOS 14.0 or later");
     /// // Returns true on macOS 14.0+, false on older versions
     /// let _ = config.preserves_aspect_ratio();
     /// ```
     #[cfg(feature = "macos_14_0")]
-    pub fn set_preserves_aspect_ratio(&mut self, preserves_aspect_ratio: bool) -> &mut Self {
-        unsafe {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn set_preserves_aspect_ratio(
+        &mut self,
+        preserves_aspect_ratio: bool,
+    ) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_preserves_aspect_ratio(
                 self.as_ptr(),
                 preserves_aspect_ratio,
-            );
-        }
-        self
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available("SCStreamConfiguration.preservesAspectRatio", "14.0")
+        })
     }
 
     /// Preserve aspect ratio when scaling (builder pattern)
     #[cfg(feature = "macos_14_0")]
-    #[must_use]
-    pub fn with_preserves_aspect_ratio(mut self, preserves_aspect_ratio: bool) -> Self {
-        self.set_preserves_aspect_ratio(preserves_aspect_ratio);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_preserves_aspect_ratio(mut self, preserves_aspect_ratio: bool) -> SCResult<Self> {
+        self.set_preserves_aspect_ratio(preserves_aspect_ratio)?;
+        Ok(self)
     }
 
     /// Check if aspect ratio preservation is enabled

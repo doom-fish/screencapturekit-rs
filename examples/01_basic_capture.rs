@@ -64,15 +64,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "macos_14_0")]
     {
         config = config
-            .with_ignores_shadows_display(false)
-            .with_ignore_global_clip_display(false);
+            .with_ignores_shadows_display(false)?
+            .with_ignore_global_clip_display(false)?;
     }
 
     // macOS 15.0+ configuration options
     #[cfg(feature = "macos_15_0")]
     {
         // Show mouse click indicators (circle around cursor when clicking)
-        config.set_shows_mouse_clicks(true);
+        config.set_shows_mouse_clicks(true)?;
         println!("Mouse click indicators: enabled");
     }
 

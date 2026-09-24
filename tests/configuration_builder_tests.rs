@@ -330,9 +330,15 @@ fn test_interior_nul_strings_are_rejected() {
     assert!(config.set_color_matrix("ITU_R\0_709_2").is_err());
     assert!(config.set_color_space_name("kCGColorSpace\0SRGB").is_err());
     #[cfg(feature = "macos_14_0")]
-    assert!(config.set_stream_name(Some("bad\0name")).is_err());
+    assert!(matches!(
+        config.set_stream_name(Some("bad\0name")),
+        Err(screencapturekit::error::SCError::InvalidConfiguration(_))
+    ));
     #[cfg(feature = "macos_15_0")]
-    assert!(config.set_microphone_capture_device_id("bad\0id").is_err());
+    assert!(matches!(
+        config.set_microphone_capture_device_id("bad\0id"),
+        Err(screencapturekit::error::SCError::InvalidConfiguration(_))
+    ));
 
     assert_eq!(
         config.color_matrix().as_deref(),
@@ -411,11 +417,14 @@ fn test_mutable_matches_builder() {
 fn test_builder_capture_resolution_type() {
     use screencapturekit::stream::configuration::SCCaptureResolutionType;
 
-    let config =
-        SCStreamConfiguration::new().with_capture_resolution_type(SCCaptureResolutionType::Best);
+    let config = SCStreamConfiguration::new()
+        .with_capture_resolution_type(SCCaptureResolutionType::Best)
+        .expect("macOS 14.0 or later");
 
-    let result = config.capture_resolution_type();
-    println!("Capture resolution type: {result:?}");
+    assert_eq!(
+        config.capture_resolution_type(),
+        Ok(SCCaptureResolutionType::Best)
+    );
 }
 
 #[test]
@@ -430,8 +439,10 @@ fn test_all_capture_resolution_types() {
     ];
 
     for res_type in types {
-        let config = SCStreamConfiguration::new().with_capture_resolution_type(res_type);
-        let _ = config.capture_resolution_type();
+        let config = SCStreamConfiguration::new()
+            .with_capture_resolution_type(res_type)
+            .expect("macOS 14.0 or later");
+        assert_eq!(config.capture_resolution_type(), Ok(res_type));
     }
 }
 
@@ -442,15 +453,17 @@ fn test_builder_advanced_options() {
 
     let config = SCStreamConfiguration::new()
         .with_ignores_shadows_single_window(true)
-        .with_should_be_opaque(false)
-        .with_includes_child_windows(true)
-        .with_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Never)
-        .expect("set the presenter overlay privacy alert setting");
+        .and_then(|config| config.with_should_be_opaque(false))
+        .and_then(|config| config.with_includes_child_windows(true))
+        .and_then(|config| {
+            config
+                .with_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Never)
+        })
+        .expect("macOS 14.2 or later");
 
-    // Verify setters worked (getters may return defaults on older macOS)
-    let _ = config.ignores_shadows_single_window();
-    let _ = config.should_be_opaque();
-    let _ = config.includes_child_windows();
+    assert!(config.ignores_shadows_single_window());
+    assert!(!config.should_be_opaque());
+    assert!(config.includes_child_windows());
     assert_eq!(
         config.presenter_overlay_privacy_alert_setting(),
         Ok(SCPresenterOverlayAlertSetting::Never)
@@ -460,16 +473,19 @@ fn test_builder_advanced_options() {
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_builder_ignores_shadow_display_configuration() {
-    let config = SCStreamConfiguration::new().with_ignores_shadow_display_configuration(true);
-    let _ = config.ignores_shadow_display_configuration();
+    let config = SCStreamConfiguration::new()
+        .with_ignores_shadow_display_configuration(true)
+        .expect("macOS 14.0 or later");
+    assert!(config.ignores_shadow_display_configuration());
 }
 
 #[test]
 #[cfg(feature = "macos_15_0")]
 fn test_builder_captures_microphone() {
-    let config = SCStreamConfiguration::new().with_captures_microphone(true);
-    let result = config.captures_microphone();
-    println!("Captures microphone: {result}");
+    let config = SCStreamConfiguration::new()
+        .with_captures_microphone(true)
+        .expect("macOS 15.0 or later");
+    assert!(config.captures_microphone());
 }
 
 #[test]
@@ -484,9 +500,10 @@ fn test_builder_dynamic_range() {
     ];
 
     for range in ranges {
-        let config = SCStreamConfiguration::new().with_capture_dynamic_range(range);
-        let result = config.capture_dynamic_range();
-        println!("Dynamic range: {result:?}");
+        let config = SCStreamConfiguration::new()
+            .with_capture_dynamic_range(range)
+            .expect("macOS 15.0 or later");
+        assert_eq!(config.capture_dynamic_range(), Ok(range));
     }
 }
 

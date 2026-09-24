@@ -67,6 +67,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exports now use `Int32`; the setter rejects raw values that are not a known
   `SCPresenterOverlayAlertSetting` instead of ignoring them, and the getter
   hands the raw value to Rust instead of mapping unknown values to `System`.
+- Values ScreenCaptureKit reports that this crate doesn't know were replaced
+  by a default: `capture_dynamic_range` read them as `SDR`,
+  `capture_resolution_type` as `Automatic`, the filter and content-info
+  `style` as `None`, `stream_type` as `Window`, `MetalTexture::pixel_format`
+  as `BGRA8Unorm`, the screenshot `display_intent` and `dynamic_range` as
+  `None`, and `frame_status` as "no status". The bridge also handed samples of
+  an output type it doesn't know to the audio handlers, and truncated frame
+  status values, so a large one could alias a known status. See Changed.
+- Setters for properties that need a newer macOS than the running one
+  silently did nothing: every `SCStreamConfiguration` property that needs
+  macOS 14.0, 14.2 or 15.0 and `SCContentFilterBuilder::with_include_menu_bar`
+  (14.2). `from_preset` returned a configuration without the preset before
+  macOS 15, and used `CaptureHDRStreamLocalDisplay` instead of the macOS 26
+  HDR10 recording preset before macOS 26. See Changed.
 - Docs: `SCStream` had lost its rustdoc to `StreamIdentity`; the coverage
   files were a v3.1.1 snapshot against an SDK that is no longer installed
   (they now measure 11.0.0 against the macOS 26.5 and 27.0 SDKs and say what
@@ -124,10 +138,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returns `SCResult<SCPresenterOverlayAlertSetting>`. Where the property
   doesn't exist (before macOS 14) they return `SCError::FeatureNotAvailable`
   instead of ignoring the value or reporting `System`, and the getter returns
-  `SCError::FFIError` for a raw value this crate doesn't know.
+  `SCError::UnknownValue` for a raw value this crate doesn't know.
 - **Breaking:** the raw `cm::ffi::cv_pixel_buffer_lock_base_address` and
   `cv_pixel_buffer_unlock_base_address` declarations take `u64` flags, matching
   apple-cf's exports.
+- **Breaking:** getters of values ScreenCaptureKit may extend report an unknown
+  value instead of a default. `SCStreamConfiguration::capture_dynamic_range`
+  and `capture_resolution_type`, `SCContentFilter::style` and `stream_type`,
+  `SCShareableContentInfo::style` and `SCScreenshotConfiguration::display_intent`
+  and `dynamic_range` return an `SCResult`: `SCError::UnknownValue` for a value
+  this crate doesn't know, and `SCError::FeatureNotAvailable` where the
+  property doesn't exist yet. `MetalTexture::pixel_format` returns
+  `Result<MetalPixelFormat, MetalError>` (`MetalError::UnknownPixelFormat`).
+- **Breaking:** `SCFrameStatus` has an `Unknown(i32)` variant, so matches need
+  an arm for it and `raw()` replaces `as i32`; `SCFrameStatus::from_raw`
+  returns `Self`, and `frame_status()` returns `None` only when a sample has no
+  status.
+- **Breaking:** `From<i32>` for `SCShareableContentStyle` and `SCStreamType`,
+  which mapped unknown values to `None` and `Window`, is replaced by
+  `from_raw(i32) -> Option<Self>`.
+- **Breaking:** the setters of `SCStreamConfiguration` properties that need
+  macOS 14.0, 14.2 or 15.0 return `SCResult<&mut Self>`, and their builders
+  `SCResult<Self>`, with `SCError::FeatureNotAvailable` on an older system:
+  `should_be_opaque`, `ignores_shadow_display_configuration`,
+  `preserves_aspect_ratio`, `capture_resolution_type`,
+  `ignores_shadows_single_window`, `includes_child_windows`,
+  `captures_shadows_only`, `captures_microphone`,
+  `microphone_capture_device_id`, `stream_name`, `capture_dynamic_range`,
+  `shows_mouse_clicks`, `ignores_shadows_display`, `ignore_global_clip_display`
+  and `ignore_global_clip_single_window`, plus
+  `clear_microphone_capture_device_id`. `set_stream_name` and
+  `set_microphone_capture_device_id` report an interior NUL byte as
+  `SCError::InvalidConfiguration` instead of `InteriorNulError`.
+- **Breaking:** `SCStreamConfiguration::from_preset` returns `SCResult<Self>`
+  (`SCError::FeatureNotAvailable` before macOS 15, or before macOS 26 for
+  `CaptureHDRRecordingPreservedSDRHDR10`), and `SCContentFilterBuilder::build`
+  returns `SCError::FeatureNotAvailable` when `with_include_menu_bar` was used
+  before macOS 14.2.
+- **Breaking:** the raw `ffi` declarations of those setters and getters changed
+  to match: the setters return `bool`, the enum getters write through an
+  `*mut i32` and return `bool`, and `cm::ffi::cm_sample_buffer_get_frame_status`
+  does the same.
 - `rust-version` is 1.82 (was 1.76, which the crate's use of `offset_of!`
   already contradicted).
 
@@ -136,7 +187,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SCStreamErrorCode::InsufficientStorage` (-3822) and `NotSupported`
   (-3823) from the macOS 27 SDK.
 - `SCPresenterOverlayAlertSetting::from_raw`, which returns `None` for an
-  unknown raw value.
+  unknown raw value, and the same `from_raw` on `SCCaptureDynamicRange`,
+  `SCCaptureResolutionType`, `SCShareableContentStyle`, `SCStreamType`,
+  `SCScreenshotDisplayIntent` and `SCScreenshotDynamicRange`.
+- `SCError::UnknownValue { type_name, raw }`, `MetalError::UnknownPixelFormat`,
+  `SCFrameStatus::raw`, and `From<InteriorNulError> for SCError`.
 
 ### Removed
 

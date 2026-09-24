@@ -418,23 +418,13 @@ public func getShareableContentInfoForFilter(_ filter: OpaquePointer) -> OpaqueP
 }
 
 @_cdecl("sc_shareable_content_info_get_style")
-public func getShareableContentInfoStyle(_ info: OpaquePointer) -> Int32 {
+public func getShareableContentInfoStyle(_ info: OpaquePointer, _ outStyle: UnsafeMutablePointer<Int32>) -> Bool {
     if #available(macOS 14.0, *) {
         let i: SCShareableContentInfo = unretained(info)
-        switch i.style {
-        case .none:
-            return 0
-        case .window:
-            return 1
-        case .display:
-            return 2
-        case .application:
-            return 3
-        @unknown default:
-            return 0
-        }
+        outStyle.pointee = Int32(clamping: i.style.rawValue)
+        return true
     }
-    return 0
+    return false
 }
 
 @_cdecl("sc_shareable_content_info_get_point_pixel_scale")

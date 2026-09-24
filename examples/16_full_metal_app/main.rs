@@ -449,10 +449,14 @@ impl AppState {
             KeyCode::KeyC => self.overlay.show_config = true,
             KeyCode::KeyM => {
                 let new_val = !self.stream_config.captures_microphone();
-                self.stream_config.set_captures_microphone(new_val);
+                self.stream_config
+                    .set_captures_microphone(new_val)
+                    .expect("macOS 15.0 or later");
                 // Also clear device ID when disabling (as per Apple's sample)
                 if !new_val {
-                    self.stream_config.clear_microphone_capture_device_id();
+                    self.stream_config
+                        .clear_microphone_capture_device_id()
+                        .expect("macOS 15.0 or later");
                 }
                 println!("🎤 Microphone: {}", if new_val { "On" } else { "Off" });
                 // Note: captureMicrophone cannot be changed dynamically via updateConfiguration

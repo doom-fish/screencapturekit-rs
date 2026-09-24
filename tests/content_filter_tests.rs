@@ -305,7 +305,7 @@ fn test_content_filter_style() {
         .build()
         .expect("failed to build content filter");
 
-    let style = filter.style();
+    let style = filter.style().expect("macOS 14.0 or later");
     // Display filters should have Display style
     assert!(matches!(
         style,
@@ -329,7 +329,7 @@ fn test_content_filter_style_window() {
             .with_window(window)
             .build()
             .expect("failed to build content filter");
-        let style = filter.style();
+        let style = filter.style().expect("macOS 14.0 or later");
         // Window filters should have Window style
         assert!(matches!(
             style,
@@ -573,29 +573,27 @@ fn test_shareable_content_style_values() {
 
 #[test]
 #[cfg(feature = "macos_14_0")]
-fn test_shareable_content_style_from_i32() {
+fn test_shareable_content_style_from_raw() {
     use screencapturekit::stream::content_filter::SCShareableContentStyle;
 
     assert_eq!(
-        SCShareableContentStyle::from(0),
-        SCShareableContentStyle::None
+        SCShareableContentStyle::from_raw(0),
+        Some(SCShareableContentStyle::None)
     );
     assert_eq!(
-        SCShareableContentStyle::from(1),
-        SCShareableContentStyle::Window
+        SCShareableContentStyle::from_raw(1),
+        Some(SCShareableContentStyle::Window)
     );
     assert_eq!(
-        SCShareableContentStyle::from(2),
-        SCShareableContentStyle::Display
+        SCShareableContentStyle::from_raw(2),
+        Some(SCShareableContentStyle::Display)
     );
     assert_eq!(
-        SCShareableContentStyle::from(3),
-        SCShareableContentStyle::Application
+        SCShareableContentStyle::from_raw(3),
+        Some(SCShareableContentStyle::Application)
     );
-    assert_eq!(
-        SCShareableContentStyle::from(99),
-        SCShareableContentStyle::None
-    ); // Unknown
+    assert_eq!(SCShareableContentStyle::from_raw(99), None);
+    assert_eq!(SCShareableContentStyle::from_raw(-1), None);
 }
 
 #[test]
@@ -610,4 +608,17 @@ fn test_content_filter_build_without_target_is_an_error() {
         .with_including_applications(&[], &[])
         .build();
     assert!(matches!(result, Err(SCError::InvalidConfiguration(_))));
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+#[allow(deprecated)]
+fn test_stream_type_from_raw_rejects_unknown_values() {
+    use screencapturekit::stream::content_filter::SCStreamType;
+
+    assert_eq!(SCStreamType::from_raw(0), Some(SCStreamType::Window));
+    assert_eq!(SCStreamType::from_raw(1), Some(SCStreamType::Display));
+    for raw in [2, -1, i32::MAX, i32::MIN] {
+        assert_eq!(SCStreamType::from_raw(raw), None);
+    }
 }

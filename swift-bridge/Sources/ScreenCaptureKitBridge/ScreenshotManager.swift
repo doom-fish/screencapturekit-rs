@@ -215,28 +215,32 @@ import UniformTypeIdentifiers
     }
 
     @_cdecl("sc_screenshot_configuration_set_display_intent")
-    public func setScreenshotConfigurationDisplayIntent(_ config: OpaquePointer, _ displayIntent: Int32) {
+    public func setScreenshotConfigurationDisplayIntent(_ config: OpaquePointer, _ displayIntent: Int32) -> Bool {
         if #available(macOS 26.0, *) {
             let c: SCScreenshotConfiguration = unretained(config)
             switch displayIntent {
             case 0: c.displayIntent = .canonical
             case 1: c.displayIntent = .local
-            default: break
+            default: return false
             }
+            return true
         }
+        return false
     }
 
     @_cdecl("sc_screenshot_configuration_set_dynamic_range")
-    public func setScreenshotConfigurationDynamicRange(_ config: OpaquePointer, _ dynamicRange: Int32) {
+    public func setScreenshotConfigurationDynamicRange(_ config: OpaquePointer, _ dynamicRange: Int32) -> Bool {
         if #available(macOS 26.0, *) {
             let c: SCScreenshotConfiguration = unretained(config)
             switch dynamicRange {
             case 0: c.dynamicRange = .sdr
             case 1: c.dynamicRange = .hdr
             case 2: c.dynamicRange = .bothSDRAndHDR
-            default: break
+            default: return false
             }
+            return true
         }
+        return false
     }
 
     @_cdecl("sc_screenshot_configuration_set_file_url")
@@ -340,33 +344,32 @@ import UniformTypeIdentifiers
         return false
     }
 
-    /// Returns the display intent as 0 = canonical, 1 = local, -1 = unknown.
+    /// Writes the raw display intent (0 = canonical, 1 = local) and returns false before macOS 26.
     @_cdecl("sc_screenshot_configuration_get_display_intent")
-    public func getScreenshotConfigurationDisplayIntent(_ config: OpaquePointer) -> Int32 {
+    public func getScreenshotConfigurationDisplayIntent(
+        _ config: OpaquePointer,
+        _ outIntent: UnsafeMutablePointer<Int32>
+    ) -> Bool {
         if #available(macOS 26.0, *) {
             let c: SCScreenshotConfiguration = unretained(config)
-            switch c.displayIntent {
-            case .canonical: return 0
-            case .local: return 1
-            default: return -1
-            }
+            outIntent.pointee = Int32(clamping: c.displayIntent.rawValue)
+            return true
         }
-        return -1
+        return false
     }
 
-    /// Returns the dynamic range as 0 = sdr, 1 = hdr, 2 = bothSDRAndHDR, -1 = unknown.
+    /// Writes the raw dynamic range (0 = sdr, 1 = hdr, 2 = bothSDRAndHDR) and returns false before macOS 26.
     @_cdecl("sc_screenshot_configuration_get_dynamic_range")
-    public func getScreenshotConfigurationDynamicRange(_ config: OpaquePointer) -> Int32 {
+    public func getScreenshotConfigurationDynamicRange(
+        _ config: OpaquePointer,
+        _ outRange: UnsafeMutablePointer<Int32>
+    ) -> Bool {
         if #available(macOS 26.0, *) {
             let c: SCScreenshotConfiguration = unretained(config)
-            switch c.dynamicRange {
-            case .sdr: return 0
-            case .hdr: return 1
-            case .bothSDRAndHDR: return 2
-            default: return -1
-            }
+            outRange.pointee = Int32(clamping: c.dynamicRange.rawValue)
+            return true
         }
-        return -1
+        return false
     }
 
     /// Get the configured output file path as an owned string (caller frees

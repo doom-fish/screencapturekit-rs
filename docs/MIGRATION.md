@@ -39,8 +39,24 @@ Calls that can fail now return a `Result` instead of panicking, returning
   `with_presenter_overlay_privacy_alert_setting` and
   `presenter_overlay_privacy_alert_setting` return an `SCResult`:
   `SCError::FeatureNotAvailable` before macOS 14, where they used to ignore
-  the value and report `System`, and `SCError::FFIError` from the getter for a
-  raw value this crate doesn't know.
+  the value and report `System`, and `SCError::UnknownValue` from the getter
+  for a raw value this crate doesn't know.
+- Every other `SCStreamConfiguration` setter for a property that needs macOS
+  14.0, 14.2 or 15.0 (and its `with_*` builder) returns an `SCResult` too, with
+  `SCError::FeatureNotAvailable` on an older system instead of ignoring the
+  value; add a `?` after each in a builder chain. `set_stream_name` and
+  `set_microphone_capture_device_id` now report an interior NUL byte as
+  `SCError::InvalidConfiguration`. `from_preset` returns `SCResult<Self>`, and
+  `SCContentFilterBuilder::build` fails when `with_include_menu_bar` is used
+  before macOS 14.2.
+- Enum getters report values this crate doesn't know instead of a default:
+  `capture_dynamic_range`, `capture_resolution_type`, the filter and
+  content-info `style`, `stream_type` and the screenshot `display_intent` and
+  `dynamic_range` return an `SCResult` (`SCError::UnknownValue`), and
+  `MetalTexture::pixel_format` a `Result<_, MetalError>`. `SCFrameStatus` has
+  an `Unknown(i32)` variant (use `raw()` instead of `as i32`), and
+  `From<i32>` for `SCShareableContentStyle` and `SCStreamType` is now
+  `from_raw`, which returns `None` for an unknown value.
 - `SCStream::add_output_handler` and `add_output_handler_with_queue` return
   `Result<usize, SCError>` instead of `Option<usize>`.
   `remove_output_handler` returns `Result<bool, SCError>` and replaces

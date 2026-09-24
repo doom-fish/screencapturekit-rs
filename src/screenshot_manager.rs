@@ -804,6 +804,17 @@ pub enum SCScreenshotDisplayIntent {
     Local = 1,
 }
 
+#[cfg(feature = "macos_26_0")]
+impl SCScreenshotDisplayIntent {
+    pub const fn from_raw(raw: i32) -> Option<Self> {
+        match raw {
+            0 => Some(Self::Canonical),
+            1 => Some(Self::Local),
+            _ => None,
+        }
+    }
+}
+
 /// Dynamic range for screenshot output (macOS 26.0+)
 #[cfg(feature = "macos_26_0")]
 #[repr(i32)]
@@ -816,6 +827,18 @@ pub enum SCScreenshotDynamicRange {
     HDR = 1,
     /// Both SDR and HDR output
     BothSDRAndHDR = 2,
+}
+
+#[cfg(feature = "macos_26_0")]
+impl SCScreenshotDynamicRange {
+    pub const fn from_raw(raw: i32) -> Option<Self> {
+        match raw {
+            0 => Some(Self::SDR),
+            1 => Some(Self::HDR),
+            2 => Some(Self::BothSDRAndHDR),
+            _ => None,
+        }
+    }
 }
 
 /// Why a screenshot file path could not be represented by Foundation.
@@ -1111,29 +1134,44 @@ impl SCScreenshotConfiguration {
 
     /// Get the display intent.
     ///
-    /// Returns `None` if the framework reported an intent this crate does not
-    /// know about (a newer macOS adding a case).
-    #[must_use]
-    pub fn display_intent(&self) -> Option<SCScreenshotDisplayIntent> {
-        match unsafe { crate::ffi::sc_screenshot_configuration_get_display_intent(self.ptr) } {
-            0 => Some(SCScreenshotDisplayIntent::Canonical),
-            1 => Some(SCScreenshotDisplayIntent::Local),
-            _ => None,
+    /// Returns [`SCError::UnknownValue`] if the framework reported an intent
+    /// this crate does not know about (a newer macOS adding a case).
+    #[allow(clippy::missing_errors_doc)]
+    pub fn display_intent(&self) -> Result<SCScreenshotDisplayIntent, SCError> {
+        let mut raw = 0_i32;
+        if !unsafe {
+            crate::ffi::sc_screenshot_configuration_get_display_intent(self.ptr, &raw mut raw)
+        } {
+            return Err(SCError::feature_not_available(
+                "SCScreenshotConfiguration.displayIntent",
+                "26.0",
+            ));
         }
+        SCScreenshotDisplayIntent::from_raw(raw).ok_or_else(|| SCError::UnknownValue {
+            type_name: "SCScreenshotDisplayIntent",
+            raw: i64::from(raw),
+        })
     }
 
     /// Get the dynamic range.
     ///
-    /// Returns `None` if the framework reported a range this crate does not
-    /// know about (a newer macOS adding a case).
-    #[must_use]
-    pub fn dynamic_range(&self) -> Option<SCScreenshotDynamicRange> {
-        match unsafe { crate::ffi::sc_screenshot_configuration_get_dynamic_range(self.ptr) } {
-            0 => Some(SCScreenshotDynamicRange::SDR),
-            1 => Some(SCScreenshotDynamicRange::HDR),
-            2 => Some(SCScreenshotDynamicRange::BothSDRAndHDR),
-            _ => None,
+    /// Returns [`SCError::UnknownValue`] if the framework reported a range
+    /// this crate does not know about (a newer macOS adding a case).
+    #[allow(clippy::missing_errors_doc)]
+    pub fn dynamic_range(&self) -> Result<SCScreenshotDynamicRange, SCError> {
+        let mut raw = 0_i32;
+        if !unsafe {
+            crate::ffi::sc_screenshot_configuration_get_dynamic_range(self.ptr, &raw mut raw)
+        } {
+            return Err(SCError::feature_not_available(
+                "SCScreenshotConfiguration.dynamicRange",
+                "26.0",
+            ));
         }
+        SCScreenshotDynamicRange::from_raw(raw).ok_or_else(|| SCError::UnknownValue {
+            type_name: "SCScreenshotDynamicRange",
+            raw: i64::from(raw),
+        })
     }
 
     /// Set the content type (output format) using `UTType` identifier
@@ -1325,3 +1363,31 @@ crate::utils::retained::sc_retained!(
 unsafe impl Send for SCScreenshotOutput {}
 #[cfg(feature = "macos_26_0")]
 unsafe impl Sync for SCScreenshotOutput {}
+
+#[cfg(all(test, feature = "macos_26_0"))]
+mod tests {
+    use super::{SCScreenshotConfiguration, SCScreenshotDisplayIntent, SCScreenshotDynamicRange};
+
+    #[test]
+    fn bridge_rejects_unknown_screenshot_raw_values() {
+        let config = SCScreenshotConfiguration::new()
+            .expect("macOS 26.0 or later")
+            .with_display_intent(SCScreenshotDisplayIntent::Local)
+            .with_dynamic_range(SCScreenshotDynamicRange::HDR);
+        for raw in [3, -1, i32::MAX, i32::MIN] {
+            let intent_applied = unsafe {
+                crate::ffi::sc_screenshot_configuration_set_display_intent(config.ptr, raw)
+            };
+            let range_applied = unsafe {
+                crate::ffi::sc_screenshot_configuration_set_dynamic_range(config.ptr, raw)
+            };
+            assert!(!intent_applied, "the bridge accepted display intent {raw}");
+            assert!(!range_applied, "the bridge accepted dynamic range {raw}");
+            assert_eq!(
+                config.display_intent(),
+                Ok(SCScreenshotDisplayIntent::Local)
+            );
+            assert_eq!(config.dynamic_range(), Ok(SCScreenshotDynamicRange::HDR));
+        }
+    }
+}

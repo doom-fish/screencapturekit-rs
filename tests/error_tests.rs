@@ -166,3 +166,15 @@ fn test_all_error_variants_display() {
         );
     }
 }
+
+#[test]
+fn test_unknown_value_error_names_the_type_and_raw_value() {
+    let error = SCError::UnknownValue {
+        type_name: "SCCaptureDynamicRange",
+        raw: 7,
+    };
+    assert_eq!(
+        error.to_string(),
+        "ScreenCaptureKit reported 7, which is not a known SCCaptureDynamicRange"
+    );
+}

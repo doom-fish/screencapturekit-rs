@@ -434,7 +434,10 @@ mod metal_texture_tests {
             .expect("Failed to create textures");
 
         // BGRA should use BGRA8Unorm
-        assert_eq!(textures.plane0.pixel_format(), MetalPixelFormat::BGRA8Unorm);
+        assert_eq!(
+            textures.plane0.pixel_format(),
+            Ok(MetalPixelFormat::BGRA8Unorm)
+        );
     }
 
     #[test]
@@ -1990,4 +1993,14 @@ fn test_as_apple_metal_borrow_is_usable() {
 
     // The owner is unaffected by the borrow being dropped.
     assert!(!device.name().is_empty());
+}
+
+#[test]
+fn test_unknown_pixel_format_error_names_the_raw_value() {
+    use screencapturekit::metal::MetalError;
+
+    assert_eq!(
+        MetalError::UnknownPixelFormat { raw: 115 }.to_string(),
+        "texture pixel format 115 is not a known MetalPixelFormat"
+    );
 }

@@ -535,9 +535,21 @@ impl SCShareableContentInfo {
     }
 
     /// Get the content style
-    pub fn style(&self) -> crate::stream::content_filter::SCShareableContentStyle {
-        let value = unsafe { crate::ffi::sc_shareable_content_info_get_style(self.0) };
-        crate::stream::content_filter::SCShareableContentStyle::from(value)
+    #[allow(clippy::missing_errors_doc)]
+    pub fn style(&self) -> Result<crate::stream::content_filter::SCShareableContentStyle, SCError> {
+        let mut raw = 0_i32;
+        if !unsafe { crate::ffi::sc_shareable_content_info_get_style(self.0, &raw mut raw) } {
+            return Err(SCError::feature_not_available(
+                "SCShareableContentInfo.style",
+                "14.0",
+            ));
+        }
+        crate::stream::content_filter::SCShareableContentStyle::from_raw(raw).ok_or_else(|| {
+            SCError::UnknownValue {
+                type_name: "SCShareableContentStyle",
+                raw: i64::from(raw),
+            }
+        })
     }
 
     /// Get the point-to-pixel scale factor

@@ -19,6 +19,8 @@
 //! | 2 | Stereo (default) |
 
 #[cfg(feature = "macos_15_0")]
+use crate::error::{SCError, SCResult};
+#[cfg(feature = "macos_15_0")]
 use crate::utils::ffi_string::{ffi_string_from_buffer, SMALL_BUFFER_SIZE};
 
 use super::internal::SCStreamConfiguration;
@@ -318,7 +320,8 @@ impl SCStreamConfiguration {
     /// for microphone access permission.
     ///
     /// # Availability
-    /// macOS 15.0+. On earlier versions, this setting has no effect.
+    /// macOS 15.0+. On earlier versions it returns
+    /// [`SCError::FeatureNotAvailable`].
     ///
     /// # Example
     /// ```rust,no_run
@@ -327,26 +330,30 @@ impl SCStreamConfiguration {
     /// let config = SCStreamConfiguration::new()
     ///     .with_captures_audio(true)       // System audio
     ///     .with_captures_microphone(true)  // Microphone audio (macOS 15.0+)
+    ///     .expect("macOS 15.0 or later")
     ///     .with_sample_rate(48000)
     ///     .with_channel_count(2);
     /// ```
     #[cfg(feature = "macos_15_0")]
-    pub fn set_captures_microphone(&mut self, captures_microphone: bool) -> &mut Self {
-        unsafe {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn set_captures_microphone(&mut self, captures_microphone: bool) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_captures_microphone(
                 self.as_ptr(),
                 captures_microphone,
-            );
-        }
-        self
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available("SCStreamConfiguration.captureMicrophone", "15.0")
+        })
     }
 
     /// Enable microphone capture (builder pattern)
     #[cfg(feature = "macos_15_0")]
-    #[must_use]
-    pub fn with_captures_microphone(mut self, captures_microphone: bool) -> Self {
-        self.set_captures_microphone(captures_microphone);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_captures_microphone(mut self, captures_microphone: bool) -> SCResult<Self> {
+        self.set_captures_microphone(captures_microphone)?;
+        Ok(self)
     }
 
     /// Get whether microphone capture is enabled (macOS 15.0+).
@@ -397,59 +404,66 @@ impl SCStreamConfiguration {
     /// Specifies which microphone device to capture from.
     ///
     /// # Availability
-    /// macOS 15.0+. On earlier versions, this setting has no effect.
+    /// macOS 15.0+.
     ///
     /// # Errors
     ///
-    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
-    /// `device_id` contains an interior NUL byte.
+    /// Returns [`SCError::InvalidConfiguration`] — leaving the configuration
+    /// unchanged — if `device_id` contains an interior NUL byte, and
+    /// [`SCError::FeatureNotAvailable`] before macOS 15.0.
     ///
     /// # Example
     /// ```rust,no_run
     /// use screencapturekit::prelude::*;
     ///
     /// let mut config = SCStreamConfiguration::new()
-    ///     .with_captures_microphone(true);
+    ///     .with_captures_microphone(true)
+    ///     .expect("macOS 15.0 or later");
     /// config
     ///     .set_microphone_capture_device_id("AppleHDAEngineInput:1B,0,1,0:1")
     ///     .expect("device ID has no NUL byte");
     /// ```
     #[cfg(feature = "macos_15_0")]
-    pub fn set_microphone_capture_device_id(
-        &mut self,
-        device_id: &str,
-    ) -> Result<&mut Self, InteriorNulError> {
+    pub fn set_microphone_capture_device_id(&mut self, device_id: &str) -> SCResult<&mut Self> {
         let c_id = std::ffi::CString::new(device_id).map_err(|_| InteriorNulError)?;
-        unsafe {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
                 self.as_ptr(),
                 c_id.as_ptr(),
-            );
-        }
-        Ok(self)
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available(
+                "SCStreamConfiguration.microphoneCaptureDeviceID",
+                "15.0",
+            )
+        })
     }
 
     /// Set microphone capture device ID (builder pattern)
     #[cfg(feature = "macos_15_0")]
     #[allow(clippy::missing_errors_doc)]
-    pub fn with_microphone_capture_device_id(
-        mut self,
-        device_id: &str,
-    ) -> Result<Self, InteriorNulError> {
+    pub fn with_microphone_capture_device_id(mut self, device_id: &str) -> SCResult<Self> {
         self.set_microphone_capture_device_id(device_id)?;
         Ok(self)
     }
 
     /// Clear microphone capture device ID, reverting to default system microphone
     #[cfg(feature = "macos_15_0")]
-    pub fn clear_microphone_capture_device_id(&mut self) -> &mut Self {
-        unsafe {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn clear_microphone_capture_device_id(&mut self) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_microphone_capture_device_id(
                 self.as_ptr(),
                 std::ptr::null(),
-            );
-        }
-        self
+            )
+        };
+        applied.then_some(self).ok_or_else(|| {
+            SCError::feature_not_available(
+                "SCStreamConfiguration.microphoneCaptureDeviceID",
+                "15.0",
+            )
+        })
     }
 
     /// Get microphone capture device ID (macOS 15.0+).

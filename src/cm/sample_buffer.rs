@@ -113,14 +113,9 @@ pub trait CMSampleBufferSCExt {
 
 impl CMSampleBufferSCExt for CMSampleBuffer {
     fn frame_status(&self) -> Option<SCFrameStatus> {
-        unsafe {
-            let status = ffi::cm_sample_buffer_get_frame_status(self.as_ptr());
-            if status >= 0 {
-                SCFrameStatus::from_raw(status)
-            } else {
-                None
-            }
-        }
+        let mut status = 0_i32;
+        unsafe { ffi::cm_sample_buffer_get_frame_status(self.as_ptr(), &raw mut status) }
+            .then(|| SCFrameStatus::from_raw(status))
     }
 
     fn display_time(&self) -> Option<u64> {
@@ -296,8 +291,7 @@ impl CMSampleBufferSCExt for CMSampleBuffer {
             };
             Some(FrameInfo {
                 frame_status: ((fields & FrameInfoFields::STATUS) != 0)
-                    .then(|| SCFrameStatus::from_raw(status))
-                    .flatten(),
+                    .then(|| SCFrameStatus::from_raw(status)),
                 display_time: ((fields & FrameInfoFields::DISPLAY_TIME) != 0)
                     .then_some(display_time),
                 scale_factor: ((fields & FrameInfoFields::SCALE_FACTOR) != 0)

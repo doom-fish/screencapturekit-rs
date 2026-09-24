@@ -171,9 +171,19 @@ impl SCContentFilter {
     ///
     /// Returns the type of content being captured (window, display, application, or none).
     #[cfg(feature = "macos_14_0")]
-    pub fn style(&self) -> SCShareableContentStyle {
-        let value = unsafe { ffi::sc_content_filter_get_style(self.0) };
-        SCShareableContentStyle::from(value)
+    #[allow(clippy::missing_errors_doc)]
+    pub fn style(&self) -> SCResult<SCShareableContentStyle> {
+        let mut raw = 0_i32;
+        if !unsafe { ffi::sc_content_filter_get_style(self.0, &raw mut raw) } {
+            return Err(SCError::feature_not_available(
+                "SCContentFilter.style",
+                "14.0",
+            ));
+        }
+        SCShareableContentStyle::from_raw(raw).ok_or_else(|| SCError::UnknownValue {
+            type_name: "SCShareableContentStyle",
+            raw: i64::from(raw),
+        })
     }
 
     /// Get the stream type (macOS 14.0+)
@@ -186,9 +196,19 @@ impl SCContentFilter {
                 itself in 15.0). Use `style()`, which also distinguishes application filters."
     )]
     #[allow(deprecated)]
-    pub fn stream_type(&self) -> SCStreamType {
-        let value = unsafe { ffi::sc_content_filter_get_stream_type(self.0) };
-        SCStreamType::from(value)
+    #[allow(clippy::missing_errors_doc)]
+    pub fn stream_type(&self) -> SCResult<SCStreamType> {
+        let mut raw = 0_i32;
+        if !unsafe { ffi::sc_content_filter_get_stream_type(self.0, &raw mut raw) } {
+            return Err(SCError::feature_not_available(
+                "SCContentFilter.streamType",
+                "14.0",
+            ));
+        }
+        SCStreamType::from_raw(raw).ok_or_else(|| SCError::UnknownValue {
+            type_name: "SCStreamType",
+            raw: i64::from(raw),
+        })
     }
 
     /// Get the point-to-pixel scale factor (macOS 14.0+)
@@ -294,13 +314,14 @@ pub enum SCShareableContentStyle {
 }
 
 #[cfg(feature = "macos_14_0")]
-impl From<i32> for SCShareableContentStyle {
-    fn from(value: i32) -> Self {
-        match value {
-            1 => Self::Window,
-            2 => Self::Display,
-            3 => Self::Application,
-            _ => Self::None,
+impl SCShareableContentStyle {
+    pub const fn from_raw(raw: i32) -> Option<Self> {
+        match raw {
+            0 => Some(Self::None),
+            1 => Some(Self::Window),
+            2 => Some(Self::Display),
+            3 => Some(Self::Application),
+            _ => None,
         }
     }
 }
@@ -336,11 +357,12 @@ pub enum SCStreamType {
 
 #[cfg(feature = "macos_14_0")]
 #[allow(deprecated)]
-impl From<i32> for SCStreamType {
-    fn from(value: i32) -> Self {
-        match value {
-            1 => Self::Display,
-            _ => Self::Window,
+impl SCStreamType {
+    pub const fn from_raw(raw: i32) -> Option<Self> {
+        match raw {
+            0 => Some(Self::Window),
+            1 => Some(Self::Display),
+            _ => None,
         }
     }
 }
@@ -584,7 +606,9 @@ impl SCContentFilterBuilder {
     /// # Errors
     ///
     /// Returns [`SCError::InvalidConfiguration`] if neither `.with_display()` nor
-    /// `.with_window()` was called before building.
+    /// `.with_window()` was called before building, and
+    /// [`SCError::FeatureNotAvailable`] if `.with_include_menu_bar()` was called
+    /// on a system older than macOS 14.2.
     #[allow(clippy::too_many_lines)]
     pub fn build(self) -> SCResult<SCContentFilter> {
         let filter = match self.filter_type {
@@ -705,7 +729,12 @@ impl SCContentFilterBuilder {
         // which is what `SCContentFilter`'s `Clone`/`Send`/`Sync` rely on.
         #[cfg(feature = "macos_14_2")]
         if let Some(include) = self.include_menu_bar {
-            unsafe { ffi::sc_content_filter_set_include_menu_bar(filter.0, include) };
+            if !unsafe { ffi::sc_content_filter_set_include_menu_bar(filter.0, include) } {
+                return Err(SCError::feature_not_available(
+                    "SCContentFilter.includeMenuBar",
+                    "14.2",
+                ));
+            }
         }
 
         Ok(filter)
