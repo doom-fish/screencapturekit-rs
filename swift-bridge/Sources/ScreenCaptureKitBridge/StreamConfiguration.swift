@@ -804,8 +804,9 @@ public func getStreamConfigurationStreamName(_ config: OpaquePointer, _ buffer: 
     }
 #else
     @_cdecl("sc_stream_configuration_get_capture_dynamic_range")
-    public func getStreamConfigurationCaptureDynamicRange(_: OpaquePointer, _: UnsafeMutablePointer<Int32>) -> Bool {
-        false // Not available on macOS < 15.0
+    public func getStreamConfigurationCaptureDynamicRange(_: OpaquePointer, _ outRange: UnsafeMutablePointer<Int32>) -> Bool {
+        outRange.pointee = 0
+        return false // Not available on macOS < 15.0
     }
 #endif
 

@@ -1212,3 +1212,86 @@ extern "C" {
     /// Get the default audio input device name into buffer
     pub fn sc_audio_get_default_input_device_name(buffer: *mut i8, buffer_size: isize) -> bool;
 }
+
+#[cfg(all(test, not(feature = "macos_26_0")))]
+mod fallback_tests {
+    use std::ffi::c_void;
+    use std::ptr::NonNull;
+
+    #[test]
+    #[cfg(not(feature = "macos_14_0"))]
+    fn shareable_content_info_style_stub_reports_unsupported() {
+        let info = NonNull::<c_void>::dangling().as_ptr().cast_const();
+        let mut style = -1_i32;
+        assert!(!unsafe { super::sc_shareable_content_info_get_style(info, &raw mut style) });
+        assert_eq!(style, 0);
+    }
+
+    #[test]
+    #[cfg(not(feature = "macos_14_0"))]
+    fn stream_configuration_reports_unsupported_without_the_macos_14_sdk() {
+        let config = unsafe { super::sc_stream_configuration_create() };
+        assert!(!config.is_null());
+        let mut raw = -1_i32;
+        unsafe {
+            assert!(!super::sc_stream_configuration_set_should_be_opaque(
+                config, true
+            ));
+            assert!(!super::sc_stream_configuration_set_stream_name(
+                config,
+                std::ptr::null()
+            ));
+            assert!(!super::sc_stream_configuration_set_capture_resolution_type(
+                config, 1
+            ));
+            assert!(!super::sc_stream_configuration_get_capture_resolution_type(
+                config,
+                &raw mut raw,
+            ));
+            super::sc_stream_configuration_release(config);
+        }
+    }
+
+    #[test]
+    #[cfg(not(feature = "macos_15_0"))]
+    fn preset_and_dynamic_range_stubs_report_unsupported() {
+        assert!(unsafe { super::sc_stream_configuration_create_with_preset(0) }.is_null());
+        let config = unsafe { super::sc_stream_configuration_create() };
+        let mut range = -1_i32;
+        unsafe {
+            assert!(!super::sc_stream_configuration_set_capture_dynamic_range(
+                config, 1
+            ));
+            assert!(!super::sc_stream_configuration_get_capture_dynamic_range(
+                config,
+                &raw mut range,
+            ));
+            super::sc_stream_configuration_release(config);
+        }
+        assert_eq!(range, 0);
+    }
+
+    #[test]
+    fn screenshot_configuration_stubs_report_unsupported() {
+        let config = NonNull::<c_void>::dangling().as_ptr().cast_const();
+        let mut intent = -1_i32;
+        let mut range = -1_i32;
+        unsafe {
+            assert!(!super::sc_screenshot_configuration_set_display_intent(
+                config, 0
+            ));
+            assert!(!super::sc_screenshot_configuration_set_dynamic_range(
+                config, 0
+            ));
+            assert!(!super::sc_screenshot_configuration_get_display_intent(
+                config,
+                &raw mut intent,
+            ));
+            assert!(!super::sc_screenshot_configuration_get_dynamic_range(
+                config,
+                &raw mut range,
+            ));
+        }
+        assert_eq!((intent, range), (0, 0));
+    }
+}

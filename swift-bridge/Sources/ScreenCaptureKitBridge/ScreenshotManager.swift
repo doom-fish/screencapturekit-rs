@@ -617,10 +617,10 @@ import UniformTypeIdentifiers
     public func setScreenshotConfigurationIncludeChildWindows(_: OpaquePointer, _: Bool) {}
 
     @_cdecl("sc_screenshot_configuration_set_display_intent")
-    public func setScreenshotConfigurationDisplayIntent(_: OpaquePointer, _: Int32) {}
+    public func setScreenshotConfigurationDisplayIntent(_: OpaquePointer, _: Int32) -> Bool { false }
 
     @_cdecl("sc_screenshot_configuration_set_dynamic_range")
-    public func setScreenshotConfigurationDynamicRange(_: OpaquePointer, _: Int32) {}
+    public func setScreenshotConfigurationDynamicRange(_: OpaquePointer, _: Int32) -> Bool { false }
 
     @_cdecl("sc_screenshot_configuration_set_file_url")
     public func setScreenshotConfigurationFileURL(_: OpaquePointer, _: UnsafePointer<CChar>) {}
@@ -672,10 +672,22 @@ import UniformTypeIdentifiers
     public func getScreenshotConfigurationIncludeChildWindows(_: OpaquePointer) -> Bool { false }
 
     @_cdecl("sc_screenshot_configuration_get_display_intent")
-    public func getScreenshotConfigurationDisplayIntent(_: OpaquePointer) -> Int32 { -1 }
+    public func getScreenshotConfigurationDisplayIntent(
+        _: OpaquePointer,
+        _ outIntent: UnsafeMutablePointer<Int32>
+    ) -> Bool {
+        outIntent.pointee = 0
+        return false
+    }
 
     @_cdecl("sc_screenshot_configuration_get_dynamic_range")
-    public func getScreenshotConfigurationDynamicRange(_: OpaquePointer) -> Int32 { -1 }
+    public func getScreenshotConfigurationDynamicRange(
+        _: OpaquePointer,
+        _ outRange: UnsafeMutablePointer<Int32>
+    ) -> Bool {
+        outRange.pointee = 0
+        return false
+    }
 
     @_cdecl("sc_screenshot_configuration_get_file_path_owned")
     public func getScreenshotConfigurationFilePathOwned(_: OpaquePointer) -> UnsafeMutablePointer<CChar>? { nil }

@@ -477,7 +477,10 @@ public func releaseShareableContentInfo(_ info: OpaquePointer) {
     public func getShareableContentInfoForFilter(_: OpaquePointer) -> OpaquePointer? { nil }
 
     @_cdecl("sc_shareable_content_info_get_style")
-    public func getShareableContentInfoStyle(_: OpaquePointer) -> Int32 { 0 }
+    public func getShareableContentInfoStyle(_: OpaquePointer, _ outStyle: UnsafeMutablePointer<Int32>) -> Bool {
+        outStyle.pointee = 0
+        return false
+    }
 
     @_cdecl("sc_shareable_content_info_get_point_pixel_scale")
     public func getShareableContentInfoPointPixelScale(_: OpaquePointer) -> Float { 1.0 }
