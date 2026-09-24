@@ -21,7 +21,10 @@ private func appendUTF8(
 ) -> UInt32 {
     let bytes = Array(string.utf8)
     let len = bytes.count
-    guard Int(offset) + len <= capacity else {
+    guard Int(offset) + len <= capacity,
+          let len32 = UInt32(exactly: len),
+          case (let end, false) = offset.addingReportingOverflow(len32)
+    else {
         return 0
     }
     bytes.withUnsafeBufferPointer { src in
@@ -33,8 +36,8 @@ private func appendUTF8(
                 }
         }
     }
-    offset += UInt32(len)
-    return UInt32(len)
+    offset = end
+    return len32
 }
 
 /// Gets shareable content asynchronously

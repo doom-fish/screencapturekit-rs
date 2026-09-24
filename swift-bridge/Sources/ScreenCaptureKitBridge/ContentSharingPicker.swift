@@ -137,7 +137,7 @@ public func getContentSharingPickerExcludedWindowIDsCount(_ config: OpaquePointe
 public func getContentSharingPickerExcludedWindowIDAt(_ config: OpaquePointer, _ index: Int) -> UInt32 {
     let box: Box<SCContentSharingPickerConfiguration> = unretained(config)
     guard index >= 0, index < box.value.excludedWindowIDs.count else { return 0 }
-    return UInt32(box.value.excludedWindowIDs[index])
+    return UInt32(exactly: box.value.excludedWindowIDs[index]) ?? 0
 }
 
 @available(macOS 14.0, *)
