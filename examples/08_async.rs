@@ -314,7 +314,7 @@ async fn async_content_picker() -> Result<(), Box<dyn std::error::Error>> {
     println!("   The picker UI will appear - select content or cancel.");
     println!("   This is truly async - the executor is NOT blocked while waiting.\n");
 
-    let config = SCContentSharingPickerConfiguration::new();
+    let config = SCContentSharingPickerConfiguration::new()?;
 
     // Async picker - doesn't block the executor thread
     match AsyncSCContentSharingPicker::show(&config).await {

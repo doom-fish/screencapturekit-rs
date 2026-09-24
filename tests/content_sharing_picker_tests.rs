@@ -8,16 +8,9 @@ use screencapturekit::content_sharing_picker::SCContentSharingPickerConfiguratio
 
 #[test]
 fn test_picker_configuration_new() {
-    let config = SCContentSharingPickerConfiguration::new();
+    let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     assert!(!config.as_ptr().is_null());
     println!("✓ Picker configuration created");
-}
-
-#[test]
-fn test_picker_configuration_default() {
-    let config = SCContentSharingPickerConfiguration::default();
-    assert!(!config.as_ptr().is_null());
-    println!("✓ Picker default configuration created");
 }
 
 /// Regression test for Gap 2 of the SDK gap analysis: the bridge
@@ -32,7 +25,8 @@ fn test_picker_configuration_default() {
 /// (Drop must not crash; Clone must produce a distinct heap-owned copy).
 #[test]
 fn test_picker_configuration_default_from_system() {
-    let config = SCContentSharingPickerConfiguration::default_from_system();
+    let config = SCContentSharingPickerConfiguration::default_from_system()
+        .expect("read the default picker configuration");
     assert!(
         !config.as_ptr().is_null(),
         "default_from_system() returned a null configuration pointer"
@@ -52,7 +46,7 @@ fn test_picker_configuration_default_from_system() {
 
 #[test]
 fn test_picker_configuration_clone() {
-    let config1 = SCContentSharingPickerConfiguration::new();
+    let config1 = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     let config2 = config1.clone();
 
     assert!(!config1.as_ptr().is_null());
@@ -76,7 +70,8 @@ fn test_picker_configuration_send_sync() {
 fn test_picker_configuration_lifecycle() {
     // Test creating and dropping multiple configurations
     for i in 0..3 {
-        let config = SCContentSharingPickerConfiguration::new();
+        let config =
+            SCContentSharingPickerConfiguration::new().expect("create picker configuration");
         assert!(!config.as_ptr().is_null());
         println!("✓ Configuration {i} created");
         drop(config);
@@ -88,7 +83,8 @@ fn test_picker_configuration_lifecycle() {
 fn test_picker_configuration_modes() {
     use screencapturekit::content_sharing_picker::SCContentSharingPickerMode;
 
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     let modes = [
         SCContentSharingPickerMode::SingleWindow,
         SCContentSharingPickerMode::SingleDisplay,
@@ -350,7 +346,8 @@ fn set_default_configuration_is_reflected_by_default_configuration() {
     if !SCContentSharingPicker::is_available() {
         return;
     }
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     config.set_allows_changing_selected_content(true);
     config.set_excluded_bundle_ids(&["com.example.picker-test"]);
 
@@ -360,7 +357,8 @@ fn set_default_configuration_is_reflected_by_default_configuration() {
         Err(error) => panic!("unexpected configuration error: {error}"),
     }
 
-    let read_back = SCContentSharingPicker::default_configuration();
+    let read_back = SCContentSharingPicker::default_configuration()
+        .expect("read the default picker configuration");
     assert!(read_back.allows_changing_selected_content());
     assert_eq!(read_back.excluded_bundle_ids(), ["com.example.picker-test"]);
 }
@@ -374,7 +372,7 @@ fn configuration_setter_rejects_worker_thread() {
     if !SCContentSharingPicker::is_available() {
         return;
     }
-    let config = SCContentSharingPickerConfiguration::new();
+    let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     let result =
         std::thread::spawn(move || SCContentSharingPicker::set_default_configuration(&config))
             .join()
@@ -410,7 +408,8 @@ fn configuration_setters_never_dispatch_source_contract() {
 fn excluded_bundle_ids_round_trip() {
     use screencapturekit::content_sharing_picker::SCContentSharingPickerConfiguration;
 
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     let ids = ["com.apple.dock", "com.apple.finder"];
     config.set_excluded_bundle_ids(&ids);
 
@@ -422,7 +421,8 @@ fn excluded_bundle_ids_round_trip() {
 fn excluded_window_ids_round_trip() {
     use screencapturekit::content_sharing_picker::SCContentSharingPickerConfiguration;
 
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     config.set_excluded_window_ids(&[7, 42, 1009]);
     assert_eq!(config.excluded_window_ids(), vec![7, 42, 1009]);
 }
@@ -463,7 +463,8 @@ fn deactivate_clears_the_active_flag() {
 fn clone_does_not_alias_the_original() {
     use screencapturekit::content_sharing_picker::SCContentSharingPickerConfiguration;
 
-    let mut original = SCContentSharingPickerConfiguration::new();
+    let mut original =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     original.set_excluded_bundle_ids(&["com.example.original"]);
     original.set_excluded_window_ids(&[1]);
     original.set_allows_changing_selected_content(false);
@@ -488,7 +489,8 @@ fn clone_carries_the_source_values_forward() {
         SCContentSharingPickerConfiguration, SCContentSharingPickerMode,
     };
 
-    let mut original = SCContentSharingPickerConfiguration::new();
+    let mut original =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     let modes = [
         SCContentSharingPickerMode::SingleDisplay,
         SCContentSharingPickerMode::MultipleWindows,
@@ -513,7 +515,8 @@ fn clone_survives_the_original_being_dropped() {
     use screencapturekit::content_sharing_picker::SCContentSharingPickerConfiguration;
 
     let copy = {
-        let mut original = SCContentSharingPickerConfiguration::new();
+        let mut original =
+            SCContentSharingPickerConfiguration::new().expect("create picker configuration");
         original.set_excluded_bundle_ids(&["com.example.scoped"]);
         original.clone()
     };
@@ -527,7 +530,8 @@ fn clone_survives_the_original_being_dropped() {
 fn clones_are_independently_mutable_across_threads() {
     use screencapturekit::content_sharing_picker::SCContentSharingPickerConfiguration;
 
-    let mut template = SCContentSharingPickerConfiguration::new();
+    let mut template =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     template.set_excluded_window_ids(&[0]);
 
     let handles: Vec<_> = (1..=4u32)

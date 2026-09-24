@@ -1026,6 +1026,7 @@ mod recording_tests {
         let output_path = temp_dir.join("test_recording.mov");
 
         let config = SCRecordingOutputConfiguration::new()
+            .expect("create recording configuration")
             .with_output_url(&output_path)
             .with_output_file_type(SCRecordingOutputFileType::MOV)
             .with_video_codec(SCRecordingOutputCodec::H264);
@@ -1068,14 +1069,16 @@ mod content_picker_tests {
 
     #[test]
     fn test_picker_configuration_new() {
-        let config = SCContentSharingPickerConfiguration::new();
+        let config =
+            SCContentSharingPickerConfiguration::new().expect("create picker configuration");
         // Default should allow changing content
         let _ = config;
     }
 
     #[test]
     fn test_picker_configuration_allows_changing_content() {
-        let mut config = SCContentSharingPickerConfiguration::new();
+        let mut config =
+            SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 
         config.set_allows_changing_selected_content(true);
         assert!(config.allows_changing_selected_content());
@@ -1086,7 +1089,8 @@ mod content_picker_tests {
 
     #[test]
     fn test_picker_configuration_allowed_modes() {
-        let mut config = SCContentSharingPickerConfiguration::new();
+        let mut config =
+            SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 
         config.set_allowed_picker_modes(&[
             SCContentSharingPickerMode::SingleWindow,
@@ -1099,7 +1103,8 @@ mod content_picker_tests {
 
     #[test]
     fn test_picker_configuration_excluded_bundle_ids() {
-        let mut config = SCContentSharingPickerConfiguration::new();
+        let mut config =
+            SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 
         config.set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"]);
         let excluded = config.excluded_bundle_ids();
@@ -1110,7 +1115,8 @@ mod content_picker_tests {
 
     #[test]
     fn test_picker_configuration_excluded_window_ids() {
-        let mut config = SCContentSharingPickerConfiguration::new();
+        let mut config =
+            SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 
         config.set_excluded_window_ids(&[123, 456, 789]);
         let excluded = config.excluded_window_ids();

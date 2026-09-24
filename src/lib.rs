@@ -517,7 +517,7 @@
 //!
 //! // Configure recording output
 //! let output_path = PathBuf::from("/tmp/screen_recording.mp4");
-//! let recording_config = SCRecordingOutputConfiguration::new()
+//! let recording_config = SCRecordingOutputConfiguration::new()?
 //!     .with_output_url(&output_path)
 //!     .with_video_codec(SCRecordingOutputCodec::H264)
 //!     .with_output_file_type(SCRecordingOutputFileType::MP4);

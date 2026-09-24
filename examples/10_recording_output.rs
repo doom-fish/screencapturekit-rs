@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create output configuration using builder pattern
     let output_path = PathBuf::from("/tmp/screen_recording.mp4");
-    let config = SCRecordingOutputConfiguration::new()
+    let config = SCRecordingOutputConfiguration::new()?
         .with_output_url(&output_path)
         .with_video_codec(SCRecordingOutputCodec::H264)
         .with_output_file_type(SCRecordingOutputFileType::MP4);
@@ -92,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test with HEVC and MOV
     println!("\n🔄 Testing HEVC + MOV configuration...");
-    let hevc_config = SCRecordingOutputConfiguration::new()
+    let hevc_config = SCRecordingOutputConfiguration::new()?
         .with_video_codec(SCRecordingOutputCodec::HEVC)
         .with_output_file_type(SCRecordingOutputFileType::MOV);
     println!("   Codec: {:?}", hevc_config.video_codec());

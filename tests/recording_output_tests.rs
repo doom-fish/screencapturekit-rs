@@ -13,14 +13,14 @@ static LIVE_CAPTURE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
 fn test_recording_output_configuration_new() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     println!("✓ Recording output configuration created");
     drop(config);
 }
 
 #[test]
 fn test_recording_output_configuration_clone() {
-    let config1 = SCRecordingOutputConfiguration::new();
+    let config1 = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let config2 = config1.clone();
 
     drop(config1);
@@ -42,7 +42,7 @@ fn test_recording_output_configuration_send_sync() {
 
 #[test]
 fn test_recording_output_new() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
 
     let result = SCRecordingOutput::new(&config);
 
@@ -61,7 +61,7 @@ fn test_recording_output_new() {
 
 #[test]
 fn test_recording_output_clone() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
 
     if let Some(output1) = SCRecordingOutput::new(&config) {
         let output2 = output1.clone();
@@ -88,7 +88,7 @@ fn test_recording_output_send_sync() {
 
 #[test]
 fn test_recording_output_multiple_instances() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
 
     let output1 = SCRecordingOutput::new(&config);
     let output2 = SCRecordingOutput::new(&config);
@@ -121,6 +121,7 @@ fn test_recording_configuration() {
 
     let path = PathBuf::from("test_recording.mp4");
     let config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
         .with_output_url(&path)
         .with_video_codec(SCRecordingOutputCodec::H264);
 
@@ -139,13 +140,15 @@ fn test_recording_output_video_codec_get_set() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
 
     // Test H264
-    let config =
-        SCRecordingOutputConfiguration::new().with_video_codec(SCRecordingOutputCodec::H264);
+    let config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
+        .with_video_codec(SCRecordingOutputCodec::H264);
     assert_eq!(config.video_codec(), SCRecordingOutputCodec::H264);
 
     // Test HEVC
-    let config =
-        SCRecordingOutputConfiguration::new().with_video_codec(SCRecordingOutputCodec::HEVC);
+    let config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
+        .with_video_codec(SCRecordingOutputCodec::HEVC);
     assert_eq!(config.video_codec(), SCRecordingOutputCodec::HEVC);
 }
 
@@ -154,19 +157,21 @@ fn test_recording_output_file_type() {
     use screencapturekit::recording_output::SCRecordingOutputFileType;
 
     // Test MP4
-    let config =
-        SCRecordingOutputConfiguration::new().with_output_file_type(SCRecordingOutputFileType::MP4);
+    let config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
+        .with_output_file_type(SCRecordingOutputFileType::MP4);
     assert_eq!(config.output_file_type(), SCRecordingOutputFileType::MP4);
 
     // Test MOV
-    let config =
-        SCRecordingOutputConfiguration::new().with_output_file_type(SCRecordingOutputFileType::MOV);
+    let config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
+        .with_output_file_type(SCRecordingOutputFileType::MOV);
     assert_eq!(config.output_file_type(), SCRecordingOutputFileType::MOV);
 }
 
 #[test]
 fn test_recording_output_available_codecs_count() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let count = config.available_video_codecs_count();
     // Should have at least one codec available
     println!("Available video codecs: {count}");
@@ -174,7 +179,7 @@ fn test_recording_output_available_codecs_count() {
 
 #[test]
 fn test_recording_output_available_file_types_count() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let count = config.available_output_file_types_count();
     // Should have at least one file type available
     println!("Available file types: {count}");
@@ -182,7 +187,7 @@ fn test_recording_output_available_file_types_count() {
 
 #[test]
 fn test_recording_output_recorded_duration() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
 
     if let Some(output) = SCRecordingOutput::new(&config) {
         let duration = output.recorded_duration();
@@ -196,7 +201,7 @@ fn test_recording_output_recorded_duration() {
 
 #[test]
 fn test_recording_output_recorded_file_size() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
 
     if let Some(output) = SCRecordingOutput::new(&config) {
         let size = output.recorded_file_size();
@@ -265,8 +270,9 @@ fn test_recording_output_file_type_hash() {
 fn test_recording_output_configuration_debug() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
 
-    let config =
-        SCRecordingOutputConfiguration::new().with_video_codec(SCRecordingOutputCodec::HEVC);
+    let config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
+        .with_video_codec(SCRecordingOutputCodec::HEVC);
 
     let debug_str = format!("{config:?}");
     assert!(debug_str.contains("SCRecordingOutputConfiguration"));
@@ -277,7 +283,7 @@ fn test_recording_output_configuration_debug() {
 fn test_recording_output_available_video_codecs() {
     use screencapturekit::recording_output::SCRecordingOutputCodec;
 
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let codecs = config.available_video_codecs();
 
     println!("Available video codecs: {codecs:?}");
@@ -294,7 +300,7 @@ fn test_recording_output_available_video_codecs() {
 fn test_recording_output_available_file_types() {
     use screencapturekit::recording_output::SCRecordingOutputFileType;
 
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let file_types = config.available_output_file_types();
 
     println!("Available file types: {file_types:?}");
@@ -309,7 +315,7 @@ fn test_recording_output_available_file_types() {
 
 #[test]
 fn test_recording_output_codec_array_matches_count() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let count = config.available_video_codecs_count();
     let codecs = config.available_video_codecs();
 
@@ -319,7 +325,7 @@ fn test_recording_output_codec_array_matches_count() {
 
 #[test]
 fn test_recording_output_file_type_array_matches_count() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let count = config.available_output_file_types_count();
     let file_types = config.available_output_file_types();
 
@@ -589,7 +595,9 @@ fn test_recording_output_with_delegate() {
     use std::path::PathBuf;
 
     let path = PathBuf::from("/tmp/test_delegate_recording.mp4");
-    let config = SCRecordingOutputConfiguration::new().with_output_url(&path);
+    let config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
+        .with_output_url(&path);
 
     let callbacks = RecordingCallbacks::new()
         .on_start(|| println!("Recording started"))
@@ -621,6 +629,7 @@ fn test_recording_configuration_clone_is_independent() {
     use std::path::Path;
 
     let original = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
         .with_output_url(Path::new("/tmp/original.mov"))
         .with_video_codec(SCRecordingOutputCodec::H264)
         .with_output_file_type(SCRecordingOutputFileType::MOV);
@@ -654,7 +663,7 @@ fn test_recording_configuration_clone_is_independent() {
 /// with the count and index-based lookups pointed at the wrong entry.
 #[test]
 fn test_available_lists_match_their_counts() {
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
 
     assert_eq!(
         config.available_video_codecs().len(),
@@ -682,6 +691,7 @@ fn test_codec_and_file_type_are_open() {
     assert_eq!(future_file_type.extension(), None);
 
     let config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
         .with_video_codec(future_codec.clone())
         .with_output_file_type(future_file_type.clone());
     assert_eq!(config.video_codec().identifier(), future_codec.identifier());
@@ -716,7 +726,7 @@ fn test_recording_identifiers_reject_interior_nul() {
 fn test_output_url_rejects_interior_nul() {
     use std::path::Path;
 
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let result = config.try_with_output_url(Path::new("/tmp/bad\0name.mov"));
     assert!(result.is_err(), "interior NUL must be rejected");
 }
@@ -730,6 +740,7 @@ fn test_output_url_rejects_non_utf8_path() {
     ));
     assert!(
         SCRecordingOutputConfiguration::new()
+            .expect("create recording configuration")
             .try_with_output_url(&path)
             .is_err(),
         "Foundation file URLs cannot represent non-UTF-8 paths faithfully"
@@ -748,7 +759,7 @@ fn test_delegate_survives_clone_drop() {
     let starts = Arc::new(AtomicUsize::new(0));
     let observed = Arc::clone(&starts);
 
-    let config = SCRecordingOutputConfiguration::new();
+    let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
     let delegate = RecordingCallbacks::new().on_start(move || {
         observed.fetch_add(1, Ordering::SeqCst);
     });
@@ -802,7 +813,9 @@ fn test_remove_recording_then_stop_completes() {
     let stream_config = SCStreamConfiguration::new()
         .with_width(320)
         .with_height(240);
-    let recording_config = SCRecordingOutputConfiguration::new().with_output_url(&output_path);
+    let recording_config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
+        .with_output_url(&output_path);
     let started_recording = Arc::new(AtomicBool::new(false));
     let started_observed = Arc::clone(&started_recording);
     let finished = Arc::new(AtomicBool::new(false));
@@ -909,7 +922,9 @@ fn test_remove_recording_racing_start_still_waits_for_terminal() {
     let stream_config = SCStreamConfiguration::new()
         .with_width(320)
         .with_height(240);
-    let recording_config = SCRecordingOutputConfiguration::new().with_output_url(&output_path);
+    let recording_config = SCRecordingOutputConfiguration::new()
+        .expect("create recording configuration")
+        .with_output_url(&output_path);
     let started = Arc::new(AtomicBool::new(false));
     let started_observed = Arc::clone(&started);
     let terminal = Arc::new(AtomicBool::new(false));

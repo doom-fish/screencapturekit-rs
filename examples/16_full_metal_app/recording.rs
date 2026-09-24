@@ -93,7 +93,9 @@ impl RecordingState {
         let path = format!("/tmp/recording_{}.{}", timestamp, config.file_extension());
 
         let rec_config = config.apply_to(
-            SCRecordingOutputConfiguration::new().with_output_url(std::path::Path::new(&path)),
+            SCRecordingOutputConfiguration::new()
+                .map_err(|e| e.to_string())?
+                .with_output_url(std::path::Path::new(&path)),
         );
 
         // Reset finish signal

@@ -11,7 +11,7 @@ use screencapturekit::content_sharing_picker::{
 #[test]
 fn test_picker_configuration_creation() {
     // Test basic picker configuration creation
-    let config = SCContentSharingPickerConfiguration::new();
+    let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     assert!(
         !config.as_ptr().is_null(),
         "Configuration pointer should not be null"
@@ -22,7 +22,8 @@ fn test_picker_configuration_creation() {
 #[test]
 fn test_picker_configuration_modes() {
     // Test setting different picker modes
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 
     let modes = vec![
         vec![SCContentSharingPickerMode::SingleWindow],
@@ -63,7 +64,8 @@ fn test_picker_mode_values() {
 #[test]
 fn test_picker_configuration_reuse() {
     // Test reusing the same configuration
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 
     // Set modes multiple times
     config.set_allowed_picker_modes(&[SCContentSharingPickerMode::SingleWindow]);
@@ -80,7 +82,7 @@ fn test_picker_configuration_reuse() {
 fn test_multiple_picker_configurations() {
     // Test creating multiple configurations
     let configs: Vec<_> = (0..5)
-        .map(|_| SCContentSharingPickerConfiguration::new())
+        .map(|_| SCContentSharingPickerConfiguration::new().expect("create picker configuration"))
         .collect();
 
     // Verify all have valid pointers
@@ -98,7 +100,8 @@ fn test_multiple_picker_configurations() {
 fn test_picker_configuration_drop() {
     // Test that configurations are properly cleaned up
     {
-        let _config = SCContentSharingPickerConfiguration::new();
+        let _config =
+            SCContentSharingPickerConfiguration::new().expect("create picker configuration");
         println!("Configuration created in scope");
     }
     println!("✅ Configuration dropped successfully");
@@ -107,7 +110,8 @@ fn test_picker_configuration_drop() {
 #[test]
 fn test_empty_modes_array() {
     // Test setting empty modes array
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     config.set_allowed_picker_modes(&[]);
     println!("✅ Empty modes array handled");
 }

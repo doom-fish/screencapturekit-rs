@@ -1728,7 +1728,7 @@ impl Future for AsyncPickerFilterFuture {
 /// use screencapturekit::content_sharing_picker::*;
 ///
 /// async fn pick_content() {
-///     let config = SCContentSharingPickerConfiguration::new();
+///     let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 ///     match AsyncSCContentSharingPicker::show(&config).await {
 ///         SCPickerOutcome::Picked(result) => {
 ///             let (width, height) = result.pixel_size();
@@ -1758,7 +1758,7 @@ impl AsyncSCContentSharingPicker {
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// async fn example() {
-    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     ///     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
     ///         let (width, height) = result.pixel_size();
     ///         let filter = result.filter();
@@ -1792,7 +1792,7 @@ impl AsyncSCContentSharingPicker {
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// async fn example() {
-    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     ///     if let SCPickerFilterOutcome::Filter(filter) = AsyncSCContentSharingPicker::show_filter(&config).await {
     ///         // Use filter with SCStream
     ///     }
@@ -1838,7 +1838,7 @@ impl AsyncSCContentSharingPicker {
     ///     let stream = SCStream::new(&filter, &stream_config).ok()?;
     ///
     ///     // When stream is active and user wants to change source
-    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     let config = SCContentSharingPickerConfiguration::new().ok()?;
     ///     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show_for_stream(&config, &stream).await {
     ///         // Use result.filter() with stream.update_content_filter()
     ///         let _ = result.filter();
@@ -2070,7 +2070,7 @@ impl Drop for RecordingEventStream<'_> {
 ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build().ok()?;
 ///     let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 ///
-///     let rec_config = SCRecordingOutputConfiguration::new()
+///     let rec_config = SCRecordingOutputConfiguration::new().ok()?
 ///         .with_output_url(Path::new("/tmp/recording.mp4"));
 ///
 ///     let (recording, events) = AsyncSCRecordingOutput::new(&rec_config)?;

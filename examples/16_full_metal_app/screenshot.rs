@@ -24,6 +24,7 @@ pub fn take_screenshot(
 
         // Use the new macOS 26.0 API with native file saving
         let config = SCScreenshotConfiguration::new()
+            .expect("create screenshot configuration")
             .with_width(capture_size.0 as usize)
             .with_height(capture_size.1 as usize)
             .with_shows_cursor(stream_config.shows_cursor())

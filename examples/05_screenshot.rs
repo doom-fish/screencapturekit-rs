@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("\n🌈 Advanced HDR Screenshot (macOS 26.0+)...");
 
         // Create advanced configuration with HDR support
-        let screenshot_config = SCScreenshotConfiguration::new()
+        let screenshot_config = SCScreenshotConfiguration::new()?
             .with_width(1920)
             .with_height(1080)
             .with_shows_cursor(true)
@@ -139,7 +139,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Save directly to file
         println!("\n💾 Screenshot with file output (macOS 26.0+)...");
-        let file_config = SCScreenshotConfiguration::new()
+        let file_config = SCScreenshotConfiguration::new()?
             .with_width(1920)
             .with_height(1080)
             .with_file_path("screenshot_direct.png");

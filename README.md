@@ -279,7 +279,7 @@ let pixels = img.bgra_data()?;            // native BGRA — skips R↔B swap
 use screencapturekit::content_sharing_picker::*;
 use screencapturekit::prelude::*;
 
-let config = SCContentSharingPickerConfiguration::new();
+let config = SCContentSharingPickerConfiguration::new()?;
 SCContentSharingPicker::show(&config, |outcome| match outcome {
     SCPickerOutcome::Picked(result) => {
         let (w, h) = result.pixel_size();

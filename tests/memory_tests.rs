@@ -393,7 +393,8 @@ mod macos_14_tests {
         };
 
         for _ in 0..50 {
-            let mut config = SCContentSharingPickerConfiguration::new();
+            let mut config =
+                SCContentSharingPickerConfiguration::new().expect("create picker configuration");
             config.set_allowed_picker_modes(&[
                 SCContentSharingPickerMode::SingleWindow,
                 SCContentSharingPickerMode::SingleDisplay,
@@ -417,6 +418,7 @@ mod macos_15_tests {
 
         for _ in 0..50 {
             let config = SCRecordingOutputConfiguration::new()
+                .expect("create recording configuration")
                 .with_video_codec(SCRecordingOutputCodec::H264)
                 .with_output_file_type(SCRecordingOutputFileType::MP4);
 

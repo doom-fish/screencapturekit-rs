@@ -19,7 +19,8 @@ fn main() {
     println!("=== Content Sharing Picker Example (macOS 14.0+) ===\n");
 
     // Create picker configuration
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 
     // Set allowed picker modes
     config.set_allowed_picker_modes(&[

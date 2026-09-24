@@ -681,7 +681,7 @@ impl SCScreenshotManager {
     ///     let displays = content.displays();
     ///     let display = displays.first()?;
     ///     let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build().ok()?;
-    ///     let config = SCScreenshotConfiguration::new()
+    ///     let config = SCScreenshotConfiguration::new().ok()?
     ///         .with_width(1920)
     ///         .with_height(1080)
     ///         .with_dynamic_range(SCScreenshotDynamicRange::BothSDRAndHDR);
@@ -853,7 +853,7 @@ impl std::error::Error for InvalidScreenshotPath {}
 /// ```no_run
 /// use screencapturekit::screenshot_manager::{SCScreenshotConfiguration, SCScreenshotDynamicRange};
 ///
-/// let config = SCScreenshotConfiguration::new()
+/// let config = SCScreenshotConfiguration::new().expect("create screenshot configuration")
 ///     .with_width(1920)
 ///     .with_height(1080)
 ///     .with_shows_cursor(true)
@@ -868,13 +868,18 @@ pub struct SCScreenshotConfiguration {
 impl SCScreenshotConfiguration {
     /// Create a new screenshot configuration
     ///
-    /// # Panics
-    /// Panics if the configuration cannot be created (requires macOS 26.0+)
-    #[must_use]
-    pub fn new() -> Self {
+    /// # Errors
+    /// Returns [`SCError::FeatureNotAvailable`] if the configuration cannot be
+    /// created (requires macOS 26.0+)
+    pub fn new() -> Result<Self, SCError> {
         let ptr = unsafe { crate::ffi::sc_screenshot_configuration_create() };
-        assert!(!ptr.is_null(), "Failed to create SCScreenshotConfiguration");
-        Self { ptr }
+        if ptr.is_null() {
+            return Err(SCError::feature_not_available(
+                "SCScreenshotConfiguration",
+                "26.0",
+            ));
+        }
+        Ok(Self { ptr })
     }
 
     /// Set the output width in pixels
@@ -1229,13 +1234,6 @@ impl std::fmt::Debug for SCScreenshotConfiguration {
         f.debug_struct("SCScreenshotConfiguration")
             .field("content_type", &self.content_type())
             .finish_non_exhaustive()
-    }
-}
-
-#[cfg(feature = "macos_26_0")]
-impl Default for SCScreenshotConfiguration {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

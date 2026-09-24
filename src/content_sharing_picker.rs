@@ -27,7 +27,7 @@
 //! use screencapturekit::content_sharing_picker::*;
 //! use screencapturekit::prelude::*;
 //!
-//! let config = SCContentSharingPickerConfiguration::new();
+//! let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 //! SCContentSharingPicker::show(&config, |outcome| {
 //!     match outcome {
 //!         SCPickerOutcome::Picked(result) => {
@@ -48,7 +48,7 @@
 //! use screencapturekit::content_sharing_picker::*;
 //!
 //! async fn example() {
-//!     let config = SCContentSharingPickerConfiguration::new();
+//!     let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 //!     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
 //!         let (width, height) = result.pixel_size();
 //!         let filter = result.filter();
@@ -61,13 +61,14 @@
 //! ```no_run
 //! use screencapturekit::content_sharing_picker::*;
 //!
-//! let mut config = SCContentSharingPickerConfiguration::new();
+//! let mut config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 //! // Only allow single display selection
 //! config.set_allowed_picker_modes(&[SCContentSharingPickerMode::SingleDisplay]);
 //! // Exclude specific apps from the picker
 //! config.set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"]);
 //! ```
 
+use crate::error::SCError;
 use crate::stream::content_filter::{SCContentFilter, SCShareableContentStyle};
 pub use crate::stream::StreamIdentity;
 use std::any::Any;
@@ -114,23 +115,22 @@ pub struct SCContentSharingPickerConfiguration {
 }
 
 impl SCContentSharingPickerConfiguration {
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics when run on macOS older than 14.0. Use [`Self::try_new`] when
-    /// runtime availability is not already known.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::try_new().expect("SCContentSharingPicker requires macOS 14.0 or later")
-    }
-
-    /// Create a configuration when the picker is available on this system.
-    #[must_use]
-    pub fn try_new() -> Option<Self> {
+    /// Returns [`SCError::FeatureNotAvailable`] when run on macOS older than
+    /// 14.0.
+    pub fn new() -> Result<Self, SCError> {
         if !SCContentSharingPicker::is_available() {
-            return None;
+            return Err(SCError::feature_not_available(
+                "SCContentSharingPicker",
+                "14.0",
+            ));
         }
         let ptr = unsafe { crate::ffi::sc_content_sharing_picker_configuration_create() };
-        (!ptr.is_null()).then_some(Self { ptr })
+        if ptr.is_null() {
+            return Err(SCError::null_pointer("SCContentSharingPickerConfiguration"));
+        }
+        Ok(Self { ptr })
     }
 
     /// Construct a configuration initialised with the system's default values
@@ -143,9 +143,10 @@ impl SCContentSharingPickerConfiguration {
     /// any system-wide picker preferences the OS applies to fresh
     /// configurations (e.g. allowed picker modes, default exclusion lists).
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics when run on macOS older than 14.0.
+    /// Returns [`SCError::FeatureNotAvailable`] when run on macOS older than
+    /// 14.0.
     ///
     /// # Examples
     ///
@@ -153,17 +154,22 @@ impl SCContentSharingPickerConfiguration {
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// // Start from the system defaults, then override only what you need.
-    /// let mut config = SCContentSharingPickerConfiguration::default_from_system();
+    /// let mut config = SCContentSharingPickerConfiguration::default_from_system()
+    ///     .expect("read the default picker configuration");
     /// config.set_excluded_bundle_ids(&["com.apple.dock"]);
     /// ```
-    #[must_use]
-    pub fn default_from_system() -> Self {
-        assert!(
-            SCContentSharingPicker::is_available(),
-            "SCContentSharingPicker requires macOS 14.0 or later"
-        );
+    pub fn default_from_system() -> Result<Self, SCError> {
+        if !SCContentSharingPicker::is_available() {
+            return Err(SCError::feature_not_available(
+                "SCContentSharingPicker",
+                "14.0",
+            ));
+        }
         let ptr = unsafe { crate::ffi::sc_content_sharing_picker_create_default_configuration() };
-        Self { ptr }
+        if ptr.is_null() {
+            return Err(SCError::null_pointer("SCContentSharingPickerConfiguration"));
+        }
+        Ok(Self { ptr })
     }
 
     /// Set allowed picker modes
@@ -326,12 +332,6 @@ impl SCContentSharingPickerConfiguration {
     }
 }
 
-impl Default for SCContentSharingPickerConfiguration {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 crate::utils::retained::sc_retained!(
     SCContentSharingPickerConfiguration,
     field = ptr,
@@ -472,7 +472,7 @@ impl SCPickerResult {
     /// use screencapturekit::content_sharing_picker::*;
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCContentSharingPickerConfiguration::new();
+    /// let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     /// SCContentSharingPicker::show(&config, |outcome| {
     ///     if let SCPickerOutcome::Picked(result) = outcome {
     ///         let windows = result.windows();
@@ -505,7 +505,7 @@ impl SCPickerResult {
     /// use screencapturekit::content_sharing_picker::*;
     /// use screencapturekit::prelude::*;
     ///
-    /// let config = SCContentSharingPickerConfiguration::new();
+    /// let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     /// SCContentSharingPicker::show(&config, |outcome| {
     ///     if let SCPickerOutcome::Picked(result) = outcome {
     ///         let displays = result.displays();
@@ -553,7 +553,7 @@ impl SCPickerResult {
     /// use screencapturekit::content_sharing_picker::*;
     ///
     /// fn example() {
-    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     ///     SCContentSharingPicker::show(&config, |outcome| {
     ///         if let SCPickerOutcome::Picked(result) = outcome {
     ///             match result.source() {
@@ -651,7 +651,7 @@ impl std::error::Error for SCPickerConfigurationError {}
 /// ```no_run
 /// use screencapturekit::content_sharing_picker::*;
 ///
-/// let config = SCContentSharingPickerConfiguration::new();
+/// let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 /// SCContentSharingPicker::show(&config, |outcome| {
 ///     if let SCPickerOutcome::Picked(result) = outcome {
 ///         let (width, height) = result.pixel_size();
@@ -667,7 +667,7 @@ impl std::error::Error for SCPickerConfigurationError {}
 /// use screencapturekit::content_sharing_picker::*;
 ///
 /// async fn example() {
-///     let config = SCContentSharingPickerConfiguration::new();
+///     let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 ///     if let SCPickerOutcome::Picked(result) = AsyncSCContentSharingPicker::show(&config).await {
 ///         let (width, height) = result.pixel_size();
 ///         let filter = result.filter();
@@ -702,7 +702,7 @@ impl SCContentSharingPicker {
     /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     ///
-    /// let config = SCContentSharingPickerConfiguration::new();
+    /// let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     /// SCContentSharingPicker::show(&config, |outcome| {
     ///     match outcome {
     ///         SCPickerOutcome::Picked(result) => {
@@ -753,7 +753,7 @@ impl SCContentSharingPicker {
     ///     let stream = SCStream::new(&filter, &stream_config).ok()?;
     ///
     ///     // When stream is active and user wants to change source
-    ///     let config = SCContentSharingPickerConfiguration::new();
+    ///     let config = SCContentSharingPickerConfiguration::new().ok()?;
     ///     SCContentSharingPicker::show_for_stream(&config, &stream, |outcome| {
     ///         if let SCPickerOutcome::Picked(result) = outcome {
     ///             // Use result.filter() with stream.update_content_filter()
@@ -790,7 +790,7 @@ impl SCContentSharingPicker {
     /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     ///
-    /// let config = SCContentSharingPickerConfiguration::new();
+    /// let config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     /// SCContentSharingPicker::show_filter(&config, |outcome| {
     ///     if let SCPickerFilterOutcome::Filter(filter) = outcome {
     ///         // Use filter with SCStream
@@ -956,8 +956,12 @@ impl SCContentSharingPicker {
     /// Equivalent to Apple's `SCContentSharingPicker.shared.defaultConfiguration`.
     /// This is the same value returned by
     /// [`SCContentSharingPickerConfiguration::default_from_system`].
-    #[must_use]
-    pub fn default_configuration() -> SCContentSharingPickerConfiguration {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SCError::FeatureNotAvailable`] when run on macOS older than
+    /// 14.0.
+    pub fn default_configuration() -> Result<SCContentSharingPickerConfiguration, SCError> {
         SCContentSharingPickerConfiguration::default_from_system()
     }
 
@@ -973,7 +977,7 @@ impl SCContentSharingPicker {
     /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     ///
-    /// let mut config = SCContentSharingPickerConfiguration::new();
+    /// let mut config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     /// config.set_allows_changing_selected_content(true);
     /// SCContentSharingPicker::set_default_configuration(&config)
     ///     .expect("call from the process main thread");
@@ -1070,7 +1074,7 @@ impl SCContentSharingPicker {
     /// ```no_run
     /// use screencapturekit::content_sharing_picker::*;
     ///
-    /// let mut config = SCContentSharingPickerConfiguration::new();
+    /// let mut config = SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     /// config.set_allows_changing_selected_content(true);
     /// SCContentSharingPicker::set_default_configuration(&config)
     ///     .expect("call from the process main thread");

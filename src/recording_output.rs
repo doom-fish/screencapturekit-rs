@@ -33,7 +33,7 @@
 //!     .with_height(1080);
 //!
 //! // Configure recording output
-//! let rec_config = SCRecordingOutputConfiguration::new()
+//! let rec_config = SCRecordingOutputConfiguration::new()?
 //!     .with_output_url(Path::new("/tmp/recording.mp4"))
 //!     .with_video_codec(SCRecordingOutputCodec::HEVC);
 //!
@@ -60,6 +60,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use crate::cm::CMTime;
+use crate::error::SCError;
 
 /// Global registry for recording delegates - maps unique ID to delegate entry
 static RECORDING_DELEGATE_REGISTRY: Mutex<Option<HashMap<usize, RecordingDelegateEntry>>> =
@@ -283,23 +284,19 @@ impl std::error::Error for InvalidOutputPath {}
 impl SCRecordingOutputConfiguration {
     /// Create a new recording output configuration
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics when run on macOS older than 15.0. Use [`Self::try_new`] when
-    /// runtime availability is not already known.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::try_new().expect("SCRecordingOutput requires macOS 15.0 or later")
-    }
-
-    /// Create a recording configuration when recording output is available.
-    #[must_use]
-    pub fn try_new() -> Option<Self> {
+    /// Returns [`SCError::FeatureNotAvailable`] when run on macOS older than
+    /// 15.0.
+    pub fn new() -> Result<Self, SCError> {
         if !SCRecordingOutput::is_available() {
-            return None;
+            return Err(SCError::feature_not_available("SCRecordingOutput", "15.0"));
         }
         let ptr = unsafe { crate::ffi::sc_recording_output_configuration_create() };
-        (!ptr.is_null()).then_some(Self { ptr })
+        if ptr.is_null() {
+            return Err(SCError::null_pointer("SCRecordingOutputConfiguration"));
+        }
+        Ok(Self { ptr })
     }
 
     /// Set the output file URL.
@@ -492,12 +489,6 @@ impl SCRecordingOutputConfiguration {
     }
 }
 
-impl Default for SCRecordingOutputConfiguration {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 crate::utils::retained::sc_retained!(
     SCRecordingOutputConfiguration,
     field = ptr,
@@ -566,7 +557,7 @@ impl std::fmt::Debug for SCRecordingOutputConfiguration {
 /// };
 /// use std::path::Path;
 ///
-/// let config = SCRecordingOutputConfiguration::new()
+/// let config = SCRecordingOutputConfiguration::new().expect("create recording configuration")
 ///     .with_output_url(Path::new("/tmp/recording.mp4"));
 ///
 /// let delegate = RecordingCallbacks::new()
@@ -598,7 +589,7 @@ pub trait SCRecordingOutputDelegate: Send + Sync + 'static {
 /// };
 /// use std::path::Path;
 ///
-/// let config = SCRecordingOutputConfiguration::new()
+/// let config = SCRecordingOutputConfiguration::new().expect("create recording configuration")
 ///     .with_output_url(Path::new("/tmp/recording.mp4"));
 ///
 /// // Create delegate with all callbacks

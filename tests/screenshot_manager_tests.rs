@@ -315,7 +315,7 @@ fn test_capture_image_in_rect_small_region() {
 fn test_screenshot_configuration_creation() {
     use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
 
-    let config = SCScreenshotConfiguration::new();
+    let config = SCScreenshotConfiguration::new().expect("create screenshot configuration");
     assert!(!config.as_ptr().is_null());
 }
 
@@ -328,6 +328,7 @@ fn test_screenshot_configuration_builder() {
     };
 
     let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
         .with_width(1920)
         .with_height(1080)
         .with_shows_cursor(true)
@@ -350,15 +351,18 @@ fn test_screenshot_configuration_hdr() {
     };
 
     // Test each dynamic range option
-    let sdr_config =
-        SCScreenshotConfiguration::new().with_dynamic_range(SCScreenshotDynamicRange::SDR);
+    let sdr_config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
+        .with_dynamic_range(SCScreenshotDynamicRange::SDR);
     assert!(!sdr_config.as_ptr().is_null());
 
-    let hdr_config =
-        SCScreenshotConfiguration::new().with_dynamic_range(SCScreenshotDynamicRange::HDR);
+    let hdr_config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
+        .with_dynamic_range(SCScreenshotDynamicRange::HDR);
     assert!(!hdr_config.as_ptr().is_null());
 
     let both_config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
         .with_dynamic_range(SCScreenshotDynamicRange::BothSDRAndHDR);
     assert!(!both_config.as_ptr().is_null());
 }
@@ -368,7 +372,9 @@ fn test_screenshot_configuration_hdr() {
 fn test_screenshot_configuration_file_path() {
     use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
 
-    let config = SCScreenshotConfiguration::new().with_file_path("/tmp/test_screenshot.png");
+    let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
+        .with_file_path("/tmp/test_screenshot.png");
     assert!(!config.as_ptr().is_null());
 }
 
@@ -431,6 +437,7 @@ fn test_capture_screenshot_with_configuration() {
         .expect("failed to build content filter");
 
     let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
         .with_width(640)
         .with_height(480)
         .with_shows_cursor(true)
@@ -468,6 +475,7 @@ fn test_capture_screenshot_in_rect_with_configuration() {
 
     let rect = CGRect::new(0.0, 0.0, 640.0, 480.0);
     let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
         .with_width(640)
         .with_height(480);
 
@@ -500,6 +508,7 @@ fn test_screenshot_configuration_scalar_getters_round_trip() {
     };
 
     let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
         .with_width(1920)
         .with_height(1080)
         .with_shows_cursor(true)
@@ -535,6 +544,7 @@ fn test_screenshot_configuration_rect_getters_round_trip() {
     let destination = CGRect::new(0.0, 0.0, 1280.0, 960.0);
 
     let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
         .with_source_rect(source)
         .with_destination_rect(destination);
 
@@ -560,13 +570,17 @@ fn test_screenshot_configuration_file_path_round_trip() {
     let dir = std::env::temp_dir();
     let path: PathBuf = dir.join("screencapturekit round trip.png");
 
-    let config = SCScreenshotConfiguration::new().with_file_path(&path);
+    let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
+        .with_file_path(&path);
     assert_eq!(config.file_path().as_deref(), Some(path.as_path()));
 
     let cleared = config.without_file_path();
     assert_eq!(cleared.file_path(), None);
 
-    let mut config = SCScreenshotConfiguration::new().with_file_path(&path);
+    let mut config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
+        .with_file_path(&path);
     config.clear_file_path();
     assert_eq!(config.file_path(), None);
 }
@@ -580,7 +594,9 @@ fn test_screenshot_configuration_long_file_path_survives() {
     let long_name = "x".repeat(200);
     let path = std::env::temp_dir().join(format!("{long_name}.png"));
 
-    let config = SCScreenshotConfiguration::new().with_file_path(&path);
+    let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
+        .with_file_path(&path);
     assert_eq!(config.file_path().as_deref(), Some(path.as_path()));
 }
 
@@ -589,7 +605,7 @@ fn test_screenshot_configuration_long_file_path_survives() {
 fn test_screenshot_configuration_rejects_interior_nul_path() {
     use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
 
-    let mut config = SCScreenshotConfiguration::new();
+    let mut config = SCScreenshotConfiguration::new().expect("create screenshot configuration");
     assert!(
         config.try_set_file_path("/tmp/bad\0name.png").is_err(),
         "interior NUL path must be rejected"
@@ -606,7 +622,7 @@ fn test_screenshot_configuration_rejects_non_utf8_path() {
     let path = std::path::PathBuf::from(std::ffi::OsString::from_vec(
         b"/tmp/screenshot-\xff.png".to_vec(),
     ));
-    let mut config = SCScreenshotConfiguration::new();
+    let mut config = SCScreenshotConfiguration::new().expect("create screenshot configuration");
     assert!(config.try_set_file_path(path).is_err());
     assert_eq!(config.file_path(), None);
 }
@@ -622,6 +638,8 @@ fn test_screenshot_configuration_content_type_round_trip() {
         "SCScreenshotConfiguration reported no supported content types"
     );
 
-    let config = SCScreenshotConfiguration::new().with_content_type("public.png");
+    let config = SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
+        .with_content_type("public.png");
     assert_eq!(config.content_type().as_deref(), Some("public.png"));
 }

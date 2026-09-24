@@ -39,7 +39,8 @@ const ALL_PICKER_MODES: &[SCContentSharingPickerMode] = &[
 
 /// Create picker configuration with all modes enabled
 fn create_picker_config() -> SCContentSharingPickerConfiguration {
-    let mut config = SCContentSharingPickerConfiguration::new();
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     config.set_allowed_picker_modes(ALL_PICKER_MODES);
     config
 }
