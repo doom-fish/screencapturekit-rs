@@ -2,10 +2,15 @@
 //!
 //! Tests for `SCStream` lifecycle and operations.
 
+mod common;
+
 use screencapturekit::prelude::*;
 
 #[test]
 fn test_stream_creation() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;
@@ -31,6 +36,9 @@ fn test_stream_creation() {
 
 #[test]
 fn test_stream_with_custom_config() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;
@@ -59,6 +67,9 @@ fn test_stream_with_custom_config() {
 
 #[test]
 fn test_stream_multiple_instances() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;
@@ -86,6 +97,9 @@ fn test_stream_multiple_instances() {
 
 #[test]
 fn test_stream_clone() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;
@@ -125,6 +139,9 @@ fn test_stream_send_sync() {
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_stream_update_configuration() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;
@@ -158,6 +175,9 @@ fn test_stream_update_configuration() {
 
 #[test]
 fn test_stream_update_filter() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;
@@ -205,6 +225,9 @@ fn test_stream_output_types() {
 
 #[test]
 fn test_stream_different_displays() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;
@@ -238,6 +261,9 @@ fn test_stream_different_displays() {
 
 #[test]
 fn test_stream_debug_display() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;
@@ -270,6 +296,9 @@ fn test_stream_debug_display() {
 
 #[test]
 fn test_stream_identity_is_shared_by_clones_only() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let Ok(content) = SCShareableContent::get() else {
         println!("⚠ Skipping - no screen recording permission");
         return;

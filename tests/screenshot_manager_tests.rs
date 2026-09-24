@@ -2,6 +2,8 @@
 
 #![cfg(feature = "macos_14_0")]
 
+mod common;
+
 use screencapturekit::screenshot_manager::{CGImage, CGImageExt, SCScreenshotManager};
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::configuration::SCStreamConfiguration;
@@ -26,6 +28,9 @@ macro_rules! require_display {
 }
 
 fn has_capturable_display() -> bool {
+    if !crate::common::screen_capture_allowed() {
+        return false;
+    }
     SCShareableContent::get().is_ok_and(|content| !content.displays().is_empty())
 }
 
@@ -37,6 +42,9 @@ fn test_screenshot_manager_type() {
 
 #[test]
 fn test_capture_image() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -62,6 +70,9 @@ fn test_capture_image() {
 
 #[test]
 fn test_capture_sample_buffer() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -94,6 +105,9 @@ fn test_cgimage_send_sync() {
 
 #[test]
 fn test_cgimage_rgba_data() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -119,6 +133,9 @@ fn test_cgimage_rgba_data() {
 
 #[test]
 fn test_cgimage_bgra_matches_rgba_byteswap() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     // Both rgba_data() and bgra_data() should write width*height*4 bytes,
     // and bgra[i*4..] must equal [rgba[i*4+2], rgba[i*4+1], rgba[i*4], rgba[i*4+3]]
     // for every pixel — i.e. the BGRA path is the byte-for-byte channel
@@ -176,6 +193,9 @@ fn test_cgimage_bgra_matches_rgba_byteswap() {
 
 #[test]
 fn test_cgimage_data_into_buffer_apis() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let Ok(content) = SCShareableContent::get() else {
         return;
@@ -253,6 +273,9 @@ fn test_cgimage_data_into_buffer_apis() {
 #[cfg(feature = "macos_15_2")]
 fn test_capture_image_in_rect() {
     use screencapturekit::cg::CGRect;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     if !has_capturable_display() {
         eprintln!("skip: no displays available");
@@ -284,6 +307,9 @@ fn test_capture_image_in_rect() {
 #[cfg(feature = "macos_15_2")]
 fn test_capture_image_in_rect_small_region() {
     use screencapturekit::cg::CGRect;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     if !has_capturable_display() {
         eprintln!("skip: no displays available");
@@ -426,6 +452,9 @@ fn test_capture_screenshot_with_configuration() {
     use screencapturekit::screenshot_manager::{
         SCScreenshotConfiguration, SCScreenshotDynamicRange,
     };
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -471,6 +500,9 @@ fn test_capture_screenshot_with_configuration() {
 fn test_capture_screenshot_in_rect_with_configuration() {
     use screencapturekit::cg::CGRect;
     use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     cg_init_for_headless_ci();
 

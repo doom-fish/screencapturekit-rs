@@ -9,9 +9,14 @@
 //! They skip with a message when screen-recording permission or a display is
 //! unavailable, matching the rest of the live-capture suite.
 
+mod common;
+
 use screencapturekit::shareable_content::SCShareableContent;
 
 fn content_or_skip() -> Option<SCShareableContent> {
+    if !crate::common::screen_capture_allowed() {
+        return None;
+    }
     match SCShareableContent::get() {
         Ok(content) => Some(content),
         Err(e) => {

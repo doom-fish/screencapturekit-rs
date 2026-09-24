@@ -5,6 +5,8 @@
 // keep its routing covered; suppress the deprecation lint for the whole file.
 #![allow(deprecated)]
 
+mod common;
+
 use screencapturekit::error::SCError;
 use screencapturekit::stream::delegate_trait::{
     ErrorHandler, SCStreamDelegateTrait, StreamCallbacks,
@@ -404,6 +406,9 @@ fn test_stream_with_delegate_starts_stops_and_survives_clone_drop() {
         configuration::SCStreamConfiguration, content_filter::SCContentFilter,
         output_type::SCStreamOutputType, SCStream,
     };
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     let Ok(content) = SCShareableContent::get() else {
         eprintln!("skip: screen-recording permission required");

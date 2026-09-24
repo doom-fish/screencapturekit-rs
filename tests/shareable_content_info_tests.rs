@@ -2,6 +2,8 @@
 
 #![cfg(feature = "macos_14_0")]
 
+mod common;
+
 use screencapturekit::shareable_content::{SCShareableContent, SCShareableContentInfo};
 use screencapturekit::stream::content_filter::SCContentFilter;
 
@@ -25,6 +27,9 @@ macro_rules! require_display {
 
 #[test]
 fn test_shareable_content_info_for_display_filter() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -59,6 +64,9 @@ fn test_shareable_content_info_for_display_filter() {
 
 #[test]
 fn test_shareable_content_info_for_window_filter() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
@@ -83,6 +91,9 @@ fn test_shareable_content_info_for_window_filter() {
 
 #[test]
 fn test_shareable_content_info_clone() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -105,6 +116,9 @@ fn test_shareable_content_info_clone() {
 
 #[test]
 fn test_shareable_content_info_debug() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -125,6 +139,9 @@ fn test_shareable_content_info_debug() {
 
 #[test]
 fn test_shareable_content_info_display() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -154,6 +171,9 @@ fn test_shareable_content_info_send_sync() {
 
 #[test]
 fn test_shareable_content_info_pixel_size_calculation() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);

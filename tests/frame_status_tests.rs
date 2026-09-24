@@ -1,5 +1,7 @@
 //! Tests for `SCFrameStatus`
 
+mod common;
+
 use screencapturekit::cm::SCFrameStatus;
 use std::collections::HashSet;
 
@@ -265,6 +267,9 @@ fn test_live_frame_status_attachment_decodes() {
     use screencapturekit::prelude::*;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     let Ok(content) = SCShareableContent::get() else {
         eprintln!("skip: screen-recording permission unavailable");

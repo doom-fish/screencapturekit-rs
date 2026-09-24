@@ -1,5 +1,7 @@
 //! `SCContentFilter` tests
 
+mod common;
+
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::content_filter::SCContentFilter;
 
@@ -23,6 +25,9 @@ macro_rules! require_display {
 
 #[test]
 fn test_content_filter_builder_display() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -40,6 +45,9 @@ fn test_content_filter_builder_display() {
 
 #[test]
 fn test_content_filter_builder_window() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
 
@@ -55,6 +63,9 @@ fn test_content_filter_builder_window() {
 
 #[test]
 fn test_content_filter_exclude_windows() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -75,6 +86,9 @@ fn test_content_filter_exclude_windows() {
 
 #[test]
 fn test_content_filter_include_windows() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -95,6 +109,9 @@ fn test_content_filter_include_windows() {
 
 #[test]
 fn test_content_filter_include_applications() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -119,6 +136,9 @@ fn test_content_filter_include_applications() {
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_content_filter_content_rect_is_derived_from_the_display() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -147,6 +167,9 @@ fn test_content_filter_content_rect_is_derived_from_the_display() {
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_content_filter_content_rect_is_stable() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -168,6 +191,9 @@ fn test_content_filter_content_rect_is_stable() {
 
 #[test]
 fn test_content_filter_clone() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -193,6 +219,9 @@ fn test_content_filter_send_sync() {
 
 #[test]
 fn test_content_filter_debug_display() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -212,6 +241,9 @@ fn test_content_filter_debug_display() {
 
 #[test]
 fn test_content_filter_equality() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
     let content = SCShareableContent::get().expect("Failed to get shareable content");
     require_display!(content, display);
@@ -233,6 +265,9 @@ fn test_content_filter_equality() {
 #[test]
 fn test_content_filter_hash() {
     use std::collections::HashSet;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -256,6 +291,9 @@ fn test_content_filter_hash() {
 #[cfg(feature = "macos_14_0")]
 fn test_content_filter_style() {
     use screencapturekit::stream::content_filter::SCShareableContentStyle;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -279,6 +317,9 @@ fn test_content_filter_style() {
 #[cfg(feature = "macos_14_0")]
 fn test_content_filter_style_window() {
     use screencapturekit::stream::content_filter::SCShareableContentStyle;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -300,6 +341,9 @@ fn test_content_filter_style_window() {
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_content_filter_point_pixel_scale() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -321,6 +365,9 @@ fn test_content_filter_point_pixel_scale() {
 #[test]
 #[cfg(feature = "macos_14_2")]
 fn test_content_filter_include_menu_bar_is_set_by_the_builder() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -348,6 +395,9 @@ fn test_content_filter_include_menu_bar_is_set_by_the_builder() {
 #[test]
 #[cfg(feature = "macos_14_2")]
 fn test_content_filter_include_menu_bar_defaults_are_untouched() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -380,6 +430,9 @@ fn test_content_filter_include_menu_bar_defaults_are_untouched() {
 #[cfg(feature = "macos_14_2")]
 fn test_content_filter_clones_are_immutable_and_shareable() {
     use std::sync::Arc;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     cg_init_for_headless_ci();
 
@@ -419,6 +472,9 @@ fn test_content_filter_clones_are_immutable_and_shareable() {
 #[test]
 #[cfg(feature = "macos_15_2")]
 fn test_content_filter_included_displays() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -439,6 +495,9 @@ fn test_content_filter_included_displays() {
 #[test]
 #[cfg(feature = "macos_15_2")]
 fn test_content_filter_included_windows() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");
@@ -458,6 +517,9 @@ fn test_content_filter_included_windows() {
 #[test]
 #[cfg(feature = "macos_15_2")]
 fn test_content_filter_included_applications() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     cg_init_for_headless_ci();
 
     let content = SCShareableContent::get().expect("Failed to get shareable content");

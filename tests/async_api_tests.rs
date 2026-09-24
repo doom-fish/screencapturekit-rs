@@ -6,12 +6,17 @@
 #![cfg(feature = "async")]
 #![allow(clippy::match_same_arms)]
 
+mod common;
+
 use screencapturekit::async_api::*;
 use screencapturekit::stream::output_type::SCStreamOutputType;
 use std::time::Duration;
 
 async fn live_shareable_content() -> Option<screencapturekit::shareable_content::SCShareableContent>
 {
+    if !crate::common::screen_capture_allowed() {
+        return None;
+    }
     match tokio::time::timeout(Duration::from_secs(5), AsyncSCShareableContent::get()).await {
         Ok(Ok(content)) => Some(content),
         Ok(Err(error)) => {
@@ -103,6 +108,9 @@ fn test_async_shareable_content_copy() {
 
 #[test]
 fn test_async_shareable_content_with_options() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     // Test that with_options returns the options builder
     let options = AsyncSCShareableContent::create();
     let debug_str = format!("{options:?}");
@@ -121,6 +129,9 @@ fn test_async_stream_creation() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     // This may fail if no permission, that's OK - we're testing the API surface
     if let Ok(content) = SCShareableContent::get() {
@@ -166,6 +177,9 @@ fn test_async_stream_with_audio() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
@@ -192,6 +206,9 @@ async fn test_async_stream_start_stop_capture() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
@@ -227,6 +244,9 @@ async fn test_async_stream_update_configuration() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
@@ -265,6 +285,9 @@ async fn test_async_stream_update_content_filter() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
@@ -305,6 +328,9 @@ fn test_async_stream_next_future() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
@@ -389,6 +415,9 @@ fn test_async_stream_take_error_initially_none() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
@@ -415,6 +444,9 @@ fn test_async_stream_multi_output_typed() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     if let Ok(content) = SCShareableContent::get() {
         if let Some(display) = content.displays().first() {
@@ -462,6 +494,9 @@ async fn test_async_stream_frames_streamext_combinators() {
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     let Ok(content) = SCShareableContent::get() else {
         return;
@@ -632,6 +667,9 @@ mod capture_tests {
 
     #[test]
     fn test_async_stream_capture_frames() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
                 let filter = SCContentFilter::create()
@@ -673,6 +711,9 @@ mod capture_tests {
 
     #[test]
     fn test_async_stream_buffer_capacity() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
                 let filter = SCContentFilter::create()
@@ -705,6 +746,9 @@ mod capture_tests {
 
     #[test]
     fn test_async_stream_clear_buffer() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
                 let filter = SCContentFilter::create()
@@ -736,6 +780,9 @@ mod capture_tests {
 
     #[test]
     fn test_async_stream_is_closed_after_stop() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
                 let filter = SCContentFilter::create()
@@ -766,6 +813,9 @@ mod capture_tests {
 
     #[test]
     fn test_async_stream_multiple_try_next() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
                 let filter = SCContentFilter::create()
@@ -832,6 +882,9 @@ mod future_polling_tests {
 
     #[test]
     fn test_next_sample_future_poll_pending() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
                 let filter = SCContentFilter::create()
@@ -866,6 +919,9 @@ mod future_polling_tests {
 
     #[test]
     fn test_next_sample_future_poll_with_data() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
                 let filter = SCContentFilter::create()
@@ -909,6 +965,9 @@ mod future_polling_tests {
 
     #[test]
     fn test_next_sample_after_close() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
                 let filter = SCContentFilter::create()
@@ -961,6 +1020,9 @@ mod screenshot_tests {
     #[test]
     fn test_screenshot_capture_sample_buffer() {
         use screencapturekit::screenshot_manager::SCScreenshotManager;
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
 
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
@@ -986,6 +1048,9 @@ mod screenshot_tests {
     #[test]
     fn test_screenshot_capture_image() {
         use screencapturekit::screenshot_manager::SCScreenshotManager;
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
 
         if let Ok(content) = SCShareableContent::get() {
             if let Some(display) = content.displays().first() {
@@ -1216,6 +1281,9 @@ mod tokio_async_tests {
 
     #[tokio::test]
     async fn test_async_shareable_content_with_options() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         let result = tokio::time::timeout(
             Duration::from_secs(5),
             AsyncSCShareableContent::create()
@@ -1323,6 +1391,9 @@ mod tokio_async_tests {
     #[tokio::test]
     async fn test_async_screenshot_capture_image() {
         use screencapturekit::async_api::AsyncSCScreenshotManager;
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
 
         let Some(content) = super::live_shareable_content().await else {
             return;
@@ -1352,6 +1423,9 @@ mod tokio_async_tests {
     #[tokio::test]
     async fn test_async_screenshot_capture_sample_buffer() {
         use screencapturekit::async_api::AsyncSCScreenshotManager;
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
 
         let Some(content) = super::live_shareable_content().await else {
             return;
@@ -1388,6 +1462,9 @@ mod additional_async_tests {
 
     #[tokio::test]
     async fn test_async_shareable_content_below_window() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         let Some(content) = super::live_shareable_content().await else {
             return;
         };
@@ -1406,6 +1483,9 @@ mod additional_async_tests {
 
     #[tokio::test]
     async fn test_async_shareable_content_above_window() {
+        if !crate::common::screen_capture_allowed() {
+            return;
+        }
         let Some(content) = super::live_shareable_content().await else {
             return;
         };
@@ -1440,6 +1520,9 @@ async fn test_async_frame_delivery_assertive() {
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
     use std::time::Duration;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     let content = SCShareableContent::get().expect("screen-recording permission required");
     let displays = content.displays();
@@ -1491,6 +1574,9 @@ fn async_live_fixture() -> Option<(
     use screencapturekit::shareable_content::SCShareableContent;
     use screencapturekit::stream::configuration::SCStreamConfiguration;
     use screencapturekit::stream::content_filter::SCContentFilter;
+    if !crate::common::screen_capture_allowed() {
+        return None;
+    }
 
     let content = match SCShareableContent::get() {
         Ok(c) => c,

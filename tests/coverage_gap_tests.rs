@@ -17,6 +17,8 @@
 //!   capture is in flight, which exercises the `RwLock<Vec<HandlerEntry>>`
 //!   write path against an active dispatch reader.
 
+mod common;
+
 use screencapturekit::cm::CMSampleBufferExt;
 #[cfg(feature = "macos_14_2")]
 use screencapturekit::cm::CMSampleBufferSCExt;
@@ -74,6 +76,9 @@ impl SCStreamOutputTrait for DelegatingHandler {
 /// every encoder/preview that relies on the format.
 #[test]
 fn test_yuv_420v_pixel_format_capture() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
@@ -169,6 +174,9 @@ fn test_yuv_420v_pixel_format_capture() {
 /// introduced a torn-read bug.
 #[test]
 fn test_handler_add_remove_mid_capture() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {
@@ -274,6 +282,9 @@ fn test_handler_add_remove_mid_capture() {
 #[cfg(feature = "macos_14_2")]
 #[test]
 fn test_presenter_overlay_content_rect_absent_when_overlay_disabled() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {

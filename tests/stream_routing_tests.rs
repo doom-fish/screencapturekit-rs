@@ -13,6 +13,8 @@
 //! unavailable or no display is found, since they depend on the live
 //! `ScreenCaptureKit` callback path.
 
+mod common;
+
 use screencapturekit::{
     cm::CMSampleBuffer,
     shareable_content::SCShareableContent,
@@ -69,6 +71,9 @@ impl TaggedHandler {
 /// full Swift→Rust callback path through real `SCStream`s.
 #[test]
 fn test_two_concurrent_streams_route_samples_independently() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     // Skip with a clear message if permission/display isn't available —
     // these are environmental failures, not regressions.
     let content = match SCShareableContent::get() {
@@ -177,6 +182,9 @@ fn test_two_concurrent_streams_route_samples_independently() {
 /// Shared skip-aware setup: a 320×240 video-only filter/config for the first
 /// display, or `None` when the environment can't run live capture.
 fn live_capture_fixture() -> Option<(SCContentFilter, SCStreamConfiguration)> {
+    if !crate::common::screen_capture_allowed() {
+        return None;
+    }
     let content = match SCShareableContent::get() {
         Ok(c) => c,
         Err(e) => {

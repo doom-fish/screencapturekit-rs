@@ -4,6 +4,8 @@
 
 #![cfg(feature = "macos_15_0")]
 
+mod common;
+
 use screencapturekit::recording_output::{SCRecordingOutput, SCRecordingOutputConfiguration};
 
 /// Serialises the tests that drive a real `SCStream`. Two concurrent captures
@@ -790,6 +792,9 @@ fn test_remove_recording_then_stop_completes() {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
     use std::time::{Duration, Instant};
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     let _capture = LIVE_CAPTURE
         .lock()
@@ -900,6 +905,9 @@ fn test_remove_recording_racing_start_still_waits_for_terminal() {
     use screencapturekit::recording_output::RecordingCallbacks;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
 
     let _capture = LIVE_CAPTURE
         .lock()

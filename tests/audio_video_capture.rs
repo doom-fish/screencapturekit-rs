@@ -1,3 +1,5 @@
+mod common;
+
 use screencapturekit::cm::CMSampleBuffer;
 use screencapturekit::shareable_content::SCShareableContent;
 use screencapturekit::stream::configuration::SCStreamConfiguration;
@@ -56,6 +58,9 @@ impl SCStreamOutput for TestAudioOutput {
 
 #[test]
 fn test_screen_capture_with_audio() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     println!("=== Starting Screen Capture with Audio Test ===");
 
     let content = match SCShareableContent::get() {
@@ -149,6 +154,9 @@ fn test_screen_capture_with_audio() {
 
 #[test]
 fn test_combined_video_audio_capture() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     println!("=== Combined Video + Audio Capture Test ===");
 
     let content = match SCShareableContent::get() {

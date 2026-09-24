@@ -1,3 +1,5 @@
+mod common;
+
 use screencapturekit::cm::CMSampleBufferExt;
 use screencapturekit::{
     cv::CVPixelBufferLockFlags,
@@ -49,6 +51,9 @@ impl SCStreamOutputTrait for AudioTestOutput {
 
 #[test]
 fn test_video_capture() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let _capture_guard = LIVE_CAPTURE_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -137,6 +142,9 @@ fn test_video_capture() {
 
 #[test]
 fn test_audio_capture() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let _capture_guard = LIVE_CAPTURE_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -227,6 +235,9 @@ fn test_audio_capture() {
 
 #[test]
 fn test_video_and_audio_capture() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let _capture_guard = LIVE_CAPTURE_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -311,6 +322,9 @@ fn test_video_and_audio_capture() {
 
 #[test]
 fn test_pixel_buffer_locking() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let _capture_guard = LIVE_CAPTURE_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -416,6 +430,9 @@ fn test_pixel_buffer_locking() {
 
 #[test]
 fn test_iosurface_backed_buffer() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     let _capture_guard = LIVE_CAPTURE_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -494,6 +511,9 @@ fn test_iosurface_backed_buffer() {
 
 #[test]
 fn test_shareable_content_below_window() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     // Get shareable content to find a reference window
     let content = match SCShareableContent::get() {
         Ok(c) => c,
@@ -532,6 +552,9 @@ fn test_shareable_content_below_window() {
 
 #[test]
 fn test_shareable_content_above_window() {
+    if !crate::common::screen_capture_allowed() {
+        return;
+    }
     // Get shareable content to find a reference window
     let content = match SCShareableContent::get() {
         Ok(c) => c,
