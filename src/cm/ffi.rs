@@ -238,11 +238,11 @@ extern "C" {
     pub fn cv_pixel_buffer_get_bytes_per_row(pixel_buffer: *mut std::ffi::c_void) -> usize;
     pub fn cv_pixel_buffer_lock_base_address(
         pixel_buffer: *mut std::ffi::c_void,
-        flags: u32,
+        flags: u64,
     ) -> i32;
     pub fn cv_pixel_buffer_unlock_base_address(
         pixel_buffer: *mut std::ffi::c_void,
-        flags: u32,
+        flags: u64,
     ) -> i32;
     pub fn cv_pixel_buffer_get_base_address(
         pixel_buffer: *mut std::ffi::c_void,

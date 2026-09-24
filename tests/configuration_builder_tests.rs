@@ -444,13 +444,17 @@ fn test_builder_advanced_options() {
         .with_ignores_shadows_single_window(true)
         .with_should_be_opaque(false)
         .with_includes_child_windows(true)
-        .with_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Never);
+        .with_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Never)
+        .expect("set the presenter overlay privacy alert setting");
 
     // Verify setters worked (getters may return defaults on older macOS)
     let _ = config.ignores_shadows_single_window();
     let _ = config.should_be_opaque();
     let _ = config.includes_child_windows();
-    let _ = config.presenter_overlay_privacy_alert_setting();
+    assert_eq!(
+        config.presenter_overlay_privacy_alert_setting(),
+        Ok(SCPresenterOverlayAlertSetting::Never)
+    );
 }
 
 #[test]

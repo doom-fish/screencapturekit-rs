@@ -377,10 +377,11 @@ extern "C" {
     pub fn sc_stream_configuration_set_presenter_overlay_privacy_alert_setting(
         config: *const c_void,
         setting: i32,
-    );
+    ) -> bool;
     pub fn sc_stream_configuration_get_presenter_overlay_privacy_alert_setting(
         config: *const c_void,
-    ) -> i32;
+        setting: *mut i32,
+    ) -> bool;
 
     pub fn sc_stream_configuration_set_background_color(
         config: *const c_void,

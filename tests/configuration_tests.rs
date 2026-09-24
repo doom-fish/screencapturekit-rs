@@ -348,14 +348,67 @@ fn test_advanced_setters() {
     config.set_ignores_shadows_single_window(true);
     config.set_should_be_opaque(true);
     config.set_includes_child_windows(true);
-    config.set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always);
+    config
+        .set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always)
+        .expect("set the presenter overlay privacy alert setting");
 
     // Verify setters worked without errors
     // Note: getters may return default values on older macOS versions
     let _ = config.ignores_shadows_single_window();
     let _ = config.should_be_opaque();
     let _ = config.includes_child_windows();
-    let _ = config.presenter_overlay_privacy_alert_setting();
+    assert_eq!(
+        config.presenter_overlay_privacy_alert_setting(),
+        Ok(SCPresenterOverlayAlertSetting::Always)
+    );
+}
+
+#[test]
+#[cfg(feature = "macos_14_0")]
+fn test_presenter_overlay_privacy_alert_setting_round_trips() {
+    use screencapturekit::stream::configuration::SCPresenterOverlayAlertSetting;
+
+    let mut config = SCStreamConfiguration::new();
+    assert_eq!(
+        config.presenter_overlay_privacy_alert_setting(),
+        Ok(SCPresenterOverlayAlertSetting::System)
+    );
+    for setting in [
+        SCPresenterOverlayAlertSetting::Never,
+        SCPresenterOverlayAlertSetting::Always,
+        SCPresenterOverlayAlertSetting::System,
+    ] {
+        config
+            .set_presenter_overlay_privacy_alert_setting(setting)
+            .expect("set the presenter overlay privacy alert setting");
+        assert_eq!(
+            config.presenter_overlay_privacy_alert_setting(),
+            Ok(setting)
+        );
+        assert_eq!(
+            config.clone().presenter_overlay_privacy_alert_setting(),
+            Ok(setting)
+        );
+    }
+}
+
+#[test]
+fn test_presenter_overlay_alert_setting_from_raw_rejects_unknown_values() {
+    use screencapturekit::stream::configuration::SCPresenterOverlayAlertSetting;
+
+    for setting in [
+        SCPresenterOverlayAlertSetting::System,
+        SCPresenterOverlayAlertSetting::Never,
+        SCPresenterOverlayAlertSetting::Always,
+    ] {
+        assert_eq!(
+            SCPresenterOverlayAlertSetting::from_raw(setting as i32),
+            Some(setting)
+        );
+    }
+    for raw in [3, -1, i32::MAX, i32::MIN] {
+        assert_eq!(SCPresenterOverlayAlertSetting::from_raw(raw), None);
+    }
 }
 
 #[test]

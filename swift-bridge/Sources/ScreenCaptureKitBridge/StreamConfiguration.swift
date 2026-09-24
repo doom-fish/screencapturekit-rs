@@ -586,34 +586,37 @@ public func getStreamConfigurationIncludesChildWindows(_ config: OpaquePointer) 
 }
 
 @_cdecl("sc_stream_configuration_set_presenter_overlay_privacy_alert_setting")
-public func setStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer, _ setting: Int) {
+public func setStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer, _ setting: Int32) -> Bool {
     #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
         let cfg: SCStreamConfiguration = unretained(config)
         if #available(macOS 14.0, *) {
+            let value: SCPresenterOverlayAlertSetting
             switch setting {
-            case 0: cfg.presenterOverlayPrivacyAlertSetting = .system
-            case 1: cfg.presenterOverlayPrivacyAlertSetting = .never
-            case 2: cfg.presenterOverlayPrivacyAlertSetting = .always
-            default: break
+            case 0: value = .system
+            case 1: value = .never
+            case 2: value = .always
+            default: return false
             }
+            cfg.presenterOverlayPrivacyAlertSetting = value
+            return true
         }
     #endif
+    return false
 }
 
 @_cdecl("sc_stream_configuration_get_presenter_overlay_privacy_alert_setting")
-public func getStreamConfigurationPresenterOverlayPrivacyAlertSetting(_ config: OpaquePointer) -> Int {
+public func getStreamConfigurationPresenterOverlayPrivacyAlertSetting(
+    _ config: OpaquePointer,
+    _ outSetting: UnsafeMutablePointer<Int32>
+) -> Bool {
     #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
         let cfg: SCStreamConfiguration = unretained(config)
         if #available(macOS 14.0, *) {
-            switch cfg.presenterOverlayPrivacyAlertSetting {
-            case .system: return 0
-            case .never: return 1
-            case .always: return 2
-            @unknown default: return 0
-            }
+            outSetting.pointee = Int32(clamping: cfg.presenterOverlayPrivacyAlertSetting.rawValue)
+            return true
         }
     #endif
-    return 0
+    return false
 }
 
 @_cdecl("sc_stream_configuration_set_captures_shadows_only")

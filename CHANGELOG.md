@@ -56,6 +56,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rpath. It pointed into Xcode, so it never made back-deployment work on
   users' machines, and the bridge's macOS 13 minimum doesn't need it: binaries
   resolve `@rpath/libswift_Concurrency.dylib` through `/usr/lib/swift`.
+- Mismatched integer widths across the Swift boundary, where the callee read
+  the undefined upper half of a 32-bit argument register on arm64:
+  the presenter overlay privacy alert setter and getter took and returned a
+  Swift `Int` where Rust passed and read an `i32`, and the raw
+  `cm::ffi::cv_pixel_buffer_{lock,unlock}_base_address` declarations passed
+  `u32` flags to apple-cf exports that take `UInt64`. The presenter overlay
+  exports now use `Int32`; the setter rejects raw values that are not a known
+  `SCPresenterOverlayAlertSetting` instead of ignoring them, and the getter
+  hands the raw value to Rust instead of mapping unknown values to `System`.
 - Docs: `SCStream` had lost its rustdoc to `StreamIdentity`; the coverage
   files were a v3.1.1 snapshot against an SDK that is no longer installed
   (they now measure 11.0.0 against the macOS 26.5 and 27.0 SDKs and say what
@@ -107,6 +116,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configuration update or screenshot is copied, so later changes to it no
   longer reach that work; use `update_configuration` to change a running
   stream.
+- **Breaking:** `SCStreamConfiguration::set_presenter_overlay_privacy_alert_setting`
+  returns `SCResult<&mut Self>`, `with_presenter_overlay_privacy_alert_setting`
+  returns `SCResult<Self>` and `presenter_overlay_privacy_alert_setting`
+  returns `SCResult<SCPresenterOverlayAlertSetting>`. Where the property
+  doesn't exist (before macOS 14) they return `SCError::FeatureNotAvailable`
+  instead of ignoring the value or reporting `System`, and the getter returns
+  `SCError::FFIError` for a raw value this crate doesn't know.
+- **Breaking:** the raw `cm::ffi::cv_pixel_buffer_lock_base_address` and
+  `cv_pixel_buffer_unlock_base_address` declarations take `u64` flags, matching
+  apple-cf's exports.
 - `rust-version` is 1.82 (was 1.76, which the crate's use of `offset_of!`
   already contradicted).
 
@@ -114,6 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `SCStreamErrorCode::InsufficientStorage` (-3822) and `NotSupported`
   (-3823) from the macOS 27 SDK.
+- `SCPresenterOverlayAlertSetting::from_raw`, which returns `None` for an
+  unknown raw value.
 
 ### Removed
 

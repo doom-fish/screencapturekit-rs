@@ -71,10 +71,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n👤 3. Presenter Overlay Privacy");
     println!("   ─────────────────────────────");
 
-    config.set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always);
+    config.set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Always)?;
     println!("   Set to: Always show privacy alert");
 
-    let setting = config.presenter_overlay_privacy_alert_setting();
+    let setting = config.presenter_overlay_privacy_alert_setting()?;
     println!("   Current: {setting:?}");
 
     println!("\n   Available settings:");
@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   • Dynamic range: {:?}", config.capture_dynamic_range());
     println!(
         "   • Presenter overlay: {:?}",
-        config.presenter_overlay_privacy_alert_setting()
+        config.presenter_overlay_privacy_alert_setting()?
     );
     println!("   • Microphone: {}", config.captures_microphone());
     println!("   • Mouse clicks: {}", config.shows_mouse_clicks());

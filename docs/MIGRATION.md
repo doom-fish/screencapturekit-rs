@@ -35,6 +35,12 @@ Calls that can fail now return a `Result` instead of panicking, returning
   set_excluded_bundle_ids` returns `InteriorNulError`. The `with_*` builders
   return `Result<Self, _>`, so a builder chain needs a `?` after each of them.
   The `try_set_*` and `try_with_output_url` twins are removed.
+- `SCStreamConfiguration::set_presenter_overlay_privacy_alert_setting`,
+  `with_presenter_overlay_privacy_alert_setting` and
+  `presenter_overlay_privacy_alert_setting` return an `SCResult`:
+  `SCError::FeatureNotAvailable` before macOS 14, where they used to ignore
+  the value and report `System`, and `SCError::FFIError` from the getter for a
+  raw value this crate doesn't know.
 - `SCStream::add_output_handler` and `add_output_handler_with_queue` return
   `Result<usize, SCError>` instead of `Option<usize>`.
   `remove_output_handler` returns `Result<bool, SCError>` and replaces

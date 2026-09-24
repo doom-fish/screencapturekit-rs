@@ -1,4 +1,6 @@
 use super::internal::SCStreamConfiguration;
+#[cfg(feature = "macos_14_0")]
+use crate::error::{SCError, SCResult};
 
 /// Presenter overlay privacy alert setting (macOS 14.0+)
 ///
@@ -13,6 +15,17 @@ pub enum SCPresenterOverlayAlertSetting {
     Never = 1,
     /// Always show the privacy alert
     Always = 2,
+}
+
+impl SCPresenterOverlayAlertSetting {
+    pub const fn from_raw(raw: i32) -> Option<Self> {
+        match raw {
+            0 => Some(Self::System),
+            1 => Some(Self::Never),
+            2 => Some(Self::Always),
+            _ => None,
+        }
+    }
 }
 
 impl SCStreamConfiguration {
@@ -123,43 +136,62 @@ impl SCStreamConfiguration {
     /// annotated `API_AVAILABLE(macos(14.0))`, not 14.2 as this binding
     /// previously assumed — so it only needs the `macos_14_0` feature flag.
     #[cfg(feature = "macos_14_0")]
+    #[allow(clippy::missing_errors_doc)]
     pub fn set_presenter_overlay_privacy_alert_setting(
         &mut self,
         setting: SCPresenterOverlayAlertSetting,
-    ) -> &mut Self {
-        unsafe {
+    ) -> SCResult<&mut Self> {
+        let applied = unsafe {
             crate::ffi::sc_stream_configuration_set_presenter_overlay_privacy_alert_setting(
                 self.as_ptr(),
                 setting as i32,
-            );
+            )
+        };
+        if applied {
+            Ok(self)
+        } else {
+            Err(SCError::feature_not_available(
+                "SCStreamConfiguration.presenterOverlayPrivacyAlertSetting",
+                "14.0",
+            ))
         }
-        self
     }
 
     /// Sets the presenter overlay privacy alert setting (builder pattern, macOS 14.0+)
     #[cfg(feature = "macos_14_0")]
-    #[must_use]
+    #[allow(clippy::missing_errors_doc)]
     pub fn with_presenter_overlay_privacy_alert_setting(
         mut self,
         setting: SCPresenterOverlayAlertSetting,
-    ) -> Self {
-        self.set_presenter_overlay_privacy_alert_setting(setting);
-        self
+    ) -> SCResult<Self> {
+        self.set_presenter_overlay_privacy_alert_setting(setting)?;
+        Ok(self)
     }
 
     /// Get the presenter overlay privacy alert setting (macOS 14.0+).
     #[cfg(feature = "macos_14_0")]
-    pub fn presenter_overlay_privacy_alert_setting(&self) -> SCPresenterOverlayAlertSetting {
-        let value = unsafe {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn presenter_overlay_privacy_alert_setting(
+        &self,
+    ) -> SCResult<SCPresenterOverlayAlertSetting> {
+        let mut raw = 0_i32;
+        let available = unsafe {
             crate::ffi::sc_stream_configuration_get_presenter_overlay_privacy_alert_setting(
                 self.as_ptr(),
+                &raw mut raw,
             )
         };
-        match value {
-            1 => SCPresenterOverlayAlertSetting::Never,
-            2 => SCPresenterOverlayAlertSetting::Always,
-            _ => SCPresenterOverlayAlertSetting::System,
+        if !available {
+            return Err(SCError::feature_not_available(
+                "SCStreamConfiguration.presenterOverlayPrivacyAlertSetting",
+                "14.0",
+            ));
         }
+        SCPresenterOverlayAlertSetting::from_raw(raw).ok_or_else(|| {
+            SCError::ffi_error(format!(
+                "ScreenCaptureKit returned an unknown SCPresenterOverlayAlertSetting raw value {raw}"
+            ))
+        })
     }
 
     /// Sets whether to ignore shadow display configuration.
@@ -193,6 +225,32 @@ impl SCStreamConfiguration {
             crate::ffi::sc_stream_configuration_get_ignores_shadow_display_configuration(
                 self.as_ptr(),
             )
+        }
+    }
+}
+
+#[cfg(all(test, feature = "macos_14_0"))]
+mod tests {
+    use super::{SCPresenterOverlayAlertSetting, SCStreamConfiguration};
+
+    #[test]
+    fn bridge_rejects_unknown_presenter_overlay_raw_values() {
+        let mut config = SCStreamConfiguration::new();
+        config
+            .set_presenter_overlay_privacy_alert_setting(SCPresenterOverlayAlertSetting::Never)
+            .expect("set the presenter overlay privacy alert setting");
+        for raw in [3, -1, i32::MAX, i32::MIN] {
+            let applied = unsafe {
+                crate::ffi::sc_stream_configuration_set_presenter_overlay_privacy_alert_setting(
+                    config.as_ptr(),
+                    raw,
+                )
+            };
+            assert!(!applied, "the bridge accepted raw value {raw}");
+            assert_eq!(
+                config.presenter_overlay_privacy_alert_setting(),
+                Ok(SCPresenterOverlayAlertSetting::Never)
+            );
         }
     }
 }
