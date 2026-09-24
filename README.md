@@ -71,7 +71,8 @@ screencapturekit = { version = "10", features = ["async", "macos_15_0"] }
 > the FFI boundary; the only likely source change across that line is 5.0's
 > nested `CGRect` layout (`rect.origin.x` / `rect.size.width`). **9.0** tightens
 > stream and picker lifecycle handling; **10.0** finalizes the audio, Metal,
-> picker, and shared Core Media/Core Video safety contracts described below.
+> picker, and shared Core Media/Core Video safety contracts described below;
+> **11.0** turns panics and silently ignored inputs into `Result`s.
 
 ## Quick Start
 
@@ -452,7 +453,7 @@ Security → Screen & System Audio Recording**.
 |---|---|
 | Any signed macOS app (sandboxed or not) | `NSScreenCaptureUsageDescription` in `Info.plist` + user TCC grant |
 | Sandboxed app | Additionally `com.apple.security.app-sandbox = true` in `Entitlements.plist` — this only turns the sandbox on; it does not grant capture |
-| Sandboxed app capturing system audio (macOS 13+) | Optionally `com.apple.security.device.audio-input = true` |
+| App capturing the microphone (macOS 15+, `with_captures_microphone`) | `NSMicrophoneUsageDescription` in `Info.plist` + the user's Microphone grant; sandboxed or hardened-runtime apps also need `com.apple.security.device.audio-input = true`. System audio needs nothing beyond Screen Recording |
 
 > **There is no `com.apple.security.screen-capture` entitlement.** That key
 > isn't part of Apple's [security-entitlements reference](https://developer.apple.com/documentation/bundleresources/security-entitlements);
@@ -586,6 +587,12 @@ Highlights by major version:
   fallible; repeating picker events preserve optional stream identity; picker
   configuration is main-thread-only and fallible; shared Core Media/Core Video
   adoption and byte-view APIs use the finalized apple-cf safety contracts.
+- **11.0** — stream and configuration constructors, `SCContentFilterBuilder::build`,
+  string setters, output-handler registration and picker operations return a
+  `Result` instead of panicking, returning a bare `None`, or ignoring invalid
+  input, and their `try_*` twins are gone. The `cm` audio types come from
+  apple-cf 0.11, configurations are copied when handed to `ScreenCaptureKit`,
+  and the minimum Rust version is 1.82.
 
 If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–7.0
 upgrades are typically just the 5.0 `CGRect` field-access change. 8.0 affects
@@ -594,6 +601,8 @@ disk, configure recording outputs, crop through the content filter, read
 `AudioBuffer` fields, or call `SCShareableContent::current_process`.
 10.0 affects audio-buffer mutation, Metal upload/encoding paths, repeating
 picker events/configuration, and direct apple-cf raw or locked-byte access.
+11.0 affects almost every caller: add `?` where constructors, builders and
+registration calls now return a `Result`.
 
 ## Contributing
 
@@ -603,8 +612,6 @@ Contributions welcome! Please:
 2. Add tests for new functionality
 3. `cargo fmt && cargo clippy --all-features -- -D warnings && cargo test`
 4. Update docs and `CHANGELOG.md`
-
-See `CLAUDE.md` / `AGENTS.md` for the project conventions agents follow.
 
 ## Used By
 

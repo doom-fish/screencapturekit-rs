@@ -2,9 +2,62 @@
 
 This guide helps you migrate between major versions of `screencapturekit-rs`.
 
-> **Note:** The current release line is **10.x**. The sections below document
+> **Note:** The current release line is **11.x**. The sections below document
 > historical major-version migrations.
 > For changes in recent releases, see [`CHANGELOG.md`](../CHANGELOG.md).
+
+## Migrating from 10.x to 11.0
+
+Calls that can fail now return a `Result` instead of panicking, returning
+`None` without a reason, or ignoring their input. Most call sites need a `?`
+(or explicit handling) where the compiler asks for one.
+
+- `SCStream::new`, `SCStream::new_with_delegate` and `AsyncSCStream::new`
+  return `SCResult<Self>`. `AsyncSCStream::new` also returns the
+  output-handler registration error instead of a stream whose queue is already
+  closed.
+- `SCContentFilterBuilder::build` returns `SCResult<SCContentFilter>`;
+  `try_build` is removed.
+- `SCContentSharingPickerConfiguration::new` and `default_from_system`,
+  `SCContentSharingPicker::default_configuration`,
+  `SCRecordingOutputConfiguration::new` and `SCScreenshotConfiguration::new`
+  return `Result<_, SCError>` (`SCError::FeatureNotAvailable` on an older
+  macOS) instead of panicking. The `try_new` twins and the `Default` impls of
+  these three configuration types are removed.
+- String setters reject input they cannot pass on instead of ignoring it:
+  `SCStreamConfiguration::{set,with}_color_space_name`,
+  `{set,with}_color_matrix`, `{set,with}_stream_name` and
+  `{set,with}_microphone_capture_device_id` return `InteriorNulError`;
+  `SCRecordingOutputConfiguration::with_output_url` returns
+  `InvalidOutputPath`; `SCScreenshotConfiguration::{set,with}_file_path`
+  returns `InvalidScreenshotPath` and `with_content_type` returns
+  `InteriorNulError`; `SCContentSharingPickerConfiguration::
+  set_excluded_bundle_ids` returns `InteriorNulError`. The `with_*` builders
+  return `Result<Self, _>`, so a builder chain needs a `?` after each of them.
+  The `try_set_*` and `try_with_output_url` twins are removed.
+- `SCStream::add_output_handler` and `add_output_handler_with_queue` return
+  `Result<usize, SCError>` instead of `Option<usize>`.
+  `remove_output_handler` returns `Result<bool, SCError>` and replaces
+  `try_remove_output_handler`. `AsyncSCStream::add_output_type` returns
+  `Result<(), SCError>` instead of `bool`.
+- `SCContentSharingPicker::add_observer` returns
+  `Result<SCPickerSubscription, SCPickerConfigurationError>`, and `present`,
+  `present_using_style`, `present_for_stream`,
+  `present_for_stream_using_style`, `set_active` and `set_maximum_stream_count`
+  return `Result<(), SCPickerConfigurationError>`.
+- The `cm` audio types are apple-cf's: `sample.audio_buffer_list()` is
+  `CMSampleBuffer::audio_buffer_list` from apple-cf and returns
+  `Result<AudioBufferList, i32>`. The buffers are read-only; `unsafe
+  AudioBufferList::data_mut` is gone.
+- apple-cf 0.11 and apple-metal 0.10 changes reach you through the re-exported
+  `cg`, `cm`, `cv`, `dispatch_queue` and `apple_metal` modules, for example
+  `CMBlockBuffer::as_slice` and `cursor_ref` are now `unsafe`. See those
+  crates' changelogs.
+- Configurations are copied when they are handed to ScreenCaptureKit, so
+  changing one afterwards has no effect on a stream, recording output,
+  configuration update or screenshot that already received it. Call
+  `update_configuration` to change a running stream.
+- The minimum Rust version is 1.82.
 
 ## Migrating from 9.x to 10.0
 
