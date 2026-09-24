@@ -170,20 +170,20 @@ fn test_picker_is_active_get_set_roundtrip() {
     // its current state).
     let original = SCContentSharingPicker::is_active();
 
-    SCContentSharingPicker::set_active(true);
+    SCContentSharingPicker::set_active(true).expect("picker is available");
     assert!(
         SCContentSharingPicker::is_active(),
         "is_active() returned false immediately after set_active(true)"
     );
 
-    SCContentSharingPicker::set_active(false);
+    SCContentSharingPicker::set_active(false).expect("picker is available");
     assert!(
         !SCContentSharingPicker::is_active(),
         "is_active() returned true immediately after set_active(false)"
     );
 
     // Restore.
-    SCContentSharingPicker::set_active(original);
+    SCContentSharingPicker::set_active(original).expect("picker is available");
 }
 
 // MARK: - Repeating observers (macOS 14.0+)
@@ -205,21 +205,31 @@ fn exclusive_registry() -> std::sync::MutexGuard<'static, ()> {
     guard
 }
 
+fn observe(
+    handler: impl Fn(screencapturekit::content_sharing_picker::SCPickerEvent) + Send + Sync + 'static,
+) -> Option<screencapturekit::content_sharing_picker::SCPickerSubscription> {
+    use screencapturekit::content_sharing_picker::{
+        SCContentSharingPicker, SCPickerConfigurationError,
+    };
+
+    match SCContentSharingPicker::add_observer(handler) {
+        Ok(subscription) => Some(subscription),
+        Err(SCPickerConfigurationError::MainThreadRequired) => None,
+        Err(error) => panic!("unexpected picker error: {error}"),
+    }
+}
+
 /// `allows_changing_selected_content` is only meaningful with a repeating
 /// observer: Apple re-invokes `didUpdateWith:` on every re-selection, and the
 /// one-shot `show*()` helpers latch after the first event. Registering must
 /// therefore hand back a live subscription.
 #[test]
 fn add_observer_returns_a_live_subscription() {
-    use screencapturekit::content_sharing_picker::SCContentSharingPicker;
-
     let _guard = exclusive_registry();
 
-    let subscription = SCContentSharingPicker::add_observer(|_event| {});
-    if !subscription.is_active() {
-        assert_eq!(subscription.token(), 0);
+    let Some(subscription) = observe(|_event| {}) else {
         return;
-    }
+    };
     assert!(
         subscription.is_active(),
         "add_observer returned an inactive subscription"
@@ -241,15 +251,12 @@ fn dropping_a_subscription_removes_the_observer() {
 
     let _guard = exclusive_registry();
 
-    let token = {
-        let subscription = SCContentSharingPicker::add_observer(|_event| {});
-        subscription.token()
-    };
-    if token == 0 {
+    let Some(subscription) = observe(|_event| {}) else {
         assert_eq!(SCContentSharingPicker::remove_all_observers(), 0);
         return;
-    }
-    assert_ne!(token, 0);
+    };
+    assert_ne!(subscription.token(), 0);
+    drop(subscription);
 
     // The drop above already removed it, so nothing is left to sweep.
     assert_eq!(
@@ -265,7 +272,9 @@ fn unsubscribing_twice_is_not_reported_twice() {
 
     let _guard = exclusive_registry();
 
-    let subscription = SCContentSharingPicker::add_observer(|_event| {});
+    let Some(subscription) = observe(|_event| {}) else {
+        return;
+    };
     let was_active = subscription.is_active();
     assert_eq!(subscription.unsubscribe(), was_active);
     assert_eq!(SCContentSharingPicker::remove_all_observers(), 0);
@@ -277,8 +286,9 @@ fn remove_all_observers_sweeps_detached_registrations() {
 
     let _guard = exclusive_registry();
 
-    let first = SCContentSharingPicker::add_observer(|_event| {});
-    let second = SCContentSharingPicker::add_observer(|_event| {});
+    let (Some(first), Some(second)) = (observe(|_event| {}), observe(|_event| {})) else {
+        return;
+    };
     let expected = usize::from(first.is_active()) + usize::from(second.is_active());
     first.detach();
     second.detach();
@@ -296,13 +306,38 @@ fn remove_all_observers_invalidates_live_subscriptions() {
 
     let _guard = exclusive_registry();
 
-    let first = SCContentSharingPicker::add_observer(|_event| {});
-    let second = SCContentSharingPicker::add_observer(|_event| {});
+    let (Some(first), Some(second)) = (observe(|_event| {}), observe(|_event| {})) else {
+        return;
+    };
     let expected = usize::from(first.is_active()) + usize::from(second.is_active());
 
     assert_eq!(SCContentSharingPicker::remove_all_observers(), expected);
     assert!(!first.is_active());
     assert!(!second.is_active());
+}
+
+#[test]
+fn add_observer_without_a_main_run_loop_is_an_error() {
+    use screencapturekit::content_sharing_picker::{
+        SCContentSharingPicker, SCPickerConfigurationError,
+    };
+    use std::sync::Arc;
+
+    let _guard = exclusive_registry();
+
+    let captured = Arc::new(());
+    let handler_state = Arc::clone(&captured);
+    let result = std::thread::spawn(move || {
+        SCContentSharingPicker::add_observer(move |_event| {
+            let _ = &handler_state;
+        })
+        .map(|subscription| subscription.token())
+    })
+    .join()
+    .expect("registration thread panicked");
+
+    assert_eq!(result, Err(SCPickerConfigurationError::MainThreadRequired));
+    assert_eq!(Arc::strong_count(&captured), 1, "rejected handler was kept");
 }
 
 #[test]
@@ -318,7 +353,7 @@ fn observer_registration_does_not_leak_across_many_cycles() {
     let counter = Arc::new(AtomicUsize::new(0));
     for _ in 0..16 {
         let counter = Arc::clone(&counter);
-        let subscription = SCContentSharingPicker::add_observer(move |_event| {
+        let subscription = observe(move |_event| {
             counter.fetch_add(1, Ordering::Relaxed);
         });
         drop(subscription);
@@ -457,7 +492,7 @@ fn deactivate_clears_the_active_flag() {
 
     let _guard = exclusive_registry();
 
-    SCContentSharingPicker::set_active(true);
+    SCContentSharingPicker::set_active(true).expect("picker is available");
     SCContentSharingPicker::deactivate();
 
     // `deactivate()` hops to the main queue, so poll rather than assert
@@ -470,7 +505,7 @@ fn deactivate_clears_the_active_flag() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
-    SCContentSharingPicker::set_active(false);
+    SCContentSharingPicker::set_active(false).expect("picker is available");
     assert!(!SCContentSharingPicker::is_active());
 }
 

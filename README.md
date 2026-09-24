@@ -306,8 +306,8 @@ let subscription = SCContentSharingPicker::add_observer(|event| match event {
     }
     SCPickerEvent::Cancelled { stream } => println!("cancelled: {stream:?}"),
     SCPickerEvent::Failed(error) => eprintln!("picker error: {error}"),
-});
-SCContentSharingPicker::present();
+}).expect("register picker observer");
+SCContentSharingPicker::present().expect("present picker");
 drop(subscription);
 ```
 

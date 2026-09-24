@@ -609,7 +609,7 @@ pub enum SCPickerOutcome {
     Error(String),
 }
 
-/// Error returned when applying a picker configuration.
+/// Error returned by `SCContentSharingPicker` operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SCPickerConfigurationError {
     /// The picker API is unavailable on this system.
@@ -678,12 +678,12 @@ impl std::error::Error for SCPickerConfigurationError {}
 pub struct SCContentSharingPicker;
 
 impl SCContentSharingPicker {
-    fn available_or_log(operation: &str) -> bool {
-        let available = Self::is_available();
-        if !available {
-            eprintln!("{operation} requires macOS 14.0 or later");
+    fn require_available() -> Result<(), SCPickerConfigurationError> {
+        if Self::is_available() {
+            Ok(())
+        } else {
+            Err(SCPickerConfigurationError::Unavailable)
         }
-        available
     }
 
     /// Whether content-sharing picker APIs are available on this system.
@@ -869,13 +869,13 @@ impl SCContentSharingPicker {
     /// Set the maximum number of streams that can be created from the picker
     ///
     /// Pass 0 to allow unlimited streams.
-    pub fn set_maximum_stream_count(count: usize) {
-        if !Self::available_or_log("SCContentSharingPicker::set_maximum_stream_count") {
-            return;
-        }
+    #[allow(clippy::missing_errors_doc)]
+    pub fn set_maximum_stream_count(count: usize) -> Result<(), SCPickerConfigurationError> {
+        Self::require_available()?;
         unsafe {
             crate::ffi::sc_content_sharing_picker_set_maximum_stream_count(count);
         }
+        Ok(())
     }
 
     /// Get the maximum number of streams allowed
@@ -919,11 +919,11 @@ impl SCContentSharingPicker {
     /// the picker; the `show*()` trampolines do this for you. Set it
     /// manually only if you want to opt into the picker UI without
     /// immediately presenting it.
-    pub fn set_active(active: bool) {
-        if !Self::available_or_log("SCContentSharingPicker::set_active") {
-            return;
-        }
-        unsafe { crate::ffi::sc_content_sharing_picker_set_active(active) }
+    #[allow(clippy::missing_errors_doc)]
+    pub fn set_active(active: bool) -> Result<(), SCPickerConfigurationError> {
+        Self::require_available()?;
+        unsafe { crate::ffi::sc_content_sharing_picker_set_active(active) };
+        Ok(())
     }
 
     /// Deactivate the picker and undo any activation-policy promotion the
@@ -1065,8 +1065,13 @@ impl SCContentSharingPicker {
     ///
     /// Apple marks `SCContentSharingPicker` as `@MainActor`. Call this on the
     /// process main thread, or while an `AppKit` main run loop is active so the
-    /// bridge can synchronously hop to it. Otherwise registration fails and
-    /// the returned subscription is inactive.
+    /// bridge can synchronously hop to it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SCPickerConfigurationError::Unavailable`] below macOS 14.0,
+    /// and [`SCPickerConfigurationError::MainThreadRequired`] when called off
+    /// the main thread without an active main run loop.
     ///
     /// # Examples
     ///
@@ -1086,20 +1091,17 @@ impl SCContentSharingPicker {
     ///     }
     ///     SCPickerEvent::Cancelled { .. } => println!("cancelled"),
     ///     SCPickerEvent::Failed(err) => eprintln!("picker failed: {err}"),
-    /// });
+    /// }).expect("register picker observer");
     ///
-    /// SCContentSharingPicker::present();
+    /// SCContentSharingPicker::present().expect("present picker");
     /// // ... keep `subscription` alive for as long as you want updates ...
     /// drop(subscription);
     /// ```
-    #[must_use = "the observer is removed as soon as the subscription is dropped"]
-    pub fn add_observer<F>(handler: F) -> SCPickerSubscription
+    pub fn add_observer<F>(handler: F) -> Result<SCPickerSubscription, SCPickerConfigurationError>
     where
         F: Fn(SCPickerEvent) + Send + Sync + 'static,
     {
-        if !Self::available_or_log("SCContentSharingPicker::add_observer") {
-            return SCPickerSubscription::inactive();
-        }
+        Self::require_available()?;
         let (context, active) = SCPickerObserverContext::into_raw(handler);
         let token = unsafe {
             crate::ffi::sc_content_sharing_picker_add_observer(
@@ -1110,14 +1112,11 @@ impl SCContentSharingPicker {
         };
 
         if token == 0 {
-            eprintln!(
-                "SCContentSharingPicker::add_observer must run on the main thread or while an \
-                 AppKit main run loop is active"
-            );
             observer_context_release(context);
+            return Err(SCPickerConfigurationError::MainThreadRequired);
         }
 
-        SCPickerSubscription { token, active }
+        Ok(SCPickerSubscription { token, active })
     }
 
     /// Remove every repeating observer registered through
@@ -1141,41 +1140,45 @@ impl SCContentSharingPicker {
     ///
     /// Use with [`Self::add_observer`]; the one-shot [`Self::show`] family
     /// presents for you.
-    pub fn present() {
-        if !Self::available_or_log("SCContentSharingPicker::present") {
-            return;
-        }
-        unsafe { crate::ffi::sc_content_sharing_picker_present(-1) }
+    #[allow(clippy::missing_errors_doc)]
+    pub fn present() -> Result<(), SCPickerConfigurationError> {
+        Self::require_available()?;
+        unsafe { crate::ffi::sc_content_sharing_picker_present(-1) };
+        Ok(())
     }
 
     /// Present the picker preselecting a content style.
-    pub fn present_using_style(style: SCShareableContentStyle) {
-        if !Self::available_or_log("SCContentSharingPicker::present_using_style") {
-            return;
-        }
-        unsafe { crate::ffi::sc_content_sharing_picker_present(style as i32) }
+    #[allow(clippy::missing_errors_doc)]
+    pub fn present_using_style(
+        style: SCShareableContentStyle,
+    ) -> Result<(), SCPickerConfigurationError> {
+        Self::require_available()?;
+        unsafe { crate::ffi::sc_content_sharing_picker_present(style as i32) };
+        Ok(())
     }
 
     /// Present the picker targeting an existing stream, so the user can swap
     /// the shared source mid-capture.
-    pub fn present_for_stream(stream: &crate::stream::SCStream) {
-        if !Self::available_or_log("SCContentSharingPicker::present_for_stream") {
-            return;
-        }
-        unsafe { crate::ffi::sc_content_sharing_picker_present_for_stream(stream.as_ptr(), -1) }
+    #[allow(clippy::missing_errors_doc)]
+    pub fn present_for_stream(
+        stream: &crate::stream::SCStream,
+    ) -> Result<(), SCPickerConfigurationError> {
+        Self::require_available()?;
+        unsafe { crate::ffi::sc_content_sharing_picker_present_for_stream(stream.as_ptr(), -1) };
+        Ok(())
     }
 
     /// Present the picker targeting an existing stream, preselecting a style.
+    #[allow(clippy::missing_errors_doc)]
     pub fn present_for_stream_using_style(
         stream: &crate::stream::SCStream,
         style: SCShareableContentStyle,
-    ) {
-        if !Self::available_or_log("SCContentSharingPicker::present_for_stream_using_style") {
-            return;
-        }
+    ) -> Result<(), SCPickerConfigurationError> {
+        Self::require_available()?;
         unsafe {
             crate::ffi::sc_content_sharing_picker_present_for_stream(stream.as_ptr(), style as i32);
         }
+        Ok(())
     }
 }
 
@@ -1223,13 +1226,6 @@ pub struct SCPickerSubscription {
 }
 
 impl SCPickerSubscription {
-    fn inactive() -> Self {
-        Self {
-            token: 0,
-            active: std::sync::Arc::new(AtomicBool::new(false)),
-        }
-    }
-
     /// Opaque identifier for this registration. Non-zero when registration
     /// succeeded.
     #[must_use]

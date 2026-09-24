@@ -85,7 +85,9 @@ fn main() {
     println!("       - SCPickerFilterOutcome::Error(message)");
     println!();
     println!("   Repeating observer API:");
-    println!("     SCContentSharingPicker::add_observer(callback) -> SCPickerSubscription");
+    println!(
+        "     SCContentSharingPicker::add_observer(callback) -> Result<SCPickerSubscription, _>"
+    );
     println!("       - Updated {{ result, stream: Some(identity) }} updates an existing stream");
     println!("       - Updated {{ result, stream: None }} is a new selection");
 
@@ -113,8 +115,8 @@ fn main() {
         }
         SCPickerEvent::Cancelled { stream } => println!("Cancelled {stream:?}"),
         SCPickerEvent::Failed(message) => eprintln!("Picker failed: {message}"),
-    });
-    SCContentSharingPicker::present();
+    }).expect("register picker observer");
+    SCContentSharingPicker::present().expect("present picker");
     drop(subscription);
     */
 

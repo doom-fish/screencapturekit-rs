@@ -1187,8 +1187,8 @@ mod content_picker_tests {
     #[test]
     fn test_set_maximum_stream_count() {
         // Just verify it doesn't crash
-        SCContentSharingPicker::set_maximum_stream_count(5);
-        SCContentSharingPicker::set_maximum_stream_count(1);
+        SCContentSharingPicker::set_maximum_stream_count(5).expect("picker is available");
+        SCContentSharingPicker::set_maximum_stream_count(1).expect("picker is available");
     }
 }
 
