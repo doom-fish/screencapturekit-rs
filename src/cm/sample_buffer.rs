@@ -375,16 +375,6 @@ pub trait CMSampleBufferExt {
     /// Return an owned `CVPixelBuffer` for the attached image buffer, if any.
     fn pixel_buffer(&self) -> Option<CVPixelBuffer>;
 
-    /// Return an owned `CVPixelBuffer` for the attached image buffer, if any.
-    ///
-    /// Use [`Self::pixel_buffer`] for method-call syntax. apple-cf now has an
-    /// inherent `CMSampleBuffer::image_buffer` returning `CVImageBuffer`, so
-    /// this compatibility method is only reachable with UFCS.
-    #[deprecated(note = "use CMSampleBufferExt::pixel_buffer")]
-    fn image_buffer(&self) -> Option<CVPixelBuffer> {
-        self.pixel_buffer()
-    }
-
     /// Output presentation timestamp (after timing adjustments).
     fn output_presentation_timestamp(&self) -> CMTime;
 

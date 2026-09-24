@@ -255,9 +255,7 @@ extern "C" fn delegate_error_callback(context: *mut c_void, error_code: i32, msg
 
     // ScreenCaptureKit reports stops only through `stream(_:didStopWithError:)`,
     // so we dispatch the single canonical `did_stop_with_error` callback.
-    // The deprecated `stream_did_stop` is intentionally NOT invoked here — it
-    // would double-notify for one event. Wrap user code in catch_unwind so a
-    // panic never propagates into Swift.
+    // Wrap user code in catch_unwind so a panic never propagates into Swift.
     catch_user_panic("delegate.did_stop_with_error", || {
         delegate.did_stop_with_error(error);
     });

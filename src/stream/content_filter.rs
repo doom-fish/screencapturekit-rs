@@ -579,66 +579,12 @@ impl SCContentFilterBuilder {
         self
     }
 
-    // =========================================================================
-    // Deprecated methods - use with_* versions instead
-    // =========================================================================
-
-    /// Set the display to capture
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_display() instead")]
-    pub fn display(self, display: &SCDisplay) -> Self {
-        self.with_display(display)
-    }
-
-    /// Set the window to capture
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_window() instead")]
-    pub fn window(self, window: &SCWindow) -> Self {
-        self.with_window(window)
-    }
-
-    /// Exclude specific windows from the display capture
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_excluding_windows() instead")]
-    pub fn exclude_windows(self, windows: &[&SCWindow]) -> Self {
-        self.with_excluding_windows(windows)
-    }
-
-    /// Include only specific windows in the display capture
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_including_windows() instead")]
-    pub fn include_windows(self, windows: &[&SCWindow]) -> Self {
-        self.with_including_windows(windows)
-    }
-
-    /// Include specific applications and optionally except certain windows
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_including_applications() instead")]
-    pub fn include_applications(
-        self,
-        applications: &[&SCRunningApplication],
-        excepting_windows: &[&SCWindow],
-    ) -> Self {
-        self.with_including_applications(applications, excepting_windows)
-    }
-
-    /// Exclude specific applications and optionally except certain windows
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_excluding_applications() instead")]
-    pub fn exclude_applications(
-        self,
-        applications: &[&SCRunningApplication],
-        excepting_windows: &[&SCWindow],
-    ) -> Self {
-        self.with_excluding_applications(applications, excepting_windows)
-    }
-
     /// Build the content filter.
     ///
     /// # Errors
     ///
-    /// Returns [`SCError::InvalidConfiguration`] if neither `.display()` nor `.window()`
-    /// was called before building.
+    /// Returns [`SCError::InvalidConfiguration`] if neither `.with_display()` nor
+    /// `.with_window()` was called before building.
     #[allow(clippy::too_many_lines)]
     pub fn build(self) -> SCResult<SCContentFilter> {
         let filter = match self.filter_type {
@@ -746,7 +692,7 @@ impl SCContentFilterBuilder {
             FilterType::None => {
                 return Err(SCError::invalid_config(
                     "SCContentFilterBuilder: No filter type set. \
-                     Call .display() or .window() before building.",
+                     Call .with_display() or .with_window() before building.",
                 ));
             }
         };

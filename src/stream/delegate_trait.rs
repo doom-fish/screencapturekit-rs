@@ -104,17 +104,6 @@ pub trait SCStreamDelegateTrait: Send + Sync {
     /// [`SCStream::stop_capture`](crate::stream::SCStream::stop_capture) is
     /// **not** reported here — observe it through that method's return value.
     fn did_stop_with_error(&self, _error: SCError) {}
-
-    /// Called when stream stops.
-    ///
-    /// # Parameters
-    ///
-    /// - `error`: Optional error message if the stream stopped due to an error
-    #[deprecated(
-        note = "ScreenCaptureKit reports stops only via `did_stop_with_error`; the stream \
-                engine no longer invokes this method. Implement `did_stop_with_error` instead."
-    )]
-    fn stream_did_stop(&self, _error: Option<String>) {}
 }
 
 /// A simple error handler wrapper for closures
@@ -326,16 +315,6 @@ impl std::fmt::Debug for StreamCallbacks {
 }
 
 impl SCStreamDelegateTrait for StreamCallbacks {
-    // Retained so direct/manual callers (and legacy code) that still invoke
-    // `stream_did_stop` continue to route to `on_stop`. The stream engine no
-    // longer calls this; error stops flow through `did_stop_with_error` below.
-    #[allow(deprecated)]
-    fn stream_did_stop(&self, error: Option<String>) {
-        if let Some(ref f) = self.on_stop {
-            f(error);
-        }
-    }
-
     fn did_stop_with_error(&self, error: SCError) {
         // ScreenCaptureKit only reports error stops, so drive both `on_error`
         // (typed) and `on_stop` (message) from this single engine callback.

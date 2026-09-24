@@ -1,9 +1,6 @@
 //! `SCStreamDelegateTrait` tests
 
 #![allow(clippy::struct_field_names)]
-// Several tests still exercise the deprecated `stream_did_stop` directly to
-// keep its routing covered; suppress the deprecation lint for the whole file.
-#![allow(deprecated)]
 
 mod common;
 
@@ -15,15 +12,10 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 
 struct TestDelegate {
-    stopped: Arc<AtomicBool>,
     error_received: Arc<AtomicBool>,
 }
 
 impl SCStreamDelegateTrait for TestDelegate {
-    fn stream_did_stop(&self, _error: Option<String>) {
-        self.stopped.store(true, Ordering::SeqCst);
-    }
-
     fn did_stop_with_error(&self, _error: SCError) {
         self.error_received.store(true, Ordering::SeqCst);
     }
@@ -31,18 +23,13 @@ impl SCStreamDelegateTrait for TestDelegate {
 
 #[test]
 fn test_delegate_trait_implementation() {
-    let stopped = Arc::new(AtomicBool::new(false));
     let error_received = Arc::new(AtomicBool::new(false));
 
     let delegate = TestDelegate {
-        stopped: Arc::clone(&stopped),
         error_received: Arc::clone(&error_received),
     };
 
     // Call the delegate methods
-    delegate.stream_did_stop(None);
-    assert!(stopped.load(Ordering::SeqCst));
-
     delegate.did_stop_with_error(SCError::internal_error("test"));
     assert!(error_received.load(Ordering::SeqCst));
 }
@@ -57,7 +44,6 @@ fn test_delegate_default_implementations() {
     delegate.output_video_effect_did_start_for_stream();
     delegate.output_video_effect_did_stop_for_stream();
     delegate.did_stop_with_error(SCError::internal_error("test"));
-    delegate.stream_did_stop(Some("test".to_string()));
 }
 
 #[test]
@@ -176,16 +162,13 @@ fn test_stream_callbacks_on_stop() {
         *error_msg_clone.lock().unwrap() = error;
     });
 
-    // Test with no error
-    callbacks.stream_did_stop(None);
+    let error = SCError::internal_error("test error");
+    callbacks.did_stop_with_error(error.clone());
     assert!(called.load(Ordering::SeqCst));
-    assert!(error_msg.lock().unwrap().is_none());
-
-    // Test with error
-    called.store(false, Ordering::SeqCst);
-    callbacks.stream_did_stop(Some("test error".to_string()));
-    assert!(called.load(Ordering::SeqCst));
-    assert_eq!(error_msg.lock().unwrap().as_deref(), Some("test error"));
+    assert_eq!(
+        error_msg.lock().unwrap().as_deref(),
+        Some(error.to_string().as_str())
+    );
 }
 
 #[test]
@@ -273,7 +256,6 @@ fn test_stream_callbacks_all_callbacks() {
         .on_video_effect_stop(move || video_stop_clone.store(true, Ordering::SeqCst));
 
     // Trigger all callbacks
-    callbacks.stream_did_stop(None);
     callbacks.did_stop_with_error(SCError::internal_error("test"));
     callbacks.stream_did_become_active();
     callbacks.stream_did_become_inactive();
@@ -294,8 +276,6 @@ fn test_stream_callbacks_without_handlers() {
     // Test that callbacks without handlers don't panic
     let callbacks = StreamCallbacks::new();
 
-    callbacks.stream_did_stop(None);
-    callbacks.stream_did_stop(Some("error".to_string()));
     callbacks.did_stop_with_error(SCError::internal_error("test"));
     callbacks.stream_did_become_active();
     callbacks.stream_did_become_inactive();
@@ -313,7 +293,6 @@ fn test_stream_callbacks_partial_handlers() {
         StreamCallbacks::new().on_active(move || active_clone.store(true, Ordering::SeqCst));
 
     // Call all methods - only the one with handler should do anything
-    callbacks.stream_did_stop(None);
     callbacks.did_stop_with_error(SCError::internal_error("test"));
     callbacks.stream_did_become_active();
     callbacks.stream_did_become_inactive();
@@ -332,7 +311,6 @@ fn test_stream_callbacks_is_send() {
 #[test]
 fn test_full_delegate_with_all_callbacks() {
     struct FullDelegate {
-        stop_count: Arc<AtomicU32>,
         error_count: Arc<AtomicU32>,
         active_count: Arc<AtomicU32>,
         inactive_count: Arc<AtomicU32>,
@@ -341,10 +319,6 @@ fn test_full_delegate_with_all_callbacks() {
     }
 
     impl SCStreamDelegateTrait for FullDelegate {
-        fn stream_did_stop(&self, _error: Option<String>) {
-            self.stop_count.fetch_add(1, Ordering::SeqCst);
-        }
-
         fn did_stop_with_error(&self, _error: SCError) {
             self.error_count.fetch_add(1, Ordering::SeqCst);
         }
@@ -367,7 +341,6 @@ fn test_full_delegate_with_all_callbacks() {
     }
 
     let delegate = FullDelegate {
-        stop_count: Arc::new(AtomicU32::new(0)),
         error_count: Arc::new(AtomicU32::new(0)),
         active_count: Arc::new(AtomicU32::new(0)),
         inactive_count: Arc::new(AtomicU32::new(0)),
@@ -376,8 +349,6 @@ fn test_full_delegate_with_all_callbacks() {
     };
 
     // Call each method multiple times
-    delegate.stream_did_stop(None);
-    delegate.stream_did_stop(Some("error".to_string()));
     delegate.did_stop_with_error(SCError::internal_error("test"));
     delegate.stream_did_become_active();
     delegate.stream_did_become_active();
@@ -385,7 +356,6 @@ fn test_full_delegate_with_all_callbacks() {
     delegate.output_video_effect_did_start_for_stream();
     delegate.output_video_effect_did_stop_for_stream();
 
-    assert_eq!(delegate.stop_count.load(Ordering::SeqCst), 2);
     assert_eq!(delegate.error_count.load(Ordering::SeqCst), 1);
     assert_eq!(delegate.active_count.load(Ordering::SeqCst), 2);
     assert_eq!(delegate.inactive_count.load(Ordering::SeqCst), 1);

@@ -45,6 +45,12 @@ Calls that can fail now return a `Result` instead of panicking, returning
   `present_using_style`, `present_for_stream`,
   `present_for_stream_using_style`, `set_active` and `set_maximum_stream_count`
   return `Result<(), SCPickerConfigurationError>`.
+- Deprecated aliases are removed: use the `with_*` names on
+  `SCContentFilterBuilder` and `SCShareableContentOptions`, `pixel_buffer()`
+  instead of `CMSampleBufferExt::image_buffer`, and
+  `utils::completion::timed_out_context_count` instead of
+  `abandoned_context_count`. `SCStreamDelegateTrait::stream_did_stop` is gone
+  (the stream never called it); implement `did_stop_with_error`.
 - The `cm` audio types are apple-cf's: `sample.audio_buffer_list()` is
   `CMSampleBuffer::audio_buffer_list` from apple-cf and returns
   `Result<AudioBufferList, i32>`. The buffers are read-only; `unsafe

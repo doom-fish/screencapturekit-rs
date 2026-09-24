@@ -53,15 +53,6 @@ pub fn timed_out_context_count() -> usize {
     TIMED_OUT_CONTEXTS.load(Ordering::Relaxed)
 }
 
-/// Legacy name for [`timed_out_context_count`].
-#[deprecated(
-    note = "timed-out callback contexts are now reclaimed safely; use timed_out_context_count"
-)]
-#[must_use]
-pub fn abandoned_context_count() -> usize {
-    timed_out_context_count()
-}
-
 static TIMED_OUT_CONTEXTS: AtomicUsize = AtomicUsize::new(0);
 static NEXT_CONTEXT_ID: AtomicUsize = AtomicUsize::new(1);
 static CONTEXTS: Mutex<Option<HashMap<usize, Box<dyn Any + Send>>>> = Mutex::new(None);

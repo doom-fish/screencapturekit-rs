@@ -386,24 +386,6 @@ impl SCShareableContentOptions {
         self
     }
 
-    // =========================================================================
-    // Deprecated methods - use with_* versions instead
-    // =========================================================================
-
-    /// Exclude desktop windows from the shareable content.
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_exclude_desktop_windows() instead")]
-    pub fn exclude_desktop_windows(self, exclude: bool) -> Self {
-        self.with_exclude_desktop_windows(exclude)
-    }
-
-    /// Include only on-screen windows in the shareable content.
-    #[must_use]
-    #[deprecated(since = "1.5.0", note = "Use with_on_screen_windows_only() instead")]
-    pub fn on_screen_windows_only(self, on_screen_only: bool) -> Self {
-        self.with_on_screen_windows_only(on_screen_only)
-    }
-
     /// Get shareable content synchronously
     ///
     /// This blocks until the content is retrieved.

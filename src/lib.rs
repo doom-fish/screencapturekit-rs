@@ -455,8 +455,8 @@
 //! async fn concurrent_queries() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (result1, result2) = tokio::join!(
 //!         AsyncSCShareableContent::get(),
-//!         AsyncSCShareableContent::with_options()
-//!             .on_screen_windows_only(true)
+//!         AsyncSCShareableContent::create()
+//!             .with_on_screen_windows_only(true)
 //!             .get(),
 //!     );
 //!     Ok(())
