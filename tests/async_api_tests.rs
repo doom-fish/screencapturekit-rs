@@ -435,7 +435,7 @@ fn test_async_stream_multi_output_typed() {
             assert!(stream.try_next_typed().is_none());
 
             // Add audio as a second output type so one stream carries A/V.
-            let _registered = stream.add_output_type(SCStreamOutputType::Audio);
+            let _registered = stream.add_output_type(SCStreamOutputType::Audio).is_ok();
 
             if stream.inner().start_capture().is_ok() {
                 std::thread::sleep(std::time::Duration::from_millis(300));
@@ -1537,7 +1537,7 @@ async fn test_extra_output_type_registration_never_closes_the_stream() {
     // two senders, on failure the second sender is created and immediately
     // dropped — which used to mark the queue closed.
     let added = stream.add_output_type(SCStreamOutputType::Audio);
-    eprintln!("add_output_type(Audio) -> {added}");
+    eprintln!("add_output_type(Audio) -> {added:?}");
 
     assert!(
         !stream.is_closed(),

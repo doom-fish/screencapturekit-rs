@@ -263,7 +263,7 @@ async fn av_capture() -> Result<(), Box<dyn std::error::Error>> {
         .with_captures_audio(true);
 
     let mut stream = AsyncSCStream::new(&filter, &config, 32, SCStreamOutputType::Screen)?;
-    if stream.add_output_type(SCStreamOutputType::Audio) {
+    if stream.add_output_type(SCStreamOutputType::Audio).is_ok() {
         println!("   ✅ Registered audio + video on a single stream");
     }
 

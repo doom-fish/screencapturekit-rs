@@ -139,10 +139,13 @@ pub fn start_capture(
 
     let mut s = SCStream::new(&filter_to_use, &sc_config).expect("failed to create stream");
     if !mic_only {
-        s.add_output_handler(handler.clone(), SCStreamOutputType::Screen);
-        s.add_output_handler(handler.clone(), SCStreamOutputType::Audio);
+        s.add_output_handler(handler.clone(), SCStreamOutputType::Screen)
+            .expect("register output handler");
+        s.add_output_handler(handler.clone(), SCStreamOutputType::Audio)
+            .expect("register output handler");
     }
-    s.add_output_handler(handler, SCStreamOutputType::Microphone);
+    s.add_output_handler(handler, SCStreamOutputType::Microphone)
+        .expect("register output handler");
 
     match s.start_capture() {
         Ok(()) => {

@@ -58,7 +58,7 @@ use super::output_type::SCStreamOutputType;
 /// stream.add_output_handler(
 ///     |_sample, _output_type| println!("Got frame!"),
 ///     SCStreamOutputType::Screen
-/// );
+/// )?;
 /// # Ok(())
 /// # }
 /// ```

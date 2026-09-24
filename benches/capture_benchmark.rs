@@ -192,7 +192,9 @@ fn bench_frame_throughput(c: &mut Criterion) {
                 // Start the stream ONCE outside iter_custom so setup cost
                 // doesn't pollute the measurement.
                 let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-                stream.add_output_handler(handler, SCStreamOutputType::Screen);
+                stream
+                    .add_output_handler(handler, SCStreamOutputType::Screen)
+                    .expect("register output handler");
                 stream.start_capture().expect("Failed to start capture");
 
                 // Warmup: drop the first second of frames so we measure
@@ -281,7 +283,9 @@ fn bench_stream_startup(c: &mut Criterion) {
                 };
 
                 let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-                stream.add_output_handler(handler, SCStreamOutputType::Screen);
+                stream
+                    .add_output_handler(handler, SCStreamOutputType::Screen)
+                    .expect("register output handler");
                 stream.start_capture().expect("Failed to start capture");
 
                 // Wait for first frame, with a generous timeout.
@@ -349,7 +353,9 @@ fn bench_frame_latency(c: &mut Criterion) {
                 };
 
                 let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-                stream.add_output_handler(handler, SCStreamOutputType::Screen);
+                stream
+                    .add_output_handler(handler, SCStreamOutputType::Screen)
+                    .expect("register output handler");
 
                 stream.start_capture().expect("Failed to start capture");
 
@@ -418,7 +424,9 @@ fn bench_pixel_buffer_access(c: &mut Criterion) {
     };
 
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-    stream.add_output_handler(handler, SCStreamOutputType::Screen);
+    stream
+        .add_output_handler(handler, SCStreamOutputType::Screen)
+        .expect("register output handler");
     stream.start_capture().expect("Failed to start capture");
 
     // Wait for a frame

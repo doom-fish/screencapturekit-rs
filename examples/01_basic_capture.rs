@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let handler = FrameHandler {
         count: count.clone(),
     };
-    stream.add_output_handler(handler, SCStreamOutputType::Screen);
+    stream.add_output_handler(handler, SCStreamOutputType::Screen)?;
 
     // Method 2: Closure-based handler (alternative approach)
     // Uncomment to use instead of struct handler:
@@ -98,7 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //         }
     //     },
     //     SCStreamOutputType::Screen
-    // );
+    // )?;
 
     println!("Starting capture...\n");
     stream.start_capture()?;

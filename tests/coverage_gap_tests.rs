@@ -228,7 +228,9 @@ fn test_handler_add_remove_mid_capture() {
     // Remove the handler mid-capture, then disable the active flag so
     // any in-flight callback that already passed the read-lock and
     // started executing won't increment the counter further.
-    let removed = stream.remove_output_handler(id, SCStreamOutputType::Screen);
+    let removed = stream
+        .remove_output_handler(id, SCStreamOutputType::Screen)
+        .expect("remove output handler");
     active.store(false, Ordering::Relaxed);
     assert!(removed, "remove_output_handler returned false");
 

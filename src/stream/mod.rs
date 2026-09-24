@@ -37,7 +37,7 @@
 //! stream.add_output_handler(
 //!     |sample, output_type| println!("Got frame!"),
 //!     SCStreamOutputType::Screen
-//! );
+//! ).expect("register output handler");
 //! stream.start_capture()?;
 //! # Ok::<(), screencapturekit::error::SCError>(())
 //! ```

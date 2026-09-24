@@ -100,7 +100,7 @@
 //!         count_clone.fetch_add(1, Ordering::Relaxed);
 //!     },
 //!     SCStreamOutputType::Screen
-//! );
+//! )?;
 //! # Ok(())
 //! # }
 //! ```
@@ -134,7 +134,7 @@
 //!
 //! // Create stream and add handler
 //! let mut stream = SCStream::new(&filter, &config)?;
-//! stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
+//! stream.add_output_handler(MyHandler, SCStreamOutputType::Screen)?;
 //!
 //! // Start capturing
 //! stream.start_capture()?;
@@ -304,7 +304,7 @@
 //! };
 //!
 //! let mut stream = SCStream::new(&filter, &config)?;
-//! stream.add_output_handler(handler, SCStreamOutputType::Screen);
+//! stream.add_output_handler(handler, SCStreamOutputType::Screen)?;
 //! stream.start_capture()?;
 //! # Ok(())
 //! # }
@@ -330,7 +330,7 @@
 //! #     fn did_output_sample_buffer(&self, _: CMSampleBuffer, _: SCStreamOutputType) {}
 //! # }
 //! let mut stream = SCStream::new(&filter, &config)?;
-//! stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
+//! stream.add_output_handler(MyHandler, SCStreamOutputType::Screen).expect("register output handler");
 //! stream.start_capture()?;
 //!
 //! // Capture at initial resolution...
@@ -379,7 +379,7 @@
 //! stream.add_output_handler(
 //!     |_sample, _type| { /* process frames */ },
 //!     SCStreamOutputType::Screen
-//! );
+//! )?;
 //! stream.start_capture()?;
 //! # Ok(())
 //! # }
@@ -407,7 +407,7 @@
 //!     |_sample, _type| { /* called on custom queue */ },
 //!     SCStreamOutputType::Screen,
 //!     Some(&queue)
-//! );
+//! )?;
 //! # Ok(())
 //! # }
 //! ```

@@ -220,7 +220,9 @@ fn test_remove_output_handler_rejects_a_mismatched_output_type() {
         .expect("add_output_handler failed");
 
     assert!(
-        !stream.remove_output_handler(id, SCStreamOutputType::Audio),
+        !stream
+            .remove_output_handler(id, SCStreamOutputType::Audio)
+            .expect("remove output handler"),
         "removing a Screen handler under the Audio type must not succeed"
     );
 
@@ -240,12 +242,14 @@ fn test_remove_output_handler_rejects_a_mismatched_output_type() {
     // The correctly typed removal still works and reports the native teardown.
     assert!(
         stream
-            .try_remove_output_handler(id, SCStreamOutputType::Screen)
+            .remove_output_handler(id, SCStreamOutputType::Screen)
             .expect("native removeStreamOutput failed"),
         "correctly typed removal reported 'not found'"
     );
     assert!(
-        !stream.remove_output_handler(id, SCStreamOutputType::Screen),
+        !stream
+            .remove_output_handler(id, SCStreamOutputType::Screen)
+            .expect("remove output handler"),
         "second removal of the same id must report 'not found'"
     );
 }
@@ -274,9 +278,14 @@ fn test_conflicting_custom_queue_for_one_output_type_is_rejected() {
         .expect("first registration failed");
 
     assert!(
-        stream
-            .add_output_handler_with_queue(second, SCStreamOutputType::Screen, Some(&queue_b))
-            .is_none(),
+        matches!(
+            stream.add_output_handler_with_queue(
+                second,
+                SCStreamOutputType::Screen,
+                Some(&queue_b)
+            ),
+            Err(screencapturekit::error::SCError::InvalidConfiguration(_))
+        ),
         "a second Screen handler on a different queue must be rejected"
     );
 
@@ -284,11 +293,13 @@ fn test_conflicting_custom_queue_for_one_output_type_is_rejected() {
     assert!(
         stream
             .add_output_handler_with_queue(third, SCStreamOutputType::Screen, None)
-            .is_some(),
+            .is_ok(),
         "a queue-agnostic handler must be allowed to join the established queue"
     );
 
-    assert!(stream.remove_output_handler(first_id, SCStreamOutputType::Screen));
+    assert!(stream
+        .remove_output_handler(first_id, SCStreamOutputType::Screen)
+        .expect("remove output handler"));
 }
 
 /// Regression test: dropping a clone must not tear down the shared Swift-side

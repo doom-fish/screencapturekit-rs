@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_pixel_format(PixelFormat::BGRA);
 
     let mut stream = SCStream::new(&filter, &config)?;
-    stream.add_output_handler(Handler, SCStreamOutputType::Screen);
+    stream.add_output_handler(Handler, SCStreamOutputType::Screen)?;
     stream.start_capture()?;
 
     std::thread::sleep(std::time::Duration::from_secs(5));
@@ -159,7 +159,7 @@ stream.add_output_handler(
         println!("📹 frame @ {:?}", sample.presentation_timestamp());
     },
     SCStreamOutputType::Screen,
-);
+).expect("register output handler");
 # }
 ```
 
@@ -234,7 +234,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut stream = AsyncSCStream::new(&filter, &config, 32, SCStreamOutputType::Screen)?;
     // … then register audio as a second output type on the SAME stream.
-    stream.add_output_type(SCStreamOutputType::Audio);
+    stream.add_output_type(SCStreamOutputType::Audio)?;
     stream.start_capture().await?;
 
     // `next_typed()` yields each sample tagged with its output type.
@@ -334,7 +334,7 @@ stream.add_output_handler_with_queue(
     |_sample, _of_type| { /* runs on `queue` */ },
     SCStreamOutputType::Screen,
     Some(&queue),
-);
+).expect("register output handler");
 # }
 ```
 

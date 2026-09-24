@@ -541,10 +541,16 @@ impl SCStream {
     ///
     /// # Returns
     ///
-    /// Returns `Some(handler_id)` on success, or `None` if `ScreenCaptureKit`
-    /// rejected the registration (e.g. the output type is not enabled by the
-    /// stream configuration); the failure is also logged to stderr. The handler
-    /// ID can be used with [`remove_output_handler`](Self::remove_output_handler).
+    /// Returns the handler ID, which can be used with
+    /// [`remove_output_handler`](Self::remove_output_handler).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SCError::StreamError`] if `ScreenCaptureKit` rejected the
+    /// registration (e.g. the output type is not enabled by the stream
+    /// configuration), and [`SCError::InvalidConfiguration`] for the requests
+    /// [`add_output_handler_with_queue`](Self::add_output_handler_with_queue)
+    /// refuses.
     ///
     /// # Dispatch queue
     ///
@@ -579,7 +585,7 @@ impl SCStream {
     /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
     /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config)?;
-    /// stream.add_output_handler(MyHandler, SCStreamOutputType::Screen);
+    /// stream.add_output_handler(MyHandler, SCStreamOutputType::Screen)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -597,7 +603,7 @@ impl SCStream {
     /// stream.add_output_handler(
     ///     |_sample, _type| println!("Got frame!"),
     ///     SCStreamOutputType::Screen
-    /// );
+    /// )?;
     /// # Ok(())
     /// # }
     /// ```
@@ -628,7 +634,7 @@ impl SCStream {
     ///         count_handler.fetch_add(1, Ordering::Relaxed);
     ///     },
     ///     SCStreamOutputType::Screen,
-    /// );
+    /// )?;
     /// // outer scope can still read frame_count any time:
     /// println!("frames so far: {}", frame_count.load(Ordering::Relaxed));
     /// # Ok(())
@@ -638,7 +644,7 @@ impl SCStream {
         &mut self,
         handler: impl SCStreamOutputTrait + 'static,
         of_type: SCStreamOutputType,
-    ) -> Option<usize> {
+    ) -> Result<usize, SCError> {
         self.add_output_handler_with_queue(handler, of_type, None)
     }
 
@@ -662,9 +668,9 @@ impl SCStream {
     /// - Adding a further handler for the same type with `queue: None` is fine:
     ///   it joins the established queue.
     /// - Adding a further handler for the same type with a *different* explicit
-    ///   queue is rejected (returns `None` and logs), rather than silently
-    ///   delivering on a queue you did not ask for — that would break handlers
-    ///   written around thread affinity.
+    ///   queue is rejected with [`SCError::InvalidConfiguration`], rather than
+    ///   silently delivering on a queue you did not ask for — that would break
+    ///   handlers written around thread affinity.
     /// - Removing the last handler of a type also tears down the native output,
     ///   so the next registration for that type is free to pick a new queue.
     ///
@@ -686,20 +692,22 @@ impl SCStream {
     ///     |_sample, _type| println!("Got frame on custom queue!"),
     ///     SCStreamOutputType::Screen,
     ///     Some(&queue)
-    /// );
+    /// )?;
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::missing_errors_doc)]
     pub fn add_output_handler_with_queue(
         &mut self,
         handler: impl SCStreamOutputTrait + 'static,
         of_type: SCStreamOutputType,
         queue: Option<&DispatchQueue>,
-    ) -> Option<usize> {
+    ) -> Result<usize, SCError> {
         #[cfg(not(feature = "macos_15_0"))]
         if of_type == SCStreamOutputType::Microphone {
-            eprintln!("SCStream: microphone output requires the macos_15_0 feature");
-            return None;
+            return Err(SCError::invalid_config(
+                "microphone output requires the macos_15_0 feature",
+            ));
         }
 
         let requested = queue.map_or(OutputQueue::BridgeDefault, |q| {
@@ -723,13 +731,12 @@ impl SCStream {
         if let Some(&(_, existing)) = established.iter().find(|(ty, _)| *ty == of_type) {
             if queue.is_some() && existing != requested {
                 drop(established);
-                eprintln!(
-                    "SCStream: refusing to add a {of_type:?} handler on a different dispatch \
-                     queue — ScreenCaptureKit delivers every handler of one output type on the \
-                     queue chosen by the first registration. Reuse that queue (pass None) or \
-                     remove the existing {of_type:?} handlers first."
-                );
-                return None;
+                return Err(SCError::invalid_config(format!(
+                    "refusing to add a {of_type:?} handler on a different dispatch queue — \
+                     ScreenCaptureKit delivers every handler of one output type on the queue \
+                     chosen by the first registration. Reuse that queue (pass None) or remove \
+                     the existing {of_type:?} handlers first."
+                )));
             }
         }
 
@@ -745,15 +752,10 @@ impl SCStream {
 
         if !ok {
             drop(established);
-            // Surface the failure rather than dropping it silently — registration
-            // only fails if ScreenCaptureKit rejects `addStreamOutput` (e.g. the
-            // output type is not enabled by the stream configuration). The caller
-            // still gets `None`, but this makes the cause visible in logs.
-            eprintln!(
-                "SCStream: failed to register output handler for {of_type:?} \
+            return Err(SCError::StreamError(format!(
+                "failed to register output handler for {of_type:?} \
                  (ScreenCaptureKit rejected addStreamOutput)"
-            );
-            return None;
+            )));
         }
 
         if !established.iter().any(|(ty, _)| *ty == of_type) {
@@ -770,7 +772,7 @@ impl SCStream {
                 of_type,
                 handler: Arc::new(handler),
             });
-        Some(handler_id)
+        Ok(handler_id)
     }
 
     /// Remove an output handler
@@ -782,38 +784,17 @@ impl SCStream {
     ///
     /// # Returns
     ///
-    /// Returns `true` if a handler with this `id` **and** output type was found
-    /// and removed. Returns `false` if there was no such handler, or if
-    /// `ScreenCaptureKit` rejected tearing down the now-unused native output —
-    /// in which case the failure is also logged. Use
-    /// [`try_remove_output_handler`](Self::try_remove_output_handler) to get the
-    /// underlying error instead of a bare `false`.
-    ///
-    /// The handler stops receiving samples either way; a native teardown
-    /// failure only means `ScreenCaptureKit` keeps delivering samples that the
-    /// bridge then discards.
-    pub fn remove_output_handler(&mut self, id: usize, of_type: SCStreamOutputType) -> bool {
-        match self.try_remove_output_handler(id, of_type) {
-            Ok(removed) => removed,
-            Err(error) => {
-                eprintln!("SCStream: {error}");
-                false
-            }
-        }
-    }
-
-    /// Remove an output handler, reporting a native teardown failure.
-    ///
-    /// Behaves like [`remove_output_handler`](Self::remove_output_handler) but
-    /// distinguishes "no such handler" (`Ok(false)`) from "the handler was
-    /// removed, but `ScreenCaptureKit` refused to detach the now-unused native
-    /// output" (`Err`).
+    /// Returns `Ok(true)` if a handler with this `id` **and** output type was
+    /// found and removed, and `Ok(false)` if there was no such handler.
     ///
     /// # Errors
     ///
     /// Returns [`SCError::StreamError`] when the handler was removed from this
     /// stream but `removeStreamOutput` failed on the `ScreenCaptureKit` side.
-    pub fn try_remove_output_handler(
+    /// The handler stops receiving samples either way; a native teardown
+    /// failure only means `ScreenCaptureKit` keeps delivering samples that the
+    /// bridge then discards.
+    pub fn remove_output_handler(
         &mut self,
         id: usize,
         of_type: SCStreamOutputType,
@@ -1172,7 +1153,7 @@ impl Clone for SCStream {
     /// # let filter = SCContentFilter::create().with_display(display).with_excluding_windows(&[]).build()?;
     /// # let config = SCStreamConfiguration::default();
     /// let mut stream = SCStream::new(&filter, &config)?;
-    /// stream.add_output_handler(|_, _| println!("Handler 1"), SCStreamOutputType::Screen);
+    /// stream.add_output_handler(|_, _| println!("Handler 1"), SCStreamOutputType::Screen)?;
     ///
     /// // Clone shares the same handlers
     /// let stream2 = stream.clone();

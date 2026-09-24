@@ -159,7 +159,9 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     };
 
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-    stream.add_output_handler(handler, SCStreamOutputType::Screen);
+    stream
+        .add_output_handler(handler, SCStreamOutputType::Screen)
+        .expect("register output handler");
 
     println!("Starting capture...\n");
     if let Err(e) = stream.start_capture() {

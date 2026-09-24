@@ -173,12 +173,14 @@ fn test_handler_registration_cleanup() {
             let handler = TestHandler {
                 count: count.clone(),
             };
-            let id = stream.add_output_handler(handler, SCStreamOutputType::Screen);
+            let id = stream
+                .add_output_handler(handler, SCStreamOutputType::Screen)
+                .expect("register output handler");
 
             // Remove handler
-            if let Some(handler_id) = id {
-                stream.remove_output_handler(handler_id, SCStreamOutputType::Screen);
-            }
+            stream
+                .remove_output_handler(id, SCStreamOutputType::Screen)
+                .expect("remove output handler");
 
             drop(stream);
         }
@@ -208,12 +210,14 @@ fn test_closure_handler_memory() {
             let count = Arc::new(AtomicUsize::new(0));
             let count_clone = count.clone();
 
-            stream.add_output_handler(
-                move |_sample: CMSampleBuffer, _of_type: SCStreamOutputType| {
-                    count_clone.fetch_add(1, Ordering::Relaxed);
-                },
-                SCStreamOutputType::Screen,
-            );
+            stream
+                .add_output_handler(
+                    move |_sample: CMSampleBuffer, _of_type: SCStreamOutputType| {
+                        count_clone.fetch_add(1, Ordering::Relaxed);
+                    },
+                    SCStreamOutputType::Screen,
+                )
+                .expect("register output handler");
 
             drop(stream);
             // count should be droppable after stream is dropped
@@ -296,12 +300,14 @@ fn test_multiple_streams_memory() {
                 let count = Arc::new(AtomicUsize::new(0));
                 let count_clone = count.clone();
 
-                stream.add_output_handler(
-                    move |_: CMSampleBuffer, _: SCStreamOutputType| {
-                        count_clone.fetch_add(1, Ordering::Relaxed);
-                    },
-                    SCStreamOutputType::Screen,
-                );
+                stream
+                    .add_output_handler(
+                        move |_: CMSampleBuffer, _: SCStreamOutputType| {
+                            count_clone.fetch_add(1, Ordering::Relaxed);
+                        },
+                        SCStreamOutputType::Screen,
+                    )
+                    .expect("register output handler");
 
                 (stream, count)
             })

@@ -200,7 +200,7 @@ fn run_capture_demo(include_filter: &SCContentFilter, app_name: &str) -> Example
     };
 
     let mut stream = SCStream::new(include_filter, &config)?;
-    stream.add_output_handler(handler, SCStreamOutputType::Screen);
+    stream.add_output_handler(handler, SCStreamOutputType::Screen)?;
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(3));
     stream.stop_capture()?;

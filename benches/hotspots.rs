@@ -173,7 +173,9 @@ fn capture_single_frame() -> Option<CMSampleBuffer> {
     };
 
     let mut stream = SCStream::new(&filter, &config).ok()?;
-    stream.add_output_handler(handler, SCStreamOutputType::Screen);
+    stream
+        .add_output_handler(handler, SCStreamOutputType::Screen)
+        .ok()?;
     stream.start_capture().ok()?;
 
     let start = Instant::now();
@@ -505,9 +507,13 @@ fn run_stream(duration: Duration, with_audio: bool) -> Arc<AvStats> {
     };
 
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-    stream.add_output_handler(video_handler, SCStreamOutputType::Screen);
+    stream
+        .add_output_handler(video_handler, SCStreamOutputType::Screen)
+        .expect("register output handler");
     if with_audio {
-        stream.add_output_handler(audio_handler, SCStreamOutputType::Audio);
+        stream
+            .add_output_handler(audio_handler, SCStreamOutputType::Audio)
+            .expect("register output handler");
     }
     stream.start_capture().expect("start");
 
@@ -604,11 +610,15 @@ fn capture_single_audio_sample() -> Option<CMSampleBuffer> {
     };
 
     let mut stream = SCStream::new(&filter, &config).ok()?;
-    stream.add_output_handler(
-        |_buf: CMSampleBuffer, _ot: SCStreamOutputType| {},
-        SCStreamOutputType::Screen,
-    );
-    stream.add_output_handler(handler, SCStreamOutputType::Audio);
+    stream
+        .add_output_handler(
+            |_buf: CMSampleBuffer, _ot: SCStreamOutputType| {},
+            SCStreamOutputType::Screen,
+        )
+        .ok()?;
+    stream
+        .add_output_handler(handler, SCStreamOutputType::Audio)
+        .ok()?;
     stream.start_capture().ok()?;
 
     let start = Instant::now();

@@ -380,15 +380,21 @@ fn test_capture_with_filter(filter_type: FilterType, duration: &Duration) {
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
 
     // Add output handlers for all types using SharedHandler wrapper
-    stream.add_output_handler(SharedHandler(handler.clone()), SCStreamOutputType::Screen);
-    stream.add_output_handler(SharedHandler(handler.clone()), SCStreamOutputType::Audio);
+    stream
+        .add_output_handler(SharedHandler(handler.clone()), SCStreamOutputType::Screen)
+        .expect("register output handler");
+    stream
+        .add_output_handler(SharedHandler(handler.clone()), SCStreamOutputType::Audio)
+        .expect("register output handler");
 
     #[cfg(feature = "macos_15_0")]
     if matches!(filter_type, FilterType::FullConfigWithMic) {
-        stream.add_output_handler(
-            SharedHandler(handler.clone()),
-            SCStreamOutputType::Microphone,
-        );
+        stream
+            .add_output_handler(
+                SharedHandler(handler.clone()),
+                SCStreamOutputType::Microphone,
+            )
+            .expect("register output handler");
     }
 
     if let Err(e) = stream.start_capture() {

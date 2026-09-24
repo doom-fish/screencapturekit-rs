@@ -81,8 +81,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             audio_count: audio_count.clone(),
         },
         SCStreamOutputType::Screen,
-    );
-    stream.add_output_handler(handler, SCStreamOutputType::Audio);
+    )?;
+    stream.add_output_handler(handler, SCStreamOutputType::Audio)?;
 
     println!("Starting capture...\n");
     stream.start_capture()?;

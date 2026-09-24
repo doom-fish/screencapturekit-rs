@@ -95,7 +95,9 @@ fn test_video_capture() {
         samples: samples.clone(),
     };
 
-    stream.add_output_handler(output, SCStreamOutputType::Screen);
+    stream
+        .add_output_handler(output, SCStreamOutputType::Screen)
+        .expect("register output handler");
 
     // Start capture
     stream.start_capture().expect("Failed to start capture");
@@ -178,7 +180,9 @@ fn test_audio_capture() {
         samples: samples.clone(),
     };
 
-    stream.add_output_handler(output, SCStreamOutputType::Audio);
+    stream
+        .add_output_handler(output, SCStreamOutputType::Audio)
+        .expect("register output handler");
 
     // Start capture
     stream.start_capture().expect("Failed to start capture");
@@ -267,14 +271,18 @@ fn test_video_and_audio_capture() {
     let video_output = VideoTestOutput {
         samples: video_samples.clone(),
     };
-    stream.add_output_handler(video_output, SCStreamOutputType::Screen);
+    stream
+        .add_output_handler(video_output, SCStreamOutputType::Screen)
+        .expect("register output handler");
 
     // Add audio output handler
     let audio_samples = Arc::new(Mutex::new(Vec::new()));
     let audio_output = AudioTestOutput {
         samples: audio_samples.clone(),
     };
-    stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
+    stream
+        .add_output_handler(audio_output, SCStreamOutputType::Audio)
+        .expect("register output handler");
 
     // Start capture
     stream.start_capture().expect("Failed to start capture");
@@ -344,7 +352,9 @@ fn test_pixel_buffer_locking() {
     let output = VideoTestOutput {
         samples: samples.clone(),
     };
-    stream.add_output_handler(output, SCStreamOutputType::Screen);
+    stream
+        .add_output_handler(output, SCStreamOutputType::Screen)
+        .expect("register output handler");
 
     // Start capture
     stream.start_capture().expect("Failed to start capture");
@@ -444,7 +454,9 @@ fn test_iosurface_backed_buffer() {
     let output = VideoTestOutput {
         samples: samples.clone(),
     };
-    stream.add_output_handler(output, SCStreamOutputType::Screen);
+    stream
+        .add_output_handler(output, SCStreamOutputType::Screen)
+        .expect("register output handler");
 
     // Start capture
     stream.start_capture().expect("Failed to start capture");

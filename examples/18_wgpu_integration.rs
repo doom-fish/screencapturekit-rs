@@ -431,7 +431,9 @@ impl ApplicationHandler for App<'_> {
                 };
 
                 let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-                stream.add_output_handler(handler, SCStreamOutputType::Screen);
+                stream
+                    .add_output_handler(handler, SCStreamOutputType::Screen)
+                    .expect("register output handler");
                 let _ = stream.start_capture();
                 self.stream = Some(stream);
 

@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             video_counters.video.fetch_add(1, Ordering::Relaxed);
         },
         SCStreamOutputType::Screen,
-    );
+    )?;
 
     let audio_counters = Arc::clone(&counters);
     stream.add_output_handler(
@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             audio_counters.audio.fetch_add(1, Ordering::Relaxed);
         },
         SCStreamOutputType::Audio,
-    );
+    )?;
 
     println!("Starting capture...");
     let t0 = Instant::now();

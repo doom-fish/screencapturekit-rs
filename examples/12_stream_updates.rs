@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let mut stream = SCStream::new(&filter, &config)?;
-    stream.add_output_handler(handler, SCStreamOutputType::Screen);
+    stream.add_output_handler(handler, SCStreamOutputType::Screen)?;
     stream.start_capture()?;
 
     println!("▶️  Capture started\n");

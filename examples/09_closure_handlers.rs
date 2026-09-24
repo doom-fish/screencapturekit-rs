@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         },
         SCStreamOutputType::Screen,
-    );
+    )?;
 
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         SCStreamOutputType::Screen,
         Some(&queue),
-    );
+    )?;
 
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -125,7 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             count_clone.fetch_add(1, Ordering::Relaxed);
         },
         SCStreamOutputType::Screen,
-    );
+    )?;
 
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -155,7 +155,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             video_clone.fetch_add(1, Ordering::Relaxed);
         },
         SCStreamOutputType::Screen,
-    );
+    )?;
 
     // Handler 2: Log every 60th frame
     stream.add_output_handler(
@@ -166,7 +166,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         },
         SCStreamOutputType::Screen,
-    );
+    )?;
 
     stream.start_capture()?;
     std::thread::sleep(std::time::Duration::from_secs(2));

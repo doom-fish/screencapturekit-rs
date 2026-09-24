@@ -106,8 +106,12 @@ fn test_screen_capture_with_audio() {
     };
 
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-    stream.add_output_handler(video_output, SCStreamOutputType::Screen);
-    stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
+    stream
+        .add_output_handler(video_output, SCStreamOutputType::Screen)
+        .expect("register output handler");
+    stream
+        .add_output_handler(audio_output, SCStreamOutputType::Audio)
+        .expect("register output handler");
 
     stream.start_capture().ok();
     println!("Capture started, waiting for frames...");
@@ -195,8 +199,12 @@ fn test_combined_video_audio_capture() {
     };
 
     let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-    stream.add_output_handler(video_output, SCStreamOutputType::Screen);
-    stream.add_output_handler(audio_output, SCStreamOutputType::Audio);
+    stream
+        .add_output_handler(video_output, SCStreamOutputType::Screen)
+        .expect("register output handler");
+    stream
+        .add_output_handler(audio_output, SCStreamOutputType::Audio)
+        .expect("register output handler");
 
     stream.start_capture().ok();
     println!("Combined capture started");

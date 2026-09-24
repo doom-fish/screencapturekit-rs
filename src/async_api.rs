@@ -869,16 +869,7 @@ impl AsyncSCStream {
         };
 
         let mut stream = crate::stream::SCStream::new_with_delegate(filter, config, delegate)?;
-        if stream.add_output_handler(sender, output_type).is_none() {
-            // Registration failed and the sender was dropped with it, which
-            // already closed the queue (it was the only one). Record why, so
-            // `take_error()` explains the immediate `None` from `next()`.
-            if let Ok(mut s) = state.lock() {
-                s.stop_error = Some(SCError::StreamError(
-                    "failed to register stream output handler".to_string(),
-                ));
-            }
-        }
+        stream.add_output_handler(sender, output_type)?;
 
         Ok(Self {
             stream,
@@ -976,15 +967,17 @@ impl AsyncSCStream {
     /// buffer; use [`next_typed`](Self::next_typed) /
     /// [`try_next_typed`](Self::try_next_typed) to distinguish them.
     ///
-    /// Returns `true` if the output type was registered. Registration can fail
-    /// if the stream configuration does not enable that type (e.g. audio
-    /// capture was not configured); on failure the already-registered types
-    /// keep flowing and the queue stays open.
-    pub fn add_output_type(&mut self, output_type: SCStreamOutputType) -> bool {
+    /// # Errors
+    ///
+    /// Returns the [`SCStream::add_output_handler`](crate::stream::SCStream::add_output_handler)
+    /// error when registration fails, for example if the stream configuration
+    /// does not enable that type (e.g. audio capture was not configured); on
+    /// failure the already-registered types keep flowing and the queue stays
+    /// open.
+    pub fn add_output_type(&mut self, output_type: SCStreamOutputType) -> Result<(), SCError> {
         let sender = AsyncSampleSender::new(&self.iterator_state);
-        self.stream
-            .add_output_handler(sender, output_type)
-            .is_some()
+        self.stream.add_output_handler(sender, output_type)?;
+        Ok(())
     }
 
     /// Try to get a sample without waiting
