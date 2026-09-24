@@ -1,69 +1,41 @@
 # ScreenCaptureKit SDK Coverage
 
-> **Snapshot — not a live coverage status.** This document records a
-> point-in-time audit performed against `screencapturekit` **v3.1.1**. It has
-> **not** been re-verified against the upcoming 10.0.0 package and should
-> be read as a historical audit, not an up-to-date certification.
+Checked for `screencapturekit` 11.0.0 on 2026-09-24 against the
+ScreenCaptureKit headers of the macOS 27.0 SDK and the macOS 26.5 SDK (the
+default build SDK). [`COVERAGE_AUDIT.md`](COVERAGE_AUDIT.md) counts top-level
+symbols (classes, protocols, enums and exported constants), and
+[`COVERAGE_AUDIT_V2.md`](COVERAGE_AUDIT_V2.md) counts the properties and
+methods of each class and protocol. Both are static checks: they show that a
+public Rust item exists and calls the matching bridge export, not that every
+item behaves correctly on every macOS version. Most types need a `macos_*`
+Cargo feature; see the README.
 
-This document records the `screencapturekit` v3.1.1 coverage audit against
-Apple's `ScreenCaptureKit.framework` from Xcode 26.2 (`MacOSX26.2.sdk`).
+## Summary
 
-## What "coverage" means here
-
-The audit counted **top-level declarations** — classes, protocols, enums and
-exported constants — and found a Rust binding for each one. It did **not**
-enumerate the individual properties and methods on those types.
-
-So a type marked "Bound" below means *the crate binds that type*, not *the
-crate binds every member of that type*. The distinction is not academic: after
-this audit shipped, `SCScreenshotConfiguration` was still missing every getter
-for its eleven properties, and `SCContentSharingPicker` was missing
-`add(_:)` / `remove(_:)` / `defaultConfiguration` / `setConfiguration(_:for:)`
-and the standalone `present(...)` family — all on types the table certified as
-"Bound". Those specific gaps were closed in 8.0.
-
-**Member-level coverage is not certified.** Treat a missing property as a bug
-worth filing, not as a documented exclusion.
-
-## Audited surface
-
-The audit covered the following public SDK areas:
-
-- `SCStream`
-- `SCStreamConfiguration`
-- `SCContentFilter`
-- `SCShareableContent`
-- `SCShareableContentInfo`
-- `SCRunningApplication`
-- `SCDisplay`
-- `SCWindow`
-- `SCContentSharingPicker`
-- `SCContentSharingPickerConfiguration`
-- `SCContentSharingPickerMode`
-- `SCRecordingOutput`
-- `SCRecordingOutputConfiguration`
-- `SCStreamErrorCode`
-- `SCStreamErrorDomain`
-- newer macOS 15.x / 26.0 additions in `SCScreenshotManager` and preset APIs
-
-## Declaration coverage map
-
-"Bound" = the crate exposes the type. See the caveat above: it does not assert
-that every member of the type is reachable from Rust.
-
-| Apple SDK surface | Rust coverage | Declaration |
+| SDK | Top-level symbols | Members |
 | --- | --- | --- |
-| `SCStream`, `SCStreamDelegate`, `SCStreamOutput`, `SCStreamOutputType` | Direct bindings + safe traits | Bound |
-| `SCStreamConfiguration` | Direct bindings, including macOS 15.x microphone / HDR properties and macOS 26 preset creation | Bound |
-| `SCStreamConfiguration.Preset.captureHDRRecordingPreservedSDRHDR10` | `SCStreamConfiguration::from_preset(SCStreamConfigurationPreset::CaptureHDRRecordingPreservedSDRHDR10)` | Bound |
-| `SCStreamFrameInfo` attachment keys | `CMSampleBufferSCExt` accessors (`frame_status`, `display_time`, `scale_factor`, `content_scale`, `content_rect`, `bounding_rect`, `screen_rect`, `presenter_overlay_content_rect`, `dirty_rects`) plus batched `frame_info()` | Bound |
-| `SCContentFilter` | Direct bindings + builder API | Bound |
-| `SCShareableContent`, `SCShareableContentInfo`, `SCRunningApplication`, `SCDisplay`, `SCWindow` | Direct bindings | Bound |
-| `SCContentSharingPicker` | Direct picker APIs plus callback-based `show*()` wrappers over observer-style flows | Bound |
-| `SCContentSharingPickerConfiguration` | Direct bindings, including `allowed_picker_modes()` round-trip and exclusion getters | Bound |
-| `SCRecordingOutput`, `SCRecordingOutputConfiguration` | Direct bindings, including duration / file size and `output_url()` round-trip | Bound |
-| `SCStreamErrorCode` / `SCStreamErrorDomain` | Direct enum + constant mapping | Bound |
-| `SCScreenshotManager` macOS 15.2 / 26.0 additions | Direct bindings | Bound |
+| macOS 26.5 | 41 of 41 wrapped (`SCStreamType` is deprecated and not scored) | 136 of 136 bridged |
+| macOS 27.0 | 41 of 46 wrapped | 136 of 152 bridged |
+
+Every macOS gap is a macOS 27 addition. `SCStreamErrorCode` covers every macOS
+error code, including the macOS 27 `InsufficientStorage` (-3822) and
+`NotSupported` (-3823).
+
+## Not wrapped (macOS 27.0 SDK)
+
+These additions are out of scope for 11.0:
+
+- `SCClipBufferingOutput` and `SCClipBufferingOutputDelegate` (rolling replay
+  buffer with clip export), and `SCStream addClipBufferingOutput:error:` /
+  `removeClipBufferingOutput:error:`.
+- `SCRecordingEditor` and `SCRecordingEditorDelegate`.
+- `SCRecordingOutputConfiguration.mixesAudioWithMicrophone`.
+- `SCContentSharingPicker.available`. `SCContentSharingPicker::is_available`
+  reports whether the macOS 14 picker API exists, not this property.
+- `SCContentFilter.microphoneEnabled` and `SCStream.capturing`.
+- The `SCStreamFrameInfoVideoOrientation` frame attachment.
+
+The 26.5 SDK that this release builds against does not declare them.
 
 ## Notes on safe equivalents
 
@@ -84,10 +56,6 @@ two shapes over it:
   This is the shape that makes `allows_changing_selected_content` work — the
   one-shot helpers latch after the first selection by design.
 
-At the time of the v3.1.1 audit only the one-shot shape existed, so
-`allows_changing_selected_content` could be set but its re-selection events
-were dropped. Added in 8.0.
-
 ### `SCContentSharingPickerConfiguration` value semantics
 
 Apple models the picker configuration as a Swift value type. The Rust wrapper
@@ -99,9 +67,20 @@ configuration and the wrapper's `&mut self` setters would not be exclusive.
 
 Apple declares `SCStreamConfiguration.backgroundColor`, `colorSpaceName`, and `colorMatrix` as assigned `CGColorRef` / `CFStringRef` properties. The bridge now retains the values it assigns so those properties remain valid for the full lifetime of the configuration object.
 
+### Configurations handed to ScreenCaptureKit
+
+`SCStreamConfiguration`, `SCRecordingOutputConfiguration` and
+`SCScreenshotConfiguration` are mutable Objective-C objects. The crate passes
+ScreenCaptureKit a private copy when it creates a stream or recording output,
+updates a stream's configuration, or takes a screenshot, so changing the Rust
+value afterwards never races with work that is still in flight.
+
 ## Validation
 
-The audited surface and follow-up fixes were validated with:
+11.0.0 was validated with:
 
-- `cargo clippy --all-features -- -D warnings`
-- `cargo test --all-features`
+- `cargo build --all-targets --all-features`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo test --all-features` (live capture tests skip when the process has
+  no Screen Recording permission)
+- `cargo +1.82.0 check --lib --all-features`
