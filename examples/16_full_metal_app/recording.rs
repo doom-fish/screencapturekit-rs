@@ -95,7 +95,8 @@ impl RecordingState {
         let rec_config = config.apply_to(
             SCRecordingOutputConfiguration::new()
                 .map_err(|e| e.to_string())?
-                .with_output_url(std::path::Path::new(&path)),
+                .with_output_url(std::path::Path::new(&path))
+                .map_err(|e| e.to_string())?,
         );
 
         // Reset finish signal

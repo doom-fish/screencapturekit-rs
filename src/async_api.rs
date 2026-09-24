@@ -2071,7 +2071,7 @@ impl Drop for RecordingEventStream<'_> {
 ///     let config = SCStreamConfiguration::new().with_width(1920).with_height(1080);
 ///
 ///     let rec_config = SCRecordingOutputConfiguration::new().ok()?
-///         .with_output_url(Path::new("/tmp/recording.mp4"));
+///         .with_output_url(Path::new("/tmp/recording.mp4")).ok()?;
 ///
 ///     let (recording, events) = AsyncSCRecordingOutput::new(&rec_config)?;
 ///

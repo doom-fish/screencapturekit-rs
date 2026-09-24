@@ -102,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Set specific microphone device
         if let Some(mic) = devices.first() {
-            config.set_microphone_capture_device_id(&mic.id);
+            config.set_microphone_capture_device_id(&mic.id)?;
             println!("\n   Selected microphone: {}", mic.name);
         }
     }

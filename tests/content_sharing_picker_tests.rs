@@ -40,7 +40,9 @@ fn test_picker_configuration_default_from_system() {
     // And it must be safe to mutate (i.e. it isn't pointing at a shared
     // singleton that other callers depend on).
     let mut config = config;
-    config.set_excluded_bundle_ids(&["com.apple.dock"]);
+    config
+        .set_excluded_bundle_ids(&["com.apple.dock"])
+        .expect("bundle IDs have no NUL byte");
     drop(config);
 }
 
@@ -349,7 +351,9 @@ fn set_default_configuration_is_reflected_by_default_configuration() {
     let mut config =
         SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     config.set_allows_changing_selected_content(true);
-    config.set_excluded_bundle_ids(&["com.example.picker-test"]);
+    config
+        .set_excluded_bundle_ids(&["com.example.picker-test"])
+        .expect("bundle IDs have no NUL byte");
 
     match SCContentSharingPicker::set_default_configuration(&config) {
         Ok(()) => {}
@@ -411,10 +415,28 @@ fn excluded_bundle_ids_round_trip() {
     let mut config =
         SCContentSharingPickerConfiguration::new().expect("create picker configuration");
     let ids = ["com.apple.dock", "com.apple.finder"];
-    config.set_excluded_bundle_ids(&ids);
+    config
+        .set_excluded_bundle_ids(&ids)
+        .expect("bundle IDs have no NUL byte");
 
     assert_eq!(config.excluded_bundle_ids_count(), ids.len());
     assert_eq!(config.excluded_bundle_ids(), ids);
+}
+
+#[test]
+fn excluded_bundle_ids_with_interior_nul_are_rejected() {
+    use screencapturekit::content_sharing_picker::SCContentSharingPickerConfiguration;
+
+    let mut config =
+        SCContentSharingPickerConfiguration::new().expect("create picker configuration");
+    config
+        .set_excluded_bundle_ids(&["com.apple.dock"])
+        .expect("bundle IDs have no NUL byte");
+
+    assert!(config
+        .set_excluded_bundle_ids(&["com.apple.finder", "com.bad\0id"])
+        .is_err());
+    assert_eq!(config.excluded_bundle_ids(), ["com.apple.dock"]);
 }
 
 #[test]
@@ -465,12 +487,15 @@ fn clone_does_not_alias_the_original() {
 
     let mut original =
         SCContentSharingPickerConfiguration::new().expect("create picker configuration");
-    original.set_excluded_bundle_ids(&["com.example.original"]);
+    original
+        .set_excluded_bundle_ids(&["com.example.original"])
+        .expect("bundle IDs have no NUL byte");
     original.set_excluded_window_ids(&[1]);
     original.set_allows_changing_selected_content(false);
 
     let mut copy = original.clone();
-    copy.set_excluded_bundle_ids(&["com.example.copy"]);
+    copy.set_excluded_bundle_ids(&["com.example.copy"])
+        .expect("bundle IDs have no NUL byte");
     copy.set_excluded_window_ids(&[2, 3]);
     copy.set_allows_changing_selected_content(true);
 
@@ -496,7 +521,9 @@ fn clone_carries_the_source_values_forward() {
         SCContentSharingPickerMode::MultipleWindows,
     ];
     original.set_allowed_picker_modes(&modes);
-    original.set_excluded_bundle_ids(&["com.apple.dock"]);
+    original
+        .set_excluded_bundle_ids(&["com.apple.dock"])
+        .expect("bundle IDs have no NUL byte");
     original.set_excluded_window_ids(&[11, 22]);
     original.set_allows_changing_selected_content(true);
 
@@ -517,7 +544,9 @@ fn clone_survives_the_original_being_dropped() {
     let copy = {
         let mut original =
             SCContentSharingPickerConfiguration::new().expect("create picker configuration");
-        original.set_excluded_bundle_ids(&["com.example.scoped"]);
+        original
+            .set_excluded_bundle_ids(&["com.example.scoped"])
+            .expect("bundle IDs have no NUL byte");
         original.clone()
     };
 

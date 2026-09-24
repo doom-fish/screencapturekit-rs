@@ -28,7 +28,8 @@ pub fn take_screenshot(
             .with_width(capture_size.0 as usize)
             .with_height(capture_size.1 as usize)
             .with_shows_cursor(stream_config.shows_cursor())
-            .with_file_path(&path);
+            .with_file_path(&path)
+            .expect("file path is valid UTF-8 without NUL bytes");
 
         match SCScreenshotManager::capture_screenshot(filter, &config) {
             Ok(output) => {

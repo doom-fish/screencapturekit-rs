@@ -242,7 +242,9 @@ impl ConfigMenu {
                 }
                 if let Some(idx) = *mic_device_idx {
                     if let Some(device) = devices.get(idx) {
-                        config.set_microphone_capture_device_id(&device.id);
+                        config
+                            .set_microphone_capture_device_id(&device.id)
+                            .expect("device ID has no NUL byte");
                     }
                 }
             }

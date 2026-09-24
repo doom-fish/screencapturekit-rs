@@ -399,10 +399,10 @@ impl SCStreamConfiguration {
     /// # Availability
     /// macOS 15.0+. On earlier versions, this setting has no effect.
     ///
-    /// If `device_id` contains an interior NUL byte it cannot be converted to a
-    /// C string and the call is silently ignored. Use
-    /// [`try_set_microphone_capture_device_id`](Self::try_set_microphone_capture_device_id)
-    /// to observe that rejection.
+    /// # Errors
+    ///
+    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
+    /// `device_id` contains an interior NUL byte.
     ///
     /// # Example
     /// ```rust,no_run
@@ -410,23 +410,12 @@ impl SCStreamConfiguration {
     ///
     /// let mut config = SCStreamConfiguration::new()
     ///     .with_captures_microphone(true);
-    /// config.set_microphone_capture_device_id("AppleHDAEngineInput:1B,0,1,0:1");
+    /// config
+    ///     .set_microphone_capture_device_id("AppleHDAEngineInput:1B,0,1,0:1")
+    ///     .expect("device ID has no NUL byte");
     /// ```
     #[cfg(feature = "macos_15_0")]
-    pub fn set_microphone_capture_device_id(&mut self, device_id: &str) -> &mut Self {
-        let _ = self.try_set_microphone_capture_device_id(device_id);
-        self
-    }
-
-    /// Set microphone capture device ID, reporting IDs that cannot cross the C
-    /// boundary.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
-    /// `device_id` contains an interior NUL byte.
-    #[cfg(feature = "macos_15_0")]
-    pub fn try_set_microphone_capture_device_id(
+    pub fn set_microphone_capture_device_id(
         &mut self,
         device_id: &str,
     ) -> Result<&mut Self, InteriorNulError> {
@@ -442,10 +431,13 @@ impl SCStreamConfiguration {
 
     /// Set microphone capture device ID (builder pattern)
     #[cfg(feature = "macos_15_0")]
-    #[must_use]
-    pub fn with_microphone_capture_device_id(mut self, device_id: &str) -> Self {
-        self.set_microphone_capture_device_id(device_id);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_microphone_capture_device_id(
+        mut self,
+        device_id: &str,
+    ) -> Result<Self, InteriorNulError> {
+        self.set_microphone_capture_device_id(device_id)?;
+        Ok(self)
     }
 
     /// Clear microphone capture device ID, reverting to default system microphone

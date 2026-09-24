@@ -48,6 +48,8 @@ use std::ffi::c_void;
 
 #[cfg(feature = "macos_15_2")]
 use crate::cg::CGRect;
+#[cfg(feature = "macos_26_0")]
+use crate::stream::configuration::InteriorNulError;
 
 #[doc(no_inline)]
 pub use apple_cf::cg::CGImage;
@@ -998,24 +1000,12 @@ impl SCScreenshotConfiguration {
     /// Set the output file path.
     ///
     /// Accepts anything path-like (`&str`, `String`, `&Path`, `PathBuf`).
-    /// Paths that are not valid UTF-8 or contain an interior NUL byte are
-    /// ignored. Use [`try_set_file_path`](Self::try_set_file_path) to observe
-    /// rejection.
-    pub fn set_file_path(&mut self, path: impl AsRef<std::path::Path>) -> &mut Self {
-        if let Err(error) = self.try_set_file_path(path) {
-            eprintln!("SCScreenshotConfiguration: {error}; file path was not changed");
-        }
-        self
-    }
-
-    /// Set the output file path, reporting paths that cannot cross the C
-    /// boundary.
     ///
     /// # Errors
     ///
     /// Returns [`InvalidScreenshotPath`] and leaves the configuration unchanged
     /// if Foundation cannot represent the path.
-    pub fn try_set_file_path(
+    pub fn set_file_path(
         &mut self,
         path: impl AsRef<std::path::Path>,
     ) -> Result<&mut Self, InvalidScreenshotPath> {
@@ -1035,10 +1025,13 @@ impl SCScreenshotConfiguration {
     ///
     /// See [`set_file_path`](Self::set_file_path) for how invalid paths are
     /// handled.
-    #[must_use]
-    pub fn with_file_path(mut self, path: impl AsRef<std::path::Path>) -> Self {
-        self.set_file_path(path);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_file_path(
+        mut self,
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<Self, InvalidScreenshotPath> {
+        self.set_file_path(path)?;
+        Ok(self)
     }
 
     /// Clear any previously configured output file path.
@@ -1154,22 +1147,16 @@ impl SCScreenshotConfiguration {
     /// Use [`supported_content_types()`](Self::supported_content_types) to get
     /// available formats.
     ///
-    /// If `identifier` contains an interior NUL byte it cannot be converted to a
-    /// C string and the call is silently ignored (the configuration is left
-    /// unchanged). Valid `UTType` identifiers never contain NUL bytes.
-    #[must_use]
-    pub fn with_content_type(self, identifier: &str) -> Self {
-        if let Ok(c_id) = std::ffi::CString::new(identifier) {
-            unsafe {
-                crate::ffi::sc_screenshot_configuration_set_content_type(self.ptr, c_id.as_ptr());
-            }
-        } else {
-            eprintln!(
-                "SCScreenshotConfiguration: content type contains an interior NUL byte; \
-                 content type was not changed"
-            );
+    /// # Errors
+    ///
+    /// Returns [`InteriorNulError`] if `identifier` contains an interior NUL
+    /// byte. Valid `UTType` identifiers never contain NUL bytes.
+    pub fn with_content_type(self, identifier: &str) -> Result<Self, InteriorNulError> {
+        let c_id = std::ffi::CString::new(identifier).map_err(|_| InteriorNulError)?;
+        unsafe {
+            crate::ffi::sc_screenshot_configuration_set_content_type(self.ptr, c_id.as_ptr());
         }
-        self
+        Ok(self)
     }
 
     /// Get the current content type as `UTType` identifier

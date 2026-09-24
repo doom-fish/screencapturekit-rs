@@ -142,7 +142,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let file_config = SCScreenshotConfiguration::new()?
             .with_width(1920)
             .with_height(1080)
-            .with_file_path("screenshot_direct.png");
+            .with_file_path("screenshot_direct.png")?;
 
         match SCScreenshotManager::capture_screenshot(&filter, &file_config) {
             Ok(output) => {

@@ -123,6 +123,7 @@ fn test_recording_configuration() {
     let config = SCRecordingOutputConfiguration::new()
         .expect("create recording configuration")
         .with_output_url(&path)
+        .expect("output path is valid UTF-8 without NUL bytes")
         .with_video_codec(SCRecordingOutputCodec::H264);
 
     let output_url = config.output_url().expect("output_url should round-trip");
@@ -597,7 +598,8 @@ fn test_recording_output_with_delegate() {
     let path = PathBuf::from("/tmp/test_delegate_recording.mp4");
     let config = SCRecordingOutputConfiguration::new()
         .expect("create recording configuration")
-        .with_output_url(&path);
+        .with_output_url(&path)
+        .expect("output path is valid UTF-8 without NUL bytes");
 
     let callbacks = RecordingCallbacks::new()
         .on_start(|| println!("Recording started"))
@@ -631,6 +633,7 @@ fn test_recording_configuration_clone_is_independent() {
     let original = SCRecordingOutputConfiguration::new()
         .expect("create recording configuration")
         .with_output_url(Path::new("/tmp/original.mov"))
+        .expect("output path is valid UTF-8 without NUL bytes")
         .with_video_codec(SCRecordingOutputCodec::H264)
         .with_output_file_type(SCRecordingOutputFileType::MOV);
 
@@ -641,7 +644,8 @@ fn test_recording_configuration_clone_is_independent() {
     let clone = clone
         .with_video_codec(SCRecordingOutputCodec::HEVC)
         .with_output_file_type(SCRecordingOutputFileType::MP4)
-        .with_output_url(Path::new("/tmp/clone.mp4"));
+        .with_output_url(Path::new("/tmp/clone.mp4"))
+        .expect("output path is valid UTF-8 without NUL bytes");
 
     assert_eq!(
         original.video_codec(),
@@ -727,7 +731,7 @@ fn test_output_url_rejects_interior_nul() {
     use std::path::Path;
 
     let config = SCRecordingOutputConfiguration::new().expect("create recording configuration");
-    let result = config.try_with_output_url(Path::new("/tmp/bad\0name.mov"));
+    let result = config.with_output_url(Path::new("/tmp/bad\0name.mov"));
     assert!(result.is_err(), "interior NUL must be rejected");
 }
 
@@ -741,7 +745,7 @@ fn test_output_url_rejects_non_utf8_path() {
     assert!(
         SCRecordingOutputConfiguration::new()
             .expect("create recording configuration")
-            .try_with_output_url(&path)
+            .with_output_url(&path)
             .is_err(),
         "Foundation file URLs cannot represent non-UTF-8 paths faithfully"
     );
@@ -815,7 +819,8 @@ fn test_remove_recording_then_stop_completes() {
         .with_height(240);
     let recording_config = SCRecordingOutputConfiguration::new()
         .expect("create recording configuration")
-        .with_output_url(&output_path);
+        .with_output_url(&output_path)
+        .expect("output path is valid UTF-8 without NUL bytes");
     let started_recording = Arc::new(AtomicBool::new(false));
     let started_observed = Arc::clone(&started_recording);
     let finished = Arc::new(AtomicBool::new(false));
@@ -924,7 +929,8 @@ fn test_remove_recording_racing_start_still_waits_for_terminal() {
         .with_height(240);
     let recording_config = SCRecordingOutputConfiguration::new()
         .expect("create recording configuration")
-        .with_output_url(&output_path);
+        .with_output_url(&output_path)
+        .expect("output path is valid UTF-8 without NUL bytes");
     let started = Arc::new(AtomicBool::new(false));
     let started_observed = Arc::clone(&started);
     let terminal = Arc::new(AtomicBool::new(false));

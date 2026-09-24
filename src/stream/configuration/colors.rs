@@ -28,7 +28,7 @@ use super::{internal::SCStreamConfiguration, pixel_format::PixelFormat};
 /// ```
 /// use screencapturekit::stream::configuration::{color_matrix, SCStreamConfiguration};
 ///
-/// let config = SCStreamConfiguration::new().with_color_matrix(color_matrix::ITU_R_709_2);
+/// let config = SCStreamConfiguration::new().with_color_matrix(color_matrix::ITU_R_709_2).expect("color matrix has no NUL byte");
 /// ```
 pub mod color_matrix {
     /// `kCGDisplayStreamYCbCrMatrix_ITU_R_709_2` — HD (Rec. 709).
@@ -57,7 +57,7 @@ pub mod color_space {
     pub const ITUR_2100_PQ: &str = "kCGColorSpaceITUR_2100_PQ";
 }
 
-/// A string that could not be forwarded to `SCStreamConfiguration`.
+/// A string that could not be forwarded to `ScreenCaptureKit`.
 ///
 /// The native properties take C strings, so a value containing an interior NUL
 /// byte cannot be represented without truncating it into a different — and
@@ -176,23 +176,11 @@ impl SCStreamConfiguration {
     /// Available on macOS 13.0+. Use the [`color_space`] constants for the
     /// values `ScreenCaptureKit` recognises.
     ///
-    /// If `name` contains an interior NUL byte it cannot be converted to a C
-    /// string and the call is silently ignored (the configuration is left
-    /// unchanged). Use [`try_set_color_space_name`](Self::try_set_color_space_name)
-    /// if you need to observe that rejection.
-    pub fn set_color_space_name(&mut self, name: &str) -> &mut Self {
-        let _ = self.try_set_color_space_name(name);
-        self
-    }
-
-    /// Set the color space name, reporting values that cannot cross the C
-    /// boundary.
-    ///
     /// # Errors
     ///
     /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
     /// `name` contains an interior NUL byte.
-    pub fn try_set_color_space_name(&mut self, name: &str) -> Result<&mut Self, InteriorNulError> {
+    pub fn set_color_space_name(&mut self, name: &str) -> Result<&mut Self, InteriorNulError> {
         let c_name = std::ffi::CString::new(name).map_err(|_| InteriorNulError)?;
         unsafe {
             crate::ffi::sc_stream_configuration_set_color_space_name(
@@ -204,10 +192,10 @@ impl SCStreamConfiguration {
     }
 
     /// Set the color space name (builder pattern).
-    #[must_use]
-    pub fn with_color_space_name(mut self, name: &str) -> Self {
-        self.set_color_space_name(name);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_color_space_name(mut self, name: &str) -> Result<Self, InteriorNulError> {
+        self.set_color_space_name(name)?;
+        Ok(self)
     }
 
     /// Get the color space name for captured content.
@@ -227,23 +215,11 @@ impl SCStreamConfiguration {
     /// other string is ignored by the system without an error. The setting
     /// only affects `YCbCr` pixel formats and is inert for BGRA capture.
     ///
-    /// If `matrix` contains an interior NUL byte it cannot be converted to a C
-    /// string and the call is silently ignored (the configuration is left
-    /// unchanged). Use [`try_set_color_matrix`](Self::try_set_color_matrix) if
-    /// you need to observe that rejection.
-    pub fn set_color_matrix(&mut self, matrix: &str) -> &mut Self {
-        let _ = self.try_set_color_matrix(matrix);
-        self
-    }
-
-    /// Set the color matrix, reporting values that cannot cross the C
-    /// boundary.
-    ///
     /// # Errors
     ///
     /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
     /// `matrix` contains an interior NUL byte.
-    pub fn try_set_color_matrix(&mut self, matrix: &str) -> Result<&mut Self, InteriorNulError> {
+    pub fn set_color_matrix(&mut self, matrix: &str) -> Result<&mut Self, InteriorNulError> {
         let c_matrix = std::ffi::CString::new(matrix).map_err(|_| InteriorNulError)?;
         unsafe {
             crate::ffi::sc_stream_configuration_set_color_matrix(self.as_ptr(), c_matrix.as_ptr());
@@ -263,9 +239,9 @@ impl SCStreamConfiguration {
     }
 
     /// Set the color matrix (builder pattern)
-    #[must_use]
-    pub fn with_color_matrix(mut self, matrix: &str) -> Self {
-        self.set_color_matrix(matrix);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_color_matrix(mut self, matrix: &str) -> Result<Self, InteriorNulError> {
+        self.set_color_matrix(matrix)?;
+        Ok(self)
     }
 }

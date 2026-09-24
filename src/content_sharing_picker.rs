@@ -65,10 +65,11 @@
 //! // Only allow single display selection
 //! config.set_allowed_picker_modes(&[SCContentSharingPickerMode::SingleDisplay]);
 //! // Exclude specific apps from the picker
-//! config.set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"]);
+//! config.set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"]).expect("bundle IDs have no NUL byte");
 //! ```
 
 use crate::error::SCError;
+use crate::stream::configuration::InteriorNulError;
 use crate::stream::content_filter::{SCContentFilter, SCShareableContentStyle};
 pub use crate::stream::StreamIdentity;
 use std::any::Any;
@@ -156,7 +157,7 @@ impl SCContentSharingPickerConfiguration {
     /// // Start from the system defaults, then override only what you need.
     /// let mut config = SCContentSharingPickerConfiguration::default_from_system()
     ///     .expect("read the default picker configuration");
-    /// config.set_excluded_bundle_ids(&["com.apple.dock"]);
+    /// config.set_excluded_bundle_ids(&["com.apple.dock"]).expect("bundle IDs have no NUL byte");
     /// ```
     pub fn default_from_system() -> Result<Self, SCError> {
         if !SCContentSharingPicker::is_available() {
@@ -230,20 +231,17 @@ impl SCContentSharingPickerConfiguration {
     /// Set bundle identifiers to exclude from the picker
     ///
     /// Applications with these bundle IDs will not appear in the picker.
-    pub fn set_excluded_bundle_ids(&mut self, bundle_ids: &[&str]) {
-        let c_strings: Vec<std::ffi::CString> = if let Ok(ids) = bundle_ids
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
+    /// any bundle ID contains an interior NUL byte.
+    pub fn set_excluded_bundle_ids(&mut self, bundle_ids: &[&str]) -> Result<(), InteriorNulError> {
+        let c_strings = bundle_ids
             .iter()
             .map(|id| std::ffi::CString::new(*id))
-            .collect()
-        {
-            ids
-        } else {
-            eprintln!(
-                "SCContentSharingPickerConfiguration: excluded bundle ID contains an \
-                 interior NUL byte; configuration was not changed"
-            );
-            return;
-        };
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| InteriorNulError)?;
         let ptrs: Vec<*const i8> = c_strings.iter().map(|s| s.as_ptr()).collect();
         unsafe {
             crate::ffi::sc_content_sharing_picker_configuration_set_excluded_bundle_ids(
@@ -252,6 +250,7 @@ impl SCContentSharingPickerConfiguration {
                 ptrs.len(),
             );
         }
+        Ok(())
     }
 
     /// Get the list of excluded bundle identifiers

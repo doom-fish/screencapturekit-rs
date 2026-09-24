@@ -1028,6 +1028,7 @@ mod recording_tests {
         let config = SCRecordingOutputConfiguration::new()
             .expect("create recording configuration")
             .with_output_url(&output_path)
+            .expect("output path is valid UTF-8 without NUL bytes")
             .with_output_file_type(SCRecordingOutputFileType::MOV)
             .with_video_codec(SCRecordingOutputCodec::H264);
 
@@ -1106,7 +1107,9 @@ mod content_picker_tests {
         let mut config =
             SCContentSharingPickerConfiguration::new().expect("create picker configuration");
 
-        config.set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"]);
+        config
+            .set_excluded_bundle_ids(&["com.apple.finder", "com.apple.dock"])
+            .expect("bundle IDs have no NUL byte");
         let excluded = config.excluded_bundle_ids();
         assert_eq!(excluded.len(), 2);
         assert!(excluded.contains(&"com.apple.finder".to_string()));

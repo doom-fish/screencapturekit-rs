@@ -114,7 +114,9 @@ fn test_builder_with_background_color_rgba() {
 #[test]
 #[cfg(feature = "macos_14_0")]
 fn test_builder_with_stream_name() {
-    let config = SCStreamConfiguration::new().with_stream_name(Some("TestStream"));
+    let config = SCStreamConfiguration::new()
+        .with_stream_name(Some("TestStream"))
+        .expect("stream name has no NUL byte");
     let name = config.stream_name();
     // Stream name may not be retrievable on all macOS versions
     println!("Stream name: {name:?}");
@@ -267,7 +269,9 @@ fn test_configuration_clone_copies_side_channel_state() {
     let original = SCStreamConfiguration::new()
         .with_background_color_rgba(0.25, 0.5, 0.75, 1.0)
         .with_color_space_name(color_space::SRGB)
-        .with_color_matrix(color_matrix::ITU_R_709_2);
+        .expect("color space name has no NUL byte")
+        .with_color_matrix(color_matrix::ITU_R_709_2)
+        .expect("color matrix has no NUL byte");
 
     let copy = original.clone();
     assert_ne!(copy, original, "clone must be an independent object");
@@ -319,14 +323,16 @@ fn test_set_fps_zero_is_cm_time_zero() {
 /// say so instead of silently leaving the previous value in place.
 #[test]
 fn test_interior_nul_strings_are_rejected() {
-    let mut config = SCStreamConfiguration::new().with_color_matrix(color_matrix::ITU_R_601_4);
+    let mut config = SCStreamConfiguration::new()
+        .with_color_matrix(color_matrix::ITU_R_601_4)
+        .expect("color matrix has no NUL byte");
 
-    assert!(config.try_set_color_matrix("ITU_R\0_709_2").is_err());
-    assert!(config
-        .try_set_color_space_name("kCGColorSpace\0SRGB")
-        .is_err());
+    assert!(config.set_color_matrix("ITU_R\0_709_2").is_err());
+    assert!(config.set_color_space_name("kCGColorSpace\0SRGB").is_err());
     #[cfg(feature = "macos_14_0")]
-    assert!(config.try_set_stream_name(Some("bad\0name")).is_err());
+    assert!(config.set_stream_name(Some("bad\0name")).is_err());
+    #[cfg(feature = "macos_15_0")]
+    assert!(config.set_microphone_capture_device_id("bad\0id").is_err());
 
     assert_eq!(
         config.color_matrix().as_deref(),
@@ -335,12 +341,30 @@ fn test_interior_nul_strings_are_rejected() {
     );
 
     assert!(config
-        .try_set_color_matrix(color_matrix::SMPTE_240M_1995)
+        .set_color_matrix(color_matrix::SMPTE_240M_1995)
         .is_ok());
     assert_eq!(
         config.color_matrix().as_deref(),
         Some(color_matrix::SMPTE_240M_1995)
     );
+}
+
+#[test]
+fn test_builders_reject_interior_nul_strings() {
+    assert!(SCStreamConfiguration::new()
+        .with_color_space_name("kCGColorSpace\0SRGB")
+        .is_err());
+    assert!(SCStreamConfiguration::new()
+        .with_color_matrix("ITU_R\0_709_2")
+        .is_err());
+    #[cfg(feature = "macos_14_0")]
+    assert!(SCStreamConfiguration::new()
+        .with_stream_name(Some("bad\0name"))
+        .is_err());
+    #[cfg(feature = "macos_15_0")]
+    assert!(SCStreamConfiguration::new()
+        .with_microphone_capture_device_id("bad\0id")
+        .is_err());
 }
 
 #[test]
@@ -503,7 +527,9 @@ fn test_excludes_current_process_audio() {
 
 #[test]
 fn test_color_space_name() {
-    let config = SCStreamConfiguration::new().with_color_space_name("kCGColorSpaceSRGB");
+    let config = SCStreamConfiguration::new()
+        .with_color_space_name("kCGColorSpaceSRGB")
+        .expect("color space name has no NUL byte");
     assert_eq!(
         config.color_space_name(),
         Some("kCGColorSpaceSRGB".to_string())
@@ -512,7 +538,9 @@ fn test_color_space_name() {
 
 #[test]
 fn test_color_matrix() {
-    let config = SCStreamConfiguration::new().with_color_matrix("kCGColorMatrix709");
+    let config = SCStreamConfiguration::new()
+        .with_color_matrix("kCGColorMatrix709")
+        .expect("color matrix has no NUL byte");
     assert_eq!(config.color_matrix(), Some("kCGColorMatrix709".to_string()));
 }
 

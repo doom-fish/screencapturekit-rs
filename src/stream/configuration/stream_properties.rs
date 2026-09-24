@@ -28,9 +28,12 @@ impl SCStreamConfiguration {
     /// purposes. The name appears in system logs and debugging tools.
     ///
     /// Available on macOS 14.0+; on older systems the bridge ignores the
-    /// assignment. A name containing an interior NUL byte cannot cross the C
-    /// boundary and is ignored — use
-    /// [`try_set_stream_name`](Self::try_set_stream_name) to observe that.
+    /// assignment.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
+    /// `name` contains an interior NUL byte.
     ///
     /// # Examples
     ///
@@ -38,25 +41,11 @@ impl SCStreamConfiguration {
     /// use screencapturekit::prelude::*;
     ///
     /// let config = SCStreamConfiguration::new()
-    ///     .with_stream_name(Some("MyApp-MainCapture"));
+    ///     .with_stream_name(Some("MyApp-MainCapture"))
+    ///     .expect("stream name has no NUL byte");
     /// ```
     #[cfg(feature = "macos_14_0")]
-    pub fn set_stream_name(&mut self, name: Option<&str>) -> &mut Self {
-        let _ = self.try_set_stream_name(name);
-        self
-    }
-
-    /// Set the stream name, reporting names that cannot cross the C boundary.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`InteriorNulError`] — leaving the configuration unchanged — if
-    /// `name` contains an interior NUL byte.
-    #[cfg(feature = "macos_14_0")]
-    pub fn try_set_stream_name(
-        &mut self,
-        name: Option<&str>,
-    ) -> Result<&mut Self, InteriorNulError> {
+    pub fn set_stream_name(&mut self, name: Option<&str>) -> Result<&mut Self, InteriorNulError> {
         let c_name = name
             .map(|stream_name| std::ffi::CString::new(stream_name).map_err(|_| InteriorNulError))
             .transpose()?;
@@ -71,10 +60,10 @@ impl SCStreamConfiguration {
 
     /// Set the stream name (builder pattern)
     #[cfg(feature = "macos_14_0")]
-    #[must_use]
-    pub fn with_stream_name(mut self, name: Option<&str>) -> Self {
-        self.set_stream_name(name);
-        self
+    #[allow(clippy::missing_errors_doc)]
+    pub fn with_stream_name(mut self, name: Option<&str>) -> Result<Self, InteriorNulError> {
+        self.set_stream_name(name)?;
+        Ok(self)
     }
 
     /// Get the configured stream name

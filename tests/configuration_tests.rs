@@ -282,7 +282,9 @@ fn test_video_without_audio() {
 #[cfg(feature = "macos_14_0")]
 fn test_stream_name() {
     let mut config = SCStreamConfiguration::default();
-    config.set_stream_name(Some("test-stream"));
+    config
+        .set_stream_name(Some("test-stream"))
+        .expect("stream name has no NUL byte");
 
     // The getter may not work on all macOS versions
     let _ = config.stream_name();

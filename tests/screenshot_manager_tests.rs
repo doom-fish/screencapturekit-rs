@@ -374,7 +374,8 @@ fn test_screenshot_configuration_file_path() {
 
     let config = SCScreenshotConfiguration::new()
         .expect("create screenshot configuration")
-        .with_file_path("/tmp/test_screenshot.png");
+        .with_file_path("/tmp/test_screenshot.png")
+        .expect("file path is valid UTF-8 without NUL bytes");
     assert!(!config.as_ptr().is_null());
 }
 
@@ -572,7 +573,8 @@ fn test_screenshot_configuration_file_path_round_trip() {
 
     let config = SCScreenshotConfiguration::new()
         .expect("create screenshot configuration")
-        .with_file_path(&path);
+        .with_file_path(&path)
+        .expect("file path is valid UTF-8 without NUL bytes");
     assert_eq!(config.file_path().as_deref(), Some(path.as_path()));
 
     let cleared = config.without_file_path();
@@ -580,7 +582,8 @@ fn test_screenshot_configuration_file_path_round_trip() {
 
     let mut config = SCScreenshotConfiguration::new()
         .expect("create screenshot configuration")
-        .with_file_path(&path);
+        .with_file_path(&path)
+        .expect("file path is valid UTF-8 without NUL bytes");
     config.clear_file_path();
     assert_eq!(config.file_path(), None);
 }
@@ -596,7 +599,8 @@ fn test_screenshot_configuration_long_file_path_survives() {
 
     let config = SCScreenshotConfiguration::new()
         .expect("create screenshot configuration")
-        .with_file_path(&path);
+        .with_file_path(&path)
+        .expect("file path is valid UTF-8 without NUL bytes");
     assert_eq!(config.file_path().as_deref(), Some(path.as_path()));
 }
 
@@ -607,7 +611,7 @@ fn test_screenshot_configuration_rejects_interior_nul_path() {
 
     let mut config = SCScreenshotConfiguration::new().expect("create screenshot configuration");
     assert!(
-        config.try_set_file_path("/tmp/bad\0name.png").is_err(),
+        config.set_file_path("/tmp/bad\0name.png").is_err(),
         "interior NUL path must be rejected"
     );
     assert_eq!(config.file_path(), None);
@@ -623,7 +627,7 @@ fn test_screenshot_configuration_rejects_non_utf8_path() {
         b"/tmp/screenshot-\xff.png".to_vec(),
     ));
     let mut config = SCScreenshotConfiguration::new().expect("create screenshot configuration");
-    assert!(config.try_set_file_path(path).is_err());
+    assert!(config.set_file_path(path).is_err());
     assert_eq!(config.file_path(), None);
 }
 
@@ -640,6 +644,18 @@ fn test_screenshot_configuration_content_type_round_trip() {
 
     let config = SCScreenshotConfiguration::new()
         .expect("create screenshot configuration")
-        .with_content_type("public.png");
+        .with_content_type("public.png")
+        .expect("content type has no NUL byte");
     assert_eq!(config.content_type().as_deref(), Some("public.png"));
+}
+
+#[test]
+#[cfg(feature = "macos_26_0")]
+fn test_screenshot_configuration_rejects_interior_nul_content_type() {
+    use screencapturekit::screenshot_manager::SCScreenshotConfiguration;
+
+    assert!(SCScreenshotConfiguration::new()
+        .expect("create screenshot configuration")
+        .with_content_type("public.p\0ng")
+        .is_err());
 }

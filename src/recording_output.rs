@@ -34,7 +34,7 @@
 //!
 //! // Configure recording output
 //! let rec_config = SCRecordingOutputConfiguration::new()?
-//!     .with_output_url(Path::new("/tmp/recording.mp4"))
+//!     .with_output_url(Path::new("/tmp/recording.mp4"))?
 //!     .with_video_codec(SCRecordingOutputCodec::HEVC);
 //!
 //! let recording = SCRecordingOutput::new(&rec_config).ok_or("Failed to create recording")?;
@@ -301,35 +301,13 @@ impl SCRecordingOutputConfiguration {
 
     /// Set the output file URL.
     ///
-    /// Paths that are not valid UTF-8 or contain an interior NUL byte are
-    /// ignored. Use
-    /// [`try_with_output_url`](Self::try_with_output_url) to observe rejection.
-    #[must_use]
-    pub fn with_output_url(self, path: &Path) -> Self {
-        match self.try_with_output_url(path) {
-            Ok(config) => config,
-            Err((config, error)) => {
-                eprintln!("SCRecordingOutputConfiguration: {error}; output URL was not changed");
-                config
-            }
-        }
-    }
-
-    /// Set the output file URL, reporting paths that cannot cross the C
-    /// boundary.
-    ///
     /// # Errors
     ///
-    /// Returns the unchanged configuration together with an
-    /// [`InvalidOutputPath`] when `path` is not valid UTF-8 or contains an
-    /// interior NUL byte.
-    pub fn try_with_output_url(self, path: &Path) -> Result<Self, (Self, InvalidOutputPath)> {
-        let Some(path) = path.to_str() else {
-            return Err((self, InvalidOutputPath::NotUtf8));
-        };
-        let Ok(c_path) = std::ffi::CString::new(path) else {
-            return Err((self, InvalidOutputPath::InteriorNul));
-        };
+    /// Returns an [`InvalidOutputPath`] when `path` is not valid UTF-8 or
+    /// contains an interior NUL byte.
+    pub fn with_output_url(self, path: &Path) -> Result<Self, InvalidOutputPath> {
+        let path = path.to_str().ok_or(InvalidOutputPath::NotUtf8)?;
+        let c_path = std::ffi::CString::new(path).map_err(|_| InvalidOutputPath::InteriorNul)?;
         unsafe {
             crate::ffi::sc_recording_output_configuration_set_output_url(self.ptr, c_path.as_ptr());
         }
@@ -558,7 +536,7 @@ impl std::fmt::Debug for SCRecordingOutputConfiguration {
 /// use std::path::Path;
 ///
 /// let config = SCRecordingOutputConfiguration::new().expect("create recording configuration")
-///     .with_output_url(Path::new("/tmp/recording.mp4"));
+///     .with_output_url(Path::new("/tmp/recording.mp4")).expect("output path is valid UTF-8 without NUL bytes");
 ///
 /// let delegate = RecordingCallbacks::new()
 ///     .on_start(|| println!("Started!"))
@@ -590,7 +568,7 @@ pub trait SCRecordingOutputDelegate: Send + Sync + 'static {
 /// use std::path::Path;
 ///
 /// let config = SCRecordingOutputConfiguration::new().expect("create recording configuration")
-///     .with_output_url(Path::new("/tmp/recording.mp4"));
+///     .with_output_url(Path::new("/tmp/recording.mp4")).expect("output path is valid UTF-8 without NUL bytes");
 ///
 /// // Create delegate with all callbacks
 /// let delegate = RecordingCallbacks::new()
