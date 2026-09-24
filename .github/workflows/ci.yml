@@ -159,6 +159,33 @@ jobs:
       - name: Run memory leak check
         run: cargo run --example 15_memory_leak_check --features "${{ matrix.features }}"
 
+  msrv:
+    runs-on: macos-26
+    name: Rust 1.82
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.82.0"
+      - name: Check
+        run: cargo check --lib --all-features
+
+  audit:
+    runs-on: ubuntu-latest
+    name: cargo audit
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - run: cargo generate-lockfile
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit
+
   # ==========================================================================
   # Release (only on main, after successful build and leak-check).
   # Pinned to macos-26 so `cargo publish --verify` builds against the macOS
