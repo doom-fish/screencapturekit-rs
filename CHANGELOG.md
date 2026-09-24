@@ -156,6 +156,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unsafe AudioBufferList::data_mut`, replaced by apple-cf's read-only views.
 - **Breaking:** the unused raw `ffi::sc_shareable_content_get_sync`
   declaration and its Swift export.
+- **Breaking:** raw declarations that could not work:
+  `cm::ffi::cv_pixel_buffer_pool_*`, which no bridge exports, so any use
+  failed to link (use `cv::CVPixelBufferPool`), and
+  `ffi::dispatch_queue_create(label, qos)`. Since apple-cf renamed its export
+  to `acf_dispatch_queue_create`, that declaration bound the system
+  `dispatch_queue_create(label, attr)` and passed its integer as the attribute
+  pointer (use `dispatch_queue::DispatchQueue::new`).
 
 ## [10.0.3](https://github.com/doom-fish/screencapturekit-rs/compare/v10.0.2...v10.0.3) - 2026-09-07
 

@@ -227,7 +227,6 @@ extern "C" {
     // Hash functions
     pub fn cm_sample_buffer_hash(sample_buffer: *mut std::ffi::c_void) -> usize;
     pub fn cv_pixel_buffer_hash(pixel_buffer: *mut std::ffi::c_void) -> usize;
-    pub fn cv_pixel_buffer_pool_hash(pool: *mut std::ffi::c_void) -> usize;
     pub fn cm_block_buffer_hash(block_buffer: *mut std::ffi::c_void) -> usize;
     pub fn cm_format_description_hash(format_description: *mut std::ffi::c_void) -> usize;
     pub fn io_surface_hash(surface: *mut std::ffi::c_void) -> usize;
@@ -285,31 +284,6 @@ extern "C" {
         pixel_buffer_out: *mut *mut std::ffi::c_void,
     ) -> i32;
     pub fn cv_pixel_buffer_get_type_id() -> usize;
-
-    // CVPixelBufferPool APIs
-    pub fn cv_pixel_buffer_pool_create(
-        width: usize,
-        height: usize,
-        pixel_format_type: u32,
-        max_buffers: usize,
-        pool_out: *mut *mut std::ffi::c_void,
-    ) -> i32;
-    pub fn cv_pixel_buffer_pool_create_pixel_buffer(
-        pool: *mut std::ffi::c_void,
-        pixel_buffer_out: *mut *mut std::ffi::c_void,
-    ) -> i32;
-    pub fn cv_pixel_buffer_pool_flush(pool: *mut std::ffi::c_void);
-    pub fn cv_pixel_buffer_pool_get_type_id() -> usize;
-    pub fn cv_pixel_buffer_pool_retain(pool: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
-    pub fn cv_pixel_buffer_pool_release(pool: *mut std::ffi::c_void);
-
-    // Additional pool APIs
-    pub fn cv_pixel_buffer_pool_get_attributes(
-        pool: *mut std::ffi::c_void,
-    ) -> *const std::ffi::c_void;
-    pub fn cv_pixel_buffer_pool_get_pixel_buffer_attributes(
-        pool: *mut std::ffi::c_void,
-    ) -> *const std::ffi::c_void;
 
     pub fn cv_pixel_buffer_get_data_size(pixel_buffer: *mut std::ffi::c_void) -> usize;
     pub fn cv_pixel_buffer_is_planar(pixel_buffer: *mut std::ffi::c_void) -> bool;

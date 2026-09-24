@@ -579,7 +579,6 @@ extern "C" {
 
 // MARK: - Dispatch Queue
 extern "C" {
-    pub fn dispatch_queue_create(label: *const i8, qos: i32) -> *const c_void;
     pub fn dispatch_queue_release(queue: *const c_void);
     pub fn dispatch_queue_retain(queue: *const c_void) -> *const c_void;
 }
