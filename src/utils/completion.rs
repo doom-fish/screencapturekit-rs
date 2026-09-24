@@ -147,6 +147,9 @@ impl TimeoutScheduler {
     }
 
     fn schedule(timeout: Duration, action: impl FnOnce() + Send + 'static) -> usize {
+        let Some(deadline) = Instant::now().checked_add(timeout) else {
+            return 0;
+        };
         let scheduler = Self::shared();
         let mut entries = scheduler
             .entries
@@ -160,7 +163,7 @@ impl TimeoutScheduler {
         };
         entries.push(TimeoutEntry {
             id,
-            deadline: Instant::now() + timeout,
+            deadline,
             action: Some(Box::new(action)),
         });
         drop(entries);
@@ -657,6 +660,16 @@ mod tests {
     #[test]
     fn unbounded_completion_does_not_register_a_deadline() {
         let (future, context) = AsyncCompletion::<()>::create_unbounded();
+        assert_eq!(future.inner.timeout_id.load(Ordering::Acquire), 0);
+
+        drop(future);
+        unsafe { AsyncCompletion::complete_ok(context, ()) };
+    }
+
+    #[test]
+    fn unrepresentable_deadline_registers_no_timeout() {
+        let (future, context) =
+            AsyncCompletion::<()>::create_inner(None, true, Some(Duration::MAX));
         assert_eq!(future.inner.timeout_id.load(Ordering::Acquire), 0);
 
         drop(future);
