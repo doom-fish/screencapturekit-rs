@@ -492,6 +492,7 @@ impl SCStream {
     ) -> SCResult<Self> {
         let context = StreamContext::new(delegate);
         let context_ptr = context.cast::<c_void>();
+        let configuration = configuration.clone();
 
         let ptr = unsafe {
             ffi::sc_stream_create(
@@ -938,6 +939,7 @@ impl SCStream {
         &self,
         configuration: &SCStreamConfiguration,
     ) -> Result<(), SCError> {
+        let configuration = configuration.clone();
         let (completion, context) = UnitCompletion::new();
         unsafe {
             ffi::sc_stream_update_configuration(

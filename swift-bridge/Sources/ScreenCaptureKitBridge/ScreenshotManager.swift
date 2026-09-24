@@ -504,6 +504,26 @@ import UniformTypeIdentifiers
 
     // MARK: - New Screenshot Capture API (macOS 26.0+)
 
+    @available(macOS 26.0, *)
+    private func snapshotScreenshotConfiguration(
+        _ source: SCScreenshotConfiguration
+    ) -> SCScreenshotConfiguration {
+        let copy = SCScreenshotConfiguration()
+        copy.width = source.width
+        copy.height = source.height
+        copy.showsCursor = source.showsCursor
+        copy.sourceRect = source.sourceRect
+        copy.destinationRect = source.destinationRect
+        copy.ignoreShadows = source.ignoreShadows
+        copy.ignoreClipping = source.ignoreClipping
+        copy.includeChildWindows = source.includeChildWindows
+        copy.displayIntent = source.displayIntent
+        copy.dynamicRange = source.dynamicRange
+        copy.contentType = source.contentType
+        copy.fileURL = source.fileURL
+        return copy
+    }
+
     @_cdecl("sc_screenshot_manager_capture_screenshot")
     public func captureScreenshotWithConfiguration(
         _ contentFilter: OpaquePointer,
@@ -513,7 +533,7 @@ import UniformTypeIdentifiers
     ) {
         if #available(macOS 26.0, *) {
             let filter: SCContentFilter = unretained(contentFilter)
-            let configuration: SCScreenshotConfiguration = unretained(config)
+            let configuration = snapshotScreenshotConfiguration(unretained(config))
 
             Task {
                 do {
@@ -545,7 +565,7 @@ import UniformTypeIdentifiers
     ) {
         if #available(macOS 26.0, *) {
             let rect = CGRect(x: x, y: y, width: width, height: height)
-            let configuration: SCScreenshotConfiguration = unretained(config)
+            let configuration = snapshotScreenshotConfiguration(unretained(config))
 
             Task {
                 do {

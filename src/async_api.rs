@@ -1182,6 +1182,7 @@ impl AsyncSCStream {
     /// The awaited result is `Err(SCError::StreamError)` if the update fails.
     #[cfg(feature = "macos_14_0")]
     pub fn update_configuration(&self, config: &SCStreamConfiguration) -> StreamControlFuture {
+        let config = config.clone();
         let (future, context) = AsyncCompletion::<()>::create();
         // SAFETY: `self.stream.as_ptr()` and `config.as_ptr()` are valid for the
         // duration of this call; `context` is the one-shot completion pointer.
@@ -1378,6 +1379,7 @@ impl AsyncSCScreenshotManager {
         content_filter: &crate::stream::content_filter::SCContentFilter,
         configuration: &SCStreamConfiguration,
     ) -> AsyncScreenshotFuture<crate::screenshot_manager::CGImage> {
+        let configuration = configuration.clone();
         let (future, context) = AsyncCompletion::create();
 
         // SAFETY: `content_filter.as_ptr()` and `configuration.as_ptr()` return valid non-null pointers for the duration of this call (borrowed via `&`). `context` is a one-shot completion pointer from `AsyncCompletion::create()`.
@@ -1403,6 +1405,7 @@ impl AsyncSCScreenshotManager {
         content_filter: &crate::stream::content_filter::SCContentFilter,
         configuration: &SCStreamConfiguration,
     ) -> AsyncScreenshotFuture<crate::cm::CMSampleBuffer> {
+        let configuration = configuration.clone();
         let (future, context) = AsyncCompletion::create();
 
         // SAFETY: `content_filter.as_ptr()` and `configuration.as_ptr()` return valid non-null pointers for the duration of this call (borrowed via `&`). `context` is a one-shot completion pointer from `AsyncCompletion::create()`.

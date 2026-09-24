@@ -569,6 +569,7 @@ impl SCScreenshotManager {
         content_filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
     ) -> Result<CGImage, SCError> {
+        let configuration = configuration.clone();
         let (completion, context) = SyncCompletion::<CGImage>::new();
 
         unsafe {
@@ -599,6 +600,7 @@ impl SCScreenshotManager {
         content_filter: &SCContentFilter,
         configuration: &SCStreamConfiguration,
     ) -> Result<crate::cm::CMSampleBuffer, SCError> {
+        let configuration = configuration.clone();
         let (completion, context) = SyncCompletion::<crate::cm::CMSampleBuffer>::new();
 
         unsafe {

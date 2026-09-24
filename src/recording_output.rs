@@ -785,6 +785,7 @@ impl SCRecordingOutput {
         if !Self::is_available() {
             return None;
         }
+        let config = config.clone();
         let ptr = unsafe { crate::ffi::sc_recording_output_create(config.as_ptr()) };
         if ptr.is_null() {
             None
@@ -832,6 +833,7 @@ impl SCRecordingOutput {
 
         // Use delegate_id as context
         let ctx = delegate_id as *mut c_void;
+        let config = config.clone();
 
         let ptr = unsafe {
             crate::ffi::sc_recording_output_create_with_delegate(
