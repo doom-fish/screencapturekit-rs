@@ -5,6 +5,132 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.0] - Unreleased
+
+### Security
+
+- `SCStreamConfiguration`, `SCRecordingOutputConfiguration` and
+  `SCScreenshotConfiguration` are mutable Objective-C objects, and the bridge
+  handed the caller's own object to work that outlives the call: the `Task`
+  behind every screenshot and `update_configuration` (which keeps running after
+  a synchronous wait times out or an async future is dropped) and the
+  framework objects behind `SCStream::new` and `SCRecordingOutput::new`. The
+  async futures don't borrow the configuration, so safe code could mutate it
+  while ScreenCaptureKit read it on another thread; for
+  `SCScreenshotConfiguration.contentType`, an `assign` property, that could
+  read a freed object. ScreenCaptureKit now always gets a private copy.
+- CI: every action is pinned to a commit SHA, the release jobs check out
+  without persisted credentials and give the automatic token only
+  `contents: read`, and the release-PR job no longer receives the crates.io
+  token.
+
+### Fixed
+
+- `SCStream::identity` built its `StreamIdentity` with
+  `NonZeroUsize::new_unchecked` although no constructor rejected a null native
+  stream. The constructors now check the pointer once and report
+  `SCError::NullPointer`.
+- Process aborts in the Swift bridge: `Int32(_:)` conversions of
+  `NSError.code`, `SCDisplay.width`/`height` and `SCWindow.windowLayer`, the
+  `UInt32(len)` and offset arithmetic of the batched shareable-content string
+  buffers, and the `UInt32(_:)` conversion of picker `excludedWindowIDs`.
+- A large `SCREENCAPTUREKIT_COMPLETION_TIMEOUT_SECS` made every async call
+  panic with "overflow when adding duration to instant"; an unrepresentable
+  deadline now means no deadline.
+- Panics on an ordinary unsupported system: the picker, recording and
+  screenshot configuration constructors, `SCContentFilterBuilder::build`
+  without a display or window, and the `Default` impls built on them. See
+  Changed.
+- Inputs that were silently ignored, sometimes with only an `eprintln!`:
+  string setters with an interior NUL byte, non-UTF-8 output paths, output
+  handlers that `ScreenCaptureKit` refused, and picker operations below
+  macOS 14. See Changed.
+- The `cm` audio views come from apple-cf 0.11, which checks each buffer's
+  pointer and length against the contiguous block buffer; the removed Swift
+  audio bridge clamped every buffer to the whole block-buffer length.
+- Live capture tests check `CGPreflightScreenCaptureAccess` and skip without
+  Screen Recording permission instead of raising the permission prompt or
+  failing, and the live recording tests write under `target/tmp`.
+- Docs: `SCStream` had lost its rustdoc to `StreamIdentity`; the coverage
+  files were a v3.1.1 snapshot against an SDK that is no longer installed
+  (they now measure 11.0.0 against the macOS 26.5 and 27.0 SDKs and say what
+  the numbers mean); the README tied the `audio-input` entitlement to system
+  audio instead of microphone capture and pointed at files that don't exist.
+
+### Changed
+
+- **Breaking:** requires `apple-cf >=0.11, <0.12` and
+  `apple-metal >=0.10, <0.11`. Their breaking changes reach callers through the
+  re-exported `cg`, `cm`, `cv`, `dispatch_queue` and `apple_metal` modules; for
+  example `CMBlockBuffer::as_slice` and `cursor_ref` are `unsafe`.
+- **Breaking:** `cm::{AudioBuffer, AudioBufferList, AudioBufferListRaw,
+  AudioBufferRef, AudioBufferListIter}` are apple-cf's types, and
+  `sample.audio_buffer_list()` is apple-cf's inherent
+  `CMSampleBuffer::audio_buffer_list`, returning
+  `Result<AudioBufferList, i32>`. The buffers are read-only.
+- **Breaking:** `SCStream::new`, `SCStream::new_with_delegate` and
+  `AsyncSCStream::new` return `SCResult<Self>`. `AsyncSCStream::new` also
+  returns the output-handler registration error instead of a stream whose
+  queue is already closed.
+- **Breaking:** `SCContentFilterBuilder::build` returns
+  `SCResult<SCContentFilter>` (`SCError::InvalidConfiguration` without a
+  display or window).
+- **Breaking:** `SCContentSharingPickerConfiguration::new` and
+  `default_from_system`, `SCContentSharingPicker::default_configuration`,
+  `SCRecordingOutputConfiguration::new` and `SCScreenshotConfiguration::new`
+  return `Result<_, SCError>` with `SCError::FeatureNotAvailable` on an older
+  macOS.
+- **Breaking:** `SCStreamConfiguration::{set,with}_color_space_name`,
+  `{set,with}_color_matrix`, `{set,with}_stream_name` and
+  `{set,with}_microphone_capture_device_id`,
+  `SCScreenshotConfiguration::{set,with}_file_path` and `with_content_type`,
+  `SCRecordingOutputConfiguration::with_output_url` and
+  `SCContentSharingPickerConfiguration::set_excluded_bundle_ids` return a
+  `Result` (`InteriorNulError`, `InvalidScreenshotPath` or
+  `InvalidOutputPath`) and leave the configuration unchanged on error.
+- **Breaking:** `SCStream::add_output_handler` and
+  `add_output_handler_with_queue` return `Result<usize, SCError>` instead of
+  `Option<usize>`, `remove_output_handler` returns `Result<bool, SCError>`, and
+  `AsyncSCStream::add_output_type` returns `Result<(), SCError>` instead of
+  `bool`.
+- **Breaking:** `SCContentSharingPicker::add_observer` returns
+  `Result<SCPickerSubscription, SCPickerConfigurationError>`, and `present`,
+  `present_using_style`, `present_for_stream`,
+  `present_for_stream_using_style`, `set_active` and
+  `set_maximum_stream_count` return `Result<(), SCPickerConfigurationError>`.
+- **Breaking:** a configuration handed to a stream, recording output,
+  configuration update or screenshot is copied, so later changes to it no
+  longer reach that work; use `update_configuration` to change a running
+  stream.
+- `rust-version` is 1.82 (was 1.76, which the crate's use of `offset_of!`
+  already contradicted).
+
+### Added
+
+- `SCStreamErrorCode::InsufficientStorage` (-3822) and `NotSupported`
+  (-3823) from the macOS 27 SDK.
+
+### Removed
+
+- **Breaking:** the `try_*` twins of the now-fallible APIs:
+  `SCContentFilterBuilder::try_build`,
+  `SCContentSharingPickerConfiguration::try_new`,
+  `SCRecordingOutputConfiguration::try_new`, `try_set_color_space_name`,
+  `try_set_color_matrix`, `try_set_stream_name`,
+  `try_set_microphone_capture_device_id`, `try_with_output_url`,
+  `try_set_file_path` and `SCStream::try_remove_output_handler`.
+- **Breaking:** the `Default` impls of `SCContentSharingPickerConfiguration`,
+  `SCRecordingOutputConfiguration` and `SCScreenshotConfiguration`.
+- **Breaking:** deprecated aliases: the pre-1.5 `SCContentFilterBuilder` and
+  `SCShareableContentOptions` builder names, `CMSampleBufferExt::image_buffer`,
+  `utils::completion::abandoned_context_count`, and
+  `SCStreamDelegateTrait::stream_did_stop`, which the stream engine had not
+  called since 8.0.
+- **Breaking:** `CMSampleBufferExt::audio_buffer_list` and
+  `unsafe AudioBufferList::data_mut`, replaced by apple-cf's read-only views.
+- **Breaking:** the unused raw `ffi::sc_shareable_content_get_sync`
+  declaration and its Swift export.
+
 ## [10.0.3](https://github.com/doom-fish/screencapturekit-rs/compare/v10.0.2...v10.0.3) - 2026-09-07
 
 ### Fixed
