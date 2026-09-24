@@ -3,8 +3,8 @@ extern "C" {
 }
 
 pub fn screen_capture_allowed() -> bool {
-    if std::env::var_os("SCREENCAPTUREKIT_SKIP_LIVE_TESTS").is_some() {
-        eprintln!("skip: SCREENCAPTUREKIT_SKIP_LIVE_TESTS is set");
+    if std::env::var("SCREENCAPTUREKIT_LIVE_TESTS").as_deref() != Ok("1") {
+        eprintln!("skip: set SCREENCAPTUREKIT_LIVE_TESTS=1 to run live capture tests");
         return false;
     }
     let allowed = unsafe { CGPreflightScreenCaptureAccess() };

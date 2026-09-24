@@ -48,11 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `cm` audio views come from apple-cf 0.11, which checks each buffer's
   pointer and length against the contiguous block buffer; the removed Swift
   audio bridge clamped every buffer to the whole block-buffer length.
-- Live capture tests check `CGPreflightScreenCaptureAccess` and skip without
-  Screen Recording permission instead of raising the permission prompt or
-  failing, and the live recording tests write under `target/tmp`. Setting
-  `SCREENCAPTUREKIT_SKIP_LIVE_TESTS` skips them where the permission is
-  granted.
+- Live capture tests run only when `SCREENCAPTUREKIT_LIVE_TESTS=1` is set, so
+  a plain `cargo test` never captures the screen, and even then they check
+  `CGPreflightScreenCaptureAccess` and skip without Screen Recording
+  permission instead of raising the permission prompt or failing. The live
+  recording tests write under `target/tmp`.
 - The build script, and the Tauri example's, no longer add the toolchain's
   Swift 5.5 back-deployment directory (`usr/lib/swift-5.5/macosx`) to the
   rpath. It pointed into Xcode, so it never made back-deployment work on

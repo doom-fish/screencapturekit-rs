@@ -611,8 +611,8 @@ Contributions welcome! Please:
 1. Follow existing patterns — builder pattern with `::new()` and `.with_*()`
 2. Add tests for new functionality
 3. `cargo fmt && cargo clippy --all-features -- -D warnings && cargo test`.
-   The live capture tests skip without Screen Recording permission; set
-   `SCREENCAPTUREKIT_SKIP_LIVE_TESTS=1` to skip them where it is granted.
+   A plain `cargo test` never captures the screen: the live capture tests run
+   only with `SCREENCAPTUREKIT_LIVE_TESTS=1` and Screen Recording permission.
 4. Update docs and `CHANGELOG.md`
 
 ## Used By
