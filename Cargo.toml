@@ -100,7 +100,7 @@ criterion = { version = "0.8", features = ["html_reports"] }
 eframe = "0.36"
 wgpu = "30"
 pollster = "1"
-bevy = { version = "0.19", default-features = false, features = ["bevy_asset", "bevy_winit", "bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }
+bevy = { version = "0.20", default-features = false, features = ["bevy_asset", "bevy_winit", "bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }
 
 [[bench]]
 name = "capture_benchmark"
