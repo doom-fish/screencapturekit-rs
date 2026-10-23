@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0](https://github.com/doom-fish/screencapturekit-rs/compare/v11.0.1...v11.1.0) - 2026-10-23
+
+### Added
+
+- add untimed content queries and stream start
+
 ### Added
 
 - Added `AsyncSCShareableContent::get_unbounded`, `AsyncSCShareableContentOptions::get_unbounded`, and `AsyncSCStream::start_capture_unbounded`.
