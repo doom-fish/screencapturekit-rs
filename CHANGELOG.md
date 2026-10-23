@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.1] - 2026-10-23
+
 ### Fixed
 
 - The Swift bridge now supports macOS 12.3. Audio capture reports unavailable before macOS 13.0.
