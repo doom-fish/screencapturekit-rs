@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0] - 2026-10-24
+
 ### Added
 
 - Added `AsyncSCShareableContent::get_unbounded`, `AsyncSCShareableContentOptions::get_unbounded`, and `AsyncSCStream::start_capture_unbounded`.
