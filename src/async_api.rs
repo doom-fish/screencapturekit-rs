@@ -200,6 +200,10 @@ impl AsyncSCShareableContent {
         Self::create().get()
     }
 
+    pub fn get_unbounded() -> AsyncShareableContentFuture {
+        Self::create().get_unbounded()
+    }
+
     /// Create options builder for customizing shareable content retrieval
     #[must_use]
     pub fn create() -> AsyncSCShareableContentOptions {
@@ -231,9 +235,17 @@ impl AsyncSCShareableContentOptions {
 
     /// Asynchronously get the shareable content with these options
     pub fn get(self) -> AsyncShareableContentFuture {
-        let (future, context) = AsyncCompletion::create();
+        self.get_with_completion(AsyncCompletion::create())
+    }
 
-        // SAFETY: `context` is a valid one-shot completion pointer created by `AsyncCompletion::create()`; the Swift layer invokes the callback exactly once, after which the pointer is consumed.
+    pub fn get_unbounded(self) -> AsyncShareableContentFuture {
+        self.get_with_completion(AsyncCompletion::create_unbounded())
+    }
+
+    fn get_with_completion(
+        self,
+        (future, context): (AsyncCompletionFuture<SCShareableContent>, *mut c_void),
+    ) -> AsyncShareableContentFuture {
         unsafe {
             crate::ffi::sc_shareable_content_get_with_options(
                 self.exclude_desktop_windows,
@@ -718,6 +730,22 @@ extern "C" fn stream_control_callback(context: *mut c_void, success: bool, msg: 
     });
 }
 
+extern "C" fn stream_start_callback(context: *mut c_void, success: bool, msg: *const i8) -> bool {
+    let handled = std::sync::atomic::AtomicBool::new(false);
+    crate::utils::panic_safe::catch_user_panic("stream_start_callback", || {
+        let result = if success {
+            Ok(())
+        } else {
+            Err(unsafe { error_from_cstr(msg) })
+        };
+        handled.store(
+            AsyncCompletion::<()>::complete_if_pending(context, result),
+            std::sync::atomic::Ordering::Release,
+        );
+    });
+    handled.load(std::sync::atomic::Ordering::Acquire)
+}
+
 /// Future for an [`AsyncSCStream`] lifecycle operation — `start_capture`,
 /// `stop_capture`, `update_configuration`, or `update_content_filter`.
 ///
@@ -1078,6 +1106,14 @@ impl AsyncSCStream {
     /// The awaited result is `Err(SCError::CaptureStartFailed)` if the stream
     /// fails to start or has already been stopped.
     pub fn start_capture(&self) -> StreamControlFuture {
+        self.start_capture_with_timeout(true)
+    }
+
+    pub fn start_capture_unbounded(&self) -> StreamControlFuture {
+        self.start_capture_with_timeout(false)
+    }
+
+    fn start_capture_with_timeout(&self, bounded: bool) -> StreamControlFuture {
         if self.iterator_state.lock().is_ok_and(|s| s.stopped) {
             return StreamControlFuture::failed(
                 SCError::CaptureStartFailed,
@@ -1093,32 +1129,36 @@ impl AsyncSCStream {
         }
         reopen_sample_state(&self.iterator_state);
         let iterator_state = Arc::clone(&self.iterator_state);
-        let (future, context) =
-            AsyncCompletion::<()>::create_with_hook(move |result| match result {
-                Ok(()) => capture_state.store(true, std::sync::atomic::Ordering::Release),
-                // The native start is still outstanding: clearing
-                // `capture_state` would let a retry double-start, so record
-                // the unconfirmed outcome and let the next start reissue.
-                Err(message) if is_timeout_error(message) => {
-                    start_unconfirmed.store(true, std::sync::atomic::Ordering::Release);
-                }
-                Err(message) => {
-                    capture_state.store(false, std::sync::atomic::Ordering::Release);
-                    close_sample_state(
-                        &iterator_state,
-                        Some(SCError::CaptureStartFailed(message.clone())),
-                        false,
-                    );
-                }
-            });
-        // SAFETY: `self.stream.as_ptr()` is a valid, live `SCStream` pointer for
-        // the duration of this call; `context` is the one-shot completion
-        // pointer from `AsyncCompletion::create()`, invoked exactly once.
+        let on_complete = move |result: &Result<(), String>| match result {
+            Ok(()) => capture_state.store(true, std::sync::atomic::Ordering::Release),
+            Err(message) if is_timeout_error(message) => {
+                capture_state.store(false, std::sync::atomic::Ordering::Release);
+                start_unconfirmed.store(false, std::sync::atomic::Ordering::Release);
+                close_sample_state(
+                    &iterator_state,
+                    Some(SCError::CaptureStartFailed(message.clone())),
+                    true,
+                );
+            }
+            Err(message) => {
+                capture_state.store(false, std::sync::atomic::Ordering::Release);
+                close_sample_state(
+                    &iterator_state,
+                    Some(SCError::CaptureStartFailed(message.clone())),
+                    false,
+                );
+            }
+        };
+        let (future, context) = if bounded {
+            AsyncCompletion::<()>::create_with_hook(on_complete)
+        } else {
+            AsyncCompletion::<()>::create_unbounded_with_hook(on_complete)
+        };
         unsafe {
-            crate::ffi::sc_stream_start_capture(
+            crate::ffi::sc_stream_start_capture_with_timeout_cleanup(
                 self.stream.as_ptr(),
                 context,
-                stream_control_callback,
+                stream_start_callback,
             );
         }
         StreamControlFuture {

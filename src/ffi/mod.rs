@@ -556,6 +556,11 @@ extern "C" {
         context: *mut c_void,
         callback: extern "C" fn(*mut c_void, bool, *const i8),
     );
+    pub fn sc_stream_start_capture_with_timeout_cleanup(
+        stream: *const c_void,
+        context: *mut c_void,
+        callback: extern "C" fn(*mut c_void, bool, *const i8) -> bool,
+    );
     pub fn sc_stream_stop_capture(
         stream: *const c_void,
         context: *mut c_void,

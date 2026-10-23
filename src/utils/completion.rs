@@ -435,6 +435,21 @@ impl<T: Send + 'static> AsyncCompletion<T> {
         Self::create_inner(None, true, None)
     }
 
+    #[cfg(feature = "async")]
+    pub(crate) fn create_unbounded_with_hook(
+        hook: impl FnOnce(&Result<T, String>) + Send + 'static,
+    ) -> (AsyncCompletionFuture<T>, SyncCompletionPtr) {
+        let (mut future, context) = Self::create_unbounded();
+        future
+            .inner
+            .state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .completion_hook = Some(Box::new(hook));
+        future.cancel_on_drop = false;
+        (future, context)
+    }
+
     fn create_inner(
         completion_hook: Option<AsyncCompletionHook<T>>,
         cancel_on_drop: bool,
@@ -497,8 +512,15 @@ impl<T: Send + 'static> AsyncCompletion<T> {
     /// `context` must be the opaque token returned by [`Self::create`] for this
     /// concrete `T`.
     pub unsafe fn complete_with_result(context: SyncCompletionPtr, result: Result<T, String>) {
+        Self::complete_if_pending(context, result);
+    }
+
+    pub(crate) fn complete_if_pending(
+        context: SyncCompletionPtr,
+        result: Result<T, String>,
+    ) -> bool {
         let Some(inner) = take_context::<Arc<AsyncCompletionInner<T>>>(context) else {
-            return;
+            return false;
         };
         cancel_async_timeout(&inner);
 
@@ -517,6 +539,7 @@ impl<T: Send + 'static> AsyncCompletion<T> {
         if let Some(waker) = waker {
             waker.wake();
         }
+        true
     }
 }
 
@@ -655,6 +678,38 @@ mod tests {
 
         drop(future);
         unsafe { AsyncCompletion::complete_ok(context, ()) };
+    }
+
+    #[test]
+    fn unbounded_start_completion_does_not_register_a_deadline() {
+        let called = Arc::new(AtomicBool::new(false));
+        let observed = Arc::clone(&called);
+        let (future, context) = AsyncCompletion::<()>::create_unbounded_with_hook(move |result| {
+            assert!(result.is_ok());
+            observed.store(true, Ordering::Release);
+        });
+        assert_eq!(future.inner.timeout_id.load(Ordering::Acquire), 0);
+
+        drop(future);
+        assert!(AsyncCompletion::complete_if_pending(context, Ok(())));
+        assert!(called.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn late_start_completion_reports_a_timeout() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let (future, context) = AsyncCompletion::<()>::create_inner(
+            Some(Box::new(move |result| {
+                sender.send(result.is_err()).expect("receiver is open");
+            })),
+            false,
+            Some(Duration::from_millis(10)),
+        );
+        assert!(receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the timeout hook did not run"));
+        assert!(!AsyncCompletion::complete_if_pending(context, Ok(())));
+        drop(future);
     }
 
     #[test]

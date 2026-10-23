@@ -638,6 +638,26 @@ public func startStreamCapture(
     }
 }
 
+@_cdecl("sc_stream_start_capture_with_timeout_cleanup")
+public func startStreamCaptureWithTimeoutCleanup(
+    _ stream: OpaquePointer,
+    _ context: UnsafeMutableRawPointer?,
+    _ callback: @escaping @convention(c) (UnsafeMutableRawPointer?, Bool, UnsafePointer<CChar>?) -> Bool
+) {
+    let scStream: SCStream = unretained(stream)
+    Task {
+        do {
+            try await scStream.startCapture()
+            if !callback(context, true, nil) {
+                try? await scStream.stopCapture()
+            }
+        } catch {
+            let bridgeError = SCBridgeError.streamError(error.localizedDescription)
+            bridgeError.description.withCString { _ = callback(context, false, $0) }
+        }
+    }
+}
+
 /// Stops capturing from the stream
 /// - Parameters:
 ///   - stream: The stream to stop

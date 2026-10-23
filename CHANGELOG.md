@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `AsyncSCShareableContent::get_unbounded`, `AsyncSCShareableContentOptions::get_unbounded`, and `AsyncSCStream::start_capture_unbounded`.
+
+### Fixed
+
+- A timed-out `AsyncSCStream` cannot restart. The bridge stops a late native start before it releases the stream.
+
 ## [11.0.1] - 2026-10-23
 
 ### Fixed
