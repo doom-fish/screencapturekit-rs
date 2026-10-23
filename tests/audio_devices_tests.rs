@@ -53,8 +53,8 @@ fn default_device_is_present_in_the_listed_devices() {
 #[test]
 fn list_entries_have_non_empty_id_and_name() {
     for device in AudioInputDevice::list() {
-        assert!(!device.id.is_empty(), "device id must not be empty");
-        assert!(!device.name.is_empty(), "device name must not be empty");
+        assert_ne!(device.id.len(), 0, "device id must not be empty");
+        assert_ne!(device.name.len(), 0, "device name must not be empty");
     }
 }
 

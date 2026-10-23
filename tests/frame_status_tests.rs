@@ -320,7 +320,7 @@ fn test_live_frame_status_attachment_decodes() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone();
-    assert!(!statuses.is_empty(), "capture produced no frames");
+    assert_ne!(statuses.len(), 0, "capture produced no frames");
     assert!(
         statuses.iter().all(Option::is_some),
         "live SCStreamFrameInfoStatus values did not decode: {statuses:?}"

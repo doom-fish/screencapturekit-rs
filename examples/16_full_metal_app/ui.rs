@@ -3,6 +3,7 @@
 #![allow(
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
+    clippy::suboptimal_flops,
     clippy::too_many_arguments,
     clippy::too_many_lines
 )]

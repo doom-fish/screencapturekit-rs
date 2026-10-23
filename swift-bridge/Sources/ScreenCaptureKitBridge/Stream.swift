@@ -527,7 +527,10 @@ private func nativeOutputType(_ type: Int32) -> SCStreamOutputType? {
         return .screen
     }
     if type == 1 {
-        return .audio
+        if #available(macOS 13.0, *) {
+            return .audio
+        }
+        return nil
     }
     if type == 2 {
         #if SCREENCAPTUREKIT_HAS_MACOS15_SDK

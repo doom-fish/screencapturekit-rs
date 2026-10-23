@@ -19,7 +19,7 @@ fn test_permission_denied_error() {
     let display = format!("{err}");
 
     // Just verify it has content
-    assert!(!display.is_empty());
+    assert_ne!(display.len(), 0);
     assert!(display.contains("Screen Recording"));
 }
 
@@ -57,8 +57,8 @@ fn test_error_display_vs_debug() {
     let debug = format!("{err:?}");
 
     // Both should contain error information
-    assert!(!display.is_empty());
-    assert!(!debug.is_empty());
+    assert_ne!(display.len(), 0);
+    assert_ne!(debug.len(), 0);
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn test_multiple_error_messages() {
 
     for err in errors {
         let display = format!("{err}");
-        assert!(!display.is_empty());
+        assert_ne!(display.len(), 0);
     }
 }
 

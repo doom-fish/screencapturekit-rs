@@ -6,12 +6,6 @@ import PackageDescription
 // SCREENCAPTUREKIT_HAS_MACOS15_2_SDK, SCREENCAPTUREKIT_HAS_MACOS26_SDK) are
 // passed via -Xswiftc flags from build.rs based on the enabled Cargo features.
 //
-// Deployment target: ScreenCaptureKit itself is macOS 12.3+, but this bridge
-// uses macOS 13.0 audio APIs (`SCStreamOutputType.audio`,
-// `SCStreamConfiguration.capturesAudio`/`sampleRate`/`channelCount`) without
-// `#available` guards, so 13.0 is the real floor. build.rs pins the same
-// version into the Swift triple; keep the two in sync.
-//
 // Note: CoreGraphicsBridge / CoreVideoBridge / IOSurfaceBridge / DispatchBridge
 // targets that used to live here were extracted into apple-cf-rs's bridge.
 // ScreenCaptureKitCoreMediaBridge keeps only the SCStreamFrameInfo attachment
@@ -21,7 +15,7 @@ import PackageDescription
 let package = Package(
     name: "ScreenCaptureKitBridge",
     platforms: [
-        .macOS(.v13)
+        .macOS("12.3")
     ],
     products: [
         .library(

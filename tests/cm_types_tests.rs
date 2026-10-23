@@ -69,11 +69,11 @@ fn test_cmtime_display() {
     let time = CMTime::new(1, 30);
     let display = format!("{time:?}");
     // Just verify it doesn't crash
-    assert!(!display.is_empty());
+    assert_ne!(display.len(), 0);
 
     let zero = CMTime::ZERO;
     let zero_display = format!("{zero:?}");
-    assert!(!zero_display.is_empty());
+    assert_ne!(zero_display.len(), 0);
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn test_cmsample_timing_info_display() {
 
     let display = format!("{timing:?}");
     // Just verify it doesn't crash
-    assert!(!display.is_empty());
+    assert_ne!(display.len(), 0);
 }
 
 #[test]

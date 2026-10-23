@@ -235,7 +235,7 @@ fn test_default_impls() {
 #[test]
 fn test_shader_source_exists() {
     use screencapturekit::metal::SHADER_SOURCE;
-    assert!(!SHADER_SOURCE.is_empty());
+    assert_ne!(SHADER_SOURCE.len(), 0);
     assert!(SHADER_SOURCE.contains("vertex_fullscreen"));
     assert!(SHADER_SOURCE.contains("fragment_textured"));
     assert!(SHADER_SOURCE.contains("fragment_ycbcr"));
@@ -261,7 +261,7 @@ mod metal_device_tests {
     fn test_metal_device_name() {
         let device = MetalDevice::system_default().expect("No Metal device");
         let name = device.name();
-        assert!(!name.is_empty(), "Device should have a name");
+        assert_ne!(name.len(), 0, "Device should have a name");
         println!("Metal device: {name}");
     }
 
@@ -1618,7 +1618,7 @@ fn test_iosurface_info() {
     assert!(info.bytes_per_row >= 800);
     assert_eq!(info.pixel_format.as_u32(), 0x42475241);
     assert_eq!(info.plane_count, 0);
-    assert!(info.planes.is_empty());
+    assert_eq!(info.planes.len(), 0);
 }
 
 #[test]
@@ -1988,11 +1988,11 @@ fn test_as_apple_metal_borrow_is_usable() {
 
     let borrowed = device.as_apple_metal();
     let name = borrowed.name();
-    assert!(!name.is_empty());
+    assert_ne!(name.len(), 0);
     drop(borrowed);
 
     // The owner is unaffected by the borrow being dropped.
-    assert!(!device.name().is_empty());
+    assert_ne!(device.name().len(), 0);
 }
 
 #[test]

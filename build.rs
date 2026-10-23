@@ -67,9 +67,7 @@ fn detect_sdk_version() -> Option<SdkVersion> {
 /// The macOS deployment target the Swift bridge is built against.
 ///
 /// Must match `platforms: [.macOS(...)]` in `swift-bridge/Package.swift`.
-/// `ScreenCaptureKit` itself starts at 12.3, but the bridge calls macOS 13.0
-/// audio APIs without `#available` guards, so 13.0 is the honest floor.
-const SWIFT_DEPLOYMENT_TARGET: &str = "13.0";
+const SWIFT_DEPLOYMENT_TARGET: &str = "12.3";
 
 /// Cargo feature -> minimum macOS SDK -> Swift compile-time define.
 ///
@@ -81,8 +79,7 @@ const SWIFT_DEPLOYMENT_TARGET: &str = "13.0";
 ///
 /// A `None` define means the Swift bridge needs no conditional compilation
 /// for that feature: the APIs it reaches exist in every SDK this crate can be
-/// built with (the bridge's own floor is macOS 13.0 / an SDK new enough to
-/// contain `ScreenCaptureKit`) and are gated at runtime with `if #available`.
+/// built with and are gated at runtime with `if #available`.
 /// Emitting a define nothing reads would be dead weight, and — worse — would
 /// make the stub-mode warning fire for features that are not actually stubbed.
 const VERSION_FEATURES: [(&str, SdkVersion, Option<&str>); 7] = [
@@ -183,7 +180,7 @@ fn main() {
         return;
     }
 
-    println!("cargo:rustc-link-lib=framework=ScreenCaptureKit");
+    println!("cargo:rustc-link-arg=-Wl,-weak_framework,ScreenCaptureKit");
 
     // Build the Swift bridge
     let swift_dir = "swift-bridge";
@@ -311,6 +308,7 @@ fn link_swift_bridge(swift_build_dir: &str) {
             let swift_lib_path =
                 format!("{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx");
             println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_lib_path}");
+            println!("cargo:rustc-link-search=native={swift_lib_path}");
         }
         Ok(output) => {
             // xcode-select ran but reported failure (e.g. exit code != 0).

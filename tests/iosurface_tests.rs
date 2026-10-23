@@ -84,7 +84,7 @@ fn test_iosurface_lock_and_access() {
 
     // Test as_slice
     let slice = unsafe { guard.as_slice() }.expect("locked surface must expose bytes");
-    assert!(!slice.is_empty());
+    assert_ne!(slice.len(), 0);
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn test_pixel_buffer_create_and_lock() {
 
     // Test as_slice
     let slice = unsafe { guard.as_slice() }.expect("locked pixel buffer must expose bytes");
-    assert!(!slice.is_empty());
+    assert_ne!(slice.len(), 0);
 
     let _: &[u8] = slice;
 }

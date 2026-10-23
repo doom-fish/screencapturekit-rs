@@ -165,7 +165,7 @@ fn test_picker_mode_debug() {
 
     for mode in modes {
         let debug_str = format!("{mode:?}");
-        assert!(!debug_str.is_empty(), "Debug string should not be empty");
+        assert_ne!(debug_str.len(), 0, "Debug string should not be empty");
         println!("Mode: {debug_str}");
     }
 

@@ -155,11 +155,11 @@ fn test_all_pixel_formats() {
 fn test_pixel_format_display() {
     let format = PixelFormat::BGRA;
     let display = format!("{format}");
-    assert!(!display.is_empty());
+    assert_ne!(display.len(), 0);
 
     let format = PixelFormat::YCbCr_420v;
     let display = format!("{format}");
-    assert!(!display.is_empty());
+    assert_ne!(display.len(), 0);
 }
 
 // MARK: - Edge Cases
@@ -383,7 +383,7 @@ fn test_configuration_hash() {
     let mut set = HashSet::new();
     set.insert(config1);
     set.insert(config2);
-    assert!(!set.is_empty(), "Set should contain configurations");
+    assert_ne!(set.len(), 0, "Set should contain configurations");
 
     // Both should hash to the same value since they're default configs
     // Note: This depends on the Hash implementation

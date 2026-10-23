@@ -95,7 +95,7 @@ fn test_block_buffer_copy_data_bytes_zero_length() {
 
     let copied = buffer.copy_data_bytes(0, 0);
     assert!(copied.is_some());
-    assert!(copied.unwrap().is_empty());
+    assert_eq!(copied.unwrap().len(), 0);
 }
 
 #[test]

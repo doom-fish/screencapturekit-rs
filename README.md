@@ -1,7 +1,7 @@
 <div align="center">
   <h1>ScreenCaptureKit-rs</h1>
   <p><strong>Safe, idiomatic Rust bindings for Apple's <a href="https://developer.apple.com/documentation/screencapturekit">ScreenCaptureKit</a> framework.</strong></p>
-  <p>Capture screens, windows, and applications on macOS 13.0+ with high performance and low overhead.</p>
+  <p>Capture screens, windows, and applications on macOS 12.3+ with high performance and low overhead.</p>
 </div>
 
 <div align="center"><p>
@@ -51,7 +51,7 @@ Opt-in features (additive):
 | Feature | Enables |
 |---|---|
 | `async` | Runtime-agnostic async API (Tokio / async-std / smol / …) |
-| `macos_13_0` | Synchronization clock (audio capture is part of the 13.0 baseline) |
+| `macos_13_0` | Synchronization clock (audio capture needs macOS 13.0 at run time) |
 | `macos_14_0` | Screenshots, content picker/info, aspect ratio, stream names |
 | `macos_14_2` | Menu bar capture, child windows, presenter overlay |
 | `macos_14_4` | Current-process shareable content |
@@ -423,12 +423,11 @@ let mut config = SCStreamConfiguration::new().with_width(1920).with_height(1080)
 
 ## Requirements & Permissions
 
-- **macOS 13.0+** (Ventura). Apple's `ScreenCaptureKit` itself starts at 12.3,
-  but this crate's Swift bridge is built with a 13.0 deployment target and uses
-  the 13.0 audio APIs unconditionally, so 13.0 is the real floor.
+- **macOS 12.3+** (Monterey). `ScreenCaptureKit` starts at macOS 12.3.
+  On macOS 12.3, audio configuration reports `false` and audio output registration returns an error.
 - **14.0+** — picker / screenshots · **15.0+** — recording / HDR / mic ·
   **26.0+** — advanced screenshots
-- **Xcode Command Line Tools** at build time (`xcode-select --install`)
+- **macOS 13 SDK or later** at build time
 
 Screen capture **always requires user permission**. To grant it:
 

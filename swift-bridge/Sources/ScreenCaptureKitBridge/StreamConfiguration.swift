@@ -111,9 +111,11 @@ private func copyStreamConfigurationProperties(
     copy.height = source.height
     copy.showsCursor = source.showsCursor
     copy.scalesToFit = source.scalesToFit
-    copy.capturesAudio = source.capturesAudio
-    copy.sampleRate = source.sampleRate
-    copy.channelCount = source.channelCount
+    if #available(macOS 13.0, *) {
+        copy.capturesAudio = source.capturesAudio
+        copy.sampleRate = source.sampleRate
+        copy.channelCount = source.channelCount
+    }
     copy.queueDepth = source.queueDepth
     copy.pixelFormat = source.pixelFormat
     copy.minimumFrameInterval = source.minimumFrameInterval
@@ -242,36 +244,42 @@ public func getStreamConfigurationScalesToFit(_ config: OpaquePointer) -> Bool {
 
 @_cdecl("sc_stream_configuration_set_captures_audio")
 public func setStreamConfigurationCapturesAudio(_ config: OpaquePointer, _ capturesAudio: Bool) {
+    guard #available(macOS 13.0, *) else { return }
     let scConfig: SCStreamConfiguration = unretained(config)
     scConfig.capturesAudio = capturesAudio
 }
 
 @_cdecl("sc_stream_configuration_get_captures_audio")
 public func getStreamConfigurationCapturesAudio(_ config: OpaquePointer) -> Bool {
+    guard #available(macOS 13.0, *) else { return false }
     let scConfig: SCStreamConfiguration = unretained(config)
     return scConfig.capturesAudio
 }
 
 @_cdecl("sc_stream_configuration_set_sample_rate")
 public func setStreamConfigurationSampleRate(_ config: OpaquePointer, _ sampleRate: Int) {
+    guard #available(macOS 13.0, *) else { return }
     let scConfig: SCStreamConfiguration = unretained(config)
     scConfig.sampleRate = sampleRate
 }
 
 @_cdecl("sc_stream_configuration_get_sample_rate")
 public func getStreamConfigurationSampleRate(_ config: OpaquePointer) -> Int {
+    guard #available(macOS 13.0, *) else { return 0 }
     let scConfig: SCStreamConfiguration = unretained(config)
     return scConfig.sampleRate
 }
 
 @_cdecl("sc_stream_configuration_set_channel_count")
 public func setStreamConfigurationChannelCount(_ config: OpaquePointer, _ channelCount: Int) {
+    guard #available(macOS 13.0, *) else { return }
     let scConfig: SCStreamConfiguration = unretained(config)
     scConfig.channelCount = channelCount
 }
 
 @_cdecl("sc_stream_configuration_get_channel_count")
 public func getStreamConfigurationChannelCount(_ config: OpaquePointer) -> Int {
+    guard #available(macOS 13.0, *) else { return 0 }
     let scConfig: SCStreamConfiguration = unretained(config)
     return scConfig.channelCount
 }
@@ -686,12 +694,14 @@ public func getStreamConfigurationCapturesShadowsOnly(_ config: OpaquePointer) -
 
 @_cdecl("sc_stream_configuration_set_excludes_current_process_audio")
 public func setStreamConfigurationExcludesCurrentProcessAudio(_ config: OpaquePointer, _ value: Bool) {
+    guard #available(macOS 13.0, *) else { return }
     let cfg: SCStreamConfiguration = unretained(config)
     cfg.excludesCurrentProcessAudio = value
 }
 
 @_cdecl("sc_stream_configuration_get_excludes_current_process_audio")
 public func getStreamConfigurationExcludesCurrentProcessAudio(_ config: OpaquePointer) -> Bool {
+    guard #available(macOS 13.0, *) else { return false }
     let cfg: SCStreamConfiguration = unretained(config)
     return cfg.excludesCurrentProcessAudio
 }

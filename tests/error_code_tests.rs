@@ -109,7 +109,7 @@ fn test_error_code_from_raw_invalid() {
 fn test_error_code_display() {
     let code = SCStreamErrorCode::UserDeclined;
     let display = format!("{code}");
-    assert!(!display.is_empty());
+    assert_ne!(display.len(), 0);
 }
 
 #[test]
@@ -303,7 +303,7 @@ fn test_audio_related_errors() {
     for code in audio_errors {
         let error = SCError::from_stream_error_code(code);
         let display = format!("{error}");
-        assert!(!display.is_empty());
+        assert_ne!(display.len(), 0);
     }
 }
 
@@ -320,7 +320,7 @@ fn test_stream_lifecycle_errors() {
     for code in lifecycle_errors {
         let error = SCError::from_stream_error_code(code);
         let display = format!("{error}");
-        assert!(!display.is_empty());
+        assert_ne!(display.len(), 0);
     }
 }
 
@@ -338,7 +338,7 @@ fn test_configuration_errors() {
     for code in config_errors {
         let error = SCError::from_stream_error_code(code);
         let display = format!("{error}");
-        assert!(!display.is_empty());
+        assert_ne!(display.len(), 0);
     }
 }
 

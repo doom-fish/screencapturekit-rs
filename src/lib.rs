@@ -6,7 +6,7 @@
 //!
 //! Safe, idiomatic Rust bindings for Apple's [ScreenCaptureKit] framework.
 //!
-//! Capture screen content, windows, and applications with high performance on macOS 13.0+.
+//! Capture screen content, windows, and applications with high performance on macOS 12.3+.
 //!
 //! [ScreenCaptureKit]: https://developer.apple.com/documentation/screencapturekit
 //!
@@ -572,7 +572,7 @@
 //! | Feature | Description |
 //! |---------|-------------|
 //! | `async` | Runtime-agnostic async API |
-//! | `macos_13_0` | macOS 13.0+ APIs (audio capture, synchronization clock) |
+//! | `macos_13_0` | Synchronization clock (audio capture needs macOS 13.0 at run time) |
 //! | `macos_14_0` | macOS 14.0+ APIs (screenshots, content picker) |
 //! | `macos_14_2` | macOS 14.2+ APIs (menu bar, child windows, presenter overlay) |
 //! | `macos_14_4` | macOS 14.4+ APIs (current process shareable content) |
@@ -584,9 +584,8 @@
 //!
 //! ## Platform Requirements
 //!
-//! - **macOS 13.0+** (Ventura) - `ScreenCaptureKit` itself starts at 12.3, but
-//!   this crate's Swift bridge is built with a 13.0 deployment target and uses
-//!   the macOS 13 audio APIs unconditionally
+//! - **macOS 12.3+** - `ScreenCaptureKit` starts at macOS 12.3.
+//! - **macOS 13.0+** - System audio requires macOS 13.0.
 //! - **Screen Recording Permission** - Must be granted by user in System Preferences
 //! - **Hardened Runtime** - Required for notarized apps
 //!

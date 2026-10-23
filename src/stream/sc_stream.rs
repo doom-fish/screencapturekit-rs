@@ -1048,12 +1048,18 @@ impl SCStream {
             Err(error) => is_timeout_error(error),
         };
         if removed {
-            context
-                .recording_outputs
-                .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
-                    Some(count.saturating_sub(1))
-                })
-                .ok();
+            let mut count = context.recording_outputs.load(Ordering::Acquire);
+            while count > 0 {
+                match context.recording_outputs.compare_exchange_weak(
+                    count,
+                    count - 1,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                ) {
+                    Ok(_) => break,
+                    Err(current) => count = current,
+                }
+            }
         }
         outcome.map_err(SCError::StreamError)?;
         Ok(())

@@ -289,7 +289,7 @@ fn test_stream_debug_display() {
 
     // Test Display trait
     let display_str = format!("{stream}");
-    assert!(!display_str.is_empty());
+    assert_ne!(display_str.len(), 0);
 
     println!("✓ Debug and Display traits work");
 }
