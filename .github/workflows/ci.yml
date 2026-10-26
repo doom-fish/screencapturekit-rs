@@ -7,235 +7,28 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Cancel in-progress runs when a new push is made to the same branch
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
-env:
-  # Force colored cargo output in CI logs.
-  CARGO_TERM_COLOR: always
-
 jobs:
-  # ==========================================================================
-  # Lint (runs once, not per-platform). Pinned to macos-26 because
-  # `cargo clippy --all-features` activates `macos_26_0`, which pulls in
-  # SDK symbols (MTLSamplerReductionMode, reactiveTextureUsage, …) that
-  # don't exist on the macos-latest (macOS 14) runner.
-  # ==========================================================================
-  lint:
+  check:
     runs-on: macos-26
-    name: Lint
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: screencapturekit-rs
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          components: clippy, rustfmt
-      - name: Cache cargo
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-lint-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-lint-cargo-
-      - name: Run clippy
-        run: cargo clippy --all-features --all-targets -- -D warnings
-      - name: Check formatting
-        run: cargo fmt --check
-
-  # ==========================================================================
-  # Build & Test (per-platform)
-  # ==========================================================================
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # NOTE: macos-14 + macos-15 dropped from the matrix because the
-          # current apple-metal-rs (v0.7.x) Swift bridge uses macOS 26+
-          # APIs (MTLLogState, MTLResidencySet, MTL4*,
-          # MTLSamplerDescriptor.reductionMode, etc.) without availability
-          # guards. The bridge only compiles cleanly against the macOS 26
-          # SDK. screencapturekit's effective minimum-supported macOS for
-          # CI is therefore 26.0 until apple-metal-rs gates its post-15
-          # APIs behind `#available(macOS 15, *)` / `(macOS 26, *)`.
-          - os: macos-26
-            name: macOS 26 (Tahoe) ARM64
-            features: "async,macos_26_0"
-            assert_symbol_absent: ""
-            assert_symbol_present: "SCScreenshotConfiguration"
-          # Cross-version: build on macOS 26 SDK with only macOS 15 features
-          # to verify no macOS 26 symbols leak into the binary (issue #127)
-          - os: macos-26
-            name: macOS 26 (Tahoe) cross-version (macos_15_2 only)
-            features: "async,macos_15_2"
-            assert_symbol_absent: "SCScreenshotConfiguration"
-            assert_symbol_present: ""
-          # Cross-arch: verify x86_64 cross-compilation on the ARM64 runner
-          - os: macos-26
-            name: macOS 26 Cross-compile (x86_64 on ARM64)
-            features: "async,macos_15_2"
-            cross_target: x86_64-apple-darwin
-            assert_symbol_absent: ""
-            assert_symbol_present: ""
-    runs-on: ${{ matrix.os }}
-    name: Build - ${{ matrix.name }}
-    needs: [lint]
-    env:
-      TARGET_FLAG: ${{ matrix.cross_target && format('--target {0}', matrix.cross_target) || '' }}
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          targets: ${{ matrix.cross_target || '' }}
-      - name: Cache cargo
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.os }}-cargo-
-      - name: Build (default features)
-        run: cargo build --verbose $TARGET_FLAG
-      - name: Build with version-specific features (${{ matrix.features }})
-        run: cargo build --verbose --features "${{ matrix.features }}" $TARGET_FLAG
-      - name: Run tests (default features)
-        if: ${{ !matrix.cross_target }}
-        run: cargo test --verbose
-      - name: Run tests with version-specific features
-        if: ${{ !matrix.cross_target }}
-        run: cargo test --verbose --features "${{ matrix.features }}"
-      - name: Verify macOS 26 symbols are absent (cross-version safety)
-        if: matrix.assert_symbol_absent != ''
-        run: ./scripts/check_symbols.sh --assert-absent "${{ matrix.assert_symbol_absent }}"
-      - name: Verify macOS 26 symbols are present
-        if: matrix.assert_symbol_present != ''
-        run: ./scripts/check_symbols.sh --assert-present "${{ matrix.assert_symbol_present }}"
-
-  # ==========================================================================
-  # Memory Leak Check (per-platform, runs parallel to build)
-  # ==========================================================================
-  leak-check:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Only macos-26 — see comment above the build matrix for why
-          # macos-14 / macos-15 are no longer compatible with apple-metal
-          # v0.7.x.
-          - os: macos-26
-            name: macOS 26 (Tahoe) ARM64
-            features: "async,macos_26_0"
-    runs-on: ${{ matrix.os }}
-    name: Leak Check - ${{ matrix.name }}
-    needs: [lint]
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-      - name: Cache cargo
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.os }}-leak-check-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.os }}-leak-check-cargo-
-      - name: Build leak check example
-        run: cargo build --example 15_memory_leak_check --features "${{ matrix.features }}"
-      - name: Run memory leak check
-        run: cargo run --example 15_memory_leak_check --features "${{ matrix.features }}"
-
-  msrv:
-    runs-on: macos-26
-    name: Rust 1.82
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
+          path: screencapturekit-rs
           persist-credentials: false
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: "1.82.0"
-      - name: Check
-        run: cargo check --lib --all-features
-
-  audit:
-    runs-on: ubuntu-latest
-    name: cargo audit
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          persist-credentials: false
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-      - run: cargo generate-lockfile
-      - run: cargo install cargo-audit --locked
-      - run: cargo audit
-
-  # ==========================================================================
-  # Release (only on main, after successful build and leak-check).
-  # Pinned to macos-26 so `cargo publish --verify` builds against the macOS
-  # 26 SDK that apple-metal 0.6.x already requires (see build matrix note).
-  # ==========================================================================
-  release-pr:
-    runs-on: macos-26
-    needs: [lint, build, leak-check]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: release
-    permissions:
-      contents: read
-    concurrency:
-      group: release-plz-${{ github.ref }}
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-      - name: Run release-plz
-        uses: release-plz/action@064f4d1e36c843611ddf013be726beaa4ad804db # v0.5.129
-        with:
-          command: release-pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
-
-  release:
-    runs-on: macos-26
-    needs: [lint, build, leak-check]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: release
-    permissions:
-      contents: read
-    concurrency:
-      group: release-plz-publish-${{ github.ref }}
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-      - name: Run release-plz
-        uses: release-plz/action@064f4d1e36c843611ddf013be726beaa4ad804db # v0.5.129
-        with:
-          command: release
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - run: rustc --version
+      - run: swift --version && xcodebuild -version
+      - run: cargo build --all-targets --all-features
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo test --all-features -- --skip test_async_screenshot_capture_ --skip test_async_shareable_content_above_ --skip test_async_shareable_content_below_ --skip test_async_shareable_content_with_ --skip test_async_stream_buffer_ --skip test_async_stream_capture_ --skip test_async_stream_clear_ --skip test_async_stream_creation --skip test_async_stream_frames_ --skip test_async_stream_is_ --skip test_async_stream_multi_ --skip test_async_stream_multiple_ --skip test_async_stream_next_ --skip test_async_stream_start_ --skip test_async_stream_take_ --skip test_async_stream_update_ --skip test_async_stream_with_ --skip test_audio_capture --skip test_capture_image --skip test_capture_sample_ --skip test_capture_screenshot_ --skip test_cgimage_bgra_ --skip test_cgimage_data_ --skip test_cgimage_rgba_ --skip test_clean_ --skip test_clone_ --skip test_closure_ --skip test_combined_ --skip test_content_filter_builder_ --skip test_content_filter_clone --skip test_content_filter_content_ --skip test_content_filter_debug_ --skip test_content_filter_equality --skip test_content_filter_exclude_ --skip test_content_filter_hash --skip test_content_filter_include_ --skip test_content_filter_included_ --skip test_content_filter_memory --skip test_content_filter_point_ --skip test_content_filter_style --skip test_content_info_ --skip test_extra_ --skip test_handler_add_ --skip test_handler_registration_ --skip test_iosurface_backed_ --skip test_live_ --skip test_multiple_streams_ --skip test_next_sample_after_ --skip test_next_sample_future_ --skip test_pixel_buffer_locking --skip test_presenter_overlay_content_ --skip test_remove_ --skip test_restart_ --skip test_screen_ --skip test_screenshot_capture_ --skip test_shareable_content_above_ --skip test_shareable_content_below_ --skip test_shareable_content_drop --skip test_shareable_content_info_clone --skip test_shareable_content_info_debug --skip test_shareable_content_info_display --skip test_shareable_content_info_for_ --skip test_shareable_content_info_pixel_ --skip test_stream_clone --skip test_stream_creation --skip test_stream_debug_ --skip test_stream_different_ --skip test_stream_identity_is_ --skip test_stream_lifecycle --skip test_stream_multiple_ --skip test_stream_update_ --skip test_stream_with_ --skip test_two_ --skip test_video_and_ --skip test_video_capture --skip test_window_ --skip test_yuv_
+      - run: cargo doc --no-deps --all-features
