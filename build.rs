@@ -170,6 +170,7 @@ fn main() {
     // any environment variable that affects its decisions changes.
     // (Cargo's default rerun-if-changed already covers crate sources.)
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=swift-bridge");
     println!("cargo:rerun-if-env-changed=DOCS_RS");
     println!("cargo:rerun-if-env-changed=DEVELOPER_DIR");
     println!("cargo:rerun-if-env-changed=SDKROOT");
@@ -185,8 +186,6 @@ fn main() {
     // Build the Swift bridge
     let swift_dir = "swift-bridge";
     let out_dir = env::var("OUT_DIR").unwrap();
-
-    println!("cargo:rerun-if-changed={swift_dir}");
 
     // Run swiftlint if available (non-strict mode, don't fail build)
     if let Ok(output) = Command::new("swiftlint")
@@ -264,32 +263,37 @@ fn main() {
         swift_args.push(flag);
     }
 
-    let output = Command::new("swift")
-        .args(&swift_args)
-        .output()
-        .expect("Failed to build Swift bridge");
+    let mut swift_build = Command::new("swift");
+    swift_build.args(&swift_args).args(["--jobs", "4"]);
+    let output = swift_build.output().expect("Failed to build Swift bridge");
 
     // Swift build outputs warnings to stderr even on success, check exit code only
-    if !output.status.success() {
-        eprintln!(
-            "Swift build STDOUT:\n{}",
-            String::from_utf8_lossy(&output.stdout)
-        );
-        eprintln!(
-            "Swift build STDERR:\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        panic!(
-            "Swift build failed with exit code: {:?}",
-            output.status.code()
-        );
-    }
+    assert!(
+        output.status.success(),
+        "Swift build failed ({}):\n{}\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    link_swift_bridge(&swift_build_dir);
+    let output = swift_build
+        .arg("--show-bin-path")
+        .output()
+        .expect("failed to query the Swift product path");
+    assert!(
+        output.status.success(),
+        "Swift product path query failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let swift_bin_dir = String::from_utf8(output.stdout).expect("Swift product path must be UTF-8");
+    let swift_bin_dir = swift_bin_dir.trim();
+    assert!(!swift_bin_dir.is_empty(), "Swift product path is empty");
+
+    link_swift_bridge(swift_bin_dir);
 }
 
-fn link_swift_bridge(swift_build_dir: &str) {
-    println!("cargo:rustc-link-search=native={swift_build_dir}/release");
+fn link_swift_bridge(swift_bin_dir: &str) {
+    println!("cargo:rustc-link-search=native={swift_bin_dir}");
     println!("cargo:rustc-link-lib=static=ScreenCaptureKitBridge");
 
     // Link required frameworks
