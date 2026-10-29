@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A screenshot that ScreenCaptureKit completes with neither a result nor an error, as `SCScreenshotManager::capture_image_in_rect` does while the display sleeps, now returns an error instead of crashing the process. The Swift bridge calls the completion-handler forms of the `SCScreenshotManager` capture methods instead of their async imports, which trap on that completion ([#164](https://github.com/doom-fish/screencapturekit-rs/issues/164)).
+
 ## [11.1.1] - 2026-10-26
 
 ### Fixed
