@@ -6,6 +6,25 @@ import Foundation
 import ScreenCaptureKit
 import UniformTypeIdentifiers
 
+/// Hands a screenshot completion to Rust: the result retained, else the error,
+/// else an error saying that neither came back. ScreenCaptureKit can complete
+/// with neither, for example while the display sleeps, and the async imports of
+/// these methods trap on that instead of throwing.
+func completeScreenshot(
+    _ result: AnyObject?,
+    _ error: Error?,
+    _ callback: @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    if let result {
+        callback(OpaquePointer(Unmanaged.passRetained(result).toOpaque()), nil, userData)
+        return
+    }
+    let message = error?.localizedDescription
+        ?? "ScreenCaptureKit returned neither a result nor an error"
+    SCBridgeError.screenshotError(message).description.withCString { callback(nil, $0, userData) }
+}
+
 // MARK: - Screenshot Manager (macOS 14.0+)
 
 #if SCREENCAPTUREKIT_HAS_MACOS14_SDK
@@ -20,17 +39,9 @@ import UniformTypeIdentifiers
             let filter: SCContentFilter = unretained(contentFilter)
             let configuration: SCStreamConfiguration = unretained(config)
 
-            Task {
-                do {
-                    let image = try await SCScreenshotManager.captureImage(
-                        contentFilter: filter,
-                        configuration: configuration
-                    )
-                    callback(retain(image), nil, userData)
-                } catch {
-                    let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
-                    bridgeError.description.withCString { callback(nil, $0, userData) }
-                }
+            SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration) {
+                image, error in
+                completeScreenshot(image, error, callback, userData)
             }
         } else {
             let bridgeError = SCBridgeError.screenshotError(
@@ -50,18 +61,9 @@ import UniformTypeIdentifiers
             let filter: SCContentFilter = unretained(contentFilter)
             let configuration: SCStreamConfiguration = unretained(config)
 
-            Task {
-                do {
-                    let sampleBuffer = try await SCScreenshotManager.captureSampleBuffer(
-                        contentFilter: filter,
-                        configuration: configuration
-                    )
-                    let retained = Unmanaged.passRetained(sampleBuffer as AnyObject)
-                    callback(OpaquePointer(retained.toOpaque()), nil, userData)
-                } catch {
-                    let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
-                    bridgeError.description.withCString { callback(nil, $0, userData) }
-                }
+            SCScreenshotManager.captureSampleBuffer(contentFilter: filter, configuration: configuration) {
+                sampleBuffer, error in
+                completeScreenshot(sampleBuffer, error, callback, userData)
             }
         } else {
             let bridgeError = SCBridgeError.screenshotError(
@@ -109,14 +111,8 @@ import UniformTypeIdentifiers
     ) {
         if #available(macOS 15.2, *) {
             let rect = CGRect(x: x, y: y, width: width, height: height)
-            Task {
-                do {
-                    let image = try await SCScreenshotManager.captureImage(in: rect)
-                    callback(retain(image), nil, userData)
-                } catch {
-                    let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
-                    bridgeError.description.withCString { callback(nil, $0, userData) }
-                }
+            SCScreenshotManager.captureImage(in: rect) { image, error in
+                completeScreenshot(image, error, callback, userData)
             }
         } else {
             let bridgeError = SCBridgeError.screenshotError("captureImageInRect requires macOS 15.2+")
@@ -538,17 +534,9 @@ import UniformTypeIdentifiers
             let filter: SCContentFilter = unretained(contentFilter)
             let configuration = snapshotScreenshotConfiguration(unretained(config))
 
-            Task {
-                do {
-                    let output = try await SCScreenshotManager.captureScreenshot(
-                        contentFilter: filter,
-                        configuration: configuration
-                    )
-                    callback(retain(output), nil, userData)
-                } catch {
-                    let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
-                    bridgeError.description.withCString { callback(nil, $0, userData) }
-                }
+            SCScreenshotManager.captureScreenshot(contentFilter: filter, configuration: configuration) {
+                output, error in
+                completeScreenshot(output, error, callback, userData)
             }
         } else {
             let bridgeError = SCBridgeError.screenshotError("captureScreenshot requires macOS 26.0+")
@@ -570,17 +558,9 @@ import UniformTypeIdentifiers
             let rect = CGRect(x: x, y: y, width: width, height: height)
             let configuration = snapshotScreenshotConfiguration(unretained(config))
 
-            Task {
-                do {
-                    let output = try await SCScreenshotManager.captureScreenshot(
-                        rect: rect,
-                        configuration: configuration
-                    )
-                    callback(retain(output), nil, userData)
-                } catch {
-                    let bridgeError = SCBridgeError.screenshotError(error.localizedDescription)
-                    bridgeError.description.withCString { callback(nil, $0, userData) }
-                }
+            SCScreenshotManager.captureScreenshot(rect: rect, configuration: configuration) {
+                output, error in
+                completeScreenshot(output, error, callback, userData)
             }
         } else {
             let bridgeError = SCBridgeError.screenshotError("captureScreenshotInRect requires macOS 26.0+")
