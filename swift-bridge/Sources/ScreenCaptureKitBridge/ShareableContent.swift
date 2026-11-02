@@ -50,17 +50,8 @@ public func getShareableContent(
     userData: UnsafeMutableRawPointer?
 ) {
     let userDataValue = userData
-    Task {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                false,
-                onScreenWindowsOnly: false
-            )
-            callback(retain(content), nil, userDataValue)
-        } catch {
-            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
-        }
+    SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false) { content, error in
+        completeWithRetainedResult(content, error, failure: SCBridgeError.contentUnavailable, callback, userDataValue)
     }
 }
 
@@ -79,17 +70,11 @@ public func getShareableContentWithOptions(
 ) {
     // Capture userData as a raw value to avoid Sendable issues
     let userDataValue = userData
-    Task {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                excludeDesktopWindows,
-                onScreenWindowsOnly: onScreenWindowsOnly
-            )
-            callback(retain(content), nil, userDataValue)
-        } catch {
-            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
-        }
+    SCShareableContent.getExcludingDesktopWindows(
+        excludeDesktopWindows,
+        onScreenWindowsOnly: onScreenWindowsOnly
+    ) { content, error in
+        completeWithRetainedResult(content, error, failure: SCBridgeError.contentUnavailable, callback, userDataValue)
     }
 }
 
@@ -108,17 +93,11 @@ public func getShareableContentBelowWindow(
 ) {
     let userDataValue = userData
     let window: SCWindow = unretained(referenceWindow)
-    Task {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                excludeDesktopWindows,
-                onScreenWindowsOnlyBelow: window
-            )
-            callback(retain(content), nil, userDataValue)
-        } catch {
-            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
-        }
+    SCShareableContent.getExcludingDesktopWindows(
+        excludeDesktopWindows,
+        onScreenWindowsOnlyBelow: window
+    ) { content, error in
+        completeWithRetainedResult(content, error, failure: SCBridgeError.contentUnavailable, callback, userDataValue)
     }
 }
 
@@ -137,17 +116,11 @@ public func getShareableContentAboveWindow(
 ) {
     let userDataValue = userData
     let window: SCWindow = unretained(referenceWindow)
-    Task {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                excludeDesktopWindows,
-                onScreenWindowsOnlyAbove: window
-            )
-            callback(retain(content), nil, userDataValue)
-        } catch {
-            let bridgeError = SCBridgeError.contentUnavailable(error.localizedDescription)
-            bridgeError.description.withCString { callback(nil, $0, userDataValue) }
-        }
+    SCShareableContent.getExcludingDesktopWindows(
+        excludeDesktopWindows,
+        onScreenWindowsOnlyAbove: window
+    ) { content, error in
+        completeWithRetainedResult(content, error, failure: SCBridgeError.contentUnavailable, callback, userDataValue)
     }
 }
 
@@ -193,12 +166,13 @@ public func shareableContentCurrentProcessIsAvailable() -> Bool {
         let userDataValue = userData
         if #available(macOS 14.4, *) {
             SCShareableContent.getCurrentProcessShareableContent { content, error in
-                if let content {
-                    callback(retain(content), nil, userDataValue)
-                } else {
-                    let bridgeError = SCBridgeError.contentUnavailable(error?.localizedDescription ?? "Unknown error")
-                    bridgeError.description.withCString { callback(nil, $0, userDataValue) }
-                }
+                completeWithRetainedResult(
+                    content,
+                    error,
+                    failure: SCBridgeError.contentUnavailable,
+                    callback,
+                    userDataValue
+                )
             }
         } else {
             currentProcessUnavailableMessage.withCString { callback(nil, $0, userDataValue) }

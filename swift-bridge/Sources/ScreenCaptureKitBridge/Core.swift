@@ -190,6 +190,21 @@ func retain(_ obj: some AnyObject) -> OpaquePointer {
     OpaquePointer(Unmanaged.passRetained(obj).toOpaque())
 }
 
+func completeWithRetainedResult(
+    _ result: AnyObject?,
+    _ error: Error?,
+    failure: (String) -> SCBridgeError,
+    _ callback: @convention(c) (OpaquePointer?, UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    if let result {
+        callback(retain(result), nil, userData)
+        return
+    }
+    let message = error?.localizedDescription ?? "ScreenCaptureKit returned neither a result nor an error"
+    failure(message).description.withCString { callback(nil, $0, userData) }
+}
+
 /// Gets an unretained reference to a Swift object from an opaque pointer
 /// - Parameter ptr: The opaque pointer from Rust
 /// - Returns: The Swift object without changing retain count
