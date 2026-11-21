@@ -185,10 +185,8 @@ fn test_handler_registration_cleanup() {
         // Register and remove handlers multiple times
         for _ in 0..10 {
             let mut stream = SCStream::new(&filter, &config).expect("failed to create stream");
-            let count = Arc::new(AtomicUsize::new(0));
-
             let handler = TestHandler {
-                count: count.clone(),
+                count: Arc::new(AtomicUsize::new(0)),
             };
             let id = stream
                 .add_output_handler(handler, SCStreamOutputType::Screen)
