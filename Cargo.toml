@@ -23,6 +23,7 @@ include = [
     "/docs/**/*",
     "/build.rs",
     "/Cargo.toml",
+    "/clippy.toml",
     "/README.md",
     "/LICENSE-*",
     "/CHANGELOG.md",

@@ -614,6 +614,10 @@ Contributions welcome! Please:
    only with `SCREENCAPTUREKIT_LIVE_TESTS=1` and Screen Recording permission.
 4. Update docs and `CHANGELOG.md`
 
+The Clippy duplicate dependency exception is `doom-fish-utils`.
+`apple-metal` 0.10.4 needs version 0.4, and `apple-cf` 0.12 needs version 0.5.
+When the dependency graph has one version of `doom-fish-utils`, remove the exception.
+
 ## Used By
 
 Powering 50+ open-source projects across screen recording, AI agents,
