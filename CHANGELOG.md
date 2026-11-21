@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0] - 2026-11-21
+
+### Changed
+
+- The public Core Graphics, Core Media and Core Video types use apple-cf 0.12.
+- The symbol check inspects the specified archive and rejects inspection errors. The development dependencies use patched versions.
+
 ## [11.1.2] - 2026-11-02
 
 ### Fixed

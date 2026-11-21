@@ -4,6 +4,7 @@
 debug/
 **/*.rs.bk
 Cargo.lock
+!/Cargo.lock
 
 # Local-only Cargo overrides (see .cargo/config.example.toml).
 # Committing these would force every contributor / CI / release-plz to use
