@@ -43,7 +43,7 @@
 
 ```toml
 [dependencies]
-screencapturekit = "11"
+screencapturekit = "12.0.0"
 ```
 
 Opt-in features (additive):
@@ -62,7 +62,7 @@ Opt-in features (additive):
 `macos_*` features are **cumulative** — enabling `macos_15_0` automatically enables every earlier version. Pick the highest version your minimum-supported macOS will satisfy:
 
 ```toml
-screencapturekit = { version = "11", features = ["async", "macos_15_0"] }
+screencapturekit = { version = "12.0.0", features = ["async", "macos_15_0"] }
 ```
 
 > **Upgrading a major version?** See [`docs/MIGRATION.md`](docs/MIGRATION.md)
@@ -72,7 +72,7 @@ screencapturekit = { version = "11", features = ["async", "macos_15_0"] }
 > nested `CGRect` layout (`rect.origin.x` / `rect.size.width`). **9.0** tightens
 > stream and picker lifecycle handling; **10.0** finalizes the audio, Metal,
 > picker, and shared Core Media/Core Video safety contracts described below;
-> **11.0** turns panics and silently ignored inputs into `Result`s.
+> **11.0** turns panics and silently ignored inputs into `Result`s. **12.0** uses `apple-cf` 0.12 for public framework types.
 
 ## Quick Start
 
@@ -592,6 +592,8 @@ Highlights by major version:
   input, and their `try_*` twins are gone. The `cm` audio types come from
   apple-cf 0.11, configurations are copied when handed to `ScreenCaptureKit`,
   and the minimum Rust version is 1.82.
+- **12.0** uses `apple-cf` 0.12 for public Core Graphics, Core Media, and Core Video types.
+  If you pass these types across crate boundaries, use `apple-cf` 0.12 there too.
 
 If you only use the prelude / `screencapturekit::{cg, cm}` types, the 4.0–7.0
 upgrades are typically just the 5.0 `CGRect` field-access change. 8.0 affects
